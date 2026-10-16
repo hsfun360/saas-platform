@@ -59,6 +59,7 @@ router.get('/settings', requireMenuAction('/golf/settings'), golfSettingControll
 router.get('/settings/membership-types', requireMenuAction('/golf/settings'), golfSettingController.getMembershipTypes);
 router.get('/settings/courses', requireMenuAction('/golf/settings'), golfSettingController.getCourses);
 router.get('/settings/no-show-types', requireMenuAction('/golf/settings'), golfSettingController.getNoShowTypes);
+router.get('/settings/rule-targets', requireMenuAction('/golf/settings'), golfSettingController.getRuleTargets);
 router.put('/settings', requireMenuAction('/golf/settings'), validate(golfSettingSchemas.save), golfSettingController.save);
 
 // --- Booking (dynamic tee sheet: availability + flight locks + bookings;

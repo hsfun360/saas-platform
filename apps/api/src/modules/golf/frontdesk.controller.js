@@ -791,6 +791,9 @@ exports.register = async (req, res) => {
                 companyId, unitCourseId: result.row.unitCourseId, playDate: String(result.row.playDate),
                 teeTime: result.row.teeTime,
             }));
+            warnings.push(...await require('./playingRights.service').deskWarnings({
+                companyId, courseId: result.row.courseId, playDate: String(result.row.playDate), teeTime: result.row.teeTime, playerIds: [result.row.id],
+            }));
             return res.status(201).json({
                 message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
                 registration: registrationDto(result.row, result.shape),
@@ -906,6 +909,9 @@ exports.register = async (req, res) => {
             companyId, unitCourseId: result.row.unitCourseId, playDate: String(result.row.playDate),
             teeTime: result.row.teeTime,
         }));
+        warnings.push(...await require('./playingRights.service').deskWarnings({
+            companyId, courseId: result.row.courseId, playDate: String(result.row.playDate), teeTime: result.row.teeTime, playerIds: [result.row.id],
+        }));
         res.status(201).json({
             message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
             registration: registrationDto(result.row, result.shape),
@@ -998,6 +1004,9 @@ exports.registerFlight = async (req, res) => {
             }));
             warnings.push(...await juniorWarnings({
                 companyId, unitCourseId: candidates[0].unitCourseId, playDate, teeTime: candidates[0].teeTime,
+            }));
+            warnings.push(...await require('./playingRights.service').deskWarnings({
+                companyId, courseId, playDate, teeTime: candidates[0].teeTime, playerIds: registeredIds,
             }));
         }
         const message = skipped.length

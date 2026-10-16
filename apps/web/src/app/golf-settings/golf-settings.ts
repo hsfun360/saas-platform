@@ -12,6 +12,10 @@ type GcGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<
 type HlGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; gender: FormControl<string>; maxHandicap: FormControl<number>; latestTeeOff: FormControl<string> }>;
 type HaGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; appliesToBeginner: FormControl<boolean>; appliesToProvisional: FormControl<boolean>; minCompanions: FormControl<number>; companionMaxHandicapMen: FormControl<number>; companionMaxHandicapWomen: FormControl<number>; latestTeeOff: FormControl<string> }>;
 type SsGroup = FormGroup<{ name: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string> }>;
+// Playing-right row and round-quota row (2026-10-15): `target` encodes the
+// player type or club as 'type:<id>' | 'club:<id>' for one combobox.
+type PrGroup = FormGroup<{ target: FormControl<string>; membershipTypeId: FormControl<string>; courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; effectiveFrom: FormControl<string>; effectiveTo: FormControl<string> }>;
+type RqGroup = FormGroup<{ target: FormControl<string>; membershipTypeId: FormControl<string>; dayScope: FormControl<string>; period: FormControl<string>; maxRounds: FormControl<number>; maxGuestRounds: FormControl<number | null> }>;
 
 const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || dflt)));
 const clampHcp = (v: unknown) => Math.max(0, Math.min(54, Math.round((Number(v) || 0) * 10) / 10));
@@ -34,6 +38,10 @@ import {
   GolfLateCancellationAction,
   GolfNoShowChargeBasis,
   GolfRainCheckBasis,
+  GolfPlayingRightRule,
+  GolfRoundQuotaRule,
+  GolfRuleTargets,
+  GolfQuotaPeriod,
 } from '../services/golf-setting.service';
 
 // Golf Management → Golf Specification (/golf/settings) - the per-company
@@ -63,9 +71,11 @@ export class GolfSettingsComponent implements OnInit {
   readonly membershipTypes = signal<GolfMembershipTypeOption[]>([]);
   readonly courses = signal<GolfCourseOption[]>([]);
   readonly noShowTypes = signal<GolfNoShowTypeOption[]>([]);
+  // The playing-right / round-quota targets (player types + affiliated clubs).
+  readonly ruleTargets = signal<GolfRuleTargets | null>(null);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, groups: true, teesheet: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, rights: true, groups: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -95,6 +105,8 @@ export class GolfSettingsComponent implements OnInit {
     rainCheckValidityDays: [90, [Validators.required, Validators.min(1), Validators.max(730)]],
     rainCheckBasis: ['green-fee'],
     rainCheckProrate: [true],
+    // Playing rights + round quotas (2026-10-15).
+    playingRightsEnabled: [false],
     teeSheetColorBooked: ['#2563eb'],
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
@@ -115,7 +127,12 @@ export class GolfSettingsComponent implements OnInit {
     limitRules: this.fb.array<HlGroup>([]),
     accRules: this.fb.array<HaGroup>([]),
     sessions: this.fb.array<SsGroup>([]),
+    rightRules: this.fb.array<PrGroup>([]),
+    quotaRules: this.fb.array<RqGroup>([]),
   });
+  // Playing-right whitelist rows and round-quota rows (2026-10-15).
+  get rightRules(): FormArray<PrGroup> { return this.form.controls.rightRules; }
+  get quotaRules(): FormArray<RqGroup> { return this.form.controls.quotaRules; }
   // Advance-booking overrides per membership type.
   get overrides(): FormArray<OvGroup> { return this.form.controls.overrides; }
   // Minimum-players exception rules.
@@ -165,6 +182,18 @@ export class GolfSettingsComponent implements OnInit {
     })),
   );
 
+  // One picker for the rule target: the club's active player types, then
+  // its affiliated clubs ('type:<id>' / 'club:<id>').
+  readonly targetOptions = computed(() => {
+    const t = this.ruleTargets();
+    if (!t) return [];
+    return [
+      ...t.playerTypes.map((p) => ({ value: `type:${p.id}`, label: `${p.code} - ${p.description}` })),
+      ...t.affiliatedClubs.map((c) => ({ value: `club:${c.id}`, label: `${c.code} - ${c.name} (${c.kind === 'reciprocal' ? 'reciprocal club' : 'affiliated association'})` })),
+    ];
+  });
+  readonly quotaPeriods = computed(() => this.ruleTargets()?.periods || [{ key: 'week' as GolfQuotaPeriod, label: 'Per week' }, { key: 'month' as GolfQuotaPeriod, label: 'Per month' }, { key: 'year' as GolfQuotaPeriod, label: 'Per year' }]);
+
   readonly courseOptions = computed(() =>
     this.courses().map((c) => ({
       value: c.id,
@@ -189,7 +218,30 @@ export class GolfSettingsComponent implements OnInit {
     this.service.membershipTypes().subscribe({ next: (r) => this.membershipTypes.set(r.membershipTypes), error: () => {} });
     this.service.courses().subscribe({ next: (r) => this.courses.set(r.courses), error: () => {} });
     this.service.noShowTypes().subscribe({ next: (r) => this.noShowTypes.set(r.types), error: () => {} });
+    this.service.ruleTargets().subscribe({ next: (r) => this.ruleTargets.set(r), error: () => {} });
   }
+
+  // Method, not computed: control values are not signals.
+  playingRightsOn(): boolean {
+    return this.form.controls.playingRightsEnabled.value === true;
+  }
+
+  // Whether a rule target is a member-base player type (then a membership
+  // type refinement makes sense).
+  targetTakesMembershipType(target: string): boolean {
+    if (!target.startsWith('type:')) return false;
+    const t = this.ruleTargets()?.playerTypes.find((p) => p.id === target.slice(5));
+    return !!t && (t.baseIdentity === 'member' || t.baseIdentity === 'member-guest');
+  }
+
+  addRightRule(): void {
+    this.push(this.rightRules, this.newRightRule({ playerTypeId: null, affiliatedClubId: null, membershipTypeId: null, courseId: null, dayScope: 'all', startTime: null, endTime: null, effectiveFrom: null, effectiveTo: null }));
+  }
+  removeRightRule(index: number): void { this.drop(this.rightRules, index); }
+  addQuotaRule(): void {
+    this.push(this.quotaRules, this.newQuotaRule({ playerTypeId: null, affiliatedClubId: null, membershipTypeId: null, dayScope: 'all', period: 'month', maxRounds: 4, maxGuestRounds: null }));
+  }
+  removeQuotaRule(index: number): void { this.drop(this.quotaRules, index); }
 
   // Method, not computed: control values are not signals (same as overridesOn).
   noShowControlOn(): boolean {
@@ -300,6 +352,7 @@ export class GolfSettingsComponent implements OnInit {
           rainCheckValidityDays: doc.setting.rainCheckValidityDays ?? 90,
           rainCheckBasis: doc.setting.rainCheckBasis || 'green-fee',
           rainCheckProrate: doc.setting.rainCheckProrate !== false,
+          playingRightsEnabled: doc.setting.playingRightsEnabled === true,
           teeSheetColorBooked: doc.setting.teeSheetColorBooked || '#2563eb',
           teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
@@ -319,6 +372,8 @@ export class GolfSettingsComponent implements OnInit {
         this.fill(this.limitRules, doc.handicapLimitRules ?? [], (r) => this.newLimitRule(r));
         this.fill(this.accRules, doc.handicapAccompanimentRules ?? [], (r) => this.newAccRule(r));
         this.fill(this.sessions, doc.sessions ?? [], (r) => this.newSession(r));
+        this.fill(this.rightRules, doc.playingRightRules ?? [], (r) => this.newRightRule(r));
+        this.fill(this.quotaRules, doc.roundQuotaRules ?? [], (r) => this.newQuotaRule(r));
         this.form.markAsPristine();
         this.loading.set(false);
       },
@@ -364,6 +419,40 @@ export class GolfSettingsComponent implements OnInit {
   }
   private newSession(r: GolfSessionBand): SsGroup {
     return this.fb.nonNullable.group({ name: [r.name], startTime: [r.startTime], endTime: [r.endTime] });
+  }
+  private targetOf(r: { playerTypeId: string | null; affiliatedClubId: string | null }): string {
+    return r.affiliatedClubId ? `club:${r.affiliatedClubId}` : (r.playerTypeId ? `type:${r.playerTypeId}` : '');
+  }
+  private newRightRule(r: GolfPlayingRightRule): PrGroup {
+    return this.fb.nonNullable.group({
+      target: [this.targetOf(r)], membershipTypeId: [r.membershipTypeId || ''], courseId: [r.courseId || ''], dayScope: [r.dayScope],
+      startTime: [r.startTime || ''], endTime: [r.endTime || ''], effectiveFrom: [r.effectiveFrom || ''], effectiveTo: [r.effectiveTo || ''],
+    });
+  }
+  private newQuotaRule(r: GolfRoundQuotaRule): RqGroup {
+    return this.fb.nonNullable.group({
+      target: [this.targetOf(r)], membershipTypeId: [r.membershipTypeId || ''], dayScope: [r.dayScope], period: [r.period as string],
+      maxRounds: [r.maxRounds], maxGuestRounds: [r.maxGuestRounds as number | null],
+    });
+  }
+  private splitTarget(target: string): { playerTypeId: string | null; affiliatedClubId: string | null } {
+    if (target.startsWith('club:')) return { playerTypeId: null, affiliatedClubId: target.slice(5) };
+    if (target.startsWith('type:')) return { playerTypeId: target.slice(5), affiliatedClubId: null };
+    return { playerTypeId: null, affiliatedClubId: null };
+  }
+  private readRightRules(): GolfPlayingRightRule[] {
+    return this.rightRules.controls.map((g) => {
+      const v = g.getRawValue();
+      const t = this.splitTarget(v.target);
+      return { ...t, membershipTypeId: t.playerTypeId && this.targetTakesMembershipType(v.target) ? (v.membershipTypeId || null) : null, courseId: v.courseId || null, dayScope: v.dayScope, startTime: v.startTime || null, endTime: v.endTime || null, effectiveFrom: v.effectiveFrom || null, effectiveTo: v.effectiveTo || null };
+    });
+  }
+  private readQuotaRules(): GolfRoundQuotaRule[] {
+    return this.quotaRules.controls.map((g) => {
+      const v = g.getRawValue();
+      const t = this.splitTarget(v.target);
+      return { ...t, membershipTypeId: t.playerTypeId && this.targetTakesMembershipType(v.target) ? (v.membershipTypeId || null) : null, dayScope: v.dayScope, period: v.period as GolfQuotaPeriod, maxRounds: clampInt(v.maxRounds, 1, 999, 1), maxGuestRounds: v.maxGuestRounds === null || v.maxGuestRounds === undefined || String(v.maxGuestRounds) === '' ? null : clampInt(v.maxGuestRounds, 0, 999, 0) };
+    });
   }
 
   // ---- row readers (control group -> model, '' -> null, clamped) ----
@@ -507,6 +596,28 @@ export class GolfSettingsComponent implements OnInit {
       }
     }
 
+    const rightRules = this.readRightRules();
+    const quotaRules = this.readQuotaRules();
+    for (const r of [...rightRules, ...quotaRules]) {
+      if (!r.playerTypeId && !r.affiliatedClubId) {
+        this.errorMessage.set('Every playing-right and round-quota rule needs a target - a player type or an affiliated club.');
+        return;
+      }
+    }
+    for (const r of rightRules) {
+      if (!!r.startTime !== !!r.endTime) {
+        this.errorMessage.set('A playing-right rule needs both From and To times - or neither for the whole day.');
+        return;
+      }
+      if (r.startTime && r.endTime && r.startTime >= r.endTime) {
+        this.errorMessage.set('A playing-right rule\'s From time must be before its To time.');
+        return;
+      }
+      if (r.effectiveFrom && r.effectiveTo && r.effectiveTo < r.effectiveFrom) {
+        this.errorMessage.set('A playing-right rule cannot end before it starts.');
+        return;
+      }
+    }
     const v = this.form.getRawValue();
     if (v.noShowControlEnabled && !v.noShowTransactionTypeId) {
       this.errorMessage.set('Pick the no-show transaction type before switching cancellation & no-show control on.');
@@ -540,6 +651,7 @@ export class GolfSettingsComponent implements OnInit {
       rainCheckValidityDays: v.rainCheckValidityDays,
       rainCheckBasis: v.rainCheckBasis as GolfRainCheckBasis,
       rainCheckProrate: v.rainCheckProrate,
+      playingRightsEnabled: v.playingRightsEnabled,
       teeSheetColorBooked: v.teeSheetColorBooked,
       teeSheetColorRegistered: v.teeSheetColorRegistered,
       teeSheetColorBilled: v.teeSheetColorBilled,
@@ -558,6 +670,8 @@ export class GolfSettingsComponent implements OnInit {
       handicapLimitRules: this.readLimitRules(),
       handicapAccompanimentRules: accRules,
       sessions,
+      playingRightRules: rightRules,
+      roundQuotaRules: quotaRules,
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);

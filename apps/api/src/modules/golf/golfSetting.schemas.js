@@ -51,6 +51,11 @@ const handicapAccompanimentLine = z.object({
 });
 // Golf Session band.
 const sessionLine = z.object({ name: str(100), startTime: str(8), endTime: str(8) });
+// Playing-right whitelist row and round-quota row (2026-10-15): target = a
+// player type (+ optional membership type) or an affiliated club.
+const ruleTarget = { playerTypeId: str(64), affiliatedClubId: str(64), membershipTypeId: str(64) };
+const playingRightLine = z.object({ ...ruleTarget, ...scoped, effectiveFrom: str(10), effectiveTo: str(10) });
+const roundQuotaLine = z.object({ ...ruleTarget, dayScope: str(20), period: str(10), maxRounds: numberish, maxGuestRounds: numberish });
 
 const saveBody = z.object({
     // Advance booking
@@ -91,6 +96,10 @@ const saveBody = z.object({
     rainCheckValidityDays: numberish,
     rainCheckBasis: str(20),
     rainCheckProrate: bool,
+    // Playing rights + round quotas (2026-10-15)
+    playingRightsEnabled: bool,
+    playingRightRules: z.array(playingRightLine).max(400).nullable().optional(),
+    roundQuotaRules: z.array(roundQuotaLine).max(400).nullable().optional(),
     // Tee-sheet colours (#rrggbb)
     teeSheetColorBooked: str(20),
     teeSheetColorRegistered: str(20),

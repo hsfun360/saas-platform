@@ -361,6 +361,17 @@ async function findFlight(companyId, row, golf, { transaction } = {}) {
         course, ctx, playDate: row.visitDate, dayType, holes: golf.holes, players: row.playerCount, setting, minRules, occ, locks,
     });
     if (!result) return fail(`No tee sheet is configured for ${course.courseCode} on ${dateText(row.visitDate)}.`);
+    // The club's playing rights (blackout days, time bands, courses).
+    const rights = require('./playingRights.service');
+    const club = await AffiliatedClub.findOne({ where: { companyId, id: row.affiliatedClubId }, attributes: ['id', 'name', 'playerTypeId'], transaction });
+    const types = await playerTypes.catalog(companyId, { transaction });
+    const clubType = club ? types.find((t) => t.id === club.playerTypeId) : null;
+    const rightsFail = await rights.checkBooking(companyId, {
+        course, playDate: row.visitDate, teeTime: golf.teeTime, dayType,
+        lines: [{ label: row.visitorName, playerType: clubType ? clubType.code : 'guest', golferId: null, affiliatedClubId: row.affiliatedClubId, clubName: club ? club.name : null }],
+        transaction,
+    });
+    if (rightsFail) return fail(rightsFail);
     const flight = result.flights.find((x) => x.teeTime === golf.teeTime);
     if (!flight) {
         const near = availability.nearestFlights(result.flights, golf.teeTime, 3).map((x) => x.teeTime).join(', ');

@@ -430,6 +430,26 @@ exports.create = async (req, res) => {
                 }
             }
 
+            // Playing rights + round quotas (spec 2.3.4 / 2.3.5, 2026-10-15):
+            // every line judged by its target; the booker's guest-round cap
+            // counts this booking's guest lines.
+            {
+                const rights = require('./playingRights.service');
+                const bookerLine = { label: `Player 1 (${standing.memberNo})`, playerType: 'member', golferId: booker.id, membershipTypeId: standing.membershipTypeId };
+                const judged = lines.map((l) => ({
+                    label: `Player ${l.sortOrder}${l.memberNo ? ' (' + l.memberNo + ')' : ''}`,
+                    playerType: l.playerType,
+                    golferId: l.standing ? golferByMemberId.get(l.standing.memberId).id : null,
+                    membershipTypeId: l.standing ? l.standing.membershipTypeId : null,
+                }));
+                if (!judged.some((j) => j.golferId === booker.id)) judged.unshift(bookerLine);
+                const rightsFail = await rights.checkBooking(companyId, {
+                    course, playDate, teeTime: startTime, dayType, lines: judged,
+                    bookerGolferId: booker.id, bookingGuestCount: guestCount, transaction,
+                });
+                if (rightsFail) return { fail: rightsFail, status: 400 };
+            }
+
             // Handicap control (Tropicana procedure 2, user decisions
             // 2026-09-29): limit caps + accompaniment, evaluated over the
             // WHOLE flight (these lines + players already seated in the

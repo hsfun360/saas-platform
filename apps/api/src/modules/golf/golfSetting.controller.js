@@ -14,6 +14,12 @@ const Course = require('./course.model');
 const GolfTransactionType = require('./transactionType.model');
 const { LATE_CANCELLATION_ACTION_KEYS, NO_SHOW_CHARGE_BASIS_KEYS } = require('./noShowCharge.constants');
 const { RAIN_CHECK_BASIS_KEYS } = require('./rainCheck.constants');
+// Playing rights + round quotas (2026-10-15).
+const PlayingRightRule = require('./playingRightRule.model');
+const RoundQuotaRule = require('./roundQuotaRule.model');
+const AffiliatedClub = require('./affiliatedClub.model');
+const { QUOTA_PERIOD_KEYS, QUOTA_PERIODS } = require('./playingRights.constants');
+const playerTypes = require('./playerType.service');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { listMembershipTypes } = require('../../platform/membershipGateway');
@@ -32,6 +38,7 @@ const DEFAULTS = {
     noShowControlEnabled: false, cancellationNoticeHours: 24, lateCancellationAction: 'charge',
     noShowTransactionTypeId: null, noShowChargeBasis: 'player',
     rainCheckEnabled: false, rainCheckValidityDays: 90, rainCheckBasis: 'green-fee', rainCheckProrate: true,
+    playingRightsEnabled: false,
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
     groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
@@ -67,6 +74,7 @@ function settingDto(row) {
         rainCheckValidityDays: row.rainCheckValidityDays === null || row.rainCheckValidityDays === undefined ? DEFAULTS.rainCheckValidityDays : row.rainCheckValidityDays,
         rainCheckBasis: RAIN_CHECK_BASIS_KEYS.includes(row.rainCheckBasis) ? row.rainCheckBasis : 'green-fee',
         rainCheckProrate: row.rainCheckProrate !== false,
+        playingRightsEnabled: row.playingRightsEnabled === true,
         teeSheetColorBooked: row.teeSheetColorBooked || DEFAULTS.teeSheetColorBooked,
         teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
         teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
@@ -121,7 +129,7 @@ exports.get = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [row, overrides, minPlayerRules, guestControlRules, handicapLimitRules, handicapAccompanimentRules, sessions] = await Promise.all([
+        const [row, overrides, minPlayerRules, guestControlRules, handicapLimitRules, handicapAccompanimentRules, sessions, playingRightRules, roundQuotaRules] = await Promise.all([
             GolfSetting.findOne({ where: { companyId } }),
             AdvanceBookingOverride.findAll({ where: { companyId } }),
             MinPlayerRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
@@ -129,9 +137,22 @@ exports.get = async (req, res) => {
             HandicapLimitRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             HandicapAccompanimentRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             GolfSession.findAll({ where: { companyId }, order: [['sequence', 'ASC'], ['startTime', 'ASC']] }),
+            PlayingRightRule.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']] }),
+            RoundQuotaRule.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']] }),
         ]);
         res.status(200).json({
             setting: settingDto(row),
+            // Playing rights + round quotas (2026-10-15): target = a player
+            // type (+ optional membership type) OR an affiliated club.
+            playingRightRules: playingRightRules.map((r) => ({
+                playerTypeId: r.playerTypeId, affiliatedClubId: r.affiliatedClubId, membershipTypeId: r.membershipTypeId,
+                courseId: r.courseId, dayScope: r.dayScope, startTime: timeDto(r.startTime), endTime: timeDto(r.endTime),
+                effectiveFrom: r.effectiveFrom, effectiveTo: r.effectiveTo,
+            })),
+            roundQuotaRules: roundQuotaRules.map((r) => ({
+                playerTypeId: r.playerTypeId, affiliatedClubId: r.affiliatedClubId, membershipTypeId: r.membershipTypeId,
+                dayScope: r.dayScope, period: r.period, maxRounds: r.maxRounds, maxGuestRounds: r.maxGuestRounds,
+            })),
             overrides: overrides.map((o) => ({
                 membershipTypeId: o.membershipTypeId,
                 advanceBookingDays: o.advanceBookingDays,
@@ -225,6 +246,28 @@ exports.getCourses = async (req, res) => {
 // GET /api/golf/settings/no-show-types - the no-show transaction types for
 // the Cancellation & No-show picker (same module; no Transaction Type menu
 // grant needed - mirror of the courses picker).
+// GET /api/golf/settings/rule-targets - the pickers of the playing-right and
+// round-quota editors: the club's active player types and affiliated clubs
+// (served here so the screen needs neither master's grant).
+exports.getRuleTargets = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const [types, clubs] = await Promise.all([
+            playerTypes.catalog(companyId, { activeOnly: true }),
+            AffiliatedClub.findAll({ where: { companyId, isActive: true }, attributes: ['id', 'code', 'name', 'kind'], order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
+        ]);
+        res.status(200).json({
+            playerTypes: types.map((t) => ({ id: t.id, code: t.code, description: t.description, baseIdentity: t.baseIdentity })),
+            affiliatedClubs: clubs.map((c) => ({ id: c.id, code: c.code, name: c.name, kind: c.kind })),
+            periods: QUOTA_PERIODS,
+        });
+    } catch (error) {
+        console.error('Error listing rule targets for golf settings:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 exports.getNoShowTypes = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -414,6 +457,88 @@ function normalizeHandicapAccompanimentRules(raw, knownCourseIds) {
     return { rules };
 }
 
+// The target of a playing-right / round-quota row: exactly one of a player
+// type (optionally refined to a membership type of a member-base type) or an
+// affiliated club. Returns { fields } or { error }.
+function parseRuleTarget(line, noun, { typesById, clubIds, membershipTypeIds }) {
+    const playerTypeId = line.playerTypeId ? String(line.playerTypeId) : null;
+    const affiliatedClubId = line.affiliatedClubId ? String(line.affiliatedClubId) : null;
+    const membershipTypeId = line.membershipTypeId ? String(line.membershipTypeId) : null;
+    if (!!playerTypeId === !!affiliatedClubId) return { error: `Each ${noun} rule targets either a player type or an affiliated club.` };
+    if (affiliatedClubId && !clubIds.has(affiliatedClubId)) return { error: `A ${noun} rule names an affiliated club that is not one of this company's.` };
+    if (playerTypeId && !typesById.has(playerTypeId)) return { error: `A ${noun} rule names a player type that is not one of this company's.` };
+    if (membershipTypeId) {
+        if (!playerTypeId) return { error: `A ${noun} rule for an affiliated club cannot name a membership type.` };
+        const base = typesById.get(playerTypeId).baseIdentity;
+        if (base !== 'member' && base !== 'member-guest') return { error: `A ${noun} rule can name a membership type only for a member-base player type.` };
+        if (!membershipTypeIds.has(membershipTypeId)) return { error: `A ${noun} rule names a membership type that is not one of this company's.` };
+    }
+    return { fields: { playerTypeId, affiliatedClubId, membershipTypeId } };
+}
+
+// Playing-right rows (whitelist): the scoped shape + target + validity window.
+function normalizePlayingRightRules(raw, knownCourseIds, targets) {
+    if (raw.length > 400) return { error: 'Too many playing-right rules.' };
+    const rules = [];
+    for (const line of raw) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid playing-right rule line.' };
+        const courseId = line.courseId ? String(line.courseId) : null;
+        if (courseId && !knownCourseIds.has(courseId)) return { error: 'A playing-right rule is not one of this company\'s courses.' };
+        const dayScope = String(line.dayScope || '');
+        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each playing-right rule needs a day scope (all, weekday, weekend or a specific day).' };
+        const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
+        const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
+        if (hasStart !== hasEnd) return { error: 'A playing-right rule time band needs both From and To times (or neither for the whole day).' };
+        let startTime = null;
+        let endTime = null;
+        if (hasStart) {
+            startTime = parseTime(line.startTime);
+            endTime = parseTime(line.endTime);
+            if (!startTime || !endTime) return { error: 'Playing-right rule times must be valid times of day.' };
+            if (startTime >= endTime) return { error: 'A playing-right rule\'s From time must be before its To time.' };
+        }
+        const effectiveFrom = line.effectiveFrom ? String(line.effectiveFrom) : null;
+        const effectiveTo = line.effectiveTo ? String(line.effectiveTo) : null;
+        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+        if ((effectiveFrom && !DATE_RE.test(effectiveFrom)) || (effectiveTo && !DATE_RE.test(effectiveTo))) return { error: 'Playing-right rule dates must be valid dates.' };
+        if (effectiveFrom && effectiveTo && effectiveTo < effectiveFrom) return { error: 'A playing-right rule cannot end before it starts.' };
+        const target = parseRuleTarget(line, 'playing-right', targets);
+        if (target.error) return { error: target.error };
+        rules.push({ ...target.fields, courseId, dayScope, startTime, endTime, effectiveFrom, effectiveTo, sortOrder: rules.length + 1 });
+    }
+    return { rules };
+}
+
+// Round-quota rows: target + day scope + period + caps; one row per
+// (target, membership type, day scope, period) - the resolver picks by
+// specificity, duplicates would be ambiguous.
+function normalizeRoundQuotaRules(raw, targets) {
+    if (raw.length > 400) return { error: 'Too many round-quota rules.' };
+    const rules = [];
+    const seen = new Set();
+    for (const line of raw) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid round-quota rule line.' };
+        const dayScope = String(line.dayScope || '');
+        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each round-quota rule needs a day scope (all, weekday, weekend or a specific day).' };
+        const period = String(line.period || '');
+        if (!QUOTA_PERIOD_KEYS.includes(period)) return { error: 'Each round-quota rule needs a period (per week, month or year).' };
+        const maxRounds = parseIntIn(line.maxRounds, 1, 999);
+        if (maxRounds === undefined) return { error: 'Maximum rounds must be a whole number between 1 and 999.' };
+        let maxGuestRounds = null;
+        if (line.maxGuestRounds !== null && line.maxGuestRounds !== undefined && line.maxGuestRounds !== '') {
+            maxGuestRounds = parseIntIn(line.maxGuestRounds, 0, 999);
+            if (maxGuestRounds === undefined) return { error: 'Maximum guest rounds must be a whole number between 0 and 999, or blank.' };
+        }
+        const target = parseRuleTarget(line, 'round-quota', targets);
+        if (target.error) return { error: target.error };
+        const key = `${target.fields.playerTypeId || ''}|${target.fields.affiliatedClubId || ''}|${target.fields.membershipTypeId || ''}|${dayScope}|${period}`;
+        if (seen.has(key)) return { error: 'Two round-quota rules name the same target, membership type, day scope and period.' };
+        seen.add(key);
+        rules.push({ ...target.fields, dayScope, period, maxRounds, maxGuestRounds, sortOrder: rules.length + 1 });
+    }
+    return { rules };
+}
+
 // PUT /api/golf/settings - upsert the singleton + replace the override lines
 // atomically. Overrides are accepted (and stored) even while the flag is OFF,
 // so a club can stage them; they only take EFFECT while the flag is ON.
@@ -528,6 +653,21 @@ exports.save = async (req, res) => {
         const rainCheckBasis = RAIN_CHECK_BASIS_KEYS.includes(req.body.rainCheckBasis) ? req.body.rainCheckBasis : (req.body.rainCheckBasis === undefined ? 'green-fee' : undefined);
         if (!rainCheckBasis) return res.status(400).json({ message: 'The rain check value basis must be the green-fee lines or the whole bill.' });
         const rainCheckProrate = req.body.rainCheckProrate !== false;
+        // Playing rights + round quotas (2026-10-15): the rows are stored even
+        // while the switch is OFF (staging); effective only ON.
+        const playingRightsEnabled = req.body.playingRightsEnabled === true;
+        const ruleTypes = await playerTypes.catalog(companyId);
+        const ruleTargets = {
+            typesById: new Map(ruleTypes.map((t) => [t.id, t])),
+            clubIds: new Set((await AffiliatedClub.findAll({ where: { companyId }, attributes: ['id'] })).map((c) => c.id)),
+            membershipTypeIds: new Set((await listMembershipTypes(companyId)).map((t) => t.id)),
+        };
+        const rightsResult = normalizePlayingRightRules(Array.isArray(req.body.playingRightRules) ? req.body.playingRightRules : [], knownCourseIds, ruleTargets);
+        if (rightsResult.error) return res.status(400).json({ message: rightsResult.error });
+        const playingRightRules = rightsResult.rules;
+        const quotaResult = normalizeRoundQuotaRules(Array.isArray(req.body.roundQuotaRules) ? req.body.roundQuotaRules : [], ruleTargets);
+        if (quotaResult.error) return res.status(400).json({ message: quotaResult.error });
+        const roundQuotaRules = quotaResult.rules;
         // Group booking control (user decisions 2026-10-11): the timers are
         // stored even while the control is OFF (staging), they only run ON.
         const groupBookingControlEnabled = req.body.groupBookingControlEnabled === true;
@@ -572,6 +712,7 @@ exports.save = async (req, res) => {
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
                 rainCheckEnabled, rainCheckValidityDays, rainCheckBasis, rainCheckProrate,
+                playingRightsEnabled,
                 groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
                 groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser, groupNextInLineHours,
                 ...colors,
@@ -616,6 +757,14 @@ exports.save = async (req, res) => {
                     handicapAccompanimentRules.map((r) => ({ ...r, companyId, ...stamps })),
                     { transaction },
                 );
+            }
+            await PlayingRightRule.destroy({ where: { companyId }, transaction });
+            if (playingRightRules.length) {
+                await PlayingRightRule.bulkCreate(playingRightRules.map((r) => ({ ...r, companyId, ...stamps })), { transaction });
+            }
+            await RoundQuotaRule.destroy({ where: { companyId }, transaction });
+            if (roundQuotaRules.length) {
+                await RoundQuotaRule.bulkCreate(roundQuotaRules.map((r) => ({ ...r, companyId, ...stamps })), { transaction });
             }
             await GolfSession.destroy({ where: { companyId }, transaction });
             if (ordered.length) {

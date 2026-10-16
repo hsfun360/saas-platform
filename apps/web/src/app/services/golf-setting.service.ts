@@ -78,6 +78,36 @@ export type GolfNoShowChargeBasis = 'player' | 'booking';
 // from - the settled bill's green-fee lines or the whole bill.
 export type GolfRainCheckBasis = 'green-fee' | 'bill';
 
+// Playing rights + round quotas (spec 2.3.4 / 2.3.5; 2026-10-15). A rule
+// targets EITHER a player type (optionally refined to one membership type
+// for member-base types) OR an affiliated club.
+export type GolfQuotaPeriod = 'week' | 'month' | 'year';
+export interface GolfPlayingRightRule {
+  playerTypeId: string | null;
+  affiliatedClubId: string | null;
+  membershipTypeId: string | null;
+  courseId: string | null;
+  dayScope: string;
+  startTime: string | null;
+  endTime: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+}
+export interface GolfRoundQuotaRule {
+  playerTypeId: string | null;
+  affiliatedClubId: string | null;
+  membershipTypeId: string | null;
+  dayScope: string;
+  period: GolfQuotaPeriod;
+  maxRounds: number;
+  maxGuestRounds: number | null;
+}
+export interface GolfRuleTargets {
+  playerTypes: { id: string; code: string; description: string; baseIdentity: string }[];
+  affiliatedClubs: { id: string; code: string; name: string; kind: string }[];
+  periods: { key: GolfQuotaPeriod; label: string }[];
+}
+
 export interface GolfNoShowTypeOption {
   id: string;
   transactionType: string;
@@ -115,6 +145,8 @@ export interface GolfSettingDoc {
     rainCheckValidityDays: number;
     rainCheckBasis: GolfRainCheckBasis;
     rainCheckProrate: boolean;
+    // Playing rights + round quotas (2026-10-15): the master switch.
+    playingRightsEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -141,6 +173,8 @@ export interface GolfSettingDoc {
   handicapLimitRules: GolfHandicapLimitRule[];
   handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
   sessions: GolfSessionBand[];
+  playingRightRules?: GolfPlayingRightRule[];
+  roundQuotaRules?: GolfRoundQuotaRule[];
 }
 
 export interface GolfMembershipTypeOption {
@@ -182,6 +216,12 @@ export class GolfSettingService {
   // No-show transaction types (chargeType 'no-show') for the Cancellation &
   // No-show picker - served under the settings route, no Transaction Type
   // menu grant needed.
+  // The pickers of the playing-right and round-quota editors (player types
+  // and affiliated clubs), served under the settings route.
+  ruleTargets(): Observable<GolfRuleTargets> {
+    return this.http.get<GolfRuleTargets>(`${this.base}/rule-targets`);
+  }
+
   noShowTypes(): Observable<{ types: GolfNoShowTypeOption[] }> {
     return this.http.get<{ types: GolfNoShowTypeOption[] }>(`${this.base}/no-show-types`);
   }
@@ -213,6 +253,7 @@ export class GolfSettingService {
     rainCheckValidityDays: number;
     rainCheckBasis: GolfRainCheckBasis;
     rainCheckProrate: boolean;
+    playingRightsEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -231,6 +272,8 @@ export class GolfSettingService {
     handicapLimitRules: GolfHandicapLimitRule[];
     handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
     sessions: GolfSessionBand[];
+    playingRightRules: GolfPlayingRightRule[];
+    roundQuotaRules: GolfRoundQuotaRule[];
   }): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(this.base, payload);
   }

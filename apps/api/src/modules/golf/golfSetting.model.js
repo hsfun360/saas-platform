@@ -243,6 +243,13 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // Playing rights + round quotas (spec 2.3.4 / 2.3.5; user decisions
+    // 2026-10-15): the master switch; the rule rows are stored while OFF.
+    playingRightsEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Group booking control (user decisions 2026-10-11) - the master switch
     // for the SALES-club lifecycle (groupBooking.constants). OFF = a group
     // booking is booked at creation, nothing expires, no approval, no deposit

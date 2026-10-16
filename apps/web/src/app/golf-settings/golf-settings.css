@@ -148,9 +148,58 @@
    covers EVERY rule-row editor on this screen. The standard field chrome is
    scoped to .form-group in styles.css, so grid rows must opt in explicitly
    (fixed 2026-10-04 - the rows previously rendered browser-default fields). */
+/* Playing-right and round-quota rows (2026-10-15). */
+.gs-subhead {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+.gs-pr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 150px 100px 100px 140px 140px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-rq-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 150px 130px 110px 130px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-pr-row--head,
+.gs-rq-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+}
+.gs-pr-row__na {
+  color: var(--text-muted);
+  text-align: center;
+}
+@media (max-width: 1023px) {
+  .gs-pr-row,
+  .gs-rq-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .gs-pr-row--head,
+  .gs-rq-row--head {
+    display: none;
+  }
+}
+
 .gs-ov-row input:not([type='checkbox']),
 .gs-ov-row select,
 .gs-sess-row input,
+.gs-pr-row input,
+.gs-pr-row select,
+.gs-rq-row input,
+.gs-rq-row select,
 .gs-mp-row input:not([type='checkbox']),
 .gs-mp-row select,
 .gs-gc-row input:not([type='checkbox']),
@@ -172,6 +221,10 @@
 .gs-ov-row input:not([type='checkbox']):focus,
 .gs-ov-row select:focus,
 .gs-sess-row input:focus,
+.gs-pr-row input:focus,
+.gs-pr-row select:focus,
+.gs-rq-row input:focus,
+.gs-rq-row select:focus,
 .gs-mp-row input:not([type='checkbox']):focus,
 .gs-mp-row select:focus,
 .gs-gc-row input:not([type='checkbox']):focus,

@@ -314,6 +314,22 @@ async function validateTarget(req, { companyId, profile, booker, standing, targe
         }
     }
 
+    // Playing rights + round quotas (2026-10-15) on the roster after the
+    // change, this booking's own records excluded from the counts.
+    {
+        const rights = require('./playingRights.service');
+        const judged = [
+            { label: `Booker (${standing.memberNo})`, playerType: 'member', golferId: booker.id, membershipTypeId: standing.membershipTypeId },
+            ...kept.filter((r) => r.golferId !== booker.id).map((r) => ({ label: r.playerName, playerType: r.playerType, golferId: r.golferId, membershipTypeId: null })),
+            ...added.map((l) => ({ label: l.playerName, playerType: l.playerType, golferId: l.standing ? golferByMemberId.get(l.standing.memberId).id : null, membershipTypeId: l.standing ? l.standing.membershipTypeId : null })),
+        ];
+        const rightsFail = await rights.checkBooking(companyId, {
+            course, playDate, teeTime: target.teeTime, dayType, lines: judged, bookerGolferId: booker.id, bookingGuestCount: guestCount,
+            excludeProfileId: profile.id, transaction,
+        });
+        if (rightsFail) return { fail: rightsFail };
+    }
+
     // Handicap control over the whole flight (added players are the ones
     // judged; kept players and the cell's other players are companions).
     if (added.length && setting && setting.handicapControlEnabled === true) {

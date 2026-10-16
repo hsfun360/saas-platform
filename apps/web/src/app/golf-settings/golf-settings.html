@@ -663,6 +663,142 @@
         }
       </div>
 
+      <!-- ============ Playing Rights & Round Quotas (spec 2.3.4 / 2.3.5) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('rights')"
+                [attr.aria-expanded]="isExpanded('rights')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Playing Rights &amp; Round Quotas</span>
+            <span class="settings-header__sub">Which courses, days, time bands and dates each player type or affiliated club may play, and how many rounds per week, month or year.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('rights')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('rights')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="playingRightsEnabled" />
+                <span>Enable playing rights &amp; round quotas</span>
+              </label>
+              <p class="cell-subtle field-hint">On: a booking is refused when a player's target has playing-right rules and the flight falls outside every one of them, or when the player would exceed their round quota; the front desk warns. A target with no playing-right rows is unrestricted. Rules are kept while off.</p>
+            </div>
+
+            @if (playingRightsOn()) {
+              <h3 class="gs-subhead">Playing rights (whitelist)</h3>
+              <div class="gs-overrides">
+                @if (rightRules.length > 0) {
+                  <div class="gs-pr-row gs-pr-row--head" aria-hidden="true">
+                    <span>Target</span>
+                    <span>Membership type</span>
+                    <span>Course</span>
+                    <span>Days</span>
+                    <span>From</span>
+                    <span>To</span>
+                    <span>Valid from</span>
+                    <span>Valid to</span>
+                    <span></span>
+                  </div>
+                }
+                <div formArrayName="rightRules">
+                  @for (g of rightRules.controls; track g; let i = $index) {
+                    <div class="gs-pr-row" [formGroupName]="i">
+                      <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
+                                    [ariaLabel]="'Playing right ' + (i + 1) + ' target'" placeholder="Player type or club" />
+                      @if (targetTakesMembershipType(g.controls.target.value)) {
+                        <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
+                                      [ariaLabel]="'Playing right ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
+                      } @else {
+                        <span class="gs-pr-row__na">-</span>
+                      }
+                      <app-combobox formControlName="courseId" [options]="courseOptions()" [allowEmpty]="true" emptyLabel="Every course"
+                                    [ariaLabel]="'Playing right ' + (i + 1) + ' course'" placeholder="Every course" />
+                      <select formControlName="dayScope" [attr.aria-label]="'Playing right ' + (i + 1) + ' day scope'">
+                        <option value="all">All days</option>
+                        <option value="weekday">Weekday</option>
+                        <option value="weekend">Weekend &amp; Holiday</option>
+                        @for (d of daysOfWeek; track d.key) {
+                          <option [value]="d.key">{{ d.label }}</option>
+                        }
+                      </select>
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' from time'" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' to time'" />
+                      <input type="date" formControlName="effectiveFrom" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid from'" />
+                      <input type="date" formControlName="effectiveTo" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid to'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeRightRule(i)"
+                              [attr.aria-label]="'Remove playing right ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addRightRule()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add playing right
+                </button>
+                @if (rightRules.length === 0) {
+                  <p class="cell-subtle field-hint">No playing rights - every player type and club may play everywhere. Add a row to allow a target only on a course, a day type, a time band or between two dates; a target with any row may play only inside its rows.</p>
+                }
+              </div>
+
+              <h3 class="gs-subhead" style="margin-top: var(--space-lg);">Round quotas</h3>
+              <div class="gs-overrides">
+                @if (quotaRules.length > 0) {
+                  <div class="gs-rq-row gs-rq-row--head" aria-hidden="true">
+                    <span>Target</span>
+                    <span>Membership type</span>
+                    <span>Days</span>
+                    <span>Period</span>
+                    <span>Max rounds</span>
+                    <span>Max guest rounds</span>
+                    <span></span>
+                  </div>
+                }
+                <div formArrayName="quotaRules">
+                  @for (g of quotaRules.controls; track g; let i = $index) {
+                    <div class="gs-rq-row" [formGroupName]="i">
+                      <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
+                                    [ariaLabel]="'Round quota ' + (i + 1) + ' target'" placeholder="Player type or club" />
+                      @if (targetTakesMembershipType(g.controls.target.value)) {
+                        <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
+                                      [ariaLabel]="'Round quota ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
+                      } @else {
+                        <span class="gs-pr-row__na">-</span>
+                      }
+                      <select formControlName="dayScope" [attr.aria-label]="'Round quota ' + (i + 1) + ' day scope'">
+                        <option value="all">All days</option>
+                        <option value="weekday">Weekday</option>
+                        <option value="weekend">Weekend &amp; Holiday</option>
+                        @for (d of daysOfWeek; track d.key) {
+                          <option [value]="d.key">{{ d.label }}</option>
+                        }
+                      </select>
+                      <select formControlName="period" [attr.aria-label]="'Round quota ' + (i + 1) + ' period'">
+                        @for (p of quotaPeriods(); track p.key) {
+                          <option [value]="p.key">{{ p.label }}</option>
+                        }
+                      </select>
+                      <input type="number" inputmode="numeric" min="1" max="999" step="1" formControlName="maxRounds" [attr.aria-label]="'Round quota ' + (i + 1) + ' max rounds'" />
+                      <input type="number" inputmode="numeric" min="0" max="999" step="1" formControlName="maxGuestRounds" placeholder="No cap" [attr.aria-label]="'Round quota ' + (i + 1) + ' max guest rounds'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeQuotaRule(i)"
+                              [attr.aria-label]="'Remove round quota ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addQuotaRule()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add round quota
+                </button>
+                @if (quotaRules.length === 0) {
+                  <p class="cell-subtle field-hint">No round quotas. Add a row to cap a target's booked or registered rounds per week, month or year on the days it covers (the most specific row wins); Max guest rounds caps the guests the member brings over the same period.</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <!-- ============ Group Bookings (lifecycle control) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('groups')"

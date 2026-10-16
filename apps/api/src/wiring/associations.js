@@ -70,6 +70,8 @@ const GolfPaymentType = require('../modules/golf/paymentType.model'); // settlem
 const GolfPlayerType = require('../modules/golf/playerType.model'); // player-category master (2026-10-15; code = the key lines, rate defaults and rules carry; no associations)
 const GolfAffiliatedClub = require('../modules/golf/affiliatedClub.model'); // affiliated / reciprocal club master (2026-10-15; playerTypeId value ref; OtherGolfer.affiliatedClubId value ref; no associations)
 const GolfAffiliatedVisit = require('../modules/golf/affiliatedVisit.model'); // letter-of-introduction visit document (2026-10-15; club / golfer / booking / workflow value refs; no associations)
+const GolfPlayingRightRule = require('../modules/golf/playingRightRule.model'); // playing-right whitelist rows (2026-10-15; player type / club / membership type / course value refs; PUT-replaced)
+const GolfRoundQuotaRule = require('../modules/golf/roundQuotaRule.model'); // round-quota rows (2026-10-15; same targets; PUT-replaced)
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no

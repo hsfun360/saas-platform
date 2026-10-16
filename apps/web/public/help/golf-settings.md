@@ -15,7 +15,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 
 [Screenshot: Golf Specification screen with all sections expanded]
 
-- The screen is one form made of eight collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Group Bookings** and **Tee Sheet**.
+- The screen is one form made of nine collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Playing Rights & Round Quotas**, **Group Bookings** and **Tee Sheet**.
 - Click a section's header band to fold it away or open it again; folding never loses what you typed.
 - Each section mixes plain fields with switches (tick boxes); some switches reveal more fields when turned on.
 - Several sections carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
@@ -110,6 +110,21 @@ Charges are posted to the booker's member account and can be followed up on the 
 
 The three fields are kept while the switch is off, so a club can prepare the rule before switching it on.
 A rain check needs a Rain Check No. series under Numbering Control, and redeeming one needs a payment type of class Rain Check.
+
+### Restrict where and how often a player type may play
+
+[Screenshot: Playing Rights & Round Quotas section with rows]
+
+1. Open **Playing Rights & Round Quotas** and tick **Enable playing rights & round quotas**.
+2. Under **Playing rights (whitelist)**, click **Add playing right** for each allowance: pick the **Target** (a player type, or an affiliated or reciprocal club), optionally a **Membership type** when the target is a member-base type, the **Course** (or every course), the **Days**, a **From** / **To** time band, and **Valid from** / **Valid to** dates.
+   A target with no rows may play anywhere; a target with rows may play only inside at least one of them, so a reciprocal club allowed "weekdays before noon on E1" gets one row saying exactly that.
+3. Under **Round quotas**, click **Add round quota** for each cap: the **Target** (and membership type), the **Days** it counts, the **Period** (per week, month or year), **Max rounds**, and optionally **Max guest rounds** (the guests that member may bring over the same period).
+   The most specific row wins: a club over a player type, a named membership type over every type, a specific day over weekday or weekend over all days.
+4. Click **Save**.
+
+The booking screen refuses a booking whose player falls outside their playing rights or would exceed their quota, and says why ("already has 4 weekend rounds this month - Ordinary member allows 4"); the Tee Time Sheet warns on registration.
+An affiliated visit's confirmation preview applies the club's playing rights too.
+Rows are kept while the switch is off.
 
 ### Control group bookings
 
@@ -216,6 +231,21 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Value Basis** | Yes | Green-fee lines only, or The whole bill. | |
 | **Prorate by holes not played** | No | Ticked = value times the unplayed share; unticked = the full basis. | On by default. |
 
+### Playing Rights & Round Quotas
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Enable playing rights & round quotas** | No | The master switch; rows are kept while off. | Reveals both tables. |
+| **Playing right - Target** | Yes (per row) | A player type, or an affiliated or reciprocal club. | Every row needs one. |
+| **Playing right - Membership type** | No | Narrows a member-base target to one membership type. | Shown only for member-base player types; blank = every membership type. |
+| **Playing right - Course / Days / From / To** | Days yes | The allowance's scope. | A time band needs both times; From before To. |
+| **Playing right - Valid from / Valid to** | No | When the allowance applies. | Blank = permanent; the end cannot precede the start. |
+| **Round quota - Target / Membership type** | Yes (per row) | As above. | One row per target, membership type, days and period. |
+| **Round quota - Days** | Yes | Which days the rounds count on. | All, weekday, weekend and holiday, or a specific day. |
+| **Round quota - Period** | Yes | Per week (Monday to Sunday), per calendar month or per calendar year. | |
+| **Round quota - Max rounds** | Yes | The most booked or registered rounds in the period. | Whole number from 1 to 999. |
+| **Round quota - Max guest rounds** | No | The most guest lines on that member's own bookings in the period. | Whole number from 0 to 999; blank = no cap. |
+
 ### Group Bookings
 
 | Field | Required | What to enter | Rules |
@@ -252,6 +282,10 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - The no-show penalty posts to the booker's account only when an Account Receivable invoice transaction type is opened to the Golf module; until then charges wait as Pending on the No-show Charges screen.
 - If you see "Rain check validity must be a whole number of days between 1 and 730.", correct the **Valid for (days)** field.
 - Switching rain checks off does not void rain checks already issued; cancel those on the Rain Checks screen if they should not stand.
+- If you see "Each playing-right rule targets either a player type or an affiliated club." or "Every playing-right and round-quota rule needs a target", pick the target on every row.
+- If you see "A playing-right rule can name a membership type only for a member-base player type.", clear the membership type on that row.
+- If you see "Two round-quota rules name the same target, membership type, day scope and period.", merge the duplicate rows.
+- A player type that needs restricting but has no rows is unrestricted; add at least one playing-right row before relying on the switch.
 - A preview under the advance-booking fields disappears while a number is out of range - fix the red field message first.
 
 ## Related options
@@ -260,6 +294,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - Golf Management → Front Desk → Tee Time Sheet - registers with warnings, uses the tee-sheet colours, and runs the **No-shows** review.
 - Golf Management → Front Desk → No-show Charges - the penalties raised under the Cancellation & No-show rules.
 - Golf Management → Front Desk → Rain Checks - the rain checks issued under the Rain Checks rule.
+- Golf Management → Common Setup → Player Types and Affiliated Clubs - the targets of the playing-right and round-quota rules.
 - Golf Management → Transaction Type - the No Show Charges type and its price card.
 - Golf Management → Golfers - handicap index and status read by Handicap Control.
 - Golf Management → Group Bookings - follows the Group Bookings control: tentative holds, submission for approval, the deposit deadline and lapse.
