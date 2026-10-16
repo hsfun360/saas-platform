@@ -724,10 +724,20 @@ async function registerBookedRecord({ req, companyId, row, guest, manualRegistra
     // recorded the arrival (letter and ID sighted).
     const gate = await affiliatedVisitRegistrationGate(companyId, row.bookingProfileId, { transaction });
     if (gate) return { fail: gate, status: 409 };
-    const identity = await resolvePlayerIdentity({
-        req, companyId, playerType: row.playerType, memberNo: row.memberNo,
-        guest, fallbackName: row.playerName, stamps, transaction,
-    });
+    // A booked line that already carries a NON-member golfer identity (the
+    // visiting member of an affiliated visit, a returning guest keyed by the
+    // booking) keeps it unless the desk supplies fresh guest details - a
+    // fresh lookup by name alone would mint a duplicate profile and lose
+    // the affiliation (found on the dev smoke 2026-10-16: the visit fee
+    // never matched). Members are always re-checked for standing.
+    const types = await playerTypes.catalog(companyId, { transaction });
+    const keepIdentity = row.golferId && !guest && playerTypes.needsGuestName(types, row.playerType);
+    const identity = keepIdentity
+        ? { golfer: { id: row.golferId }, playerName: row.playerName, memberNo: null }
+        : await resolvePlayerIdentity({
+            req, companyId, playerType: row.playerType, memberNo: row.memberNo,
+            guest, fallbackName: row.playerName, stamps, transaction,
+        });
     if (identity.error) return { fail: identity.error, status: 400 };
     const issued = await numberingGateway.issueNumber(req, 'golf-registration', { transaction });
     let registrationNo = issued && issued.number ? issued.number : null;
