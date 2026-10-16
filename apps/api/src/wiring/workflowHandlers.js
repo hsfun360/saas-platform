@@ -209,6 +209,34 @@ purposeRegistry.register('golf-group-booking', {
     },
 });
 
+// --- Golf flight booking (2026-10-15) ----------------------------------------
+// A booking with a requires-approval player type sits 'pending-approval' with
+// its seats held. Approval books it and sends the confirmation; rejection or a
+// withdrawn chain cancels it and tells the booker.
+purposeRegistry.register('golf-booking', {
+    onApproved: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const approval = require('../modules/golf/bookingApproval.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return; // cancelled meanwhile - never fail the approval
+        await approval.applyApproval(row, { transaction, userId: instance.submitterUserId || null });
+    },
+    onRejected: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const approval = require('../modules/golf/bookingApproval.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return;
+        await approval.applyRejection(row, 'Rejected in approval.', { transaction, userId: instance.submitterUserId || null });
+    },
+    onCancelled: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const approval = require('../modules/golf/bookingApproval.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return; // the booker withdrew it - already cancelled
+        await approval.applyRejection(row, 'Approval withdrawn.', { transaction, userId: instance.submitterUserId || null });
+    },
+});
+
 // --- Golf affiliated visit (2026-10-15) -------------------------------------
 // A visit request from a club or player type that requires approval sits
 // 'pending-approval' while the chain runs. Approval confirms it (books the

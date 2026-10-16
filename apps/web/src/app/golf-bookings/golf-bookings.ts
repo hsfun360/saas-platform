@@ -727,6 +727,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   statusLabel(status: string): string {
     switch (status) {
       case 'booked': return 'BOOKED';
+      case 'pending-approval': return 'PENDING APPROVAL';
       case 'no-show': return 'NO SHOW';
       default: return 'CANCELLED';
     }

@@ -24,6 +24,9 @@ const availability = require('./bookingAvailability.service');
 const { BOOKING_STATUSES, HOLES_OPTIONS } = require('./booking.constants');
 // Player types come from the club's master (2026-10-15), judged by base identity.
 const playerTypes = require('./playerType.service');
+// Flight-booking approval for requires-approval player types (2026-10-15).
+const bookingApproval = require('./bookingApproval.service');
+const workflowGateway = require('../../platform/workflowGateway');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
@@ -610,6 +613,36 @@ exports.create = async (req, res) => {
             }
             await FlightLock.destroy({ where: { companyId, groupId }, transaction });
 
+            // Approval (2026-10-15): a player of a requires-approval type puts
+            // the booking in pending-approval (seats held) while the chain
+            // decides; no chain = booked at once.
+            const approvalCodes = bookingApproval.approvalCodes(types, lines);
+            if (approvalCodes.length) {
+                const wf = await workflowGateway.startWorkflow(req, bookingApproval.PURPOSE, {
+                    entityId: profile.id,
+                    entityLabel: `Booking ${bookingNo} - ${standing.name} (${standing.memberNo}) ${playDate} ${startTime}`,
+                    context: bookingApproval.contextFor({ course, dayType, holes, teeTime: startTime, lines, types, codes: approvalCodes }),
+                    transaction,
+                });
+                if (wf) {
+                    profile.status = 'pending-approval';
+                    profile.workflowInstanceId = wf.instanceId;
+                    await profile.save({ transaction });
+                    await queueBookingEmail({
+                        companyId,
+                        templateKey: 'golf.booking.pending',
+                        recipients: [standing],
+                        data: {
+                            bookingNo, playDateText: playDateText(playDate), teeTime: startTime, crossTime: crossTime || '',
+                            courseName: `${course.courseCode}${course.description ? ' - ' + course.description : ''}`, holes,
+                            approvalTypes: approvalCodes.map((c) => playerTypes.labelOf(types, c)).join(', '),
+                        },
+                        transaction,
+                    });
+                    return { profile, records, pending: approvalCodes };
+                }
+            }
+
             // ONE confirmation email addressed to every player with an
             // address (booker included; the queued row commits only with the
             // booking).
@@ -633,7 +666,9 @@ exports.create = async (req, res) => {
 
         if (result.fail) return res.status(result.status).json({ message: result.fail });
         res.status(201).json({
-            message: `Booking ${result.profile.bookingNo} confirmed.`,
+            message: result.pending
+                ? `Booking ${result.profile.bookingNo} awaits approval (${result.pending.map((c) => playerTypes.labelOf(types, c)).join(', ')} bookings need it) - the flight is held meanwhile.`
+                : `Booking ${result.profile.bookingNo} confirmed.`,
             booking: bookingDto(result.profile, result.records, new Map([[course.id, course]])),
         });
     } catch (error) {
@@ -731,6 +766,7 @@ exports.cancelPreview = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const profile = await BookingProfile.findOne({ where: { companyId, id: req.params.id } });
         if (!profile) return res.status(404).json({ message: 'Booking not found.' });
+        if (profile.status === 'pending-approval') return res.status(200).json({ controlled: false, late: false, pending: true });
         if (profile.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
         const firsts = await Player.findAll({
             where: { bookingProfileId: profile.id, secondNineFlag: 0, status: 'booked' },
@@ -779,7 +815,8 @@ exports.cancel = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const profile = await BookingProfile.findOne({ where: { companyId, id: req.params.id } });
         if (!profile) return res.status(404).json({ message: 'Booking not found.' });
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
+        const wasPending = profile.status === 'pending-approval';
+        if (profile.status !== 'booked' && !wasPending) return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
         if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
 
         const callerId = getUserContext(req).userId;
@@ -806,7 +843,9 @@ exports.cancel = async (req, res) => {
 
         // Cancellation notice (re-evaluated here, never trusted from the
         // preview): refuse, or price the late-cancel charge to raise below.
-        const ctx = await lateCancelContext(req, companyId, profile, bookedFirsts);
+        // A pending booking withdraws from approval and cancels freely (it
+        // never stood); a booked one is judged against the notice policy.
+        const ctx = wasPending ? { late: false } : await lateCancelContext(req, companyId, profile, bookedFirsts);
         let penalty = null;
         if (ctx.late) {
             if (ctx.cfg.lateAction === 'refuse') {
@@ -826,6 +865,10 @@ exports.cancel = async (req, res) => {
         const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
         let chargeRow = null;
         await sequelize.transaction(async (transaction) => {
+            if (wasPending) {
+                await workflowGateway.cancelForEntity(bookingApproval.ENTITY_TYPE, profile.id, transaction);
+                profile.workflowInstanceId = null;
+            }
             await profile.save({ transaction });
             await Player.update({
                 status: 'cancelled',

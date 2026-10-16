@@ -104,6 +104,26 @@ const PURPOSES = [
     // the tee-sheet consumption and the pricing an approver decides on.
     // `entityRouteParam` appends the booking id to documentRoute so the
     // outcome bell opens the booking's own page.
+    // Flight booking (user decisions 2026-10-15): a booking carrying a player
+    // of a requires-approval PLAYER TYPE is created pending-approval (seats
+    // held); approval books it, rejection cancels it.
+    {
+        key: 'golf-booking',
+        name: 'Golf flight booking',
+        entityType: 'GolfBooking',
+        documentRoute: '/golf/bookings',
+        entityRouteParam: false,
+        contextFields: [
+            { name: 'courseCode', label: 'Course code', type: 'string' },
+            { name: 'dayType', label: 'Day type (weekday | weekend)', type: 'string' },
+            { name: 'holes', label: 'Holes (9 | 18)', type: 'number' },
+            { name: 'teeTime', label: 'Tee time (HH:MM)', type: 'string' },
+            { name: 'players', label: 'Players on the booking', type: 'number' },
+            { name: 'guests', label: 'Guest-like players (guest, member as guest)', type: 'number' },
+            { name: 'playerTypes', label: 'Player type codes on the booking (comma separated)', type: 'string' },
+            { name: 'approvalTypes', label: 'The player type codes that required this approval', type: 'string' },
+        ],
+    },
     // Affiliated / reciprocal club visit (user decisions 2026-10-15): a visit
     // request from a club or player type that requires approval routes here
     // on Confirm; approval confirms and books it, rejection declines it.

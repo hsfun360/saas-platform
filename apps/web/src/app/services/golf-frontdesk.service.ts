@@ -38,6 +38,8 @@ export interface FrontDeskEntry {
   // Group booking (2026-10-07): the group / tournament this player belongs
   // to and the reserved flight they were drawn into.
   bookingType?: string | null;
+  // 'booked' | 'pending-approval' (the flight is held while the chain decides; no registration yet).
+  bookingStatus?: string | null;
   groupName?: string | null;
   flightLabel?: string | null;
   startHole?: number | null;

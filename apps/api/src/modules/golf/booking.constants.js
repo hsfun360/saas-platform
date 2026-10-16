@@ -3,6 +3,9 @@
 // Booking lifecycle - registration/no-show states belong to later stages.
 const BOOKING_STATUSES = [
     { key: 'booked', label: 'Booked' },
+    // A player of a requires-approval player type is on the booking: the
+    // seats are held while the 'golf-booking' chain decides (2026-10-15).
+    { key: 'pending-approval', label: 'Pending approval' },
     { key: 'cancelled', label: 'Cancelled' },
 ];
 

@@ -97,6 +97,13 @@ Closing the dialog before confirming asks "Abandon this change?" and leaves the 
 1. Open the card's ⋮ menu and click **Change history** (shown once the booking has been changed).
 2. Each change is a card numbered #1, #2, ... with its kind (Flight moved, Players changed, Details updated, Flight and players changed), when it was made, the confirmed sentence and the reason.
 
+### A booking that awaits approval
+
+When a player of a type the club marked "bookings need approval" (Player Types) is on the booking, the save answers "Booking B... awaits approval (<type> bookings need it) - the flight is held meanwhile." and the card shows a blue **PENDING APPROVAL** chip.
+The seats stay held while the club decides through its approval chain: on approval the chip turns **BOOKED** and every player receives the confirmation email; on rejection the booking is cancelled and the booker is emailed the reason.
+Until then the front desk cannot register the players and the booking cannot be changed; the booker's office can **Withdraw booking** from the ⋮ menu, which cancels it freely.
+With no approval chain configured for the purpose Golf flight booking, such a booking is booked at once.
+
 ### Cancel a booking
 
 [Screenshot: Cancel booking dialog]
@@ -190,6 +197,9 @@ A posted charge is shown on the No-show Charges screen.
 - If you see "Give a reason for waiving the late-cancellation charge." the Waive reason box is empty.
 - If you see "Late cancellation cannot be charged: ..." the No-show Charge type has no price in force or is not set; fix it in Golf Specification or Transaction Type, or waive.
 - If you see "You are not allowed to amend this booking." the booking lies outside your role's data scope.
+- If you see "Player n: E1 at 08:04 on 2026-10-20 is outside the playing rights of <type>." the club restricts where or when that player type may play (Golf Specification → Playing Rights & Round Quotas); pick a flight inside the allowed course, days or time band.
+- If you see "Player n: already has 4 weekend round(s) this month (... to ...) - <type> allows 4." the player has used their round quota for the period.
+- If you see "Booking B... awaits approval", nothing is wrong: the flight is held until the club approves the booking.
 - A member with no golfing right may still book and is charged the member green fee at registration; members with golfing rights are not charged a green fee.
 - Keep the Play date filter in mind when a booking "disappears": the list shows one date at a time, and a confirmed booking moves the filter to its play date.
 
@@ -197,7 +207,9 @@ A posted charge is shown on the No-show Charges screen.
 
 - Golf Management → Courses - the flight schedule the search reads (sets, flight times, Front desk and X-over roles, cross over time).
 - Golf Management → Course Closure - closed times are never offered.
-- Golf Management → Golf Specification - advance window, hold minutes, merge rule, minimum players, guest control, booking limits, sessions, handicap and junior control, and the Cancellation & No-show rules.
+- Golf Management → Golf Specification - advance window, hold minutes, merge rule, minimum players, guest control, booking limits, sessions, handicap and junior control, the Cancellation & No-show rules, and the playing rights and round quotas.
+- Golf Management → Common Setup → Player Types - the player categories offered on a line, and which of them need the club's approval.
+- Workflow → Approval Setup - the chain for the purpose Golf flight booking.
 - Golf Management → Golfers - handicap index and status checked by the handicap rules.
 - Golf Management → Numbering Control - the Booking No. series.
 - Golf Management → Front Desk → Tee Time Sheet - registers the booked players on the day, takes walk-ins and records no-shows.

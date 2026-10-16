@@ -231,7 +231,9 @@
 
             @for (e of f.entries; track e.playerId) {
               <div class="fd-slot">
-                @if (!e.registration) {
+                @if (!e.registration && e.bookingStatus === 'pending-approval') {
+                  <span class="fd-seat fd-slot__dot" title="Awaiting approval"></span>
+                } @else if (!e.registration) {
                   <input type="checkbox" class="fd-slot__check" [checked]="selected().has(e.playerId)"
                          (change)="toggleSelected(e.playerId)"
                          [attr.aria-label]="'Select ' + e.playerName + ' for registration'" />
@@ -246,6 +248,7 @@
                     @if (e.memberNo) { · {{ e.memberNo }} }
                     · {{ e.holes }}H
                     @if (e.kind === 'walkin') { · walk-in }
+                    @if (e.bookingStatus === 'pending-approval') { · awaiting approval }
                     @if (e.groupName) { · {{ e.groupName }}{{ e.flightLabel ? ' ' + e.flightLabel : '' }} }
                     @else if (e.bookingNo) { · {{ e.bookingNo }} }
                     @if (e.registration) { · {{ e.registration.registrationNo }} }

@@ -605,6 +605,67 @@ module.exports = [
         `),
     },
     {
+        key: 'golf.booking.pending',
+        name: 'Golf booking awaiting approval',
+        description: 'Sent to the booker when a booking with a player type that needs approval is held pending the club\'s decision.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: "The play date, e.g. '27 Sept 2026'." },
+            { name: 'teeTime', description: "The tee-off time, e.g. '08:05'." },
+            { name: 'crossTime', description: 'The 18-hole cross-over time (empty for 9 holes).' },
+            { name: 'courseName', description: 'The course, e.g. WEST - West Course.' },
+            { name: 'holes', description: '9 or 18.' },
+            { name: 'approvalTypes', description: 'The player types that need approval, e.g. Corporate nominee.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookingNo: 'B260900001', playDateText: '27 Sept 2026', teeTime: '08:05', crossTime: '10:05', courseName: 'WEST - West Course', holes: 18,
+            approvalTypes: 'Corporate nominee', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} awaits approval - {{playDateText}} {{teeTime}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your booking awaits approval</h2>
+            <p>Dear Member,</p>
+            <p>Your booking at <strong>{{companyName}}</strong> includes a player of a type that needs the club's approval ({{approvalTypes}}). The flight is held for you while the club decides; you will receive a confirmation or a notice either way.</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{playDateText}}<br>
+                <strong>Tee time:</strong> {{teeTime}} · {{holes}} holes{{#if crossTime}} · cross over {{crossTime}}{{/if}}<br>
+                <strong>Course:</strong> {{courseName}}
+            </p>
+        `),
+    },
+    {
+        key: 'golf.booking.rejected',
+        name: 'Golf booking not approved',
+        description: 'Sent to the booker when a booking held for approval is rejected or the approval is withdrawn; the booking is cancelled.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: 'The play date.' },
+            { name: 'teeTime', description: 'The tee-off time.' },
+            { name: 'courseName', description: 'The course.' },
+            { name: 'holes', description: '9 or 18.' },
+            { name: 'reason', description: 'Why the booking was not approved.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookingNo: 'B260900001', playDateText: '27 Sept 2026', teeTime: '08:05', courseName: 'WEST - West Course', holes: 18,
+            reason: 'Rejected in approval.', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} not approved - {{playDateText}} {{teeTime}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking not approved</h2>
+            <p>Dear Member,</p>
+            <p>We are sorry: booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> for {{playDateText}} at {{teeTime}} ({{courseName}}, {{holes}} holes) was not approved and has been cancelled.</p>
+            <p><strong>Reason:</strong> {{reason}}</p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Please contact the club to arrange another flight.</p>
+        `),
+    },
+    {
         key: 'golf.booking.cancelled',
         name: 'Golf booking cancellation',
         description: 'Sent to every player with an email address when a golf booking is cancelled.',

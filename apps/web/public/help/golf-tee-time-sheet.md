@@ -43,6 +43,7 @@ Bookings are made elsewhere (Golf Booking); this screen is where the day actuall
 Each player receives a Registration No. and their dot turns to the Registered colour.
 The system re-checks the member's standing (a barred member is skipped with the reason) and shows warnings - handicap rule, course closure, junior rule - without blocking the desk.
 A name-only guest on a booking is registered as a guest; their identity can be completed later.
+A booking still awaiting the club's approval (a player type that needs approval is on it) shows "awaiting approval" on its lines with a blank dot instead of a tick box; its players register once the booking is approved.
 
 ### Register a group
 

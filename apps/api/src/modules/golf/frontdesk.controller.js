@@ -258,6 +258,8 @@ exports.getDay = async (req, res) => {
                 bookingProfileId: r.bookingProfileId,
                 bookingNo: profile ? profile.bookingNo : null,
                 bookingType: profile ? profile.bookingType : null,
+                // 'pending-approval' = the flight is held while the chain decides (no registration yet).
+                bookingStatus: profile ? profile.status : null,
                 groupName: profile && GROUP_BOOKING_TYPE_KEYS.includes(profile.bookingType) ? (profile.groupName || profile.bookingNo) : null,
                 flightLabel: gf ? gf.flightLabel : null,
                 startHole: r.startHole || null,
@@ -769,6 +771,7 @@ exports.register = async (req, res) => {
             });
             const profile = row && row.bookingProfileId ? await BookingProfile.findOne({ where: { companyId, id: row.bookingProfileId } }) : null;
             if (!row || !profile) return res.status(404).json({ message: 'Booked player not found.' });
+            if (profile.status === 'pending-approval') return res.status(400).json({ message: `Booking ${profile.bookingNo} is awaiting approval - players register once it is approved.` });
             if (profile.status !== 'booked') return res.status(400).json({ message: 'This booking is cancelled.' });
             if (row.status === 'registered') return res.status(409).json({ message: `${row.playerName} is already registered (${row.registrationNo}).` });
             if (row.status !== 'booked') return res.status(400).json({ message: `This player is ${row.status}.` });
@@ -968,7 +971,7 @@ exports.registerFlight = async (req, res) => {
         for (const candidate of candidates) {
             const profile = profileById.get(candidate.bookingProfileId);
             if (!profile || profile.status !== 'booked') {
-                skipped.push({ playerName: candidate.playerName, reason: 'booking cancelled' });
+                skipped.push({ playerName: candidate.playerName, reason: profile && profile.status === 'pending-approval' ? 'booking awaiting approval' : 'booking cancelled' });
                 continue;
             }
             try {
