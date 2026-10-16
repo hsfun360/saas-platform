@@ -59,6 +59,12 @@ const OtherGolfer = sequelize.define('OtherGolfer', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // Affiliated / reciprocal club member (2026-10-15): the home club (value
+    // ref to golf.AffiliatedClub), the player's number there and their card's
+    // expiry. Set when a visit is confirmed; NULL for an ordinary visitor.
+    affiliatedClubId: { type: DataTypes.UUID, allowNull: true },
+    affiliationNo: { type: DataTypes.STRING(50), allowNull: true },
+    affiliationExpiryDate: { type: DataTypes.DATEONLY, allowNull: true },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -76,6 +82,7 @@ const OtherGolfer = sequelize.define('OtherGolfer', {
         { name: 'IDX_OtherGolfer_Company_Identity', fields: ['companyId', 'identityNo'] },
         { name: 'IDX_OtherGolfer_Company_Mobile', fields: ['companyId', 'mobile'] },
         { name: 'IDX_OtherGolfer_Company_Name', fields: ['companyId', 'name'] },
+        { name: 'IDX_OtherGolfer_Company_AffiliatedClub', fields: ['companyId', 'affiliatedClubId'] },
     ],
 });
 

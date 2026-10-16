@@ -101,6 +101,9 @@
   "golf-player-types": {
     "title": "Player Types"
   },
+  "golf-affiliated-clubs": {
+    "title": "Affiliated Clubs"
+  },
   "membership-settings": {
     "title": "Club Specification"
   },

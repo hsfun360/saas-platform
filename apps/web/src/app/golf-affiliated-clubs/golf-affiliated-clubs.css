@@ -1,0 +1,24 @@
+/* Golf Affiliated Clubs - the switch rows and the terms line only; shared
+   listing/dialog chrome comes from styles.css, the .mt-chip pill from
+   membership-types.css. All colours are theme tokens. */
+
+.gac-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gac-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+/* The reciprocal-kind chip reads as info, the affiliate one as brand. */
+.gac-kind--reciprocal {
+  color: var(--info-text);
+  background: var(--info-surface);
+}

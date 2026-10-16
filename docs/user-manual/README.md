@@ -87,6 +87,7 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Golfers](golf-management/golf-golfers.md) - Every member and public golfer identity, with the golf-owned handicap index, handicap status and remarks the Handicap Control rules read.
 - [Numbering Control](golf-management/golf-numbering.md) - How the six golf document series (Booking, Registration, Bill, Rain Check, Proforma, Refund Request) are numbered: auto-generate format and counter or manual entry, plus copy from another company.
 - [Payment Type](golf-management/golf-payment-types.md) - The settlement-tender catalog for golf bills - code, payment class (Cash, Member, Debtor, Deposit, etc.), description and tile icon; enable or disable.
+- [Affiliated Clubs](golf-management/golf-affiliated-clubs.md) - The associations and reciprocal clubs whose members visit under a letter of introduction: the player type they are billed as, agreement dates, visit and guest caps, charge-back and approval terms, contact and address.
 - [Player Types](golf-management/golf-player-types.md) - The club's player categories: code, base identity (member, member as guest, guest, affiliated or reciprocal), description and the approval flag; the three built-in types plus the club's own.
 
 ## Membership Management

@@ -68,6 +68,7 @@ const ArNumberingScheme = require('../modules/ar/numberingScheme.model');
 const GolfNumberingScheme = require('../modules/golf/numberingScheme.model'); // golf-* series (booking/registration/bill/raincheck); no associations, required so sync creates the table
 const GolfPaymentType = require('../modules/golf/paymentType.model'); // settlement-tender master (companyId value ref; no associations)
 const GolfPlayerType = require('../modules/golf/playerType.model'); // player-category master (2026-10-15; code = the key lines, rate defaults and rules carry; no associations)
+const GolfAffiliatedClub = require('../modules/golf/affiliatedClub.model'); // affiliated / reciprocal club master (2026-10-15; playerTypeId value ref; OtherGolfer.affiliatedClubId value ref; no associations)
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no
