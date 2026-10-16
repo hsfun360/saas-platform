@@ -51,6 +51,10 @@ export interface FrontDeskEntry {
   // Rain check (2026-10-15): the one already issued against this player's
   // settled bill, if any (the sheet shows it instead of offering Issue).
   rainCheck?: { rainCheckNo: string; status: string; amount: number } | null;
+  // Affiliated visit (2026-10-15): the letter-of-introduction visit this
+  // booking belongs to; a confirmed one must be received at the desk
+  // (letter and ID sighted) before the line can register.
+  visit?: { id: string; visitNo: string; status: string; visitorName: string } | null;
 }
 
 // A golfer's rain check (golf.RainCheck): a credit for an abandoned paid
@@ -408,6 +412,11 @@ export class GolfFrontDeskService {
 
   issueRainCheck(registrationId: string, payload: GolfRainCheckIssuePayload): Observable<{ message: string; rainCheck: GolfRainCheck }> {
     return this.http.post<{ message: string; rainCheck: GolfRainCheck }>(`${this.base}/registrations/${registrationId}/rain-check`, payload);
+  }
+
+  // Affiliated visits (2026-10-15): the desk receives a confirmed visitor.
+  receiveVisit(visitId: string, checks: { letterSighted: boolean; idSighted: boolean }): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/visits/${visitId}/arrive`, checks);
   }
 
   addItem(billId: string, transactionTypeId: string, quantity: number): Observable<{ bill: GolfBillDoc }> {

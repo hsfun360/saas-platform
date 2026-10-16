@@ -346,9 +346,13 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   readonly rainCheckEnabled = computed(() => this.meta()?.rainCheckEnabled === true);
 
   // In-dialog confirm view: cancel a registration or void a bill.
-  readonly confirmKind = signal<'cancel-registration' | 'void-bill' | null>(null);
+  readonly confirmKind = signal<'cancel-registration' | 'void-bill' | 'visit-arrival' | null>(null);
   readonly confirmTarget = signal<FrontDeskEntry | null>(null);
   readonly confirmReason = signal('');
+  // Affiliated visit arrival (2026-10-15): the two desk checks before a
+  // visiting member's line may register.
+  readonly visitLetterSighted = signal(false);
+  readonly visitIdSighted = signal(false);
 
   // No-show review (desk-confirmed, 2026-10-06): the day's still-booked
   // players past their tee time grouped by booking, with the charge the
@@ -415,7 +419,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'noshows': return 'No-shows';
       case 'settle': return `Settle bill ${this.bill()?.billNo || ''}`;
       case 'raincheck': return `Issue rain check · ${this.rainCheckTarget()?.playerName || ''}`;
-      case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration';
+      case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : (this.confirmKind() === 'visit-arrival' ? 'Receive visitor' : 'Cancel registration');
       default: return `Bill ${this.bill()?.billNo || ''}`;
     }
   });
@@ -990,6 +994,16 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.dlgMode.set('confirm');
   }
 
+  // A confirmed affiliated visit is received at the desk: letter and ID sighted.
+  askVisitArrival(entry: FrontDeskEntry): void {
+    this.clearMessages();
+    this.confirmKind.set('visit-arrival');
+    this.confirmTarget.set(entry);
+    this.visitLetterSighted.set(false);
+    this.visitIdSighted.set(false);
+    this.dlgMode.set('confirm');
+  }
+
   keepConfirm(): void {
     this.confirmKind.set(null);
     this.confirmTarget.set(null);
@@ -1017,6 +1031,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       this.service.cancelRegistration(entry.registration.id, this.confirmReason().trim()).subscribe({ next: (r) => done(r.message), error: fail });
     } else if (kind === 'void-bill' && entry.bill) {
       this.service.voidBill(entry.bill.id, this.confirmReason().trim()).subscribe({ next: (r) => done(r.message), error: fail });
+    } else if (kind === 'visit-arrival' && entry.visit) {
+      this.service.receiveVisit(entry.visit.id, { letterSighted: this.visitLetterSighted(), idSighted: this.visitIdSighted() }).subscribe({ next: (r) => done(r.message), error: fail });
     }
   }
 

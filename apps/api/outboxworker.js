@@ -50,6 +50,18 @@ async function scanRainChecks() {
     }
 }
 
+// Golf affiliated visits (2026-10-15): open visits whose date passed without
+// an arrival expire on the tick (club-local date), with a bell to the office.
+async function scanVisits() {
+    try {
+        const { scanVisits: scan } = require('./src/modules/golf/affiliatedVisit.service');
+        return await scan();
+    } catch (err) {
+        console.error('[GOLF VISIT] expiry scan failed:', err);
+        return null;
+    }
+}
+
 // AR statement runs: the ar.StatementRun table is itself the job queue
 // (status 'queued' = pending work; see arStatement.service.processActiveRuns).
 // Each drain advances active runs inside a time budget that stays well under
@@ -80,6 +92,7 @@ if (MODE === 'drain') {
                     await scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err));
                     await scanGroupLifecycle();
                     await scanRainChecks();
+                    await scanVisits();
                     // AR nightly reconciliation (report-only; drift goes to the
                     // logs for ops). Gated to the 03:00 MYT hour (19:00 UTC) -
                     // the 5-min sweep re-runs it a few times that hour, which
@@ -129,6 +142,7 @@ if (MODE === 'drain') {
     setInterval(() => scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err)), 5 * 60 * 1000);
     setInterval(() => scanGroupLifecycle(), 5 * 60 * 1000);
     setInterval(() => scanRainChecks(), 60 * 60 * 1000);
+    setInterval(() => scanVisits(), 60 * 60 * 1000);
 
     // 4. AR statement runs (poll mode): check for queued/expired-lease runs
     // every 30s. Overlapping ticks are safe - the run lease makes a busy run

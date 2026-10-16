@@ -54,6 +54,9 @@ const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
 const rainCheck = require('./rainCheck.service');
+// Affiliated visits (2026-10-15): the arrival gate on registration, the
+// day's visit tags, completion on settlement.
+const visits = require('./affiliatedVisit.service');
 const { companyTimezone } = require('../../platform/calendarGateway');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -222,6 +225,9 @@ exports.getDay = async (req, res) => {
         // the desk door is open at all.
         const rainCheckByPlayer = await rainCheck.issuedByPlayer(companyId, firsts.map((r) => r.id));
         const rainCheckCfg = await rainCheck.config(companyId);
+        // Affiliated visits (2026-10-15): the visit behind a booking, so the
+        // sheet tags the line and offers the arrival check.
+        const visitByBooking = await visits.byBooking(companyId, [...new Set(firsts.map((r) => r.bookingProfileId).filter(Boolean))]);
 
         // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
         // group play days + their reserved flights; shotgun-format days are
@@ -263,6 +269,7 @@ exports.getDay = async (req, res) => {
                 registration: r.status === 'registered' ? registrationDto(r, shape) : null,
                 bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
                 rainCheck: rainCheckByPlayer.get(r.id) || null,
+                visit: r.bookingProfileId ? (visitByBooking.get(r.bookingProfileId) || null) : null,
             };
         };
         for (const r of firsts) {
@@ -709,6 +716,10 @@ async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, gue
 // lives on the starting-nine record. Returns { row, shape } or
 // { fail, status }.
 async function registerBookedRecord({ req, companyId, row, guest, manualRegistrationNo, stamps, transaction }) {
+    // A visiting affiliate's booking registers only once the desk has
+    // recorded the arrival (letter and ID sighted).
+    const gate = await visits.registrationGate(companyId, row.bookingProfileId, { transaction });
+    if (gate) return { fail: gate, status: 409 };
     const identity = await resolvePlayerIdentity({
         req, companyId, playerType: row.playerType, memberNo: row.memberNo,
         guest, fallbackName: row.playerName, stamps, transaction,
@@ -1602,6 +1613,9 @@ exports.settleBill = async (req, res) => {
             bill.settledAt = new Date();
             bill.updatedBy = stamps.updatedBy;
             await bill.save({ transaction });
+            // An affiliated visit completes once every registered player of
+            // its booking has settled.
+            await visits.completeIfSettled(companyId, registration.bookingProfileId, { transaction });
         });
         res.status(200).json({ message: `Bill ${bill.billNo} settled.`, bill: await billDto(bill) });
     } catch (error) {

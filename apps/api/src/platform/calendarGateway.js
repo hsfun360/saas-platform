@@ -23,7 +23,12 @@ const { getUserContext, internalServiceUrl } = require('./serviceContext');
 // country's active holidays inside [dateFrom, dateTo] ('YYYY-MM-DD' strings).
 // Returns { weekendDays: Set<number ISO 1-7>, holidays: Set<'YYYY-MM-DD'> }.
 async function companyDayContext(req, dateFrom, dateTo) {
-    const { companyId } = getUserContext(req);
+    return companyDayContextById(getUserContext(req).companyId, dateFrom, dateTo);
+}
+
+// The same context for a KNOWN company (worker ticks and workflow handlers
+// have no request).
+async function companyDayContextById(companyId, dateFrom, dateTo) {
     const weekendDays = new Set();
     const holidays = new Set();
     if (!companyId) return { weekendDays, holidays };
@@ -64,7 +69,12 @@ function isoDayOfWeek(dateStr) {
 // Classify every date in [dateFrom, dateTo] for the active company.
 // Returns [{ date: 'YYYY-MM-DD', dayType: 'weekday'|'weekend', isHoliday }].
 async function classifyDateRange(req, dateFrom, dateTo) {
-    const { weekendDays, holidays } = await companyDayContext(req, dateFrom, dateTo);
+    return classifyDateRangeForCompany(getUserContext(req).companyId, dateFrom, dateTo);
+}
+
+// Classify every date in [dateFrom, dateTo] for a KNOWN company (no request).
+async function classifyDateRangeForCompany(companyId, dateFrom, dateTo) {
+    const { weekendDays, holidays } = await companyDayContextById(companyId, dateFrom, dateTo);
 
     const out = [];
     const end = new Date(`${dateTo}T00:00:00Z`).getTime();
@@ -99,7 +109,9 @@ async function companyTimezoneById(companyId) {
 
 module.exports = {
     companyDayContext,
+    companyDayContextById,
     classifyDateRange,
+    classifyDateRangeForCompany,
     isoDayOfWeek,
     companyTimezone,
     companyTimezoneById,

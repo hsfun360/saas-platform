@@ -40,6 +40,8 @@ router.use('/player-types', requireMenuAction('/golf/player-types'), require('./
 // Affiliated / Reciprocal Clubs (2026-10-15): the arrangements whose members
 // visit under a letter of introduction.
 router.use('/affiliated-clubs', requireMenuAction('/golf/affiliated-clubs'), require('./affiliatedClubs.routes'));
+// Affiliated Visits (2026-10-15): the letter-of-introduction document, host side.
+router.use('/affiliated-visits', requireMenuAction('/golf/affiliated-visits'), require('./affiliatedVisits.routes'));
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

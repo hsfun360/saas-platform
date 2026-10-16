@@ -34,5 +34,10 @@ const rainChecks = require('./rainCheck.controller');
 const rs = require('./rainCheck.schemas');
 router.post('/registrations/:id/rain-check-preview', validate(rs.preview), rainChecks.preview);
 router.post('/registrations/:id/rain-check', validate(rs.issue), rainChecks.issue);
+// Affiliated visits (2026-10-15): the desk receives a confirmed visitor
+// (letter of introduction and ID sighted) before their line can register.
+const visitController = require('./affiliatedVisit.controller');
+const vs = require('./affiliatedVisit.schemas');
+router.post('/visits/:id/arrive', validate(vs.arrive), visitController.arrive);
 
 module.exports = router;

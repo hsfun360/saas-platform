@@ -429,6 +429,67 @@ module.exports = [
         `),
     },
     {
+        key: 'golf.visit.confirmed',
+        name: 'Golf affiliated visit confirmed',
+        description: 'Sent to the visiting member and their home club when the host club confirms a visit under a letter of introduction.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'visitorName', description: "The visiting member's name." },
+            { name: 'clubName', description: "The visitor's home club or association." },
+            { name: 'visitNo', description: 'The visit number.' },
+            { name: 'visitDateText', description: "The visit date, e.g. '22 Oct 2026'." },
+            { name: 'golfText', description: "The booked flight, e.g. 'E1 - East Course 1 at 08:04, 18 holes, 3 players (booking B261000031)', or empty." },
+            { name: 'facilitiesText', description: 'The other facilities requested (dining, accommodation, other), or empty.' },
+            { name: 'arrivalText', description: 'What to present on arrival (letter, home club card, ID).' },
+            { name: 'settlementText', description: 'How bills are settled (before leaving, or signed back to the home club).' },
+            { name: 'companyName', description: "The host club's name." },
+        ],
+        sample: {
+            visitorName: 'Tan Wei Ming', clubName: 'Saujana Golf & Country Club', visitNo: 'V261000001', visitDateText: '22 Oct 2026',
+            golfText: 'E1 - East Course 1 at 08:04, 18 holes, 3 players (booking B261000031)', facilitiesText: 'Dining: lunch for 3 after the round',
+            arrivalText: 'Please present your letter of introduction, your home club membership card and a passport or ID at the front desk.',
+            settlementText: 'All charges are settled before you leave the club.', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Visit {{visitNo}} on {{visitDateText}} confirmed - {{companyName}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your visit is confirmed</h2>
+            <p>Dear {{visitorName}},</p>
+            <p><strong>{{companyName}}</strong> is pleased to confirm your visit on <strong>{{visitDateText}}</strong> under the letter of introduction from {{clubName}} (visit no. {{visitNo}}).</p>
+            {{#if golfText}}<p><strong>Golf:</strong> {{golfText}}</p>{{/if}}
+            {{#if facilitiesText}}<p><strong>Also requested:</strong> {{facilitiesText}}</p>{{/if}}
+            <p>{{arrivalText}}</p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">{{settlementText}}</p>
+        `),
+    },
+    {
+        key: 'golf.visit.declined',
+        name: 'Golf affiliated visit declined',
+        description: 'Sent to the visiting member and their home club when the host club declines a visit request.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'visitorName', description: "The visiting member's name." },
+            { name: 'clubName', description: "The visitor's home club or association." },
+            { name: 'visitNo', description: 'The visit number.' },
+            { name: 'visitDateText', description: 'The requested date.' },
+            { name: 'reason', description: 'Why the visit was declined.' },
+            { name: 'companyName', description: "The host club's name." },
+        ],
+        sample: {
+            visitorName: 'Tan Wei Ming', clubName: 'Saujana Golf & Country Club', visitNo: 'V261000001', visitDateText: '22 Oct 2026',
+            reason: 'The course is closed for a tournament on that date.', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Visit {{visitNo}} on {{visitDateText}} - {{companyName}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">We are unable to confirm your visit</h2>
+            <p>Dear {{visitorName}},</p>
+            <p><strong>{{companyName}}</strong> is sorry to say that the visit requested for <strong>{{visitDateText}}</strong> under the letter of introduction from {{clubName}} (visit no. {{visitNo}}) cannot be confirmed.</p>
+            <p><strong>Reason:</strong> {{reason}}</p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Your home club may write again with another date.</p>
+        `),
+    },
+    {
         key: 'golf.raincheck.issued',
         name: 'Golf rain check issued',
         description: 'Sent to the golfer when the front desk issues a rain check for an abandoned round.',

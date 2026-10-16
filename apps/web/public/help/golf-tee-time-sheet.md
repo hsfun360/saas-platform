@@ -115,6 +115,14 @@ Only the golfer it was issued to can redeem it, and only while it is issued and 
 The rain check is numbered from the Rain Check No. series, the player's row shows "rain check RC... (60.00)", and the golfer receives an email with the number, value and expiry when an address is on record.
 One rain check per settled bill; the ⋮ item disappears once it is issued.
 
+### Receive a visiting affiliate member
+
+1. A player whose booking belongs to a confirmed affiliated visit is tagged "visit V... (not yet received)" and shows **Receive** instead of the register tick box.
+2. Click **Receive**; the drawer switches to **Receive visitor**: tick **Letter of introduction sighted** and **Home club membership card and passport or ID sighted**, then click **Record arrival** (greyed until both are ticked).
+3. Register the party as usual; registering before the arrival is recorded is refused with the visit number.
+
+Billing and settlement follow the normal flow; the visitor is billed at their home club's player type.
+
 ### Cancel a registration or void a bill
 
 - In the flight workspace, open the player's ⋮ menu and click **Cancel registration** (a registration without a bill) or **Void bill** (an open bill).
@@ -212,6 +220,8 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Configure the Rain Check No. numbering scheme first", set the series under Numbering Control.
 - If you see "Payment n: rain check RC... belongs to <name>, not to the billed golfer." or "Payment n: rain check RC... is redeemed", pick one of this golfer's own open rain checks or another tender.
 - If you see "Pick the rain check to redeem on the Rain Check payment line.", choose a rain check on that line or change its payment type.
+- If you see "Visit V...: record Tan Wei Ming's arrival first (letter of introduction and ID sighted).", click **Receive** on that line before registering.
+- If you see "Tick that the letter of introduction was sighted." or "Tick that the home club card and ID were sighted.", both checks are required to record the arrival.
 - Leaving the drawer scrolls the flight you were working on back into view.
 
 ## Related options
@@ -219,6 +229,7 @@ With the rule off, no-shows are recorded without charges.
 - Golf Management → Golf Booking - the bookings that appear as booked players here.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
 - Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
+- Golf Management → Front Desk → Affiliated Visits - the letters of introduction whose visitors are received here.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.
 - Golf Management → Common Setup → Golf Specification - the dot colours, the handicap / junior warnings and the Cancellation & No-show rule.

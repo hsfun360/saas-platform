@@ -1,0 +1,379 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">mark_email_read</span>
+      <div>
+        <h1>{{ 'Affiliated Visits' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Letters of introduction from affiliated and reciprocal clubs - record the request, confirm and book the visit, receive the visitor at the desk.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- FILTERS: visit-date range + status (server) · search (client) -->
+  <div class="gav-filter">
+    <label for="gavFrom">Visit date from</label>
+    <input #fromInput id="gavFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(fromInput.value)" />
+    <label for="gavTo">to</label>
+    <input #toInput id="gavTo" type="date" [value]="dateTo()" (change)="setDateTo(toInput.value)" />
+    <label for="gavStatus">Status</label>
+    <select #statusSel id="gavStatus" [value]="status()" (change)="setStatus(statusSel.value)">
+      <option value="">All</option>
+      @for (s of statuses(); track s.key) {
+        <option [value]="s.key">{{ s.label }}</option>
+      }
+    </select>
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by visit no, visitor, member no, club, booking or letter reference…" aria-label="Search visits" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="gav-count">{{ visits().length }} visit{{ visits().length === 1 ? '' : 's' }} · {{ requestedCount() }} awaiting a decision · {{ openCount() }} open</p>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading visits…</p></div>
+  } @else if (visits().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">mark_email_unread</span>
+      <p>No visits in this period. Use "New visit" when a letter of introduction arrives from an affiliated or reciprocal club.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No visits match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (v of filtered(); track v.id) {
+        <div class="data-card" [attr.data-return-id]="v.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ v.visitNo }} - {{ v.visitorName }} ({{ v.club?.name || 'club' }} {{ v.visitorMemberNo }})</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ v.visitDate | localDate:'weekday' }}{{ v.alternateDate ? ' or ' + (v.alternateDate | localDate) : '' }}</span>
+                @if (v.facilitiesText) { <span class="data-card__reg">{{ v.facilitiesText }}</span> }
+                @if (v.facilities.golf) { <span class="data-card__reg">{{ v.playerCount }} player{{ v.playerCount === 1 ? '' : 's' }}{{ v.guestCount ? ', ' + v.guestCount + ' guest' + (v.guestCount === 1 ? '' : 's') : '' }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Letter</dt><dd>{{ v.loiReference || 'no reference' }}@if (v.loiDocumentUrl) { · <a [href]="v.loiDocumentUrl" target="_blank" rel="noopener">open</a> }</dd></div>
+                @if (v.bookingNo) {
+                  <div class="meta"><dt>Booking</dt><dd>{{ v.bookingNo }}</dd></div>
+                }
+                @if (v.status === 'declined') {
+                  <div class="meta"><dt>Declined</dt><dd>{{ v.declineReason }} · {{ v.declinedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (v.status === 'cancelled') {
+                  <div class="meta"><dt>Cancelled</dt><dd>{{ v.cancelReason }} · {{ v.cancelledAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (v.arrivedAt) {
+                  <div class="meta"><dt>Received</dt><dd>{{ v.arrivedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (v.completedAt) {
+                  <div class="meta"><dt>Completed</dt><dd>{{ v.completedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (v.remarks) {
+                  <div class="meta"><dt>Remarks</dt><dd>{{ v.remarks }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span class="status-chip" [class]="'status-chip ' + chipClass(v.status)">{{ statusLabel(v.status) }}</span>
+            </div>
+            @if (v.isOpen && v.canModify !== false) {
+              <div class="data-row__actions">
+                @if (v.status === 'requested') {
+                  <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openConfirm(v)" [disabled]="workingId() === v.id">
+                    <span class="material-icons" aria-hidden="true">task_alt</span>
+                    Confirm…
+                  </button>
+                } @else if (v.status === 'arrived') {
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="complete(v)" [disabled]="workingId() === v.id">
+                    {{ workingId() === v.id ? 'Completing…' : 'Complete' }}
+                  </button>
+                }
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for visit ' + v.visitNo">
+                  @if (v.status === 'requested') {
+                    <button type="button" appMenuItem (click)="openEdit(v)">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit
+                    </button>
+                  }
+                  @if (v.status === 'requested' || v.status === 'pending-approval') {
+                    <button type="button" appMenuItem (click)="openDecline(v)">
+                      <span class="material-icons" aria-hidden="true">do_not_disturb_on</span>
+                      Decline
+                    </button>
+                  }
+                  @if (v.status !== 'arrived') {
+                    <button type="button" appMenuItem (click)="openCancel(v)">
+                      <span class="material-icons" aria-hidden="true">block</span>
+                      Cancel visit
+                    </button>
+                  }
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New visit FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New visit">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New visit</span>
+  </button>
+
+  <!-- ============ Record drawer ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this visit. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="gavForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Letter of introduction</h3></summary>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavClub">Home club <span class="required">*</span></label>
+              <app-combobox inputId="gavClub" formControlName="affiliatedClubId" [options]="clubOptions()" [allowEmpty]="false"
+                            placeholder="Type to search…" [invalid]="showError(form.controls.affiliatedClubId)" describedBy="gavClubErr" />
+              @if (showError(form.controls.affiliatedClubId)) {
+                <p id="gavClubErr" class="field-error" role="alert">Pick the visitor's home club.</p>
+              }
+              @if (clubTerms(); as terms) {
+                <p class="cell-subtle field-hint">{{ terms }}</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="gavRef">Letter reference</label>
+              <input id="gavRef" type="text" formControlName="loiReference" maxlength="100" autocomplete="off" placeholder="The home club's letter or card number" />
+              <div class="gav-file-actions" style="margin-top: var(--space-xs);">
+                <input #gavLetterFile type="file" accept=".pdf,image/*" class="gav-file" (change)="onLetterSelected(gavLetterFile)" aria-label="Upload the letter" />
+                <button type="button" class="btn btn--secondary btn--sm" (click)="gavLetterFile.click()" [disabled]="uploading()">
+                  {{ uploading() ? 'Uploading…' : (form.controls.loiDocumentUrl.value ? 'Replace letter' : 'Upload letter') }}
+                </button>
+                @if (form.controls.loiDocumentUrl.value) {
+                  <a [href]="form.controls.loiDocumentUrl.value" target="_blank" rel="noopener" class="btn btn--link btn--sm">Open</a>
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removeLetter()" [disabled]="uploading()">Remove</button>
+                }
+              </div>
+              <p class="cell-subtle field-hint">PDF or image of the letter, up to 5 MB.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Visiting member</h3></summary>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavName">Name <span class="required">*</span></label>
+              <input id="gavName" type="text" formControlName="visitorName" maxlength="255" autocomplete="off"
+                     [attr.aria-invalid]="showError(form.controls.visitorName)" aria-describedby="gavNameErr" />
+              @if (showError(form.controls.visitorName)) {
+                <p id="gavNameErr" class="field-error" role="alert">Key in the visitor's name as the letter states it.</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="gavMemberNo">Home club member no <span class="required">*</span></label>
+              <input id="gavMemberNo" type="text" formControlName="visitorMemberNo" maxlength="50" autocomplete="off"
+                     [attr.aria-invalid]="showError(form.controls.visitorMemberNo)" aria-describedby="gavMemberNoErr" />
+              @if (showError(form.controls.visitorMemberNo)) {
+                <p id="gavMemberNoErr" class="field-error" role="alert">Key in the membership number at the home club.</p>
+              }
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavIdNo">Identity / Passport No.</label>
+              <input id="gavIdNo" type="text" formControlName="visitorIdentityNo" maxlength="50" autocomplete="off" />
+              <p class="cell-subtle field-hint">Recognises a returning visitor; checked against the ID on arrival.</p>
+            </div>
+            <div class="form-group">
+              <label for="gavMobile">Mobile</label>
+              <app-phone-input formControlName="visitorMobile" inputId="gavMobile" placeholder="Optional"></app-phone-input>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gavEmail">Email</label>
+              <input id="gavEmail" type="email" inputmode="email" formControlName="visitorEmail" maxlength="255" autocomplete="off"
+                     [attr.aria-invalid]="showError(form.controls.visitorEmail)" aria-describedby="gavEmailErr" />
+              @if (showError(form.controls.visitorEmail)) {
+                <p id="gavEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+              }
+              <p class="cell-subtle field-hint">The confirmation or decline is emailed here and to the home club's contact.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Visit</h3></summary>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavDate">Visit date <span class="required">*</span></label>
+              <input id="gavDate" type="date" formControlName="visitDate"
+                     [attr.aria-invalid]="showError(form.controls.visitDate)" aria-describedby="gavDateErr" />
+              @if (showError(form.controls.visitDate)) {
+                <p id="gavDateErr" class="field-error" role="alert">Pick the visit date.</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="gavAlt">Alternate date</label>
+              <input id="gavAlt" type="date" formControlName="alternateDate" />
+              <p class="cell-subtle field-hint">A fallback the letter offers; the visit books on the visit date.</p>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="gav-check">
+              <input type="checkbox" formControlName="golfRequested" />
+              <span>Golf requested</span>
+            </label>
+            <p class="cell-subtle field-hint">Confirming books a flight for the party on the course and tee time below, under the visitor's own identity; every tee-sheet rule applies.</p>
+          </div>
+          @if (golfOn()) {
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="gavCourse">Course</label>
+                <app-combobox inputId="gavCourse" formControlName="courseId" [options]="courseOptions()" [allowEmpty]="true" emptyLabel="Not decided yet" placeholder="Type to search…" />
+              </div>
+              <div class="form-group">
+                <label for="gavTee">Preferred tee time</label>
+                <input id="gavTee" type="time" formControlName="teeTime" step="60" />
+                <p class="cell-subtle field-hint">Both are needed before Confirm can book; the preview names the nearest free times when the request is full.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group form-group--narrow">
+                <label for="gavHoles">Holes</label>
+                <select id="gavHoles" formControlName="holes">
+                  <option [ngValue]="9">9 holes</option>
+                  <option [ngValue]="18">18 holes</option>
+                </select>
+              </div>
+              <div class="form-group form-group--narrow">
+                <label for="gavPlayers">Players (visitor included) <span class="required">*</span></label>
+                <input id="gavPlayers" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="playerCount"
+                       [attr.aria-invalid]="showError(form.controls.playerCount)" aria-describedby="gavPlayersErr" />
+                @if (showError(form.controls.playerCount)) {
+                  <p id="gavPlayersErr" class="field-error" role="alert">Between 1 and 10.</p>
+                }
+              </div>
+              <div class="form-group form-group--narrow">
+                <label for="gavGuests">Of which guests</label>
+                <input id="gavGuests" type="number" inputmode="numeric" min="0" max="9" step="1" formControlName="guestCount"
+                       [attr.aria-invalid]="showError(form.controls.guestCount)" aria-describedby="gavGuestsErr" />
+                @if (showError(form.controls.guestCount)) {
+                  <p id="gavGuestsErr" class="field-error" role="alert">Between 0 and 9.</p>
+                }
+                <p class="cell-subtle field-hint">Guests are billed as guests; other players as members of the home club.</p>
+              </div>
+            </div>
+          }
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavDining">Dining</label>
+              <input id="gavDining" type="text" formControlName="dining" maxlength="255" placeholder="e.g. lunch for 3 after the round" />
+            </div>
+            <div class="form-group">
+              <label for="gavAccom">Accommodation</label>
+              <input id="gavAccom" type="text" formControlName="accommodation" maxlength="255" placeholder="e.g. 1 night, twin room" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gavOther">Other facilities</label>
+              <input id="gavOther" type="text" formControlName="other" maxlength="255" placeholder="e.g. driving range, spa" />
+            </div>
+            <div class="form-group">
+              <label for="gavRemarks">Remarks</label>
+              <textarea id="gavRemarks" formControlName="remarks" rows="2" wrap="off" maxlength="255" placeholder="Anything the desk should know"></textarea>
+            </div>
+          </div>
+        </details>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="gavForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Confirm preview (centred: what Confirm will do) ============ -->
+  @if (actionKind() === 'confirm' && actionTarget(); as target) {
+    <app-dialog title="Confirm visit" [busy]="working()" (close)="closeAction()">
+      <p>Visit <strong>{{ target.visitNo }}</strong> - {{ target.visitorName }} ({{ target.club?.name }}) on <strong>{{ target.visitDate | localDate:'weekday' }}</strong>.</p>
+      @if (previewError(); as perr) {
+        <p class="field-error" role="alert">{{ perr }}</p>
+      } @else if (preview(); as p) {
+        <p>{{ p.summary }}</p>
+        <dl class="gav-preview">
+          @if (p.flight) {
+            <div><dt>Flight</dt><dd>{{ p.flight.courseName }} · {{ p.flight.teeTime }}{{ p.flight.crossTime ? ' / ' + p.flight.crossTime : '' }} · {{ p.flight.holes }} holes · {{ p.flight.seatsLeft }} seat{{ p.flight.seatsLeft === 1 ? '' : 's' }} free</dd></div>
+          }
+          <div><dt>Party</dt><dd>{{ target.playerCount }} player{{ target.playerCount === 1 ? '' : 's' }}{{ target.guestCount ? ' (' + target.guestCount + ' guest' + (target.guestCount === 1 ? '' : 's') + ')' : '' }}</dd></div>
+          <div><dt>Billed as</dt><dd>{{ p.playerType ? p.playerType.code + ' - ' + p.playerType.description : '-' }}</dd></div>
+          <div><dt>Visits this period</dt><dd>{{ p.visitsThisPeriod }}</dd></div>
+          @if (p.needsApproval) {
+            <div><dt>Approval</dt><dd>{{ p.chain?.steps?.length ? (p.chain?.steps?.length + ' step(s) before confirmation') : 'No chain configured - confirms at once' }}</dd></div>
+          }
+        </dl>
+      } @else {
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Checking the request…</p></div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAction()" [disabled]="working()">Back</button>
+        <button type="button" class="btn btn--primary" (click)="runConfirm()" [disabled]="working() || !preview()">
+          {{ working() ? 'Working…' : confirmLabel() }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Decline / Cancel (centred, reason required) ============ -->
+  @if ((actionKind() === 'decline' || actionKind() === 'cancel') && actionTarget(); as target) {
+    <app-dialog [title]="actionKind() === 'decline' ? 'Decline visit' : 'Cancel visit'" [busy]="working()" (close)="closeAction()">
+      @if (actionKind() === 'decline') {
+        <p>Decline visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }} ({{ target.club?.name }}) on {{ target.visitDate | localDate }}? The visitor and the home club are emailed the reason.</p>
+      } @else {
+        <p>Cancel visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }}?{{ target.bookingNo ? ' Booking ' + target.bookingNo + ' is cancelled with it.' : '' }}</p>
+      }
+      <div class="form-group">
+        <label for="gavReason">Reason <span class="required">*</span></label>
+        <textarea #reasonInput id="gavReason" rows="2" wrap="off" [value]="actionReason()" (input)="actionReason.set(reasonInput.value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAction()" [disabled]="working()">Keep visit</button>
+        <button type="button" class="btn btn--danger" (click)="runReasonAction()" [disabled]="working()">
+          {{ working() ? 'Working…' : (actionKind() === 'decline' ? 'Decline visit' : 'Cancel visit') }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

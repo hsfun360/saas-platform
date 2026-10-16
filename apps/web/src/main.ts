@@ -232,6 +232,8 @@ const routes: Routes = [
       // No-show Charges - standalone menu so finance can post/waive the
       // penalties without the tee-sheet or booking grants (2026-10-06).
       { path: 'golf/no-show-charges', loadComponent: () => import('./app/golf-no-show-charges/golf-no-show-charges').then((m) => m.GolfNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // Front Desk → Affiliated Visits (2026-10-15): letters of introduction, host side.
+      { path: 'golf/affiliated-visits', loadComponent: () => import('./app/golf-affiliated-visits/golf-affiliated-visits').then((m) => m.GolfAffiliatedVisitsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Front Desk → Rain Checks (2026-10-15): the standalone listing of the
       // credits issued for abandoned paid rounds; issue and redeem happen on
       // the Tee Time Sheet.

@@ -251,6 +251,7 @@
                     @if (e.registration) { · {{ e.registration.registrationNo }} }
                     @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
                     @if (e.rainCheck) { · rain check {{ e.rainCheck.rainCheckNo }} ({{ e.rainCheck.amount.toFixed(2) }}{{ e.rainCheck.status === 'redeemed' ? ', redeemed' : '' }}) }
+                    @if (e.visit) { · visit {{ e.visit.visitNo }}{{ e.visit.status === 'confirmed' ? ' (not yet received)' : '' }} }
                   </span>
                 </span>
                 <span class="fd-slot__status" [style.color]="colorFor(statusOf(e))">{{ statusLabel(statusOf(e)).toUpperCase() }}</span>
@@ -259,6 +260,9 @@
                     <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openBill(e)" [disabled]="busy()">Bill</button>
                   } @else if (e.bill?.status === 'settled') {
                     <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
+                  }
+                  @if (!e.registration && e.visit?.status === 'confirmed') {
+                    <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="askVisitArrival(e)" [disabled]="busy()">Receive</button>
                   }
                   @if (e.registration && (!e.bill || e.bill.status === 'open' || canIssueRainCheck(e))) {
                     <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + e.playerName">
@@ -653,17 +657,23 @@
           @if (confirmTarget(); as target) {
             @if (confirmKind() === 'void-bill') {
               <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
+            } @else if (confirmKind() === 'visit-arrival') {
+              <p>Receive <strong>{{ target.visit?.visitorName }}</strong> for visit <strong>{{ target.visit?.visitNo }}</strong>. Tick what was sighted; the party can register once both are ticked.</p>
+              <label class="fd-check"><input #vLetter type="checkbox" [checked]="visitLetterSighted()" (change)="visitLetterSighted.set(vLetter.checked)" /> <span>Letter of introduction sighted</span></label>
+              <label class="fd-check"><input #vId type="checkbox" [checked]="visitIdSighted()" (change)="visitIdSighted.set(vId.checked)" /> <span>Home club membership card and passport or ID sighted</span></label>
             } @else if (target.kind === 'booked') {
               <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked - the booking keeps the seat.</p>
             } @else {
               <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The seat is freed.</p>
             }
           }
-          <div class="form-group">
-            <label for="fdConfirmReason">Reason</label>
-            <textarea #confirmInput id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
-                      (input)="confirmReason.set(confirmInput.value)"></textarea>
-          </div>
+          @if (confirmKind() !== 'visit-arrival') {
+            <div class="form-group">
+              <label for="fdConfirmReason">Reason</label>
+              <textarea #confirmInput id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
+                        (input)="confirmReason.set(confirmInput.value)"></textarea>
+            </div>
+          }
         }
       }
 
@@ -717,10 +727,17 @@
             </button>
           }
           @case ('confirm') {
-            <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>
-            <button type="button" class="btn btn--danger" (click)="confirmAction()" [disabled]="busy()">
-              {{ busy() ? 'Working…' : (confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration') }}
-            </button>
+            @if (confirmKind() === 'visit-arrival') {
+              <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">« Back</button>
+              <button type="button" class="btn btn--primary" (click)="confirmAction()" [disabled]="busy() || !visitLetterSighted() || !visitIdSighted()">
+                {{ busy() ? 'Working…' : 'Record arrival' }}
+              </button>
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>
+              <button type="button" class="btn btn--danger" (click)="confirmAction()" [disabled]="busy()">
+                {{ busy() ? 'Working…' : (confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration') }}
+              </button>
+            }
           }
         }
       </ng-container>

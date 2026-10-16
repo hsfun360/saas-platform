@@ -104,6 +104,25 @@ const PURPOSES = [
     // the tee-sheet consumption and the pricing an approver decides on.
     // `entityRouteParam` appends the booking id to documentRoute so the
     // outcome bell opens the booking's own page.
+    // Affiliated / reciprocal club visit (user decisions 2026-10-15): a visit
+    // request from a club or player type that requires approval routes here
+    // on Confirm; approval confirms and books it, rejection declines it.
+    {
+        key: 'golf-affiliated-visit',
+        name: 'Golf affiliated visit',
+        entityType: 'GolfAffiliatedVisit',
+        documentRoute: '/golf/affiliated-visits',
+        entityRouteParam: true,
+        contextFields: [
+            { name: 'clubKind', label: 'Arrangement (affiliate | reciprocal)', type: 'string' },
+            { name: 'clubCode', label: 'Affiliated club code', type: 'string' },
+            { name: 'dayType', label: 'Day type of the visit (weekday | weekend)', type: 'string' },
+            { name: 'playerCount', label: 'Golf party size', type: 'number' },
+            { name: 'guestCount', label: 'Guests in the party', type: 'number' },
+            { name: 'visitsThisPeriod', label: 'Visits by this member in the cap period, this one included', type: 'number' },
+            { name: 'facilities', label: 'Facilities requested (golf | dining | accommodation | other, comma separated)', type: 'string' },
+        ],
+    },
     {
         key: 'golf-group-booking',
         name: 'Golf group booking',

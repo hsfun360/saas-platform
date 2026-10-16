@@ -209,4 +209,33 @@ purposeRegistry.register('golf-group-booking', {
     },
 });
 
+// --- Golf affiliated visit (2026-10-15) -------------------------------------
+// A visit request from a club or player type that requires approval sits
+// 'pending-approval' while the chain runs. Approval confirms it (books the
+// golf part, emails the visitor and the home club); rejection declines it
+// with the rejection as the reason; a cancelled chain returns it to requested.
+purposeRegistry.register('golf-affiliated-visit', {
+    onApproved: async ({ entityId, instance, transaction }) => {
+        const Visit = require('../modules/golf/affiliatedVisit.model');
+        const visits = require('../modules/golf/affiliatedVisit.service');
+        const row = await Visit.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return; // cancelled meanwhile - never fail the approval
+        await visits.applyConfirmation(row, { transaction, userId: instance.submitterUserId || null });
+    },
+    onRejected: async ({ entityId, instance, transaction }) => {
+        const Visit = require('../modules/golf/affiliatedVisit.model');
+        const visits = require('../modules/golf/affiliatedVisit.service');
+        const row = await Visit.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return;
+        await visits.applyDecline(row, 'Rejected in approval.', { transaction, userId: instance.submitterUserId || null });
+    },
+    onCancelled: async ({ entityId, instance, transaction }) => {
+        const Visit = require('../modules/golf/affiliatedVisit.model');
+        await Visit.update(
+            { status: 'requested', workflowInstanceId: null },
+            { where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction },
+        );
+    },
+});
+
 module.exports = {};
