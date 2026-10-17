@@ -52,6 +52,14 @@ const GolfTransactionType = sequelize.define('GolfTransactionType', {
         type: DataTypes.STRING(20),
         allowNull: true,
     },
+    // USAGE TYPE (transactionType.constants USAGE_TYPES: single | shared;
+    // user decisions 2026-10-17) - REQUIRED on chargeType 'buggy-fee': how
+    // many buggies one fee line is worth at the buggy station (single = one
+    // per fee, shared = one per two fees). NULL for every other charge type.
+    usageType: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+    },
     // Tax Scheme by code via the tax seam; null = no tax.
     taxSchemeCode: {
         type: DataTypes.STRING,

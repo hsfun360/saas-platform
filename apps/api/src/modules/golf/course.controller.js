@@ -135,6 +135,7 @@ exports.createCourse = async (req, res) => {
             ...nines.values,
             crossOverMinutes: crossOverMinutes.value,
             photo,
+            buggyCompulsory: req.body.buggyCompulsory === true,
             createdBy: callerId,
             createdByDepartmentId: placement.departmentId,
             updatedBy: callerId,
@@ -179,6 +180,7 @@ exports.updateCourse = async (req, res) => {
         if ('photo' in req.body) {
             course.photo = typeof req.body.photo === 'string' && req.body.photo.trim() ? req.body.photo.trim() : null;
         }
+        if (typeof req.body.buggyCompulsory === 'boolean') course.buggyCompulsory = req.body.buggyCompulsory;
 
         // Nine references: when any of them is touched, re-validate the whole
         // intended pairing (current values overlaid with the patch).

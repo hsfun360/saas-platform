@@ -92,6 +92,9 @@
                     @if (c.crossOverMinutes) {
                       <div class="meta"><dt>Cross over</dt><dd>{{ c.crossOverMinutes }} min</dd></div>
                     }
+                    @if (c.buggyCompulsory) {
+                      <div class="meta"><dt>Buggy</dt><dd>Compulsory</dd></div>
+                    }
                   </dl>
                 </div>
               </div>
@@ -218,6 +221,13 @@
               <p id="gcCrossErr" class="field-error" role="alert">Cross over time must be between 1 and 600 minutes.</p>
             }
           </div>
+        </div>
+        <div class="form-row">
+          <label class="gc-check">
+            <input type="checkbox" formControlName="buggyCompulsory" />
+            <span>Buggy compulsory on this course</span>
+          </label>
+          <p class="gc-hint">Ticked: every player registering on this course is charged the buggy fee with the green fee - riders paired in seat order take the shared buggy fee, an odd rider the single buggy fee - and the Buggy Station refuses to issue a buggy until that fee is paid. A walking course leaves this unticked.</p>
         </div>
         <div class="form-row">
           <div class="form-group">

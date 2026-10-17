@@ -38,6 +38,7 @@ const typeBody = z.object({
     transactionType: str(100),
     chargeType: str(50),
     golferType: str(50),
+    usageType: str(20),
     description: str(255),
     taxSchemeCode: str(255),
     allowPriceOverride: z.boolean().optional(),

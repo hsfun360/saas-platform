@@ -76,6 +76,19 @@ const AffiliatedClub = require('../modules/membership/affiliatedClub.model');
 const AffiliatedVisit = require('../modules/membership/affiliatedVisit.model');
 const GolfPlayingRightRule = require('../modules/golf/playingRightRule.model'); // playing-right whitelist rows (2026-10-15; player type / club / membership type / course value refs; PUT-replaced)
 const GolfRoundQuotaRule = require('../modules/golf/roundQuotaRule.model'); // round-quota rows (2026-10-15; same targets; PUT-replaced)
+// Buggy management (2026-10-17): type -> units (restrict), unit -> outings,
+// outing -> riders (cascade); player / golfer / bill-item refs on a rider and
+// the course / booking refs on an outing stay plain value refs.
+const GolfBuggyType = require('../modules/golf/buggyType.model');
+const GolfBuggy = require('../modules/golf/buggy.model');
+const GolfBuggyIssue = require('../modules/golf/buggyIssue.model');
+const GolfBuggyIssueRider = require('../modules/golf/buggyIssueRider.model');
+GolfBuggyType.hasMany(GolfBuggy, { foreignKey: 'buggyTypeId', as: 'buggies', onDelete: 'RESTRICT' });
+GolfBuggy.belongsTo(GolfBuggyType, { foreignKey: 'buggyTypeId', as: 'buggyType' });
+GolfBuggy.hasMany(GolfBuggyIssue, { foreignKey: 'buggyId', as: 'issues', onDelete: 'RESTRICT' });
+GolfBuggyIssue.belongsTo(GolfBuggy, { foreignKey: 'buggyId', as: 'buggy' });
+GolfBuggyIssue.hasMany(GolfBuggyIssueRider, { foreignKey: 'buggyIssueId', as: 'riders', onDelete: 'CASCADE' });
+GolfBuggyIssueRider.belongsTo(GolfBuggyIssue, { foreignKey: 'buggyIssueId', as: 'issue' });
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no

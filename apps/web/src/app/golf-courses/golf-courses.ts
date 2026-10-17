@@ -111,6 +111,8 @@ export class GolfCoursesComponent implements OnInit {
     nightNineId: [''],
     crossOverMinutes: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(600)]),
     photo: [''],
+    // Buggy compulsory (2026-10-17): per course, not per club.
+    buggyCompulsory: [false],
   });
 
   // --- Tee times: ONE dialog with three views (list -> form / slot editor).
@@ -283,6 +285,7 @@ export class GolfCoursesComponent implements OnInit {
       nightNineId: '',
       crossOverMinutes: null,
       photo: '',
+      buggyCompulsory: false,
     });
     this.dialogOpen.set(true);
   }
@@ -300,6 +303,7 @@ export class GolfCoursesComponent implements OnInit {
       nightNineId: c.nightNineId || '',
       crossOverMinutes: c.crossOverMinutes ?? null,
       photo: c.photo || '',
+      buggyCompulsory: c.buggyCompulsory === true,
     });
     this.dialogOpen.set(true);
   }
@@ -353,6 +357,7 @@ export class GolfCoursesComponent implements OnInit {
       nightNineId: f.nightNineId || null,
       crossOverMinutes: f.crossOverMinutes,
       photo: f.photo || null,
+      buggyCompulsory: f.buggyCompulsory === true,
     };
 
     this.saving.set(true);

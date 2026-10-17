@@ -38,7 +38,7 @@ const DEFAULTS = {
     noShowControlEnabled: false, cancellationNoticeHours: 24, lateCancellationAction: 'charge',
     noShowTransactionTypeId: null, noShowChargeBasis: 'player',
     rainCheckEnabled: false, rainCheckValidityDays: 90, rainCheckBasis: 'green-fee', rainCheckProrate: true,
-    playingRightsEnabled: false,
+    playingRightsEnabled: false, buggyManagementEnabled: false,
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
     groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
@@ -75,6 +75,7 @@ function settingDto(row) {
         rainCheckBasis: RAIN_CHECK_BASIS_KEYS.includes(row.rainCheckBasis) ? row.rainCheckBasis : 'green-fee',
         rainCheckProrate: row.rainCheckProrate !== false,
         playingRightsEnabled: row.playingRightsEnabled === true,
+        buggyManagementEnabled: row.buggyManagementEnabled === true,
         teeSheetColorBooked: row.teeSheetColorBooked || DEFAULTS.teeSheetColorBooked,
         teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
         teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
@@ -656,6 +657,8 @@ exports.save = async (req, res) => {
         // Playing rights + round quotas (2026-10-15): the rows are stored even
         // while the switch is OFF (staging); effective only ON.
         const playingRightsEnabled = req.body.playingRightsEnabled === true;
+        // Buggy management (2026-10-17): the station door.
+        const buggyManagementEnabled = req.body.buggyManagementEnabled === true;
         const ruleTypes = await playerTypes.catalog(companyId);
         const ruleTargets = {
             typesById: new Map(ruleTypes.map((t) => [t.id, t])),
@@ -712,7 +715,7 @@ exports.save = async (req, res) => {
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
                 rainCheckEnabled, rainCheckValidityDays, rainCheckBasis, rainCheckProrate,
-                playingRightsEnabled,
+                playingRightsEnabled, buggyManagementEnabled,
                 groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
                 groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser, groupNextInLineHours,
                 ...colors,

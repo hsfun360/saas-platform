@@ -75,7 +75,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly ruleTargets = signal<GolfRuleTargets | null>(null);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, rights: true, groups: true, teesheet: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, rights: true, buggies: true, groups: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -107,6 +107,8 @@ export class GolfSettingsComponent implements OnInit {
     rainCheckProrate: [true],
     // Playing rights + round quotas (2026-10-15).
     playingRightsEnabled: [false],
+    // Buggy management (2026-10-17): the Buggy Station door.
+    buggyManagementEnabled: [false],
     teeSheetColorBooked: ['#2563eb'],
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
@@ -353,6 +355,7 @@ export class GolfSettingsComponent implements OnInit {
           rainCheckBasis: doc.setting.rainCheckBasis || 'green-fee',
           rainCheckProrate: doc.setting.rainCheckProrate !== false,
           playingRightsEnabled: doc.setting.playingRightsEnabled === true,
+          buggyManagementEnabled: doc.setting.buggyManagementEnabled === true,
           teeSheetColorBooked: doc.setting.teeSheetColorBooked || '#2563eb',
           teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
@@ -652,6 +655,7 @@ export class GolfSettingsComponent implements OnInit {
       rainCheckBasis: v.rainCheckBasis as GolfRainCheckBasis,
       rainCheckProrate: v.rainCheckProrate,
       playingRightsEnabled: v.playingRightsEnabled,
+      buggyManagementEnabled: v.buggyManagementEnabled,
       teeSheetColorBooked: v.teeSheetColorBooked,
       teeSheetColorRegistered: v.teeSheetColorRegistered,
       teeSheetColorBilled: v.teeSheetColorBilled,

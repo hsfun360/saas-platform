@@ -23,6 +23,15 @@
   "golf-rain-checks": {
     "title": "Rain Checks"
   },
+  "golf-buggy-types": {
+    "title": "Buggy Types"
+  },
+  "golf-buggies": {
+    "title": "Buggies"
+  },
+  "golf-buggy-station": {
+    "title": "Buggy Station"
+  },
   "golf-transaction-types": {
     "title": "Transaction Type"
   },

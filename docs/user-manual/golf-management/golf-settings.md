@@ -15,7 +15,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 
 [Screenshot: Golf Specification screen with all sections expanded]
 
-- The screen is one form made of nine collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Playing Rights & Round Quotas**, **Group Bookings** and **Tee Sheet**.
+- The screen is one form made of ten collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Buggies**, **Playing Rights & Round Quotas**, **Group Bookings** and **Tee Sheet**.
 - Click a section's header band to fold it away or open it again; folding never loses what you typed.
 - Each section mixes plain fields with switches (tick boxes); some switches reveal more fields when turned on.
 - Several sections carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
@@ -110,6 +110,17 @@ Charges are posted to the booker's member account and can be followed up on the 
 
 The three fields are kept while the switch is off, so a club can prepare the rule before switching it on.
 A rain check needs a Rain Check No. series under Numbering Control, and redeeming one needs a payment type of class Rain Check.
+
+### Switch on the Buggy Station
+
+[Screenshot: Buggies section with the switch on]
+
+1. Open **Buggies** and tick **Enable buggy management**.
+2. Click **Save**.
+
+On, the Buggy Station issues a unit per buggy slot - a single buggy fee is one slot, two shared buggy fees in the same flight are one slot for both riders - and only once the fees are paid.
+Off, the Buggy Types and Buggies screens can still be keyed, but nothing is issued.
+Which courses make the buggy compulsory (the fee auto-charged at registration) is set per course under Courses, and the single and shared fee items under Transaction Type.
 
 ### Restrict where and how often a player type may play
 
@@ -231,6 +242,12 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Value Basis** | Yes | Green-fee lines only, or The whole bill. | |
 | **Prorate by holes not played** | No | Ticked = value times the unplayed share; unticked = the full basis. | On by default. |
 
+### Buggies
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Enable buggy management** | No | The master switch; off = the Buggy Station issues, returns and swaps nothing. | The fleet register stays editable while off; the compulsory-buggy fee still charges because it is a course rule. |
+
 ### Playing Rights & Round Quotas
 
 | Field | Required | What to enter | Rules |
@@ -294,6 +311,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - Golf Management → Front Desk → Tee Time Sheet - registers with warnings, uses the tee-sheet colours, and runs the **No-shows** review.
 - Golf Management → Front Desk → No-show Charges - the penalties raised under the Cancellation & No-show rules.
 - Golf Management → Front Desk → Rain Checks - the rain checks issued under the Rain Checks rule.
+- Golf Management → Front Desk → Buggy Station, and Common Setup → Buggies and Buggy Types - the station the Buggies switch opens and the fleet it issues.
 - Golf Management → Common Setup → Player Types and Affiliated Clubs - the targets of the playing-right and round-quota rules.
 - Golf Management → Transaction Type - the No Show Charges type and its price card.
 - Golf Management → Golfers - handicap index and status read by Handicap Control.

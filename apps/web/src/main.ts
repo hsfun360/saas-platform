@@ -221,6 +221,10 @@ const routes: Routes = [
       { path: 'golf/payment-types', loadComponent: () => import('./app/golf-payment-types/golf-payment-types').then((m) => m.GolfPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Common Setup → Player Types (spec 2.3.1, 2026-10-15): the club's player categories.
       { path: 'golf/player-types', loadComponent: () => import('./app/golf-player-types/golf-player-types').then((m) => m.GolfPlayerTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // Buggy management (2026-10-17): the type master and fleet register (Common Setup) + the Buggy Station (Front Desk).
+      { path: 'golf/buggy-types', loadComponent: () => import('./app/golf-buggy-types/golf-buggy-types').then((m) => m.GolfBuggyTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/buggies', loadComponent: () => import('./app/golf-buggies/golf-buggies').then((m) => m.GolfBuggiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/buggy-station', loadComponent: () => import('./app/golf-buggy-station/golf-buggy-station').then((m) => m.GolfBuggyStationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/golfers', loadComponent: () => import('./app/golf-golfers/golf-golfers').then((m) => m.GolfGolfersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Course Closure - standalone menu so closure keying is grantable
       // without the Unit Course setup screen (2026-09-30).

@@ -16,7 +16,6 @@ import { Country, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
 import { addressLines } from '../shared/address';
 
 // Membership Management → Common Setup → Affiliated Clubs
@@ -32,7 +31,7 @@ import { addressLines } from '../shared/address';
   selector: 'app-membership-affiliated-clubs',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    ConfirmDialogComponent, ComboboxComponent, PhoneInputComponent, CanDirective, OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
+    ConfirmDialogComponent, ComboboxComponent, PhoneInputComponent, CanDirective, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './membership-affiliated-clubs.html',
   // membership-types.css supplies the shared .mt-chip pill; own css = the switch rows.
   styleUrls: ['../membership-types/membership-types.css', './membership-affiliated-clubs.css'],

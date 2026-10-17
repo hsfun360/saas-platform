@@ -147,6 +147,8 @@ export interface GolfSettingDoc {
     rainCheckProrate: boolean;
     // Playing rights + round quotas (2026-10-15): the master switch.
     playingRightsEnabled: boolean;
+    // Buggy management (2026-10-17): the Buggy Station door.
+    buggyManagementEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -254,6 +256,7 @@ export class GolfSettingService {
     rainCheckBasis: GolfRainCheckBasis;
     rainCheckProrate: boolean;
     playingRightsEnabled: boolean;
+    buggyManagementEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;

@@ -40,6 +40,11 @@ router.use('/player-types', requireMenuAction('/golf/player-types'), require('./
 // Affiliated / reciprocal clubs and the letter-of-introduction visits moved
 // to the Membership service on 2026-10-16 (/api/membership/affiliated-*);
 // golf books the visit's flight through platform/golfGateway.js.
+// Buggy management (2026-10-17): the type master and the fleet register are
+// Common Setup menus; the station is a Front Desk menu with its own grant.
+router.use('/buggy-types', requireMenuAction('/golf/buggy-types'), require('./buggyTypes.routes'));
+router.use('/buggies', requireMenuAction('/golf/buggies'), require('./buggies.routes'));
+router.use('/buggy-station', requireMenuAction('/golf/buggy-station'), require('./buggyStation.routes'));
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

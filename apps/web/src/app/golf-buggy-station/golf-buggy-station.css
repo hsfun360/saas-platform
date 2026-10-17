@@ -1,0 +1,167 @@
+/* Buggy Station - the scan box, the flight cards with their buggy slots and
+   the units out. Listing/dialog chrome is the shared global system; the
+   .mt-chip pill comes from membership-types.css (imported globally by the
+   screens that use it - here we restate nothing, slots are own blocks). All
+   colours are theme tokens. */
+
+.bs-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.bs-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.bs-filter input[type='date'],
+.bs-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.bs-filter input[type='date']:focus,
+.bs-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.bs-fleet {
+  margin-left: auto;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The scan box - the station's primary control, large and always visible. */
+.bs-scan {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.bs-scan__label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.bs-scan__row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.bs-scan__input {
+  flex: 1 1 220px;
+  min-height: 48px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-h3);
+  font-family: inherit;
+  letter-spacing: 0.5px;
+}
+.bs-scan__input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand);
+}
+.bs-scan__hint {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.bs-scan__hint--live {
+  color: var(--brand-text);
+}
+.bs-scan__hint .btn--link { min-height: auto; padding: 0 var(--space-xs); }
+
+.bs-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+.bs-flight { display: grid; gap: var(--space-sm); }
+.bs-flight__head { display: grid; gap: var(--space-2xs); }
+
+.bs-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-xs);
+}
+@media (min-width: 768px) {
+  .bs-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.bs-slot,
+.bs-out {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--font-body);
+  text-align: left;
+}
+.bs-slot--ready {
+  cursor: pointer;
+  background: var(--surface-card);
+  border-color: var(--border-strong);
+}
+.bs-slot--ready:hover { background: var(--surface-hover); }
+.bs-slot--ready:disabled { cursor: not-allowed; opacity: 0.7; }
+.bs-slot--on {
+  border-color: var(--brand);
+  background: var(--surface-selected);
+}
+.bs-slot--issued {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+}
+.bs-slot--issued .bs-slot__icon { color: var(--success-text); }
+.bs-slot--blocked {
+  border-style: dashed;
+}
+.bs-slot--blocked .bs-slot__icon { color: var(--danger-text); }
+.bs-slot__icon { font-size: var(--icon-lg); color: var(--text-muted); flex-shrink: 0; }
+.bs-slot--on .bs-slot__icon { color: var(--brand-text); }
+.bs-slot__main { display: grid; gap: var(--space-2xs); min-width: 0; flex: 1 1 auto; }
+.bs-slot__riders { font-weight: var(--weight-semibold); }
+.bs-slot__meta { font-size: var(--font-body-2); color: var(--text-secondary); }
+
+.bs-nofee {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  font-size: var(--font-body-2);
+}
+.bs-nofee__label { color: var(--text-secondary); font-weight: var(--weight-semibold); }
+.bs-nofee--on { border-color: var(--brand); background: var(--surface-selected); }
+
+.bs-out { background: var(--surface-card); }
+.bs-out--card { border: 1px solid var(--border); }
+.bs-out__actions { display: flex; gap: var(--space-xs); flex-shrink: 0; margin-left: auto; }
+@media (max-width: 767px) {
+  .bs-out { flex-wrap: wrap; }
+  .bs-out__actions { width: 100%; justify-content: flex-end; }
+}

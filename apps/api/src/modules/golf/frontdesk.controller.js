@@ -54,6 +54,10 @@ const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
 const rainCheck = require('./rainCheck.service');
+// Buggy management (2026-10-17): the sheet's per-player buggy tag, the
+// compulsory-course fee auto-charge at bill opening.
+const buggyStation = require('./buggyStation.service');
+const { BUGGY_CHARGE_TYPE_KEY, USAGE_TYPES } = require('./transactionType.constants');
 // Affiliated visits (2026-10-15; owned by Membership since 2026-10-16 and
 // read through the membership seam): the arrival gate on registration, the
 // day's visit tags, the visitor's fee item, completion on settlement.
@@ -204,7 +208,7 @@ exports.getDay = async (req, res) => {
             }),
             Course.findAll({
                 where: { companyId },
-                attributes: ['id', 'courseCode', 'description', 'isActive', 'firstNineId', 'secondNineId', 'crossOverMinutes', 'displaySequence'],
+                attributes: ['id', 'courseCode', 'description', 'isActive', 'firstNineId', 'secondNineId', 'crossOverMinutes', 'displaySequence', 'buggyCompulsory'],
                 order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
             }),
         ]);
@@ -228,6 +232,9 @@ exports.getDay = async (req, res) => {
         // Affiliated visits (2026-10-15): the visit behind a booking, so the
         // sheet tags the line and offers the arrival check.
         const visitByBooking = await affiliatedVisitsByBooking(companyId, [...new Set(firsts.map((r) => r.bookingProfileId).filter(Boolean))]);
+        // Buggies (2026-10-17): the unit each registered player is riding.
+        const buggyByPlayer = await buggyStation.buggyTagsByPlayer(companyId, firsts.map((r) => r.id));
+        const courseCompulsory = new Map(courses.map((c) => [c.id, c.buggyCompulsory === true]));
 
         // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
         // group play days + their reserved flights; shotgun-format days are
@@ -274,6 +281,10 @@ exports.getDay = async (req, res) => {
                 visit: r.bookingProfileId && visitByBooking.get(r.bookingProfileId)
                     ? (({ id, visitNo, status, visitorName }) => ({ id, visitNo, status, visitorName }))(visitByBooking.get(r.bookingProfileId))
                     : null,
+                buggy: buggyByPlayer.get(r.id)
+                    ? (({ buggyNo, status, issueId }) => ({ buggyNo, status, issueId }))(buggyByPlayer.get(r.id))
+                    : null,
+                buggyCompulsory: courseCompulsory.get(r.courseId) === true,
             };
         };
         for (const r of firsts) {
@@ -562,6 +573,9 @@ exports.getMeta = async (req, res) => {
             billStatuses: BILL_STATUSES,
             // Rain checks (2026-10-15): the desk's Issue door opens only ON.
             rainCheckEnabled: !!(setting && setting.rainCheckEnabled === true),
+            // Buggy management (2026-10-17): whether the Buggy Station is live.
+            buggyManagementEnabled: !!(setting && setting.buggyManagementEnabled === true),
+            usageTypes: USAGE_TYPES,
             // Seat-dot colours for the tee sheet (Golf Specification; user
             // request 2026-09-29). Blank outline = free seat.
             teeSheetColors: {
@@ -1329,6 +1343,43 @@ exports.openBill = async (req, res) => {
                     if (added.error) warnings.push(added.error);
                     else if (Number(added.item.unitAmount) === 0 && !gfType.allowPriceOverride) {
                         warnings.push(`'${gfType.transactionType}' has no price in force for ${play.playDate}.`);
+                    }
+                }
+            }
+            // Compulsory buggy (user decision 2026-10-17 - a COURSE rule): the
+            // player's buggy fee auto-charges with the green fee. Riders pair
+            // in SEAT ORDER across the flight's booked + registered players:
+            // a player with a partner (index pairs 0-1, 2-3, ...) takes the
+            // SHARED fee, the odd one out the SINGLE fee; the desk may swap
+            // the tile afterwards and the buggy station follows the lines.
+            // Group players are skipped (their package is on the folio).
+            if (!registration.groupPlayerId) {
+                const course = await Course.findOne({ where: { companyId, id: registration.courseId }, attributes: ['id', 'courseCode', 'buggyCompulsory'], transaction });
+                if (course && course.buggyCompulsory === true) {
+                    const flight = await Player.findAll({
+                        where: { companyId, courseId: registration.courseId, playDate: registration.playDate, teeTime: registration.teeTime, secondNineFlag: 0, status: { [Op.in]: ['booked', 'registered'] } },
+                        attributes: ['id'],
+                        order: [['createdAt', 'ASC'], ['id', 'ASC']],
+                        transaction,
+                    });
+                    const idx = flight.findIndex((p) => p.id === registration.id);
+                    const partner = idx >= 0 && (idx ^ 1) < flight.length;
+                    const usageType = partner ? 'shared' : 'single';
+                    const buggyType = await GolfTransactionType.findOne({
+                        where: { companyId, chargeType: BUGGY_CHARGE_TYPE_KEY, golferType: registration.playerType, usageType, isActive: true },
+                        transaction,
+                    });
+                    if (!buggyType) {
+                        const usageLabel = (USAGE_TYPES.find((u) => u.key === usageType) || {}).label || usageType;
+                        warnings.push(`${course.courseCode} is buggy-compulsory but no active ${usageLabel.toLowerCase()} fee is the default for '${registration.playerType}' - buggy fee not auto-charged.`);
+                    } else {
+                        const added = await addOrdinaryItem({
+                            req, bill, play, type: buggyType, quantity: 1, dayType, stamps, transaction, allowMissingPrice: true,
+                        });
+                        if (added.error) warnings.push(added.error);
+                        else if (Number(added.item.unitAmount) === 0 && !buggyType.allowPriceOverride) {
+                            warnings.push(`'${buggyType.transactionType}' has no price in force for ${play.playDate}.`);
+                        }
                     }
                 }
             }

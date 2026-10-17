@@ -77,6 +77,9 @@
                     @if (t.golferType) {
                       <span class="mt-chip">Default for {{ golferTypeLabel(t.golferType) }}</span>
                     }
+                    @if (t.usageType) {
+                      <span class="mt-chip">{{ usageTypeLabel(t.usageType) }}</span>
+                    }
                     @if (t.allowPriceOverride) {
                       <span class="mt-chip">Manual price allowed</span>
                     }
@@ -179,6 +182,20 @@
             }
           </div>
         </div>
+        @if (form.controls.chargeType.value === 'buggy-fee') {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gttUsageType">Usage type <span class="required">*</span></label>
+              <select id="gttUsageType" formControlName="usageType">
+                <option value="">- Select -</option>
+                @for (u of usageTypes(); track u.key) {
+                  <option [value]="u.key">{{ u.label }}</option>
+                }
+              </select>
+              <p class="cell-subtle field-hint">Single buggy: one buggy per fee charged. Shared buggy: one buggy per two fees charged - two players share, each billed this (half) price. On a buggy-compulsory course registration charges the shared fee to paired riders and the single fee to an odd rider; the Buggy Station issues one unit per slot the fees define.</p>
+            </div>
+          </div>
+        }
         @if (golferTyped(form.controls.chargeType.value)) {
           <div class="form-row">
             <div class="form-group">
@@ -192,7 +209,7 @@
               @if (form.controls.chargeType.value === 'green-fee') {
                 <p class="cell-subtle field-hint">Optional: makes this the green fee auto-charged at registration for that golfer type (one active default each). Leave as None for manual items like group-booking or tournament green fees. Members with golfing right are never auto-charged; Member prices members without the right.</p>
               } @else {
-                <p class="cell-subtle field-hint">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each) - e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
+                <p class="cell-subtle field-hint">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each{{ form.controls.chargeType.value === 'buggy-fee' ? ' per usage type' : '' }}) - e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
               }
             </div>
           </div>

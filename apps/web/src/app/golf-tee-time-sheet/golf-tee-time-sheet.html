@@ -255,6 +255,7 @@
                     @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
                     @if (e.rainCheck) { · rain check {{ e.rainCheck.rainCheckNo }} ({{ e.rainCheck.amount.toFixed(2) }}{{ e.rainCheck.status === 'redeemed' ? ', redeemed' : '' }}) }
                     @if (e.visit) { · visit {{ e.visit.visitNo }}{{ e.visit.status === 'confirmed' ? ' (not yet received)' : '' }} }
+                    @if (e.buggy) { · buggy {{ e.buggy.buggyNo }}{{ e.buggy.status === 'returned' ? ' (returned)' : '' }} }
                   </span>
                 </span>
                 <span class="fd-slot__status" [style.color]="colorFor(statusOf(e))">{{ statusLabel(statusOf(e)).toUpperCase() }}</span>

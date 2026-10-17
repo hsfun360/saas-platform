@@ -34,8 +34,9 @@ The tee sheet shown on the Golf Booking and Tee Time Sheet screens is built live
 3. Pick the **First nine** and the **Second nine** - type a few letters to filter the list; they must be two different nines.
 4. Optionally pick an **Alternate nine** and, for night golf, a **Night nine** (only floodlit nines are offered).
 5. Enter the **Cross over time (minutes)** - how long after tee-off players reach the second nine; it fixes the crossover time of every 18-hole flight.
-6. Optionally click **Upload picture**.
-7. Click **Save**.
+6. Tick **Buggy compulsory on this course** when every player must take a buggy; leave it unticked on a walking course.
+7. Optionally click **Upload picture**.
+8. Click **Save**.
 
 The course appears as Active.
 It cannot be booked until it has a tee-time set with generated flight times (next task).
@@ -99,6 +100,7 @@ If you leave any dialog with unsaved changes (Cancel, Back to list, ✕, Esc or 
 | **Alternate nine** | No | A standby nine recorded for this course. | An active nine, or None. |
 | **Night nine (after dark)** | No | The floodlit nine used after dark. | Only nines marked Floodlit on Unit Courses are offered. |
 | **Cross over time (minutes)** | No | Minutes from tee-off until players cross over to the second nine, e.g. `120`. It sets the crossover slot of every 18-hole flight, which also occupies a seat on the second nine's sheet. | A whole number from 1 to 600. |
+| **Buggy compulsory on this course** | No | Tick when every player on this course must take a buggy: the Tee Time Sheet then charges the buggy fee with the green fee (players paired in seat order take the shared buggy fee, an odd player the single buggy fee) and the Buggy Station refuses to issue a buggy until that fee is paid. | Off by default; a club may run one walking course and one buggy course. The card shows "Buggy: Compulsory" when on. |
 | **Course picture** | No | A photo of the course. | Image file; upload, replace or remove; kept when you click Save. |
 
 ### New / Edit tee-time set dialog

@@ -26,6 +26,7 @@ const courseBody = {
     nightNineId: str(64),
     crossOverMinutes: numberish,
     photo: str(2048), // the public URL returned by the upload door
+    buggyCompulsory: z.boolean().optional(),
 };
 
 const idParam = { params: z.object({ id }) };

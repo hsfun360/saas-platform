@@ -24,6 +24,9 @@ const {
     MATRIX_CHARGE_TYPE_KEYS,
     PACKAGE_CHARGE_TYPE_KEY,
     GOLFER_TYPED_CHARGE_TYPE_KEYS,
+    BUGGY_CHARGE_TYPE_KEY,
+    USAGE_TYPES,
+    USAGE_TYPE_KEYS,
 } = require('./transactionType.constants');
 
 function companyIdOf(req) {
@@ -51,6 +54,7 @@ function toDto(t, canModify = true) {
         transactionType: t.transactionType,
         chargeType: t.chargeType,
         golferType: t.golferType,
+        usageType: t.usageType || null,
         description: t.description,
         taxSchemeCode: t.taxSchemeCode,
         allowPriceOverride: t.allowPriceOverride === true,
@@ -197,11 +201,20 @@ function normalizeBody(body, types = []) {
         }
     }
 
+    // Buggy fees name their USAGE TYPE (2026-10-17): single = one buggy per
+    // fee line, shared = one buggy per two lines. Required there, NULL elsewhere.
+    let usageType = null;
+    if (chargeType === BUGGY_CHARGE_TYPE_KEY) {
+        usageType = str(body.usageType);
+        if (!USAGE_TYPE_KEYS.includes(usageType)) return { error: 'Select the usage type of the buggy fee - single buggy or shared buggy.' };
+    }
+
     return {
         value: {
             transactionType,
             chargeType,
             golferType,
+            usageType,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             // Packages DO carry their own tax scheme (spec 2026-08-28): it is
             // applied to ALL bill lines generated from the package, with the
@@ -216,19 +229,22 @@ function normalizeBody(body, types = []) {
     };
 }
 
-// At most one ACTIVE DEFAULT per (charge type, golfer category) - otherwise
-// registration auto-billing / the bill tiles cannot resolve the item.
-// Non-default types (golferType NULL) are unrestricted. Returns an error
-// string or null.
-async function activeDefaultConflict(companyId, chargeType, golferType, selfId) {
+// At most one ACTIVE DEFAULT per (charge type, golfer category) - and, for
+// buggy fees, per usage type as well (2026-10-17: a single AND a shared
+// default per category) - otherwise registration auto-billing / the bill
+// tiles cannot resolve the item. Non-default types (golferType NULL) are
+// unrestricted. Returns an error string or null.
+async function activeDefaultConflict(companyId, chargeType, golferType, selfId, usageType = null) {
     if (!golferType) return null;
     const where = { companyId, chargeType, golferType, isActive: true };
+    if (chargeType === BUGGY_CHARGE_TYPE_KEY) where.usageType = usageType;
     if (selfId) where.id = { [Op.ne]: selfId };
     const clash = await GolfTransactionType.findOne({ where });
     if (!clash) return null;
     const label = playerTypes.labelOf(await playerTypes.catalog(companyId), golferType);
     const kind = (CHARGE_TYPES.find((c) => c.key === chargeType) || {}).label || chargeType;
-    return `'${clash.transactionType}' is already the default ${kind.toLowerCase()} for ${label} - disable it first or clear the golfer-type default.`;
+    const usage = chargeType === BUGGY_CHARGE_TYPE_KEY ? ` (${((USAGE_TYPES.find((u) => u.key === usageType) || {}).label || usageType || '').toLowerCase()})` : '';
+    return `'${clash.transactionType}' is already the default ${kind.toLowerCase()}${usage} for ${label} - disable it first or clear the golfer-type default.`;
 }
 
 // The package's auto (balance-line) transaction type: required, same company,
@@ -323,7 +339,7 @@ exports.getMeta = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         const golferTypes = companyId ? playerTypes.asVocabulary(await playerTypes.catalog(companyId, { activeOnly: true })) : [];
-        res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS, golferTypes });
+        res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS, golferTypes, usageTypes: USAGE_TYPES });
     } catch (error) {
         console.error('Error loading golf transaction-type meta:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -408,7 +424,7 @@ exports.create = async (req, res) => {
         const existing = await GolfTransactionType.findOne({ where: { companyId, transactionType: v.transactionType } });
         if (existing) return res.status(409).json({ message: `Transaction type '${v.transactionType}' already exists.` });
 
-        const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, null);
+        const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, null, v.usageType);
         if (gfErr) return res.status(409).json({ message: gfErr });
 
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
@@ -477,7 +493,7 @@ exports.update = async (req, res) => {
         }
 
         if (row.isActive !== false) {
-            const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, row.id);
+            const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, row.id, v.usageType);
             if (gfErr) return res.status(409).json({ message: gfErr });
         }
 
@@ -537,7 +553,7 @@ exports.setActive = async (req, res) => {
 
         if (typeof req.body.isActive === 'boolean') {
             if (req.body.isActive === true) {
-                const gfErr = await activeDefaultConflict(companyId, row.chargeType, row.golferType, row.id);
+                const gfErr = await activeDefaultConflict(companyId, row.chargeType, row.golferType, row.id, row.usageType);
                 if (gfErr) return res.status(409).json({ message: gfErr });
             }
             row.isActive = req.body.isActive;

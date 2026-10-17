@@ -76,6 +76,8 @@ Returning guests are matched by identity number, then mobile, so one guest profi
 1. In the flight workspace click **Bill** on a registered player (or **View** on a settled one).
    The drawer is titled **Bill <bill no.>** and carries an **OPEN** or **SETTLED** chip beside the player's name and bill date.
 2. A new bill auto-charges the green fee for the player's category (members with golfing right pay none); any missing price shows as a warning.
+   On a course marked **Buggy compulsory** (Courses) the buggy fee is auto-charged too: players paired in seat order across the flight take the **shared buggy** fee, an odd player the **single buggy** fee - swap the line from the tiles if two players will not share.
+   The Buggy Station issues one buggy per slot those fee lines define, once the bill is settled.
 3. Click a **tile** to add an item: matrix items price by holes and day type, flat items by their amount, packages explode into their element lines plus the balance line.
    Tiles the player's category may not be billed are not shown; a package the player does not qualify for is greyed out with the reason.
 4. Adjust **Qty** (1-99) on a line; the **Price** can be changed only when the item allows a manual price (the line is then tagged "amended"); the red cross removes a line (package lines go together).
@@ -223,6 +225,8 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Pick the rain check to redeem on the Rain Check payment line.", choose a rain check on that line or change its payment type.
 - If you see "Visit V...: record Tan Wei Ming's arrival first (letter of introduction and ID sighted).", click **Receive** on that line before registering.
 - If you see "Tick that the letter of introduction was sighted." or "Tick that the home club card and ID were sighted.", both checks are required to record the arrival.
+- If you see "E1 is buggy-compulsory but no active shared buggy fee is the default for 'member' - buggy fee not auto-charged.", set up the single and shared buggy fee items for that golfer type under Transaction Type.
+- A player's line reads "buggy B-012" once the Buggy Station has issued a unit to them ("(returned)" after it comes back).
 - Leaving the drawer scrolls the flight you were working on back into view.
 
 ## Related options
@@ -230,6 +234,7 @@ With the rule off, no-shows are recorded without charges.
 - Golf Management → Golf Booking - the bookings that appear as booked players here.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
 - Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
+- Golf Management → Front Desk → Buggy Station - issues the buggies against the buggy fees paid here.
 - Membership Management → Affiliated Visits - the letters of introduction whose visitors are received here.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.

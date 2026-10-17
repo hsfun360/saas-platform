@@ -663,6 +663,29 @@
         }
       </div>
 
+      <!-- ============ Buggies (buggy management, 2026-10-17) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('buggies')"
+                [attr.aria-expanded]="isExpanded('buggies')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Buggies</span>
+            <span class="settings-header__sub">Whether the Buggy Station issues, returns and swaps the club's buggies against the paid buggy fees of each flight.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('buggies')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('buggies')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="buggyManagementEnabled" />
+                <span>Enable buggy management</span>
+              </label>
+              <p class="cell-subtle field-hint">On: the Buggy Station issues a unit per buggy slot - a single buggy fee is one slot, two shared buggy fees in the same flight are one slot for both riders - and only once the fees are paid. Off: the fleet register and buggy types can still be keyed, nothing is issued. Which courses make the buggy compulsory (the fee auto-charged at registration) is set per course under Courses; the single and shared fee items under Transaction Type.</p>
+            </div>
+          </div>
+        }
+      </div>
+
       <!-- ============ Playing Rights & Round Quotas (spec 2.3.4 / 2.3.5) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('rights')"

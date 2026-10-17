@@ -176,3 +176,20 @@
   accent-color: var(--brand);
 }
 
+
+/* The buggy-compulsory switch row (2026-10-17) - same shape as the other
+   screens' check rows (gpl-check / gs-check). */
+.gc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gc-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}

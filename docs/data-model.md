@@ -4,7 +4,7 @@ This doc is a curated map of the platform's database entities and relationships.
 It is maintained by the `/data-model` skill - refresh it there, do not hand-edit it out of sync.
 Sources of truth: `apps/api/src/wiring/associations.js` (all associations), the `*.model.js` files under `apps/api/src/modules/` and `apps/api/src/platform/` (all columns), and `apps/api/src/platform/schemas.js` (physical schemas).
 Business context and golden rules: `apps/api/docs/systems/`.
-Last refreshed: 2026-10-12.
+Last refreshed: 2026-10-17.
 
 ## Conventions
 
@@ -41,7 +41,7 @@ Last refreshed: 2026-10-12.
 | `src/platform` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: OutboxMessage (transactional outbox queue) |
 | `src/platform` | `audit` | - | Standalone: AuditLog (append-only, written only by the global hooks) |
 | `src/modules/membership` | `membership` | [membership-management.md](../apps/api/docs/systems/membership-management.md) | Membership, Member, Address, MembershipFee, MembershipFeeScheme, MembershipType, MembershipTypeFee, MembershipTypeStandingCharge, SalesAgency, SalesAgent, MembershipImportBatch, MembershipImportRow, MembershipTypeImportBatch, MembershipTypeImportRow. Id-ref documents (no associations): AffiliatedClub (the club-to-club arrangements, 2026-10-16), AffiliatedVisit (the letter of introduction, inbound and outbound). Standalone: MembershipStatus, BillingSchedule, BillingScheduleItem, NumberingScheme, MembershipSetting (per-company singleton) |
-| `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | Master files: UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, UnitCourseClosurePlan, UnitCourseClosureDay (re-keyed from the course to the nine 2026-09-30), Course, CourseTeeTimeSet, CourseTeeTimeSlot, TransactionType, TransactionTypeRate, TransactionTypeElement, TransactionTypeEligibility. Booking and front desk: BookingProfile, Player, Bill, BillItem, BillPayment. Group bookings: GroupPlayDay, GroupFlight, GroupPlayer, GroupWaitlist, GroupRefund, GroupRefundItem. Id-ref documents (no associations): Golfer, OtherGolfer, NoShowCharge, BookingChange (one row per amendment of a flight booking, 2026-10-14), RainCheck (a golfer's single-use credit for an abandoned paid round, 2026-10-15). Standalone: GolfSetting (per-company singleton), AdvanceBookingOverride, MinPlayerRule, GuestControlRule, HandicapLimitRule, HandicapAccompanimentRule, GolfSession, PaymentType, PlayerType (the player-category catalog whose code every line, rate default and rule carries, 2026-10-15), PlayingRightRule and RoundQuotaRule (whitelist and quota rows targeting a player type or an affiliated club, PUT-replaced with the Specification, 2026-10-15), NumberingScheme, FlightLock (short-lived tee-sheet claims) |
+| `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | Master files: UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, UnitCourseClosurePlan, UnitCourseClosureDay (re-keyed from the course to the nine 2026-09-30), Course, CourseTeeTimeSet, CourseTeeTimeSlot, TransactionType, TransactionTypeRate, TransactionTypeElement, TransactionTypeEligibility. Booking and front desk: BookingProfile, Player, Bill, BillItem, BillPayment. Buggy management (2026-10-17): BuggyType, Buggy, BuggyIssue, BuggyIssueRider. Group bookings: GroupPlayDay, GroupFlight, GroupPlayer, GroupWaitlist, GroupRefund, GroupRefundItem. Id-ref documents (no associations): Golfer, OtherGolfer, NoShowCharge, BookingChange (one row per amendment of a flight booking, 2026-10-14), RainCheck (a golfer's single-use credit for an abandoned paid round, 2026-10-15). Standalone: GolfSetting (per-company singleton), AdvanceBookingOverride, MinPlayerRule, GuestControlRule, HandicapLimitRule, HandicapAccompanimentRule, GolfSession, PaymentType, PlayerType (the player-category catalog whose code every line, rate default and rule carries, 2026-10-15), PlayingRightRule and RoundQuotaRule (whitelist and quota rows targeting a player type or an affiliated club, PUT-replaced with the Specification, 2026-10-15), NumberingScheme, FlightLock (short-lived tee-sheet claims) |
 | `src/modules/tax` | `tax` | [tax.md](../apps/api/docs/systems/tax.md) | TaxScheme, TaxRate, CompanyTaxScheme, CompanyTaxAccount |
 | `src/modules/workflow` | `workflow` | - | WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowTask |
 | `src/modules/dimension` | `dimension` | [dimension.md](../apps/api/docs/systems/dimension.md) | DimensionCategory, DimensionOption, DimensionCategoryModule (per-module applicability) |
@@ -155,6 +155,8 @@ erDiagram
     UnitCourse }o..|| Company : "companyId (value ref)"
     TransactionType }o..|| Company : "companyId (value ref)"
     PaymentType }o..|| Company : "companyId (value ref)"
+    BuggyType ||--o{ Buggy : "units of the type (restrict)"
+    Buggy }o..|| Company : "companyId (value ref)"
 ```
 
 The golf `TransactionType` is the golf billing-item master (tax by code via the seam); it is a different table from `ar.TransactionType`.
@@ -162,6 +164,9 @@ A package-class transaction type allocates its price across `TransactionTypeElem
 `TransactionTypeRate` carries four neutral cells (9/18 holes by weekday/weekend) plus `flatAmount`; the golfer category moved onto the type as `TransactionType.golferType` (member / member-guest / guest), one active default per charge type and category.
 Closure plans were re-keyed from the 18-hole course to the physical nine on 2026-09-30 (tables renamed from `CourseClosurePlan` / `CourseClosureDay`), because in a composite rotation closing one nine must block both the course that starts on it and the course that crosses over onto it.
 `PaymentType` is the settlement-tender catalog (fixed `paymentClass` vocabulary: debtor / cash / member / voucher / staff / online / suspend / creditcard, plus the `deposit` class used on a group final bill).
+A buggy-fee `TransactionType` also carries `usageType` (single / shared, 2026-10-17): one buggy per fee line, or one per two lines; the golfer-type default is unique per category and usage type.
+`Course.buggyCompulsory` (2026-10-17) makes the buggy fee auto-charge at registration on that course - a course rule, not a club rule.
+`BuggyType` and `Buggy` (2026-10-17) are the fleet register: a unit names its type (restrict on delete), carries the club's asset tag `buggyNo`, the opaque `qrToken` its printed label encodes, a register `status` (active / retired) and a system-maintained `location` (in-depot / on-course / maintenance).
 `GolfSetting` is the per-company Golf Specification singleton (advance-booking window, merge rule, booking limits per day type, lock minutes, minimum players, guest / handicap / junior / no-show / group-booking controls, tee-sheet colours); the group-booking knobs are `groupBookingControlEnabled` (the master switch), `groupTentativeHoldHours`, `groupDepositDueDays`, `groupDefaultDepositPct`, `groupShareCapWeekday` / `groupShareCapWeekend`, `groupMaxTentativePerUser` and `groupNextInLineHours`; its sparse exception rows (`AdvanceBookingOverride.membershipTypeId` value ref into Membership, `MinPlayerRule`, `GuestControlRule`, `HandicapLimitRule`, `HandicapAccompanimentRule` with `courseId NULL` = every course, `GolfSession` time bands) and `GolfSetting.noShowTransactionTypeId` (id ref to a `no-show` transaction type) are PUT-replaced from that screen and stay out of the diagram.
 
 #### Golf - booking, front desk and group bookings
@@ -214,6 +219,14 @@ erDiagram
     RainCheck }o..o| Bill : "redeemedBillId - the later bill it paid (id ref)"
     BillPayment }o..o| RainCheck : "rainCheckId - raincheck-class tender redeems it (id ref)"
     OtherGolfer }o..o| AffiliatedClub : "affiliatedClubId - a visiting member's home club (Membership, value ref)"
+    Buggy ||--o{ BuggyIssue : "outings - at most one open per unit (restrict)"
+    BuggyIssue ||--o{ BuggyIssueRider : "riders (cascade)"
+    BuggyIssue }o..o| BuggyIssue : "replacedByIssueId / replacesIssueId - the mid-round swap pair (id refs)"
+    BuggyIssue }o..o| Course : "courseId + teeTime + playDate - the flight (id ref)"
+    BuggyIssue }o..o| BookingProfile : "bookingProfileId (id ref)"
+    BuggyIssueRider }o..|| Player : "playerId - the registered starting-nine record (id ref)"
+    BuggyIssueRider }o..o| Golfer : "golferId (id ref)"
+    BuggyIssueRider }o..o| BillItem : "billItemId - the buggy-fee line this seat consumes, NULL = issued without a fee (id ref)"
 ```
 
 `Golfer` is the thin player identity every downstream row references (`golferId`, one shape for members and the public); the profile stays at the source (`Member` through the membership seam, or golf's own `OtherGolfer`), and `handicapIndex` / `handicapStatus` are the only golf-owned facts on it.
@@ -235,6 +248,7 @@ The deposit is a golf bill, never an `ar.Deposit`: AR only ever sees normal invo
 `PlayingRightRule` and `RoundQuotaRule` (2026-10-15) carry plain value refs to a `PlayerType` or an `AffiliatedClub` (exactly one), an optional membership type and, for rights, a course; they stay out of the diagram like the other Specification rule tables.
 Affiliated clubs and the letters of introduction live in the Membership domain (2026-10-16); a confirmed inbound visit books an ordinary flight `BookingProfile` under the visitor's `OtherGolfer` identity through the golf seam, the `OtherGolfer` row pointing back at the club through `affiliatedClubId` with the `affiliationNo` and card expiry, so the visitor's history stays the one golfer shape.
 `PlayerType` (2026-10-15) is the club's catalog of player categories; its `code` is a plain string key on `Player.playerType`, `GroupPlayer.playerType` and `TransactionType.golferType` (no association, so a code stays readable on history after the type is disabled), and its `baseIdentity` (member / member-guest / guest / affiliate) is the engine class the rules apply; three system rows per company carry the pre-master codes.
+`BuggyIssue` (2026-10-17) is one outing of one unit at the Buggy Station - issued to the riders of a flight, returned with a condition, or swapped mid-round (the broken unit's outing ends `swapped` and the replacement's outing points back); issuing never bills anything, and the station derives a flight's buggy slots from the buggy-fee `BillItem` lines (a single-usage line = one slot, two shared-usage lines = one slot for both riders, paid = the bill settled), each `BuggyIssueRider.billItemId` marking the line a seat consumed so it is never issued twice.
 `RainCheck` (2026-10-15) is a golfer's credit for an abandoned paid round: issued against one settled `Bill` (value = the green-fee lines or the whole bill, prorated by the unplayed holes per `GolfSetting`), numbered from the `golf-raincheck` series, valid for `GolfSetting.rainCheckValidityDays`, and single use - the raincheck-class `BillPayment` line that redeems it records the amount applied and the surplus forfeited on the rain check itself (`redeemedAmount` / `forfeitedAmount`); the worker expires open ones past `expiryDate`.
 
 ### Account Receivable

@@ -1,0 +1,59 @@
+/* Buggies (fleet register) - the fleet board tiles, the toolbar row and the
+   history list; listing/dialog chrome is the shared global system. All
+   colours are theme tokens. */
+
+.gb-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+@media (max-width: 767px) {
+  .gb-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.gb-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.gb-tile:hover { background: var(--surface-hover); }
+.gb-tile--on { border-color: var(--brand); background: var(--surface-selected); }
+.gb-tile__n { font-size: var(--font-h2); font-weight: var(--weight-bold); line-height: 1.1; }
+.gb-tile__l { font-size: var(--font-caption); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+
+.gb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+.gb-toolbar .saas-search { flex: 1 1 260px; margin-bottom: 0; }
+
+.gb-hist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+.gb-hist__row {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+.gb-hist__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}

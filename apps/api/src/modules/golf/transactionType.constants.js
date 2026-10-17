@@ -58,7 +58,23 @@ const GOLFER_TYPE_KEYS = GOLFER_TYPES.map((g) => g.key);
 // Charge types that may carry the golfer-type default.
 const GOLFER_TYPED_CHARGE_TYPE_KEYS = ['green-fee', 'buggy-fee', 'caddy-fee'];
 
+// USAGE TYPE of a buggy fee (user decisions 2026-10-17, buggy management):
+// how many buggies one fee line is worth at the buggy station.
+//   single - one buggy per fee charged (the player rides alone);
+//   shared - one buggy per TWO fees charged (two players share; each line
+//            carries the half price).
+// Required on chargeType 'buggy-fee', always NULL otherwise. The golfer-type
+// default is unique per (charge type, category, usage type), so a club keys
+// a single and a shared item per category.
+const BUGGY_CHARGE_TYPE_KEY = 'buggy-fee';
+const USAGE_TYPES = [
+    { key: 'single', label: 'Single buggy' },
+    { key: 'shared', label: 'Shared buggy' },
+];
+const USAGE_TYPE_KEYS = USAGE_TYPES.map((u) => u.key);
+
 module.exports = {
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY,
     GOLFER_TYPES, GOLFER_TYPE_KEYS, GOLFER_TYPED_CHARGE_TYPE_KEYS,
+    BUGGY_CHARGE_TYPE_KEY, USAGE_TYPES, USAGE_TYPE_KEYS,
 };

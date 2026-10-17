@@ -73,6 +73,16 @@ const Course = sequelize.define('Course', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // BUGGY COMPULSORY (user decision 2026-10-17 - per COURSE, not per club:
+    // a club may run one walking course and one buggy course). ON = the
+    // front desk auto-charges the player's buggy fee at registration (paired
+    // riders the shared fee, an odd rider the single fee) and the buggy
+    // station refuses to issue a unit without a paid fee line.
+    buggyCompulsory: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Whether this course is offered in pickers (tee sheets, bookings).
     isActive: {
         type: DataTypes.BOOLEAN,

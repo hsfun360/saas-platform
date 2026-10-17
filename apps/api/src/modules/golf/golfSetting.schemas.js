@@ -100,6 +100,8 @@ const saveBody = z.object({
     playingRightsEnabled: bool,
     playingRightRules: z.array(playingRightLine).max(400).nullable().optional(),
     roundQuotaRules: z.array(roundQuotaLine).max(400).nullable().optional(),
+    // Buggy management (2026-10-17)
+    buggyManagementEnabled: bool,
     // Tee-sheet colours (#rrggbb)
     teeSheetColorBooked: str(20),
     teeSheetColorRegistered: str(20),

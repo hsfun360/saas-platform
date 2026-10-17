@@ -1,0 +1,281 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">qr_code_scanner</span>
+      <div>
+        <h1>{{ 'Buggy Station' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Issue, return and swap buggies against the day\'s flights - the buggy slots come from the paid buggy fees, one scan per buggy.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (day() && !enabled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">info</span></span>
+      <span>Buggy management is switched off in Golf Specification - the slots are shown but nothing can be issued until it is on.</span>
+    </div>
+  }
+
+  <!-- Day + course + fleet -->
+  <div class="bs-filter">
+    <label for="bsDate">Play date</label>
+    <input #bsDateInput id="bsDate" type="date" [value]="playDate()" (change)="setDate(bsDateInput.value)" />
+    <label for="bsCourse">Course</label>
+    <select #bsCourseSel id="bsCourse" [value]="courseId()" (change)="setCourse(bsCourseSel.value)">
+      <option value="">All courses</option>
+      @for (c of day()?.courses || []; track c.id) {
+        <option [value]="c.id">{{ c.courseCode }}{{ c.buggyCompulsory ? ' (buggy compulsory)' : '' }}</option>
+      }
+    </select>
+    <span class="bs-fleet">Fleet {{ fleet().active }} · in depot {{ fleet().inDepot }} · on course {{ fleet().onCourse }}@if (fleet().maintenance) { · maintenance {{ fleet().maintenance }} }</span>
+  </div>
+
+  <!-- The scan box: a handheld scanner types here; the camera is optional -->
+  <form class="bs-scan" (submit)="$event.preventDefault(); submitCode()">
+    <label for="bsCode" class="bs-scan__label">Scan or type the buggy</label>
+    <div class="bs-scan__row">
+      <input #bsCodeBox id="bsCode" type="text" class="bs-scan__input" [value]="code()" (input)="code.set(bsCodeBox.value)"
+             placeholder="Buggy no or QR code…" autocomplete="off" autocapitalize="characters" [disabled]="busy()" />
+      <button type="submit" class="btn btn--primary" [disabled]="busy() || !code().trim()">Go</button>
+      <button type="button" class="btn btn--secondary" (click)="toggleCamera()" [attr.aria-pressed]="cameraOn()">
+        <span class="material-icons" aria-hidden="true">{{ cameraOn() ? 'videocam_off' : 'photo_camera' }}</span>
+        {{ cameraOn() ? 'Stop camera' : 'Camera' }}
+      </button>
+    </div>
+    @if (pendingBuggy(); as pb) {
+      <p class="bs-scan__hint bs-scan__hint--live">Buggy <strong>{{ pb.buggyNo }}</strong> ready - tap the slot it goes to, or <button type="button" class="btn btn--link btn--sm" (click)="clearSelection()">clear</button>.</p>
+    } @else if (targetLabel(); as t) {
+      <p class="bs-scan__hint bs-scan__hint--live">Scan the buggy for <strong>{{ t }}</strong>, or <button type="button" class="btn btn--link btn--sm" (click)="clearSelection()">clear</button>.</p>
+    } @else {
+      <p class="bs-scan__hint">Tap a ready slot then scan the buggy, or scan first and tap the slot. Scanning a buggy that is out opens Return / Swap.</p>
+    }
+    @if (cameraOn()) {
+      <app-qr-scanner (scanned)="onScanned($event)" />
+    }
+  </form>
+
+  <p class="bs-count">{{ flights().length }} flight{{ flights().length === 1 ? '' : 's' }} registered · {{ readySlots() }} slot{{ readySlots() === 1 ? '' : 's' }} ready of {{ pendingSlots() }} waiting · {{ out().length }} out</p>
+
+  @if (loading() && !day()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the station…</p></div>
+  } @else if (flights().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No registered flights on {{ playDate() | localDate }}{{ courseId() ? ' for this course' : '' }}. Players appear here once the Tee Time Sheet registers them.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (f of flights(); track f.key) {
+        <div class="data-card bs-flight" [class.data-card--selected]="selectedFlightKey() === f.key">
+          <div class="bs-flight__head">
+            <div class="data-card__title">{{ f.teeTime }} · {{ f.courseCode }}@if (f.courseDescription) { <span class="data-card__reg">{{ f.courseDescription }}</span> }</div>
+            <div class="data-card__subline">
+              @if (f.buggyCompulsory) { <span class="status-chip status-chip--info">Buggy compulsory</span> }
+              @if (f.groupName) { <span class="data-card__reg">{{ f.groupName }}</span> }
+              @for (no of f.bookingNos; track no) { <span class="data-card__reg">{{ no }}</span> }
+              <span class="data-card__reg">{{ f.players.length }} registered</span>
+            </div>
+          </div>
+
+          <!-- Slots -->
+          @if (f.slots.length) {
+            <ul class="bs-slots" aria-label="Buggy slots">
+              @for (s of f.slots; track s.key) {
+                <li>
+                  @switch (slotState(f, s)) {
+                    @case ('issued') {
+                      <div class="bs-slot bs-slot--issued">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">check_circle</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · on buggy {{ slotBuggy(f, s) }}</span>
+                        </span>
+                      </div>
+                    }
+                    @case ('ready') {
+                      <button type="button" class="bs-slot bs-slot--ready" [class.bs-slot--on]="isSelected(f, s)"
+                              (click)="pickSlot(f, s)" [disabled]="busy() || !enabled()" [attr.aria-pressed]="isSelected(f, s)">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">{{ isSelected(f, s) ? 'radio_button_checked' : 'radio_button_unchecked' }}</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · fee paid · {{ isSelected(f, s) ? 'scan the buggy' : 'ready' }}</span>
+                        </span>
+                      </button>
+                    }
+                    @default {
+                      <div class="bs-slot bs-slot--blocked" role="note">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">{{ s.complete ? 'hourglass_top' : 'person_add_disabled' }}</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · {{ s.blockReason }}</span>
+                        </span>
+                      </div>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          <!-- Players with no buggy fee -->
+          @if (f.noFee.length) {
+            <div class="bs-nofee">
+              <span class="bs-nofee__label">No buggy fee:</span>
+              @for (p of f.noFee; track p.playerId) {
+                @if (p.onBuggy) {
+                  <span class="mt-chip">{{ p.playerName }} - on a buggy</span>
+                } @else if (f.buggyCompulsory) {
+                  <span class="mt-chip" [title]="'Add the buggy fee to the bill first'">{{ p.playerName }}</span>
+                } @else {
+                  <button type="button" class="btn btn--secondary btn--sm" [class.bs-nofee--on]="isNoFeeSelected(f, p.playerId)"
+                          (click)="toggleNoFee(f, p.playerId)" [disabled]="busy() || !enabled()" [attr.aria-pressed]="isNoFeeSelected(f, p.playerId)">
+                    {{ p.playerName }}{{ isNoFeeSelected(f, p.playerId) ? ' - scan the buggy' : '' }}
+                  </button>
+                }
+              }
+              @if (f.buggyCompulsory) { <span class="cell-subtle">{{ f.courseCode }} is buggy-compulsory - the fee must be on the bill before a buggy is issued.</span> }
+            </div>
+          }
+
+          <!-- Units out for this flight -->
+          @for (i of f.issues; track i.id) {
+            @if (i.status === 'out') {
+              <div class="bs-out">
+                <span class="material-icons bs-slot__icon" aria-hidden="true">directions_car</span>
+                <span class="bs-slot__main">
+                  <span class="bs-slot__riders">{{ i.buggyNo }} - {{ ridersOf(i) }}</span>
+                  <span class="bs-slot__meta">out since {{ i.issuedAt | localDate:'datetime' }}@if (i.replacesIssueId) { · replacement }</span>
+                </span>
+                <span class="bs-out__actions">
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openSwap(i)" [disabled]="busy()">Swap</button>
+                  <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openReturn(i)" [disabled]="busy()">Return</button>
+                </span>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Every unit out right now (earlier flights, other days) -->
+  @if (out().length) {
+    <h2 class="section-heading">Out now</h2>
+    <div class="data-list">
+      @for (i of out(); track i.id) {
+        <div class="data-card bs-out bs-out--card">
+          <span class="material-icons bs-slot__icon" aria-hidden="true">directions_car</span>
+          <span class="bs-slot__main">
+            <span class="bs-slot__riders">{{ i.buggyNo }} - {{ ridersOf(i) || 'no riders recorded' }}</span>
+            <span class="bs-slot__meta">{{ i.playDate | localDate }}{{ i.teeTime ? ' ' + i.teeTime : '' }} · out since {{ i.issuedAt | localDate:'datetime' }}</span>
+          </span>
+          <span class="bs-out__actions">
+            <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openSwap(i)" [disabled]="busy()">Swap</button>
+            <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openReturn(i)" [disabled]="busy()">Return</button>
+          </span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Return / Swap dialog (centred decision) ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="busy()" [dirty]="mode() === 'swap' && swapForm.dirty" (close)="closeDialog()">
+      @if (targetIssue(); as i) {
+        @switch (mode()) {
+          @case ('return') {
+            <form id="bsReturn" [formGroup]="returnForm" (ngSubmit)="runReturn()" class="saas-form saas-form--dialog">
+              <p>Buggy <strong>{{ i.buggyNo }}</strong> is back from <strong>{{ ridersOf(i) }}</strong>{{ i.teeTime ? ' (' + i.teeTime + ')' : '' }}.</p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="bsRetCond">Condition</label>
+                  <select id="bsRetCond" formControlName="conditionIn">
+                    <option value="good">Good</option>
+                    <option value="fault">Fault</option>
+                    <option value="damaged">Damaged</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bsRetRemarks">Remarks{{ returnForm.controls.conditionIn.value !== 'good' ? ' *' : '' }}</label>
+                  <textarea id="bsRetRemarks" rows="2" wrap="off" formControlName="remarksIn" maxlength="255" placeholder="What was found"></textarea>
+                </div>
+              </div>
+              <p class="cell-subtle field-hint">Returning frees the unit for the next flight. If the unit broke down mid-round, use Swap instead so the riders keep a buggy.</p>
+            </form>
+          }
+          @case ('swap') {
+            <form id="bsSwap" [formGroup]="swapForm" (ngSubmit)="runSwap()" class="saas-form saas-form--dialog">
+              <p>Replace buggy <strong>{{ i.buggyNo }}</strong> for <strong>{{ ridersOf(i) }}</strong>. The riders and their paid fees move to the replacement.</p>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bsSwapNew">Replacement buggy <span class="required">*</span></label>
+                  <input id="bsSwapNew" type="text" formControlName="newCode" placeholder="Scan or type the buggy no" autocomplete="off" autocapitalize="characters" />
+                  @if (swapForm.controls.newCode.invalid && swapForm.controls.newCode.touched) {
+                    <p class="field-error" role="alert">Scan or type the replacement buggy.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="bsSwapReason">Reason <span class="required">*</span></label>
+                  <input id="bsSwapReason" type="text" formControlName="swapReason" placeholder="e.g. Battery flat" maxlength="255" />
+                  @if (swapForm.controls.swapReason.invalid && swapForm.controls.swapReason.touched) {
+                    <p class="field-error" role="alert">Give the reason for the swap.</p>
+                  }
+                </div>
+                <div class="form-group form-group--narrow">
+                  <label for="bsSwapHole">At hole</label>
+                  <input id="bsSwapHole" type="number" inputmode="numeric" min="1" max="18" step="1" formControlName="swapHole" placeholder="1-18" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="bsSwapCond">Condition of {{ i.buggyNo }}</label>
+                  <select id="bsSwapCond" formControlName="conditionIn">
+                    <option value="fault">Fault</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="good">Good</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="bsSwapRemarks">Remarks</label>
+                  <input id="bsSwapRemarks" type="text" formControlName="remarksIn" maxlength="255" placeholder="Optional" />
+                </div>
+              </div>
+            </form>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @if (mode() === 'return') {
+          <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
+          <button type="button" class="btn btn--secondary" (click)="switchToSwap()" [disabled]="busy()">Swap instead</button>
+          <button type="submit" form="bsReturn" class="btn btn--primary" [disabled]="busy()">{{ busy() ? 'Returning…' : 'Return buggy' }}</button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
+          <button type="submit" form="bsSwap" class="btn btn--primary" [disabled]="busy()">{{ busy() ? 'Swapping…' : 'Swap buggy' }}</button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

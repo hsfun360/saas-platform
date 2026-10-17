@@ -79,6 +79,9 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly chargeTypes = signal<MembershipStatusOption[]>([]);
   readonly matrixKeys = signal<string[]>(['green-fee', 'caddy-fee', 'buggy-fee']);
   readonly golferTypes = signal<{ key: string; label: string }[]>([]);
+  // Buggy fee usage types (2026-10-17): single = one buggy per fee line,
+  // shared = one buggy per two lines.
+  readonly usageTypes = signal<{ key: string; label: string }[]>([{ key: 'single', label: 'Single buggy' }, { key: 'shared', label: 'Shared buggy' }]);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   // Constrained-combobox rows (house standard for long reference lists):
   // code AND name in the label so type-to-filter matches both.
@@ -96,6 +99,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     transactionType: ['', [Validators.required, Validators.maxLength(50)]],
     chargeType: ['', [Validators.required]],
     golferType: [''],
+    usageType: [''],
     description: ['', [Validators.maxLength(255)]],
     taxSchemeCode: [''],
     allowPriceOverride: [false],
@@ -194,6 +198,7 @@ export class GolfTransactionTypesComponent implements OnInit {
         this.chargeTypes.set(m.chargeTypes);
         if (m.matrixChargeTypes?.length) this.matrixKeys.set(m.matrixChargeTypes);
         if (m.golferTypes?.length) this.golferTypes.set(m.golferTypes);
+        if (m.usageTypes?.length) this.usageTypes.set(m.usageTypes);
       },
       error: () => {},
     });
@@ -219,6 +224,10 @@ export class GolfTransactionTypesComponent implements OnInit {
 
   golferTypeLabel(key: string | null | undefined): string {
     return key ? (this.golferTypes().find((g) => g.key === key)?.label || key) : '';
+  }
+
+  usageTypeLabel(key: string | null | undefined): string {
+    return key ? (this.usageTypes().find((u) => u.key === key)?.label || key) : '';
   }
 
   // Whether the dialog form currently composes a package (method, not
@@ -381,7 +390,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     this.clearMessages();
     this.editId.set(null);
     this.setComposition([], []);
-    this.form.reset({ transactionType: '', chargeType: '', golferType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
+    this.form.reset({ transactionType: '', chargeType: '', golferType: '', usageType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
     this.form.markAsPristine();
     this.dialogOpen.set(true);
   }
@@ -397,6 +406,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       transactionType: t.transactionType,
       chargeType: t.chargeType,
       golferType: t.golferType || '',
+      usageType: t.usageType || '',
       description: t.description || '',
       taxSchemeCode: t.taxSchemeCode || '',
       allowPriceOverride: t.allowPriceOverride === true,
@@ -443,10 +453,15 @@ export class GolfTransactionTypesComponent implements OnInit {
         return;
       }
     }
+    if (v.chargeType === 'buggy-fee' && !v.usageType) {
+      this.errorMessage.set('Select the usage type of the buggy fee - single buggy or shared buggy.');
+      return;
+    }
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
       golferType: this.golferTyped(v.chargeType) ? (v.golferType || null) : null,
+      usageType: v.chargeType === 'buggy-fee' ? (v.usageType as 'single' | 'shared') : null,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,

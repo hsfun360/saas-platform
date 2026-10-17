@@ -1,0 +1,294 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">electric_car</span>
+      <div>
+        <h1>{{ 'Buggies' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The club\'s buggy fleet - every unit with its type, its QR label and where it is right now: in the depot, out on the course with its riders, in maintenance or retired.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (!loading() && !enabled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">info</span></span>
+      <span>Buggy management is switched off in Golf Specification - the fleet can be keyed, but the Buggy Station issues nothing until it is on.</span>
+    </div>
+  }
+
+  <!-- Fleet board: the live counts double as filters -->
+  <div class="gb-board" role="group" aria-label="Fleet filters">
+    <button type="button" class="gb-tile" [class.gb-tile--on]="filter() === 'all'" (click)="filter.set('all')">
+      <span class="gb-tile__n">{{ fleet().active }}</span><span class="gb-tile__l">Active fleet</span>
+    </button>
+    <button type="button" class="gb-tile" [class.gb-tile--on]="filter() === 'in-depot'" (click)="filter.set('in-depot')">
+      <span class="gb-tile__n">{{ fleet().inDepot }}</span><span class="gb-tile__l">In depot</span>
+    </button>
+    <button type="button" class="gb-tile" [class.gb-tile--on]="filter() === 'on-course'" (click)="filter.set('on-course')">
+      <span class="gb-tile__n">{{ fleet().onCourse }}</span><span class="gb-tile__l">On course</span>
+    </button>
+    <button type="button" class="gb-tile" [class.gb-tile--on]="filter() === 'maintenance'" (click)="filter.set('maintenance')">
+      <span class="gb-tile__n">{{ fleet().maintenance }}</span><span class="gb-tile__l">In maintenance</span>
+    </button>
+    <button type="button" class="gb-tile" [class.gb-tile--on]="filter() === 'retired'" (click)="filter.set('retired')">
+      <span class="gb-tile__n">{{ retiredCount() }}</span><span class="gb-tile__l">Retired</span>
+    </button>
+  </div>
+
+  <!-- Search + print -->
+  @if (!loading() && rows().length > 0) {
+    <div class="gb-toolbar">
+      <div class="saas-search">
+        <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+        <input #gbSearchBox type="search" [value]="search()" (input)="search.set(gbSearchBox.value)"
+               placeholder="Search by buggy no, type, model, serial or rider…" aria-label="Search buggies" class="saas-search__input">
+        @if (search()) {
+          <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        }
+      </div>
+      <button type="button" class="btn btn--secondary" (click)="printLabels()" [disabled]="fleet().active === 0">
+        <span class="material-icons" aria-hidden="true">qr_code_2</span>
+        Print QR labels ({{ fleet().active }})
+      </button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the fleet…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No buggies yet. Use 'New buggy' to register the first unit - set up a Buggy Type first.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No buggies match{{ search() ? ' "' + search() + '"' : ' this filter' }}.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); filter.set('all')">Clear</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (b of filtered(); track b.id) {
+        <div class="data-card" [attr.data-return-id]="b.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ b.buggyNo }}@if (b.buggyType) { <span class="data-card__reg">- {{ b.buggyType.name }}</span> }</div>
+              <div class="data-card__subline">
+                @if (b.buggyType) { <span class="mt-chip">{{ b.buggyType.seats }} seat{{ b.buggyType.seats === 1 ? '' : 's' }}</span> }
+                @if (b.model) { <span class="data-card__reg">{{ b.model }}</span> }
+                @if (b.serialNo) { <span class="data-card__reg">S/N {{ b.serialNo }}</span> }
+                @if (b.purchaseDate) { <span class="data-card__reg">bought {{ b.purchaseDate | localDate }}</span> }
+              </div>
+              @if (b.openIssue; as i) {
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>On course with</dt><dd>{{ ridersOf(i) }}{{ i.teeTime ? ' · ' + i.teeTime : '' }} · since {{ i.issuedAt | localDate:'datetime' }}</dd></div>
+                </dl>
+              } @else if (b.status === 'retired' && b.retireReason) {
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Retired</dt><dd>{{ b.retiredAt | localDate }} · {{ b.retireReason }}</dd></div>
+                </dl>
+              } @else if (b.remarks) {
+                <div class="data-card__desc">{{ b.remarks }}</div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (b.status === 'retired') {
+                <span class="status-chip status-chip--off">Retired</span>
+              } @else if (b.location === 'on-course') {
+                <span class="status-chip status-chip--info">On course</span>
+              } @else if (b.location === 'maintenance') {
+                <span class="status-chip status-chip--danger">Maintenance</span>
+              } @else {
+                <span class="status-chip status-chip--on">In depot</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (b.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(b)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+              }
+              <app-overflow-menu [label]="'More actions for ' + b.buggyNo">
+                <button type="button" appMenuItem (click)="openHistory(b)">
+                  <span class="material-icons" aria-hidden="true">history</span>
+                  History
+                </button>
+                <button type="button" appMenuItem (click)="printOne(b)">
+                  <span class="material-icons" aria-hidden="true">qr_code_2</span>
+                  Print label
+                </button>
+                @if (b.canModify !== false) {
+                  <ng-container *appCan="'edit'">
+                    <button type="button" appMenuItem (click)="askRegenerateQr(b)" [disabled]="busyId() === b.id">
+                      <span class="material-icons" aria-hidden="true">autorenew</span>
+                      New QR code
+                    </button>
+                    @if (b.status === 'retired') {
+                      <button type="button" appMenuItem (click)="reinstate(b)" [disabled]="busyId() === b.id">
+                        <span class="material-icons" aria-hidden="true">check_circle</span>
+                        Reinstate
+                      </button>
+                    } @else {
+                      <button type="button" appMenuItem (click)="openRetire(b)" [disabled]="busyId() === b.id || b.location === 'on-course'">
+                        <span class="material-icons" aria-hidden="true">block</span>
+                        Retire
+                      </button>
+                    }
+                  </ng-container>
+                  <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(b)" [disabled]="busyId() === b.id">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    Delete
+                  </button>
+                }
+              </app-overflow-menu>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New buggy FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New buggy">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New buggy</span>
+  </button>
+
+  <!-- ============ The one dialog: form (drawer) / retire / history (centred) ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [variant]="mode() === 'form' ? 'drawer' : 'center'" [title]="dialogTitle()" [busy]="saving()"
+                [dirty]="mode() === 'form' && form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this buggy. Leaving now will discard them."
+                (close)="closeDialog()">
+      @switch (mode()) {
+        @case ('form') {
+          <form id="gbForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="gbNo">Buggy No <span class="required">*</span></label>
+                <input id="gbNo" type="text" formControlName="buggyNo" placeholder="e.g. B-012" autocomplete="off" maxlength="20"
+                       style="text-transform: uppercase;"
+                       [attr.aria-invalid]="showError(form.controls.buggyNo)" aria-describedby="gbNoErr" />
+                @if (showError(form.controls.buggyNo)) {
+                  <p id="gbNoErr" class="field-error" role="alert">
+                    @if (form.controls.buggyNo.errors?.['required']) { Buggy number is required. }
+                    @else if (form.controls.buggyNo.errors?.['pattern']) { Use letters, digits and hyphens only. }
+                    @else { Use 20 characters or fewer. }
+                  </p>
+                }
+                <p class="cell-subtle field-hint">The asset tag printed on the unit and its QR label; unique in the fleet.</p>
+              </div>
+              <div class="form-group">
+                <label for="gbType">Buggy Type <span class="required">*</span></label>
+                <app-combobox formControlName="buggyTypeId" inputId="gbType" [options]="typeOptions()" [allowEmpty]="false"
+                              placeholder="Type to search…" [invalid]="showError(form.controls.buggyTypeId)" describedBy="gbTypeErr" />
+                @if (showError(form.controls.buggyTypeId)) {
+                  <p id="gbTypeErr" class="field-error" role="alert">Select the buggy type.</p>
+                }
+                @if (typeOptions().length === 0) {
+                  <p class="cell-subtle field-hint">No active buggy types yet - add one under Buggy Types first.</p>
+                }
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="gbModel">Model</label>
+                <input id="gbModel" type="text" formControlName="model" placeholder="e.g. Club Car Tempo" maxlength="100" />
+              </div>
+              <div class="form-group">
+                <label for="gbSerial">Serial No</label>
+                <input id="gbSerial" type="text" formControlName="serialNo" placeholder="Manufacturer serial" maxlength="100" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="gbBought">Purchase Date</label>
+                <input id="gbBought" type="date" formControlName="purchaseDate" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gbRemarks">Remarks</label>
+                <textarea id="gbRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255" placeholder="Optional"></textarea>
+              </div>
+            </div>
+          </form>
+        }
+        @case ('retire') {
+          @if (target(); as b) {
+            <p>Retire buggy <strong>{{ b.buggyNo }}</strong>{{ b.buggyType ? ' (' + b.buggyType.name + ')' : '' }}? It leaves the active fleet and the station can no longer issue it; its history stays. Reinstate brings it back.</p>
+            <div class="form-group">
+              <label for="gbRetireReason">Reason <span class="required">*</span></label>
+              <textarea #retireBox id="gbRetireReason" rows="2" wrap="off" maxlength="255" [value]="retireReason()" (input)="retireReason.set(retireBox.value)" placeholder="e.g. Sold, written off after accident"></textarea>
+            </div>
+          }
+        }
+        @case ('history') {
+          @if (historyLoading()) {
+            <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading outings…</p></div>
+          } @else if (history().length === 0) {
+            <p class="cell-subtle">No outings on record for this buggy yet.</p>
+          } @else {
+            <ol class="gb-hist">
+              @for (i of history(); track i.id) {
+                <li class="gb-hist__row">
+                  <div class="gb-hist__head">
+                    <strong>{{ i.playDate | localDate }}{{ i.teeTime ? ' · ' + i.teeTime : '' }}</strong>
+                    <span class="status-chip" [class.status-chip--info]="i.status === 'out'" [class.status-chip--on]="i.status === 'returned'" [class.status-chip--off]="i.status === 'swapped'">{{ i.status }}</span>
+                  </div>
+                  <div class="cell-subtle">{{ ridersOf(i) || 'no riders recorded' }} · out {{ i.issuedAt | localDate:'datetime' }}@if (i.returnedAt) { · back {{ i.returnedAt | localDate:'datetime' }} ({{ i.conditionIn }}) }</div>
+                  @if (i.swapReason) { <div class="cell-subtle">Swapped{{ i.swapHole ? ' at hole ' + i.swapHole : '' }}: {{ i.swapReason }}</div> }
+                  @if (i.remarksIn) { <div class="cell-subtle">{{ i.remarksIn }}</div> }
+                </li>
+              }
+            </ol>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @switch (mode()) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="gbForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('retire') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="button" class="btn btn--danger" (click)="runRetire()" [disabled]="saving() || !retireReason().trim()">
+              {{ saving() ? 'Retiring…' : 'Retire buggy' }}
+            </button>
+          }
+          @default {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

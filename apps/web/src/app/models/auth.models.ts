@@ -684,6 +684,8 @@ export interface TransactionTypeMeta {
   chargeTypes: MembershipStatusOption[];
   // Golf only: charge-type keys priced by the 4-cell matrix (the rest are flat).
   matrixChargeTypes?: string[];
+  // Golf only: the usage-type vocabulary of a buggy fee (single / shared).
+  usageTypes?: MembershipStatusOption[];
   // Golf only: the golfer categories a green-fee type may charge.
   golferTypes?: { key: string; label: string }[];
 }
@@ -1199,6 +1201,9 @@ export interface GolfCourse {
   nightNineId?: string | null;
   crossOverMinutes?: number | null;
   photo?: string | null; // public URL of the course picture
+  // Buggy compulsory on this course (2026-10-17): the buggy fee auto-charges
+  // at registration and the station refuses an issue without a paid fee.
+  buggyCompulsory?: boolean;
   isActive?: boolean;
 }
 
@@ -1281,6 +1286,9 @@ export interface GolfTransactionType extends MembershipTransactionType {
   // category drives registration auto-billing; NULL = a manual item
   // (group-booking / tournament green fees).
   golferType?: string | null;
+  // Buggy fees only (2026-10-17): 'single' = one buggy per fee line, 'shared'
+  // = one buggy per two lines (the half price). NULL on other charge types.
+  usageType?: 'single' | 'shared' | null;
   // Whether the pre-set price may be amended manually when billing this item.
   allowPriceOverride?: boolean;
   // Billing-item icon (public GCS URL) shown in the catalog and on the

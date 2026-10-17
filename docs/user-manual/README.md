@@ -88,6 +88,9 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Numbering Control](golf-management/golf-numbering.md) - How the six golf document series (Booking, Registration, Bill, Rain Check, Proforma, Refund Request) are numbered: auto-generate format and counter or manual entry, plus copy from another company.
 - [Payment Type](golf-management/golf-payment-types.md) - The settlement-tender catalog for golf bills - code, payment class (Cash, Member, Debtor, Deposit, etc.), description and tile icon; enable or disable.
 - [Player Types](golf-management/golf-player-types.md) - The club's player categories: code, base identity (member, member as guest, guest, affiliated or reciprocal), description and the approval flag; the three built-in types plus the club's own.
+- [Buggy Types](golf-management/golf-buggy-types.md) - The kinds of buggy the club runs: code, name and the seats one unit carries.
+- [Buggies](golf-management/golf-buggies.md) - The fleet register: every unit with its type, QR label and live location (in depot, on course with its riders, in maintenance, retired), label printing and the outing history.
+- [Buggy Station](golf-management/golf-buggy-station.md) - The starter hut's screen: issue, return and swap buggies against the day's flights, one scan per buggy, with the slots derived from the paid single and shared buggy fees.
 
 ## Membership Management
 

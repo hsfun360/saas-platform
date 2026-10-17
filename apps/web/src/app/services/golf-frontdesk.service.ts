@@ -57,6 +57,10 @@ export interface FrontDeskEntry {
   // introduction visit this booking belongs to; a confirmed one must be received at the desk
   // (letter and ID sighted) before the line can register.
   visit?: { id: string; visitNo: string; status: string; visitorName: string } | null;
+  // Buggy management (2026-10-17): the unit this player is riding (or rode)
+  // and whether the course makes the buggy compulsory.
+  buggy?: { buggyNo: string; status: string; issueId: string } | null;
+  buggyCompulsory?: boolean;
 }
 
 // A golfer's rain check (golf.RainCheck): a credit for an abandoned paid
@@ -238,6 +242,8 @@ export interface FrontDeskMeta {
   teeSheetColors?: TeeSheetColors;
   // Rain checks switched on in Golf Specification (the Issue door).
   rainCheckEnabled?: boolean;
+  // Buggy management switched on in Golf Specification (the station is live).
+  buggyManagementEnabled?: boolean;
 }
 
 export interface GolfBillItemRow {

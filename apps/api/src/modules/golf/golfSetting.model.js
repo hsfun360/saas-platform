@@ -250,6 +250,14 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Buggy management (user decisions 2026-10-17): the buggy station door.
+    // OFF = the fleet register and types may be keyed but nothing is issued;
+    // the compulsory-buggy FEE still charges (it is a course rule).
+    buggyManagementEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Group booking control (user decisions 2026-10-11) - the master switch
     // for the SALES-club lifecycle (groupBooking.constants). OFF = a group
     // booking is booked at creation, nothing expires, no approval, no deposit

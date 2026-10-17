@@ -34,11 +34,12 @@ Staff come here when the club introduces a charge, changes a price (a future eff
    - **Green Fee**, **Caddy Fee**, **Buggy Fee** - priced by a four-cell table (9 / 18 holes × weekday / weekend & public holiday).
    - **No Show Charges**, **Miscellaneous** - a single flat amount.
    - **Package** - a bundle of other items (see below).
-3. For a green fee, buggy fee or caddy fee, optionally set **Default for golfer type** (see "Golfer-type defaults" below).
-4. Enter a **Description** and pick the **Tax Scheme** applied when the item is billed; leave it as None for a tax-free item.
-5. Tick **Allow manual price change at billing** only if the cashier may amend the pre-set price on a bill.
-6. Optionally **Upload icon** - the picture shown on the billing tiles.
-7. Click **Save**, then open **Default Price** from the card's ⋮ menu to set its prices - an item with no price in force cannot be billed (unless manual pricing is allowed).
+3. For a buggy fee, pick the **Usage type**: **Single buggy** (one buggy per fee charged - the player rides alone) or **Shared buggy** (one buggy per two fees charged - two players share, each billed this half price).
+4. For a green fee, buggy fee or caddy fee, optionally set **Default for golfer type** (see "Golfer-type defaults" below).
+5. Enter a **Description** and pick the **Tax Scheme** applied when the item is billed; leave it as None for a tax-free item.
+6. Tick **Allow manual price change at billing** only if the cashier may amend the pre-set price on a bill.
+7. Optionally **Upload icon** - the picture shown on the billing tiles.
+8. Click **Save**, then open **Default Price** from the card's ⋮ menu to set its prices - an item with no price in force cannot be billed (unless manual pricing is allowed).
 
 ### Golfer-type defaults (green fee, buggy fee, caddy fee)
 
@@ -49,6 +50,8 @@ At most one active item per charge type may be the default for a category.
   Members *with* golfing right are never auto-charged; Member prices members *without* the right.
   Leave it as None for manual green fees such as group-booking or tournament rates.
 - On a **buggy fee** or **caddy fee** it makes the item the only buggy / caddy tile that category sees on the bill - so a member rate (e.g. `BUGGY-M`) and a visitor rate (`BUGGY-V`) resolve by the player being billed, never by the cashier's judgement.
+  A buggy fee holds one active default per category **and usage type**, so a club keys a single and a shared item per category (e.g. `BUGGY-M-SINGLE` and `BUGGY-M-SHARED`).
+  On a buggy-compulsory course (Courses) registration auto-charges the shared default to paired riders and the single default to an odd rider; the Buggy Station issues one unit per slot the fee lines define.
   An item with no golfer type is a tile every golfer may be billed.
 
 ### Set or change the prices (Default Price)
@@ -146,7 +149,8 @@ Items that are not billable lines (e.g. a food-and-beverage share) are not model
 | --- | --- | --- | --- |
 | **Transaction Type** | Yes | The item's code shown on bills and tiles, e.g. `GF18`, `BUGGY-M`, `PKG-JR`. | Up to 50 characters; unique within the club. |
 | **Charge Type** | Yes | Green Fee, Caddy Fee, Buggy Fee, No Show Charges, Miscellaneous or Package. | Decides whether the price is a four-cell table or a flat amount. |
-| **Default for golfer type** | No | Member, Member as Guest or Guest / Visitor - the category this item is the default for. | Green, buggy and caddy fees only; one active default per charge type and category. |
+| **Usage type** | Buggy fees: Yes | Single buggy (one buggy per fee) or Shared buggy (one buggy per two fees, the half price). | Buggy fees only; decides how many buggies the Buggy Station issues for the line. |
+| **Default for golfer type** | No | Member, Member as Guest or Guest / Visitor - the category this item is the default for. | Green, buggy and caddy fees only; one active default per charge type and category (per usage type for buggy fees). |
 | **Description** | No | What the item is, e.g. `18 Holes Green Fee`. | Up to 255 characters. |
 | **Tax Scheme** | No | The tax applied when the item is billed; None = tax-free. | Must be one of the club's usable output-tax schemes. On a package it applies to every generated line. |
 | **Auto Transaction Type** | Packages: Yes | The item that receives the package's balance line. | An active, non-package item of this club; not the package itself. |
@@ -183,6 +187,7 @@ Items that are not billable lines (e.g. a food-and-beverage share) are not model
 - Golf Management → Front Desk → Tee Time Sheet - where these items are billed (green fee auto-charge, tiles, packages, eligibility reasons).
 - Golf Management → Common Setup → Golf Specification - the Cancellation & No-show rule picks a No Show Charges item from this catalog.
 - Golf Management → Common Setup → Payment Type - the tenders a bill is settled with.
+- Golf Management → Front Desk → Buggy Station - issues one buggy per single fee and one per two shared fees.
 - System Setup → Tax Setup - the tax schemes offered here.
 - System Setup → Companies → Weekend days, and Public Holidays - decide which dates take the weekend price.
 - SaaS Administration → Nationalities - the nationality list used by package eligibility.
