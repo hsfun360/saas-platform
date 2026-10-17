@@ -45,6 +45,11 @@ router.use('/player-types', requireMenuAction('/golf/player-types'), require('./
 router.use('/buggy-types', requireMenuAction('/golf/buggy-types'), require('./buggyTypes.routes'));
 router.use('/buggies', requireMenuAction('/golf/buggies'), require('./buggies.routes'));
 router.use('/buggy-station', requireMenuAction('/golf/buggy-station'), require('./buggyStation.routes'));
+// Caddy management slice 1 (2026-10-17): grades, groups and the caddy
+// register (leave records, notes, badge QR sheet) - Common Setup menus.
+router.use('/caddy-grades', requireMenuAction('/golf/caddy-grades'), require('./caddyGrades.routes'));
+router.use('/caddy-groups', requireMenuAction('/golf/caddy-groups'), require('./caddyGroups.routes'));
+router.use('/caddies', requireMenuAction('/golf/caddies'), require('./caddies.routes'));
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

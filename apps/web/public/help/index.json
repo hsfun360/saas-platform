@@ -32,6 +32,15 @@
   "golf-buggy-station": {
     "title": "Buggy Station"
   },
+  "golf-caddy-grades": {
+    "title": "Caddy Grades"
+  },
+  "golf-caddy-groups": {
+    "title": "Caddy Groups"
+  },
+  "golf-caddies": {
+    "title": "Caddies"
+  },
   "golf-transaction-types": {
     "title": "Transaction Type"
   },

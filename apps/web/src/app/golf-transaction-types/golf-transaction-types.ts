@@ -81,7 +81,13 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly golferTypes = signal<{ key: string; label: string }[]>([]);
   // Buggy fee usage types (2026-10-17): single = one buggy per fee line,
   // shared = one buggy per two lines.
-  readonly usageTypes = signal<{ key: string; label: string }[]>([{ key: 'single', label: 'Single buggy' }, { key: 'shared', label: 'Shared buggy' }]);
+  readonly usageTypes = signal<{ key: string; label: string }[]>([{ key: 'single', label: 'Single' }, { key: 'shared', label: 'Shared' }]);
+
+  // Charge types that carry the usage type: buggy fees (2026-10-17) and
+  // caddy fees (caddies may be shared, same day). Mirrors USAGE_TYPED_CHARGE_TYPE_KEYS.
+  usageTyped(chargeType: string): boolean {
+    return chargeType === 'buggy-fee' || chargeType === 'caddy-fee';
+  }
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   // Constrained-combobox rows (house standard for long reference lists):
   // code AND name in the label so type-to-filter matches both.
@@ -453,15 +459,15 @@ export class GolfTransactionTypesComponent implements OnInit {
         return;
       }
     }
-    if (v.chargeType === 'buggy-fee' && !v.usageType) {
-      this.errorMessage.set('Select the usage type of the buggy fee - single buggy or shared buggy.');
+    if (this.usageTyped(v.chargeType) && !v.usageType) {
+      this.errorMessage.set(`Select the usage type of the ${v.chargeType === 'caddy-fee' ? 'caddy' : 'buggy'} fee - single or shared.`);
       return;
     }
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
       golferType: this.golferTyped(v.chargeType) ? (v.golferType || null) : null,
-      usageType: v.chargeType === 'buggy-fee' ? (v.usageType as 'single' | 'shared') : null,
+      usageType: this.usageTyped(v.chargeType) ? (v.usageType as 'single' | 'shared') : null,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,

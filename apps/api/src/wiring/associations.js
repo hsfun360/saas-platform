@@ -89,6 +89,22 @@ GolfBuggy.hasMany(GolfBuggyIssue, { foreignKey: 'buggyId', as: 'issues', onDelet
 GolfBuggyIssue.belongsTo(GolfBuggy, { foreignKey: 'buggyId', as: 'buggy' });
 GolfBuggyIssue.hasMany(GolfBuggyIssueRider, { foreignKey: 'buggyIssueId', as: 'riders', onDelete: 'CASCADE' });
 GolfBuggyIssueRider.belongsTo(GolfBuggyIssue, { foreignKey: 'buggyIssueId', as: 'issue' });
+// Caddy management (2026-10-17, slice 1): grade -> caddies (restrict), group
+// -> caddies (set null), caddy -> leaves and notes (cascade); nationality and
+// race codes stay subscriber value refs.
+const GolfCaddyGrade = require('../modules/golf/caddyGrade.model');
+const GolfCaddyGroup = require('../modules/golf/caddyGroup.model');
+const GolfCaddy = require('../modules/golf/caddy.model');
+const GolfCaddyLeave = require('../modules/golf/caddyLeave.model');
+const GolfCaddyNote = require('../modules/golf/caddyNote.model');
+GolfCaddyGrade.hasMany(GolfCaddy, { foreignKey: 'caddyGradeId', as: 'caddies', onDelete: 'RESTRICT' });
+GolfCaddy.belongsTo(GolfCaddyGrade, { foreignKey: 'caddyGradeId', as: 'grade' });
+GolfCaddyGroup.hasMany(GolfCaddy, { foreignKey: 'caddyGroupId', as: 'caddies', onDelete: 'SET NULL' });
+GolfCaddy.belongsTo(GolfCaddyGroup, { foreignKey: 'caddyGroupId', as: 'group' });
+GolfCaddy.hasMany(GolfCaddyLeave, { foreignKey: 'caddyId', as: 'leaves', onDelete: 'CASCADE' });
+GolfCaddyLeave.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
+GolfCaddy.hasMany(GolfCaddyNote, { foreignKey: 'caddyId', as: 'notes', onDelete: 'CASCADE' });
+GolfCaddyNote.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no

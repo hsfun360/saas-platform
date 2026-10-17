@@ -1,0 +1,105 @@
+/* Caddies (the caddy register) - the register board tiles, the toolbar, the
+   card photo, the dialog's sub-forms and lists. Listing/dialog chrome is the
+   shared global system. All colours are theme tokens. */
+
+.gcd-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+@media (max-width: 767px) {
+  .gcd-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.gcd-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.gcd-tile:hover { background: var(--surface-hover); }
+.gcd-tile--on { border-color: var(--brand); background: var(--surface-selected); }
+.gcd-tile__n { font-size: var(--font-h2); font-weight: var(--weight-bold); line-height: 1.1; }
+.gcd-tile__l { font-size: var(--font-caption); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+
+.gcd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+.gcd-toolbar .saas-search { flex: 1 1 260px; margin-bottom: 0; }
+
+/* Card: photo beside the text. */
+.gcd-main { display: flex; gap: var(--space-md); align-items: flex-start; }
+.gcd-info { min-width: 0; flex: 1 1 auto; }
+.gcd-photo {
+  width: 48px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-sunken);
+}
+.gcd-photo--blank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--icon-lg);
+}
+
+.gcd-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gcd-check input[type='checkbox'] { width: var(--icon-sm); height: var(--icon-sm); flex-shrink: 0; }
+
+.gcd-photo-preview {
+  display: block;
+  width: 96px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.gcd-photo-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.gcd-photo-file { display: none; }
+
+/* Leave / notes views: the entry form above the list. */
+.gcd-sub { margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border); }
+.gcd-sub__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+.gcd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-xs); }
+.gcd-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+.gcd-list__main { display: grid; gap: var(--space-2xs); min-width: 0; }
+.gcd-list__actions { display: flex; gap: var(--space-xs); flex-shrink: 0; }
+@media (max-width: 767px) {
+  .gcd-list__row { flex-wrap: wrap; }
+  .gcd-list__actions { width: 100%; justify-content: flex-end; }
+}
+.gcd-pts { font-weight: var(--weight-semibold); color: var(--text-secondary); }
+.gcd-pts--pos { color: var(--success-text); }
+.gcd-pts--neg { color: var(--danger-text); }

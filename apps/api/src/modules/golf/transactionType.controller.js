@@ -24,7 +24,7 @@ const {
     MATRIX_CHARGE_TYPE_KEYS,
     PACKAGE_CHARGE_TYPE_KEY,
     GOLFER_TYPED_CHARGE_TYPE_KEYS,
-    BUGGY_CHARGE_TYPE_KEY,
+    USAGE_TYPED_CHARGE_TYPE_KEYS,
     USAGE_TYPES,
     USAGE_TYPE_KEYS,
 } = require('./transactionType.constants');
@@ -201,12 +201,13 @@ function normalizeBody(body, types = []) {
         }
     }
 
-    // Buggy fees name their USAGE TYPE (2026-10-17): single = one buggy per
-    // fee line, shared = one buggy per two lines. Required there, NULL elsewhere.
+    // Buggy and caddy fees name their USAGE TYPE (2026-10-17): single = one
+    // buggy / caddy per fee line, shared = one per two lines. Required there,
+    // NULL elsewhere.
     let usageType = null;
-    if (chargeType === BUGGY_CHARGE_TYPE_KEY) {
+    if (USAGE_TYPED_CHARGE_TYPE_KEYS.includes(chargeType)) {
         usageType = str(body.usageType);
-        if (!USAGE_TYPE_KEYS.includes(usageType)) return { error: 'Select the usage type of the buggy fee - single buggy or shared buggy.' };
+        if (!USAGE_TYPE_KEYS.includes(usageType)) return { error: `Select the usage type of the ${chargeType === 'caddy-fee' ? 'caddy' : 'buggy'} fee - single or shared.` };
     }
 
     return {
@@ -237,13 +238,13 @@ function normalizeBody(body, types = []) {
 async function activeDefaultConflict(companyId, chargeType, golferType, selfId, usageType = null) {
     if (!golferType) return null;
     const where = { companyId, chargeType, golferType, isActive: true };
-    if (chargeType === BUGGY_CHARGE_TYPE_KEY) where.usageType = usageType;
+    if (USAGE_TYPED_CHARGE_TYPE_KEYS.includes(chargeType)) where.usageType = usageType;
     if (selfId) where.id = { [Op.ne]: selfId };
     const clash = await GolfTransactionType.findOne({ where });
     if (!clash) return null;
     const label = playerTypes.labelOf(await playerTypes.catalog(companyId), golferType);
     const kind = (CHARGE_TYPES.find((c) => c.key === chargeType) || {}).label || chargeType;
-    const usage = chargeType === BUGGY_CHARGE_TYPE_KEY ? ` (${((USAGE_TYPES.find((u) => u.key === usageType) || {}).label || usageType || '').toLowerCase()})` : '';
+    const usage = USAGE_TYPED_CHARGE_TYPE_KEYS.includes(chargeType) ? ` (${((USAGE_TYPES.find((u) => u.key === usageType) || {}).label || usageType || '').toLowerCase()})` : '';
     return `'${clash.transactionType}' is already the default ${kind.toLowerCase()}${usage} for ${label} - disable it first or clear the golfer-type default.`;
 }
 

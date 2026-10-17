@@ -90,6 +90,9 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Player Types](golf-management/golf-player-types.md) - The club's player categories: code, base identity (member, member as guest, guest, affiliated or reciprocal), description and the approval flag; the three built-in types plus the club's own.
 - [Buggy Types](golf-management/golf-buggy-types.md) - The kinds of buggy the club runs: code, name and the seats one unit carries.
 - [Buggies](golf-management/golf-buggies.md) - The fleet register: every unit with its type, QR label and live location (in depot, on course with its riders, in maintenance, retired), label printing and the outing history.
+- [Caddy Grades](golf-management/golf-caddy-grades.md) - The club's caddy grades: code, name and how many golfers one caddy of the grade serves at once.
+- [Caddy Groups](golf-management/golf-caddy-groups.md) - Optional teams of caddies with a size cap and a rotation order.
+- [Caddies](golf-management/golf-caddies.md) - The caddy register: badge number, grade, group, identity and contact, photo and badge QR, leave records, notes with points, and the active / inactive / blacklisted status.
 - [Buggy Station](golf-management/golf-buggy-station.md) - The starter hut's screen: issue, return and swap buggies against the day's flights, one scan per buggy, with the slots derived from the paid single and shared buggy fees.
 
 ## Membership Management

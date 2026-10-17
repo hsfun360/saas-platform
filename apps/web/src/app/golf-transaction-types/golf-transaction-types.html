@@ -78,7 +78,7 @@
                       <span class="mt-chip">Default for {{ golferTypeLabel(t.golferType) }}</span>
                     }
                     @if (t.usageType) {
-                      <span class="mt-chip">{{ usageTypeLabel(t.usageType) }}</span>
+                      <span class="mt-chip">{{ usageTypeLabel(t.usageType) }} {{ t.chargeType === 'caddy-fee' ? 'caddy' : 'buggy' }}</span>
                     }
                     @if (t.allowPriceOverride) {
                       <span class="mt-chip">Manual price allowed</span>
@@ -182,7 +182,7 @@
             }
           </div>
         </div>
-        @if (form.controls.chargeType.value === 'buggy-fee') {
+        @if (usageTyped(form.controls.chargeType.value)) {
           <div class="form-row">
             <div class="form-group">
               <label for="gttUsageType">Usage type <span class="required">*</span></label>
@@ -192,7 +192,11 @@
                   <option [value]="u.key">{{ u.label }}</option>
                 }
               </select>
-              <p class="cell-subtle field-hint">Single buggy: one buggy per fee charged. Shared buggy: one buggy per two fees charged - two players share, each billed this (half) price. On a buggy-compulsory course registration charges the shared fee to paired riders and the single fee to an odd rider; the Buggy Station issues one unit per slot the fees define.</p>
+              @if (form.controls.chargeType.value === 'buggy-fee') {
+                <p class="cell-subtle field-hint">Single: one buggy per fee charged. Shared: one buggy per two fees charged - two players share, each billed this (half) price. On a buggy-compulsory course registration charges the shared fee to paired riders and the single fee to an odd rider; the Buggy Station issues one unit per slot the fees define.</p>
+              } @else {
+                <p class="cell-subtle field-hint">Single: one caddy per fee charged (one bag). Shared: one caddy per two fees charged - two players share a caddy, each billed this (half) price. The Caddy Station assigns one caddy per slot the fees define.</p>
+              }
             </div>
           </div>
         }
