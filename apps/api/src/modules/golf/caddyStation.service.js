@@ -179,13 +179,16 @@ async function consumedLineIds(playerIds, { transaction } = {}) {
     return new Set(rows.map((r) => r.billItemId));
 }
 
-async function liveAssignmentsOf(companyId, playerIds, { transaction } = {}) {
+// `statuses` defaults to the LIVE ones (consumption and the sheet's tag); the
+// flight card also lists swapped rounds (found on the dev smoke: the
+// complaint swap vanished from the card).
+async function liveAssignmentsOf(companyId, playerIds, { transaction, statuses = LIVE_ASSIGNMENT_STATUSES } = {}) {
     if (!playerIds.length) return [];
     const rows = await GolfCaddyAssignmentPlayer.findAll({ where: { playerId: { [Op.in]: playerIds } }, attributes: ['caddyAssignmentId'], transaction });
     const ids = [...new Set(rows.map((r) => r.caddyAssignmentId))];
     if (!ids.length) return [];
     return GolfCaddyAssignment.findAll({
-        where: { companyId, id: { [Op.in]: ids }, status: { [Op.in]: LIVE_ASSIGNMENT_STATUSES } },
+        where: { companyId, id: { [Op.in]: ids }, status: { [Op.in]: statuses } },
         include: [{ model: GolfCaddyAssignmentPlayer, as: 'players' }, { model: GolfCaddy, as: 'caddy', attributes: ['id', 'name'] }],
         order: [['assignedAt', 'ASC']],
         transaction,
@@ -197,7 +200,7 @@ async function flightView(companyId, { course, playDate, teeTime }, players, { t
     const [feeLines, consumed, assignments] = await Promise.all([
         station.feeLinesOf(companyId, playerIds, { transaction, chargeType: CADDY_CHARGE_TYPE_KEY }),
         consumedLineIds(playerIds, { transaction }),
-        liveAssignmentsOf(companyId, playerIds, { transaction }),
+        liveAssignmentsOf(companyId, playerIds, { transaction, statuses: ['assigned', 'completed', 'swapped'] }),
     ]);
     const { slots, noFee } = station.buildSlots({ players, feeLines, consumed, noun: 'caddy' });
     const withCaddy = new Set(assignments.filter((a) => a.status === 'assigned').flatMap((a) => a.players.map((p) => p.playerId)));

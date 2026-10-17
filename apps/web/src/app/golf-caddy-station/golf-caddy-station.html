@@ -84,7 +84,7 @@
     @if (queueOpen()) {
       <div class="cs-queue__body">
         @if (board().queue.length === 0 && board().out.length === 0) {
-          <p class="cell-subtle">Nobody checked in yet. Scan a badge or use Check in.</p>
+          <p class="cell-subtle">{{ board().checkedIn ? 'Nobody waiting - ' + board().checkedOut + ' checked out for the day.' : 'Nobody checked in yet.' }} Scan a badge or use Check in.</p>
         }
         @if (board().queue.length) {
           <ol class="cs-qlist" aria-label="Caddies waiting, next up first">
