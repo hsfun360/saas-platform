@@ -105,6 +105,18 @@ GolfCaddy.hasMany(GolfCaddyLeave, { foreignKey: 'caddyId', as: 'leaves', onDelet
 GolfCaddyLeave.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
 GolfCaddy.hasMany(GolfCaddyNote, { foreignKey: 'caddyId', as: 'notes', onDelete: 'CASCADE' });
 GolfCaddyNote.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
+// Caddy Station (2026-10-17, slice 2): caddy -> attendance days and rounds of
+// service (restrict - history), round -> golfers served (cascade); player /
+// golfer / bill-item / flight refs stay plain value refs.
+const GolfCaddyAttendance = require('../modules/golf/caddyAttendance.model');
+const GolfCaddyAssignment = require('../modules/golf/caddyAssignment.model');
+const GolfCaddyAssignmentPlayer = require('../modules/golf/caddyAssignmentPlayer.model');
+GolfCaddy.hasMany(GolfCaddyAttendance, { foreignKey: 'caddyId', as: 'attendance', onDelete: 'RESTRICT' });
+GolfCaddyAttendance.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
+GolfCaddy.hasMany(GolfCaddyAssignment, { foreignKey: 'caddyId', as: 'assignments', onDelete: 'RESTRICT' });
+GolfCaddyAssignment.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
+GolfCaddyAssignment.hasMany(GolfCaddyAssignmentPlayer, { foreignKey: 'caddyAssignmentId', as: 'players', onDelete: 'CASCADE' });
+GolfCaddyAssignmentPlayer.belongsTo(GolfCaddyAssignment, { foreignKey: 'caddyAssignmentId', as: 'assignment' });
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no

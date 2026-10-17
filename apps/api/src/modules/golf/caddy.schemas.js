@@ -43,7 +43,36 @@ const leaveParam = { params: z.object({ id, leaveId: id }) };
 const noteParam = { params: z.object({ id, noteId: id }) };
 const activeBody = z.object({ isActive: z.boolean().optional() });
 
+// A caddy reference from the station: its id, or a scanned / typed code (the
+// badge token or the badge number).
+const caddyRef = z.object({ id: str(64), code: str(512) }).nullable().optional();
+
 module.exports = {
+    // --- the Caddy Station (slice 2) ---
+    stationDay: { query: z.object({ playDate: str(10), courseId: str(64) }) },
+    stationResolve: { query: z.object({ code: str(512), playDate: str(10) }) },
+    stationCheckIn: { body: z.object({ caddy: caddyRef, workDate: str(10), remarks: str(255) }) },
+    stationCheckOut: { body: z.object({ caddy: caddyRef, attendanceId: str(64), workDate: str(10) }) },
+    stationAssign: {
+        body: z.object({
+            caddy: caddyRef,
+            next: z.boolean().optional(),
+            playerIds: z.array(z.string().max(64)).max(4).nullable().optional(),
+            requestedByName: z.boolean().optional(),
+        }),
+    },
+    stationComplete: { body: z.object({ caddy: caddyRef, assignmentId: str(64), holesPlayed: numberish, note: str(255), checkOut: z.boolean().optional() }) },
+    stationSwap: {
+        body: z.object({
+            caddy: caddyRef,
+            assignmentId: str(64),
+            newCaddy: caddyRef,
+            next: z.boolean().optional(),
+            swapReason: str(20),
+            swapHole: numberish,
+            requestedByName: z.boolean().optional(),
+        }),
+    },
     // --- grades ---
     gradeCreate: { body: gradeBody },
     gradeUpdate: { ...idParam, body: gradeBody },

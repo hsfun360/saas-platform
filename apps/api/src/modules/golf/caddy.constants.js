@@ -46,10 +46,43 @@ const GENDER_KEYS = GENDERS.map((g) => g.key);
 const MIN_PLAYERS_PER_CADDY = 1;
 const MAX_PLAYERS_PER_CADDY = 4;
 
+// --- the Caddy Station (slice 2, user decisions 2026-10-17) ---
+
+// A caddy's day: checked in and waiting in the queue, out on the course, or
+// checked out for the day.
+const ATTENDANCE_STATUSES = [
+    { key: 'present', label: 'Present' },
+    { key: 'out', label: 'On course' },
+    { key: 'off', label: 'Checked out' },
+];
+const ATTENDANCE_STATUS_KEYS = ATTENDANCE_STATUSES.map((s) => s.key);
+
+// One round of caddy service.
+const ASSIGNMENT_STATUSES = [
+    { key: 'assigned', label: 'On course' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'swapped', label: 'Swapped' },
+];
+const ASSIGNMENT_STATUS_KEYS = ASSIGNMENT_STATUSES.map((s) => s.key);
+
+// Why a caddy was swapped mid-round and whether the swapped-out caddy's round
+// still COUNTS as a round of service (the spec's 更换原因 "pays the replaced
+// caddy" flag; user confirmed the four reasons 2026-10-17).
+const SWAP_REASONS = [
+    { key: 'unwell', label: 'Caddy unwell or injured', countsAsRound: true },
+    { key: 'player-request', label: 'Player request', countsAsRound: true },
+    { key: 'complaint', label: 'Complaint against the caddy', countsAsRound: false },
+    { key: 'other', label: 'Other', countsAsRound: true },
+];
+const SWAP_REASON_KEYS = SWAP_REASONS.map((r) => r.key);
+
 module.exports = {
     CADDY_STATUSES, CADDY_STATUS_KEYS,
     LEAVE_TYPES, LEAVE_TYPE_KEYS,
     NOTE_KINDS, NOTE_KIND_KEYS,
     GENDERS, GENDER_KEYS,
     MIN_PLAYERS_PER_CADDY, MAX_PLAYERS_PER_CADDY,
+    ATTENDANCE_STATUSES, ATTENDANCE_STATUS_KEYS,
+    ASSIGNMENT_STATUSES, ASSIGNMENT_STATUS_KEYS,
+    SWAP_REASONS, SWAP_REASON_KEYS,
 };

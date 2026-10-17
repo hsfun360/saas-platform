@@ -50,6 +50,8 @@ router.use('/buggy-station', requireMenuAction('/golf/buggy-station'), require('
 router.use('/caddy-grades', requireMenuAction('/golf/caddy-grades'), require('./caddyGrades.routes'));
 router.use('/caddy-groups', requireMenuAction('/golf/caddy-groups'), require('./caddyGroups.routes'));
 router.use('/caddies', requireMenuAction('/golf/caddies'), require('./caddies.routes'));
+// Caddy Station (slice 2, 2026-10-17): a Front Desk menu with its own grant.
+router.use('/caddy-station', requireMenuAction('/golf/caddy-station'), require('./caddyStation.routes'));
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

@@ -102,6 +102,7 @@ const saveBody = z.object({
     roundQuotaRules: z.array(roundQuotaLine).max(400).nullable().optional(),
     // Buggy management (2026-10-17)
     buggyManagementEnabled: bool,
+    caddyManagementEnabled: bool,
     // Tee-sheet colours (#rrggbb)
     teeSheetColorBooked: str(20),
     teeSheetColorRegistered: str(20),

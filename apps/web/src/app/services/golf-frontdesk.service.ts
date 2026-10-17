@@ -61,6 +61,8 @@ export interface FrontDeskEntry {
   // and whether the course makes the buggy compulsory.
   buggy?: { buggyNo: string; status: string; issueId: string } | null;
   buggyCompulsory?: boolean;
+  // Caddy management (2026-10-17): the caddy assigned to this player.
+  caddy?: { caddyNo: string; caddyName: string | null; status: string; assignmentId: string } | null;
 }
 
 // A golfer's rain check (golf.RainCheck): a credit for an abandoned paid
@@ -244,6 +246,7 @@ export interface FrontDeskMeta {
   rainCheckEnabled?: boolean;
   // Buggy management switched on in Golf Specification (the station is live).
   buggyManagementEnabled?: boolean;
+  caddyManagementEnabled?: boolean;
 }
 
 export interface GolfBillItemRow {

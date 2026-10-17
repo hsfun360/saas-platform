@@ -226,7 +226,7 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Visit V...: record Tan Wei Ming's arrival first (letter of introduction and ID sighted).", click **Receive** on that line before registering.
 - If you see "Tick that the letter of introduction was sighted." or "Tick that the home club card and ID were sighted.", both checks are required to record the arrival.
 - If you see "E1 is buggy-compulsory but no active shared buggy fee is the default for 'member' - buggy fee not auto-charged.", set up the single and shared buggy fee items for that golfer type under Transaction Type.
-- A player's line reads "buggy B-012" once the Buggy Station has issued a unit to them ("(returned)" after it comes back).
+- A player's line reads "buggy B-012" once the Buggy Station has issued a unit to them ("(returned)" after it comes back), and "caddy C-001 Ali" once the Caddy Station has assigned a caddy ("(done)" after the round).
 - Leaving the drawer scrolls the flight you were working on back into view.
 
 ## Related options
@@ -235,6 +235,7 @@ With the rule off, no-shows are recorded without charges.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
 - Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
 - Golf Management → Front Desk → Buggy Station - issues the buggies against the buggy fees paid here.
+- Golf Management → Front Desk → Caddy Station - assigns the caddies against the caddy fees paid here.
 - Membership Management → Affiliated Visits - the letters of introduction whose visitors are received here.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.

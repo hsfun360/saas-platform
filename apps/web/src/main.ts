@@ -229,6 +229,7 @@ const routes: Routes = [
       { path: 'golf/caddy-grades', loadComponent: () => import('./app/golf-caddy-grades/golf-caddy-grades').then((m) => m.GolfCaddyGradesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/caddy-groups', loadComponent: () => import('./app/golf-caddy-groups/golf-caddy-groups').then((m) => m.GolfCaddyGroupsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/caddies', loadComponent: () => import('./app/golf-caddies/golf-caddies').then((m) => m.GolfCaddiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/caddy-station', loadComponent: () => import('./app/golf-caddy-station/golf-caddy-station').then((m) => m.GolfCaddyStationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/golfers', loadComponent: () => import('./app/golf-golfers/golf-golfers').then((m) => m.GolfGolfersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Course Closure - standalone menu so closure keying is grantable
       // without the Unit Course setup screen (2026-09-30).

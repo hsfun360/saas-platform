@@ -1,0 +1,346 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">sports_golf</span>
+      <div>
+        <h1>{{ 'Caddy Station' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Check caddies in, assign them to the day\'s flights from the paid caddy fees in queue order, and record each round - one badge scan per caddy.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (day() && !enabled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">info</span></span>
+      <span>Caddy management is switched off in Golf Specification - the slots are shown but nobody can check in or be assigned until it is on.</span>
+    </div>
+  }
+
+  <!-- Day + course -->
+  <div class="bs-filter">
+    <label for="csDate">Play date</label>
+    <input #csDateInput id="csDate" type="date" [value]="playDate()" (change)="setDate(csDateInput.value)" />
+    <label for="csCourse">Course</label>
+    <select #csCourseSel id="csCourse" [value]="courseId()" (change)="setCourse(csCourseSel.value)">
+      <option value="">All courses</option>
+      @for (c of day()?.courses || []; track c.id) {
+        <option [value]="c.id">{{ c.courseCode }}</option>
+      }
+    </select>
+    <span class="bs-fleet">Checked in {{ board().checkedIn }} · available {{ board().available }} · on course {{ board().onCourse }}@if (board().checkedOut) { · checked out {{ board().checkedOut }} }</span>
+  </div>
+
+  <!-- The scan box -->
+  <form class="bs-scan" (submit)="$event.preventDefault(); submitCode()">
+    <label for="csCode" class="bs-scan__label">Scan or type the caddy badge</label>
+    <div class="bs-scan__row">
+      <input #csCodeBox id="csCode" type="text" class="bs-scan__input" [value]="code()" (input)="code.set(csCodeBox.value)"
+             placeholder="Caddy no or badge QR…" autocomplete="off" autocapitalize="characters" [disabled]="busy()" />
+      <button type="submit" class="btn btn--primary" [disabled]="busy() || !code().trim()">Go</button>
+      <button type="button" class="btn btn--secondary" (click)="toggleCamera()" [attr.aria-pressed]="cameraOn()">
+        <span class="material-icons" aria-hidden="true">{{ cameraOn() ? 'videocam_off' : 'photo_camera' }}</span>
+        {{ cameraOn() ? 'Stop camera' : 'Camera' }}
+      </button>
+      <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="assignNext()" [disabled]="busy() || !enabled() || !nextUp() || !selectedSlot()">
+        <span class="material-icons" aria-hidden="true">skip_next</span>
+        Next up{{ nextUp() ? ': ' + nextUp()!.caddyNo : '' }}
+      </button>
+    </div>
+    @if (pendingCaddy(); as pc) {
+      <p class="bs-scan__hint bs-scan__hint--live">Caddy <strong>{{ pc.caddyNo }} {{ pc.name }}</strong> ready - tap the slot, or <button type="button" class="btn btn--link btn--sm" (click)="clearSelection()">clear</button>.</p>
+    } @else if (targetLabel(); as t) {
+      <p class="bs-scan__hint bs-scan__hint--live">Scan the caddy for <strong>{{ t }}</strong> or tap Next up, or <button type="button" class="btn btn--link btn--sm" (click)="clearSelection()">clear</button>.</p>
+    } @else {
+      <p class="bs-scan__hint">Tap a ready slot then scan the badge or tap Next up. Scanning a caddy not yet checked in checks them in; scanning one on the course opens Complete / Swap.</p>
+    }
+    @if (cameraOn()) {
+      <app-qr-scanner (scanned)="onScanned($event)" />
+    }
+  </form>
+
+  <!-- The queue -->
+  <div class="data-card cs-queue">
+    <button type="button" class="cs-queue__head" (click)="queueOpen.set(!queueOpen())" [attr.aria-expanded]="queueOpen()">
+      <span class="data-card__title">Queue · {{ board().available }} waiting · {{ board().onCourse }} on course</span>
+      <span class="material-icons" aria-hidden="true">{{ queueOpen() ? 'expand_more' : 'chevron_right' }}</span>
+    </button>
+    @if (queueOpen()) {
+      <div class="cs-queue__body">
+        @if (board().queue.length === 0 && board().out.length === 0) {
+          <p class="cell-subtle">Nobody checked in yet. Scan a badge or use Check in.</p>
+        }
+        @if (board().queue.length) {
+          <ol class="cs-qlist" aria-label="Caddies waiting, next up first">
+            @for (a of board().queue; track a.id; let i = $index) {
+              <li class="cs-qrow" [class.cs-qrow--next]="i === 0">
+                <span class="cs-qrow__pos">{{ i + 1 }}</span>
+                <span class="cs-qrow__main">
+                  <span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddy?.name }}</span>
+                  <span class="bs-slot__meta">{{ a.caddy?.grade?.name }}{{ a.caddy?.languages ? ' · ' + a.caddy?.languages : '' }} · in queue since {{ a.queuedAt | localDate:'datetime' }}</span>
+                </span>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="checkOut(a)" [disabled]="busy()">Check out</button>
+              </li>
+            }
+          </ol>
+        }
+        @if (board().out.length) {
+          <p class="cell-subtle cs-qsub">On course: {{ board().out.length }}</p>
+          <ul class="cs-qlist">
+            @for (a of board().out; track a.id) {
+              <li class="cs-qrow cs-qrow--out">
+                <span class="material-icons bs-slot__icon" aria-hidden="true">directions_walk</span>
+                <span class="cs-qrow__main"><span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddy?.name }}</span><span class="bs-slot__meta">{{ a.caddy?.grade?.name }}</span></span>
+              </li>
+            }
+          </ul>
+        }
+        <div class="cs-queue__actions">
+          <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openCheckIn()" [disabled]="busy() || !enabled()">
+            <span class="material-icons" aria-hidden="true">how_to_reg</span>
+            Check in…
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <p class="bs-count">{{ flights().length }} flight{{ flights().length === 1 ? '' : 's' }} registered · {{ readySlots() }} slot{{ readySlots() === 1 ? '' : 's' }} ready of {{ pendingSlots() }} waiting · {{ openRounds().length }} round{{ openRounds().length === 1 ? '' : 's' }} out</p>
+
+  @if (loading() && !day()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the station…</p></div>
+  } @else if (flights().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No registered flights on {{ playDate() | localDate }}{{ courseId() ? ' for this course' : '' }}. Players appear here once the Tee Time Sheet registers them.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (f of flights(); track f.key) {
+        <div class="data-card bs-flight" [class.data-card--selected]="selectedFlightKey() === f.key">
+          <div class="bs-flight__head">
+            <div class="data-card__title">{{ f.teeTime }} · {{ f.courseCode }}@if (f.courseDescription) { <span class="data-card__reg">{{ f.courseDescription }}</span> }</div>
+            <div class="data-card__subline">
+              @if (f.groupName) { <span class="data-card__reg">{{ f.groupName }}</span> }
+              @for (no of f.bookingNos; track no) { <span class="data-card__reg">{{ no }}</span> }
+              <span class="data-card__reg">{{ f.players.length }} registered</span>
+            </div>
+          </div>
+
+          @if (f.slots.length) {
+            <ul class="bs-slots" aria-label="Caddy slots">
+              @for (s of f.slots; track s.key) {
+                <li>
+                  @switch (slotState(f, s)) {
+                    @case ('assigned') {
+                      <div class="bs-slot bs-slot--issued">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">check_circle</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · caddy {{ slotCaddy(f, s) }}</span>
+                        </span>
+                      </div>
+                    }
+                    @case ('ready') {
+                      <button type="button" class="bs-slot bs-slot--ready" [class.bs-slot--on]="isSelected(f, s)"
+                              (click)="pickSlot(f, s)" [disabled]="busy() || !enabled()" [attr.aria-pressed]="isSelected(f, s)">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">{{ isSelected(f, s) ? 'radio_button_checked' : 'radio_button_unchecked' }}</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · fee paid · {{ isSelected(f, s) ? 'scan the badge or tap Next up' : 'ready' }}</span>
+                        </span>
+                      </button>
+                    }
+                    @default {
+                      <div class="bs-slot bs-slot--blocked" role="note">
+                        <span class="material-icons bs-slot__icon" aria-hidden="true">{{ s.complete ? 'hourglass_top' : 'person_add_disabled' }}</span>
+                        <span class="bs-slot__main">
+                          <span class="bs-slot__riders">{{ s.riders[0].playerName }}@if (s.riders.length > 1) { and {{ s.riders[1].playerName }} }</span>
+                          <span class="bs-slot__meta">{{ usageLabel(s.usageType) }} · {{ s.blockReason }}</span>
+                        </span>
+                      </div>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (f.noFee.length) {
+            <div class="bs-nofee">
+              <span class="bs-nofee__label">No caddy fee:</span>
+              @for (p of f.noFee; track p.playerId) { <span class="mt-chip">{{ p.playerName }}</span> }
+              <span class="cell-subtle">A caddy needs a caddy-fee line on the bill; a complimentary caddy uses a complimentary caddy-fee item.</span>
+            </div>
+          }
+
+          @for (a of f.assignments; track a.id) {
+            @if (a.status === 'assigned') {
+              <div class="bs-out">
+                <span class="material-icons bs-slot__icon" aria-hidden="true">directions_walk</span>
+                <span class="bs-slot__main">
+                  <span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddyName }} - {{ golfersOf(a) }}</span>
+                  <span class="bs-slot__meta">{{ a.holes }} holes · out since {{ a.assignedAt | localDate:'datetime' }}@if (a.requestedByName) { · requested by player }@if (a.replacesAssignmentId) { · replacement }</span>
+                </span>
+                <span class="bs-out__actions">
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openSwap(a)" [disabled]="busy()">Swap</button>
+                  <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openComplete(a)" [disabled]="busy()">Complete</button>
+                </span>
+              </div>
+            } @else {
+              <div class="bs-out bs-out--closed">
+                <span class="material-icons bs-slot__icon" aria-hidden="true">{{ a.status === 'swapped' ? 'swap_horiz' : 'check_circle' }}</span>
+                <span class="bs-slot__main">
+                  <span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddyName }} - {{ golfersOf(a) }}</span>
+                  <span class="bs-slot__meta">{{ a.status === 'swapped' ? 'swapped' : 'completed' }}{{ a.holesPlayed !== null ? ' · ' + a.holesPlayed + ' of ' + a.holes + ' holes' : '' }}{{ a.swapReason ? ' · ' + reasonLabel(a.swapReason).toLowerCase() : '' }}{{ a.countsAsRound === false ? ' · round not counted' : '' }}</span>
+                </span>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Dialog: complete / swap / out-of-turn / check-in ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="busy()" [dirty]="mode() === 'swap' && swapForm.dirty" (close)="closeDialog()">
+      @switch (mode()) {
+        @case ('complete') {
+          @if (targetAssignment(); as a) {
+            <form id="csComplete" [formGroup]="completeForm" (ngSubmit)="runComplete()" class="saas-form saas-form--dialog">
+              <p>Caddy <strong>{{ a.caddyNo }} {{ a.caddyName }}</strong> is back from <strong>{{ golfersOf(a) }}</strong>{{ a.teeTime ? ' (' + a.teeTime + ')' : '' }}.</p>
+              <div class="form-grid">
+                <div class="form-group form-group--narrow">
+                  <label for="csHoles">Holes played</label>
+                  <input id="csHoles" type="number" inputmode="numeric" min="0" [max]="a.holes" step="1" formControlName="holesPlayed" />
+                  <p class="cell-subtle field-hint">Of {{ a.holes }} registered; lower it for a round cut short.</p>
+                </div>
+                <div class="form-group">
+                  <label for="csNote">Note</label>
+                  <input id="csNote" type="text" formControlName="note" maxlength="255" placeholder="Optional" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="gcd-check">
+                  <input type="checkbox" formControlName="checkOut" />
+                  <span>Check the caddy out for the day</span>
+                </label>
+                <p class="cell-subtle field-hint">Unticked, the caddy goes to the back of the queue.</p>
+              </div>
+            </form>
+          }
+        }
+        @case ('swap') {
+          @if (targetAssignment(); as a) {
+            <form id="csSwap" [formGroup]="swapForm" (ngSubmit)="runSwap()" class="saas-form saas-form--dialog">
+              <p>Replace caddy <strong>{{ a.caddyNo }} {{ a.caddyName }}</strong> for <strong>{{ golfersOf(a) }}</strong>. The golfers and their paid fees move to the replacement.</p>
+              <div class="form-row">
+                <label class="gcd-check">
+                  <input type="checkbox" formControlName="useNext" />
+                  <span>Next up from the queue{{ nextUp() ? ' (' + nextUp()!.caddyNo + ')' : ' - nobody waiting' }}</span>
+                </label>
+              </div>
+              @if (!swapForm.controls.useNext.value) {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="csSwapNew">Replacement caddy</label>
+                    <input id="csSwapNew" type="text" formControlName="newCode" placeholder="Scan or type the badge" autocomplete="off" autocapitalize="characters" />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label class="gcd-check">
+                    <input type="checkbox" formControlName="requestedByName" />
+                    <span>Player requested this caddy (allows out of turn)</span>
+                  </label>
+                </div>
+              }
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="csSwapReason">Reason <span class="required">*</span></label>
+                  <select id="csSwapReason" formControlName="swapReason" [attr.aria-invalid]="swapForm.controls.swapReason.invalid && swapForm.controls.swapReason.touched">
+                    <option value="">- Select -</option>
+                    @for (r of day()?.swapReasons || []; track r.key) {
+                      <option [value]="r.key">{{ r.label }}{{ r.countsAsRound ? '' : ' (round not counted)' }}</option>
+                    }
+                  </select>
+                  @if (swapForm.controls.swapReason.invalid && swapForm.controls.swapReason.touched) {
+                    <p class="field-error" role="alert">Pick the reason for the swap.</p>
+                  }
+                </div>
+                <div class="form-group form-group--narrow">
+                  <label for="csSwapHole">At hole</label>
+                  <input id="csSwapHole" type="number" inputmode="numeric" min="1" max="18" step="1" formControlName="swapHole" placeholder="1-18" />
+                </div>
+              </div>
+            </form>
+          }
+        }
+        @case ('out-of-turn') {
+          @if (outOfTurnCaddy(); as c) {
+            <p>Caddy <strong>{{ c.caddyNo }} {{ c.name }}</strong> is not next in the queue{{ nextUp() ? ' - ' + nextUp()!.caddyNo + ' is' : '' }}. Assign them out of turn only when the player asked for this caddy.</p>
+            <p class="cell-subtle">{{ targetLabel() }}</p>
+          }
+        }
+        @case ('check-in') {
+          <div class="saas-search">
+            <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+            <input #csCheckInBox type="search" class="saas-search__input" [value]="checkInSearch()" (input)="checkInSearch.set(csCheckInBox.value)" placeholder="Search by caddy no or name…" aria-label="Search caddies to check in" />
+          </div>
+          @if (notCheckedInFiltered().length === 0) {
+            <p class="cell-subtle">Everyone active is checked in{{ checkInSearch() ? ' or no caddy matches' : '' }}.</p>
+          } @else {
+            <ul class="cs-qlist">
+              @for (c of notCheckedInFiltered(); track c.id) {
+                <li class="cs-qrow">
+                  <span class="cs-qrow__main">
+                    <span class="bs-slot__riders">{{ c.caddyNo }} {{ c.name }}</span>
+                    <span class="bs-slot__meta">{{ c.grade?.name }}{{ c.onLeaveType ? ' · on ' + c.onLeaveType + ' leave' : '' }}</span>
+                  </span>
+                  <button type="button" class="btn btn--primary btn--sm" (click)="checkInCaddy(c)" [disabled]="busy() || !!c.onLeaveType">Check in</button>
+                </li>
+              }
+            </ul>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @switch (mode()) {
+          @case ('complete') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
+            <button type="button" class="btn btn--secondary" (click)="switchToSwap()" [disabled]="busy()">Swap instead</button>
+            <button type="submit" form="csComplete" class="btn btn--primary" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Complete round' }}</button>
+          }
+          @case ('swap') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
+            <button type="submit" form="csSwap" class="btn btn--primary" [disabled]="busy()">{{ busy() ? 'Swapping…' : 'Swap caddy' }}</button>
+          }
+          @case ('out-of-turn') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
+            <button type="button" class="btn btn--primary" (click)="confirmOutOfTurn()" [disabled]="busy()">Player requested this caddy - assign</button>
+          }
+          @default {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

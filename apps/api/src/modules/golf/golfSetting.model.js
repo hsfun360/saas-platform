@@ -258,6 +258,14 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Caddy management (user decisions 2026-10-17): the Caddy Station door.
+    // OFF = the register, grades and groups may be keyed but nobody checks
+    // in or is assigned.
+    caddyManagementEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Group booking control (user decisions 2026-10-11) - the master switch
     // for the SALES-club lifecycle (groupBooking.constants). OFF = a group
     // booking is booked at creation, nothing expires, no approval, no deposit

@@ -149,6 +149,8 @@ export interface GolfSettingDoc {
     playingRightsEnabled: boolean;
     // Buggy management (2026-10-17): the Buggy Station door.
     buggyManagementEnabled: boolean;
+    // Caddy management (2026-10-17): the Caddy Station door.
+    caddyManagementEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -257,6 +259,7 @@ export class GolfSettingService {
     rainCheckProrate: boolean;
     playingRightsEnabled: boolean;
     buggyManagementEnabled: boolean;
+    caddyManagementEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;

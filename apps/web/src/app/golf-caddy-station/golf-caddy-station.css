@@ -1,0 +1,60 @@
+/* Caddy Station - the queue card; the scan box, slots and flight chrome are
+   shared with the Buggy Station stylesheet. All colours are theme tokens. */
+
+.cs-queue { margin-bottom: var(--space-md); padding: 0; overflow: hidden; }
+.cs-queue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cs-queue__body { padding: var(--space-sm) var(--space-md) var(--space-md); display: grid; gap: var(--space-sm); }
+.cs-queue__actions { display: flex; justify-content: flex-end; }
+.cs-qsub { margin: 0; }
+.cs-qlist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-xs); }
+.cs-qrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.cs-qrow--next { border-color: var(--brand); background: var(--surface-selected); }
+.cs-qrow--out { background: var(--surface-sunken); color: var(--text-secondary); }
+.cs-qrow__pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+}
+.cs-qrow__main { display: grid; gap: var(--space-2xs); min-width: 0; flex: 1 1 auto; }
+
+/* The check-out / check-in switch rows reuse the register's check style. */
+.gcd-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gcd-check input[type='checkbox'] { width: var(--icon-sm); height: var(--icon-sm); flex-shrink: 0; }

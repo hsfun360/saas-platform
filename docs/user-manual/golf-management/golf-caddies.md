@@ -133,6 +133,7 @@ Leave dates of one caddy never overlap; a caddy on leave is counted under "On le
 
 ## Related options
 
+- Golf Management → Front Desk → Caddy Station - checks the caddies in, assigns them to flights and records their rounds; a caddy on leave cannot check in.
 - Golf Management → Common Setup → Caddy Grades and Caddy Groups - the grade every caddy holds and the optional teams.
 - Golf Management → Common Setup → Transaction Type - the single and shared caddy fee items the golfer pays.
 - SaaS Administration → Nationalities and Races - the lists the profile picks from.

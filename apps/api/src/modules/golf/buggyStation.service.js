@@ -78,7 +78,9 @@ function newQrToken() {
 // consumed - Set of billItemIds already taken by a live issue.
 // Returns { slots, noFee } where a slot is
 //   { key, usageType, riders: [player], billItemIds, paid, complete, issuable, blockReason }
-function buildSlots({ players, feeLines, consumed }) {
+// `noun` names the service in the block reasons ('buggy' | 'caddy' - the caddy
+// station reuses this rule unchanged, 2026-10-17).
+function buildSlots({ players, feeLines, consumed, noun = 'buggy' }) {
     const byPlayer = new Map(players.map((p) => [p.playerId, p]));
     // Order players: bookings grouped in order of first appearance, then seat
     // order inside the booking - a shared pair prefers its own booking.
@@ -110,7 +112,7 @@ function buildSlots({ players, feeLines, consumed }) {
         if (l.usageType !== 'single') continue;
         const qty = Math.max(1, Number(l.quantity) || 1);
         for (let n = 0; n < qty; n += 1) {
-            slots.push(makeSlot('single', [byPlayer.get(l.playerId)], [l], true));
+            slots.push(makeSlot('single', [byPlayer.get(l.playerId)], [l], true, noun));
         }
     }
     // Shared: expand to seat units, pair consecutively.
@@ -125,20 +127,21 @@ function buildSlots({ players, feeLines, consumed }) {
         const b = units[i + 1];
         const lines = b ? (a.billItemId === b.billItemId ? [a] : [a, b]) : [a];
         const riderIds = [...new Set(lines.map((l) => l.playerId))];
-        slots.push(makeSlot('shared', riderIds.map((id) => byPlayer.get(id)), lines, !!b));
+        slots.push(makeSlot('shared', riderIds.map((id) => byPlayer.get(id)), lines, !!b, noun));
     }
     const noFee = players.filter((p) => !feePlayers.has(p.playerId));
     return { slots, noFee };
 }
 
-function makeSlot(usageType, riders, lines, complete) {
+function makeSlot(usageType, riders, lines, complete, noun = 'buggy') {
     const paid = lines.every((l) => l.paid === true);
+    const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
     let blockReason = null;
     if (!complete) {
-        blockReason = `${riders[0].playerName} has a shared buggy fee with no partner in this flight - pair another shared fee or switch the player to the single fee.`;
+        blockReason = `${riders[0].playerName} has a shared ${noun} fee with no partner in this flight - pair another shared fee or switch the player to the single fee.`;
     } else if (!paid) {
         const unpaid = lines.filter((l) => !l.paid);
-        blockReason = `Buggy fee not yet paid - ${unpaid.map((l) => `${(riders.find((r) => r.playerId === l.playerId) || {}).playerName || 'player'} (bill ${l.billNo || 'open'})`).join(', ')}.`;
+        blockReason = `${Noun} fee not yet paid - ${unpaid.map((l) => `${(riders.find((r) => r.playerId === l.playerId) || {}).playerName || 'player'} (bill ${l.billNo || 'open'})`).join(', ')}.`;
     }
     const key = lines.map((l) => l.billItemId).sort().join('+');
     return {
@@ -160,8 +163,9 @@ function flightKey(courseId, teeTime) {
     return `${courseId}|${availability.hhmm(teeTime)}`;
 }
 
-// The buggy-fee lines of a set of players (through their non-voided bills).
-async function feeLinesOf(companyId, playerIds, { transaction } = {}) {
+// The buggy-fee (or, for the caddy station, caddy-fee) lines of a set of
+// players, through their non-voided bills.
+async function feeLinesOf(companyId, playerIds, { transaction, chargeType = BUGGY_CHARGE_TYPE_KEY } = {}) {
     if (!playerIds.length) return [];
     const bills = await Bill.findAll({
         where: { companyId, playerId: { [Op.in]: playerIds }, status: { [Op.ne]: 'voided' } },
@@ -177,7 +181,7 @@ async function feeLinesOf(companyId, playerIds, { transaction } = {}) {
     });
     if (!items.length) return [];
     const types = await GolfTransactionType.findAll({
-        where: { companyId, id: { [Op.in]: [...new Set(items.map((i) => i.transactionTypeId))] }, chargeType: BUGGY_CHARGE_TYPE_KEY },
+        where: { companyId, id: { [Op.in]: [...new Set(items.map((i) => i.transactionTypeId))] }, chargeType },
         attributes: ['id', 'usageType', 'transactionType'],
         transaction,
     });
@@ -680,4 +684,6 @@ module.exports = {
     buildSlots, tokenFromCode, newQrToken, enabled,
     day, available, resolve, issue, returnBuggy, swap,
     buggyTagsByPlayer, issueDto, buggyBrief, fleetCounts, liveIssuesOf,
+    // Shared with the caddy station (2026-10-17).
+    feeLinesOf, flightKey, playerFacts, flightPlayers,
 };

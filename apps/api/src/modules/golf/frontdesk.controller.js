@@ -57,6 +57,8 @@ const rainCheck = require('./rainCheck.service');
 // Buggy management (2026-10-17): the sheet's per-player buggy tag, the
 // compulsory-course fee auto-charge at bill opening.
 const buggyStation = require('./buggyStation.service');
+// Caddy management (2026-10-17): the sheet's per-player caddy tag.
+const caddyStation = require('./caddyStation.service');
 const { BUGGY_CHARGE_TYPE_KEY, USAGE_TYPES } = require('./transactionType.constants');
 // Affiliated visits (2026-10-15; owned by Membership since 2026-10-16 and
 // read through the membership seam): the arrival gate on registration, the
@@ -234,6 +236,7 @@ exports.getDay = async (req, res) => {
         const visitByBooking = await affiliatedVisitsByBooking(companyId, [...new Set(firsts.map((r) => r.bookingProfileId).filter(Boolean))]);
         // Buggies (2026-10-17): the unit each registered player is riding.
         const buggyByPlayer = await buggyStation.buggyTagsByPlayer(companyId, firsts.map((r) => r.id));
+        const caddyByPlayer = await caddyStation.caddyTagsByPlayer(companyId, firsts.map((r) => r.id));
         const courseCompulsory = new Map(courses.map((c) => [c.id, c.buggyCompulsory === true]));
 
         // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
@@ -285,6 +288,9 @@ exports.getDay = async (req, res) => {
                     ? (({ buggyNo, status, issueId }) => ({ buggyNo, status, issueId }))(buggyByPlayer.get(r.id))
                     : null,
                 buggyCompulsory: courseCompulsory.get(r.courseId) === true,
+                caddy: caddyByPlayer.get(r.id)
+                    ? (({ caddyNo, caddyName, status, assignmentId }) => ({ caddyNo, caddyName, status, assignmentId }))(caddyByPlayer.get(r.id))
+                    : null,
             };
         };
         for (const r of firsts) {
@@ -575,6 +581,7 @@ exports.getMeta = async (req, res) => {
             rainCheckEnabled: !!(setting && setting.rainCheckEnabled === true),
             // Buggy management (2026-10-17): whether the Buggy Station is live.
             buggyManagementEnabled: !!(setting && setting.buggyManagementEnabled === true),
+            caddyManagementEnabled: !!(setting && setting.caddyManagementEnabled === true),
             usageTypes: USAGE_TYPES,
             // Seat-dot colours for the tee sheet (Golf Specification; user
             // request 2026-09-29). Blank outline = free seat.
