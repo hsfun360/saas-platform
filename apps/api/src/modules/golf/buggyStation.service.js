@@ -420,8 +420,13 @@ async function issue(req, body) {
         if (!buggy) return fail(`No buggy matches '${String((body.buggy || {}).code || '').trim()}'.`, 404);
         if (buggy.status !== 'active') return fail(`Buggy ${buggy.buggyNo} is retired.`, 409);
         if (buggy.location === 'maintenance') return fail(`Buggy ${buggy.buggyNo} is in maintenance.`, 409);
-        const openIssue = await GolfBuggyIssue.findOne({ where: { companyId, buggyId: buggy.id, status: 'out' }, include: [{ model: GolfBuggyIssueRider, as: 'riders' }], transaction, lock: transaction.LOCK.UPDATE });
-        if (openIssue) return fail(`Buggy ${buggy.buggyNo} is already out with ${openIssue.riders.map((r) => r.playerName).join(' and ')} - return it first.`, 409);
+        // Row lock WITHOUT the riders include: Postgres refuses FOR UPDATE on
+        // the nullable side of an outer join (found on the dev smoke).
+        const openIssue = await GolfBuggyIssue.findOne({ where: { companyId, buggyId: buggy.id, status: 'out' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (openIssue) {
+            const names = await GolfBuggyIssueRider.findAll({ where: { buggyIssueId: openIssue.id }, attributes: ['playerName'], transaction });
+            return fail(`Buggy ${buggy.buggyNo} is already out with ${names.map((r) => r.playerName).join(' and ')} - return it first.`, 409);
+        }
         const seats = buggy.buggyType ? Number(buggy.buggyType.seats) || 2 : 2;
         if (playerIds.length > seats) return fail(`Buggy ${buggy.buggyNo} seats ${seats} - ${playerIds.length} riders picked.`);
 
@@ -530,9 +535,11 @@ async function returnBuggy(req, body) {
 
 // The open issue of a unit named by id / code, or by issueId.
 async function openIssueOf(companyId, body, { transaction }) {
+    // The row lock never carries the riders include (FOR UPDATE on an outer
+    // join is refused by Postgres); the riders load after the lock.
     let open = null;
     if (body.issueId) {
-        open = await GolfBuggyIssue.findOne({ where: { companyId, id: String(body.issueId) }, include: [{ model: GolfBuggyIssueRider, as: 'riders' }], transaction, lock: transaction.LOCK.UPDATE });
+        open = await GolfBuggyIssue.findOne({ where: { companyId, id: String(body.issueId) }, transaction, lock: transaction.LOCK.UPDATE });
         if (!open) return fail('Outing not found.', 404);
         if (open.status !== 'out') return fail(`Buggy ${open.buggyNo} was already ${open.status}.`, 409);
     }
@@ -541,9 +548,10 @@ async function openIssueOf(companyId, body, { transaction }) {
         : await findBuggy(companyId, body.buggy || {}, { transaction });
     if (!buggy) return fail(`No buggy matches '${String((body.buggy || {}).code || '').trim()}'.`, 404);
     if (!open) {
-        open = await GolfBuggyIssue.findOne({ where: { companyId, buggyId: buggy.id, status: 'out' }, include: [{ model: GolfBuggyIssueRider, as: 'riders' }], transaction, lock: transaction.LOCK.UPDATE });
+        open = await GolfBuggyIssue.findOne({ where: { companyId, buggyId: buggy.id, status: 'out' }, transaction, lock: transaction.LOCK.UPDATE });
         if (!open) return fail(`Buggy ${buggy.buggyNo} is not out.`, 409);
     }
+    open.riders = await GolfBuggyIssueRider.findAll({ where: { buggyIssueId: open.id }, transaction });
     return { issue: open, buggy };
 }
 

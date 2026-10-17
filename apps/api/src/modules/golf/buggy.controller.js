@@ -294,7 +294,10 @@ exports.labelsHtml = async (req, res) => {
         });
         if (!rows.length) return res.status(404).json({ message: 'No buggies to print.' });
         const letterhead = await getCompanyLetterhead(companyId);
-        const base = (process.env.FRONTEND_BASE_URL || '').replace(/\/$/, '');
+        // The station URL base: the configured frontend, else the origin the
+        // request came from (the web app itself), so a phone camera scan opens
+        // the station in every environment.
+        const base = (process.env.FRONTEND_BASE_URL || req.get('origin') || '').replace(/\/$/, '');
         const labels = [];
         for (const b of rows) {
             const content = base ? `${base}/golf/buggy-station?b=${b.qrToken}` : b.qrToken;
