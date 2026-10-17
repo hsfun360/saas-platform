@@ -154,9 +154,17 @@
             </div>
           }
 
-          <!-- Units out for this flight -->
+          <!-- Units out for this flight, then the outings already closed -->
           @for (i of f.issues; track i.id) {
-            @if (i.status === 'out') {
+            @if (i.status !== 'out') {
+              <div class="bs-out bs-out--closed">
+                <span class="material-icons bs-slot__icon" aria-hidden="true">{{ i.status === 'swapped' ? 'swap_horiz' : 'check_circle' }}</span>
+                <span class="bs-slot__main">
+                  <span class="bs-slot__riders">{{ i.buggyNo }} - {{ ridersOf(i) }}</span>
+                  <span class="bs-slot__meta">{{ i.status === 'swapped' ? 'swapped' : 'returned' }}{{ i.returnedAt ? ' ' + (i.returnedAt | localDate:'datetime') : '' }}{{ i.conditionIn && i.conditionIn !== 'good' ? ' · ' + i.conditionIn : '' }}{{ i.swapReason ? ' · ' + i.swapReason : '' }}</span>
+                </span>
+              </div>
+            } @else {
               <div class="bs-out">
                 <span class="material-icons bs-slot__icon" aria-hidden="true">directions_car</span>
                 <span class="bs-slot__main">

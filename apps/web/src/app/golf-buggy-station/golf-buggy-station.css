@@ -165,3 +165,5 @@
   .bs-out { flex-wrap: wrap; }
   .bs-out__actions { width: 100%; justify-content: flex-end; }
 }
+.bs-out--closed { background: var(--surface-sunken); color: var(--text-secondary); min-height: 44px; }
+.bs-out--closed .bs-slot__icon { color: var(--success-text); }
