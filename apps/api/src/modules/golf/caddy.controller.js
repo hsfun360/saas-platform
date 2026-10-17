@@ -199,11 +199,14 @@ exports.create = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        // The badge-number clash is the message the clerk needs first (a full
+        // group would otherwise mask it - found on the dev smoke).
+        const wantedNo = str(req.body.caddyNo).toUpperCase();
+        const existing = wantedNo ? await GolfCaddy.findOne({ where: { companyId, caddyNo: wantedNo } }) : null;
+        if (existing) return res.status(409).json({ message: `Caddy ${existing.caddyNo} already exists${existing.status === 'blacklisted' ? ' (blacklisted - the number is not reissued)' : ''}.` });
         const parsed = await normalizeBody(companyId, req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
-        const existing = await GolfCaddy.findOne({ where: { companyId, caddyNo: v.caddyNo } });
-        if (existing) return res.status(409).json({ message: `Caddy ${existing.caddyNo} already exists${existing.status === 'blacklisted' ? ' (blacklisted - the number is not reissued)' : ''}.` });
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
         const row = await GolfCaddy.create({
