@@ -277,6 +277,23 @@ exports.history = async (req, res) => {
     }
 };
 
+// The station URL base a label encodes: the configured frontend, else the
+// web origin the request came from - Origin (cross-origin calls), the Referer
+// (a same-origin fetch sends no Origin header), then the proxied host - so a
+// phone camera scan opens the station in every environment.
+function frontendBase(req) {
+    const env = (process.env.FRONTEND_BASE_URL || '').replace(/\/$/, '');
+    if (env) return env;
+    if (req.get('origin')) return req.get('origin').replace(/\/$/, '');
+    const referer = req.get('referer');
+    if (referer) {
+        try { return new URL(referer).origin; } catch { /* fall through */ }
+    }
+    const host = req.get('x-forwarded-host') || req.get('host');
+    const proto = String(req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim();
+    return host ? `${proto}://${host.split(',')[0].trim()}` : '';
+}
+
 // GET /api/golf/buggies/labels/html?ids=a,b - a printable sheet of QR labels
 // (every active unit when no ids are named). Each QR encodes the station
 // URL with the unit's token, so any phone camera opens the station on it;
@@ -294,10 +311,7 @@ exports.labelsHtml = async (req, res) => {
         });
         if (!rows.length) return res.status(404).json({ message: 'No buggies to print.' });
         const letterhead = await getCompanyLetterhead(companyId);
-        // The station URL base: the configured frontend, else the origin the
-        // request came from (the web app itself), so a phone camera scan opens
-        // the station in every environment.
-        const base = (process.env.FRONTEND_BASE_URL || req.get('origin') || '').replace(/\/$/, '');
+        const base = frontendBase(req);
         const labels = [];
         for (const b of rows) {
             const content = base ? `${base}/golf/buggy-station?b=${b.qrToken}` : b.qrToken;
