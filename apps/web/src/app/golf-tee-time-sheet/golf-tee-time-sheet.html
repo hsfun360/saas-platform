@@ -541,6 +541,11 @@
                     <app-combobox [value]="g.controls.rainCheckId.value" (valueChange)="onRainCheckPicked(i, $event)"
                                   [options]="rainCheckOptions()" [allowEmpty]="false"
                                   [ariaLabel]="'Payment ' + (i + 1) + ' rain check'" placeholder="Pick a rain check…" />
+                  } @else if (isDebtorLine(i)) {
+                    <!-- Debtor class (Other Debtor only): the AR city-ledger account the line charges. -->
+                    <app-combobox [value]="debtorLineValue(i)" (valueChange)="onOtherDebtorPicked(i, $event)"
+                                  [options]="otherDebtorOptions()" [allowEmpty]="false"
+                                  [ariaLabel]="'Payment ' + (i + 1) + ' charge to'" placeholder="Charge to Other Debtor…" />
                   } @else {
                     <input type="text" formControlName="reference" maxlength="100" placeholder="Reference"
                            [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
@@ -555,6 +560,12 @@
                     } @else if (rainCheckLineHint(i); as hint) {
                       <p class="cell-subtle fd-pay-line__hint">{{ hint }}</p>
                     }
+                  } @else if (isDebtorLine(i)) {
+                    @if (otherDebtorOptions().length === 0) {
+                      <p class="cell-subtle fd-pay-line__hint">No active Other Debtor in Account Receivable - Finance keys them under AR → Other Debtors.</p>
+                    } @else if (!g.controls.otherDebtorId.value && defaultOtherDebtorId()) {
+                      <p class="cell-subtle fd-pay-line__hint">The group booking's billing party is offered first.</p>
+                    }
                   }
                 </div>
               }
@@ -563,7 +574,7 @@
               <span class="material-icons" aria-hidden="true">add</span>
               Add payment
             </button>
-            <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account (credit checked); a Rain Check tender redeems one of this golfer's open rain checks (single use - value above the line is forfeited); cash-like tenders just record the payment.</p>
+            <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account and Debtor class to an Other Debtor of Account Receivable (both credit checked); a Rain Check tender redeems one of this golfer's open rain checks (single use - value above the line is forfeited); cash-like tenders just record the payment.</p>
           }
           </form>
         }

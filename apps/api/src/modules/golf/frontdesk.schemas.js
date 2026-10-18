@@ -50,6 +50,8 @@ const paymentLine = z.object({
     reference: str(100),
     // 'raincheck' class only: the golfer's rain check the line redeems.
     rainCheckId: str(64),
+    // 'debtor' class only (2026-10-18): the AR Other Debtor the line charges.
+    otherDebtorId: str(64),
 });
 
 const idParam = { params: z.object({ id }) };

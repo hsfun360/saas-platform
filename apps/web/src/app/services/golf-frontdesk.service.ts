@@ -269,6 +269,13 @@ export interface GolfBillItemRow {
   payable: number;
 }
 
+// An AR Other Debtor (city-ledger account) a Debtor-class tender charges.
+export interface GolfOtherDebtorRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface GolfBillPaymentRow {
   id: string;
   sortOrder: number;
@@ -410,12 +417,15 @@ export class GolfFrontDeskService {
   // reason; the server refuses them too.
   // `openRainChecks` = the golfer's issued, unexpired rain checks, offered as
   // Rain Check-class tenders at settlement.
-  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }> {
-    return this.http.post<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }>(`${this.base}/registrations/${registrationId}/bills`, {});
+  // `otherDebtors` + `defaultOtherDebtorId` (2026-10-18) feed the Debtor-class
+  // settle line: the active AR Other Debtors, and the group's billing party
+  // offered first.
+  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[]; otherDebtors?: GolfOtherDebtorRef[]; defaultOtherDebtorId?: string | null }> {
+    return this.http.post<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[]; otherDebtors?: GolfOtherDebtorRef[]; defaultOtherDebtorId?: string | null }>(`${this.base}/registrations/${registrationId}/bills`, {});
   }
 
-  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }> {
-    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }>(`${this.base}/bills/${billId}`);
+  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[]; otherDebtors?: GolfOtherDebtorRef[]; defaultOtherDebtorId?: string | null }> {
+    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[]; otherDebtors?: GolfOtherDebtorRef[]; defaultOtherDebtorId?: string | null }>(`${this.base}/bills/${billId}`);
   }
 
   // Rain checks (2026-10-15): preview then issue, against a registered
@@ -445,7 +455,8 @@ export class GolfFrontDeskService {
     return this.http.delete<{ bill: GolfBillDoc }>(`${this.base}/bills/${billId}/items/${itemId}`);
   }
 
-  settle(billId: string, payments: { paymentTypeId: string; amount: number; reference?: string; rainCheckId?: string }[]): Observable<{ message: string; bill: GolfBillDoc }> {
+  // `otherDebtorId` (2026-10-18) names the AR Other Debtor a Debtor-class line charges.
+  settle(billId: string, payments: { paymentTypeId: string; amount: number; reference?: string; rainCheckId?: string; otherDebtorId?: string }[]): Observable<{ message: string; bill: GolfBillDoc }> {
     return this.http.post<{ message: string; bill: GolfBillDoc }>(`${this.base}/bills/${billId}/settle`, { payments });
   }
 

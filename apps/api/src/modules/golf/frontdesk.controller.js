@@ -1306,6 +1306,7 @@ exports.openBill = async (req, res) => {
             return res.status(200).json({
                 bill: await billDto(existing), warnings: [], ineligible: await ineligibleTiles(req, companyId, registration),
                 openRainChecks: existing.status === 'open' ? await rainCheck.openFor(companyId, registration.golferId) : [],
+                ...(existing.status === 'open' ? await otherDebtorContext(companyId, registration) : {}),
             });
         }
 
@@ -1415,12 +1416,26 @@ exports.openBill = async (req, res) => {
             bill: await billDto(result.bill), warnings, ineligible: await ineligibleTiles(req, companyId, registration),
             // The golfer's open rain checks, offered as Rain Check-class tenders.
             openRainChecks: await rainCheck.openFor(companyId, registration.golferId),
+            ...(await otherDebtorContext(companyId, registration)),
         });
     } catch (error) {
         console.error('Error opening golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+// Debtor-class tenders (2026-10-18, Other Debtor only): the active AR Other
+// Debtors the settle line picks from, and the group booking's billing party
+// offered first when the player belongs to a group billed to an Other Debtor.
+async function otherDebtorContext(companyId, registration) {
+    const otherDebtors = await arGateway.listOtherDebtors(companyId);
+    let defaultOtherDebtorId = null;
+    if (registration && registration.bookingProfileId) {
+        const profile = await BookingProfile.findOne({ where: { companyId, id: registration.bookingProfileId }, attributes: ['debtorType', 'debtorSourceId'] });
+        if (profile && profile.debtorType === 'other' && profile.debtorSourceId && otherDebtors.some((o) => o.id === profile.debtorSourceId)) defaultOtherDebtorId = profile.debtorSourceId;
+    }
+    return { otherDebtors, defaultOtherDebtorId };
+}
 
 // The bill + its player record, guarded to the caller's company and, when
 // `openOnly`, to amendable status.
@@ -1447,6 +1462,7 @@ exports.getBill = async (req, res) => {
             // The golfer's open rain checks, offered as Rain Check-class
             // tenders while the bill is open.
             openRainChecks: found.bill.status === 'open' ? await rainCheck.openFor(found.companyId, found.bill.golferId || (found.registration ? found.registration.golferId : null)) : [],
+            ...(found.bill.status === 'open' ? await otherDebtorContext(found.companyId, found.registration) : {}),
         });
     } catch (error) {
         console.error('Error loading golf bill:', error);
@@ -1607,13 +1623,14 @@ exports.settleBill = async (req, res) => {
             if (!tender) return res.status(400).json({ message: `Payment ${i + 1}: pick a payment type.` });
             const amount = round2(Number(line.amount));
             if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: `Payment ${i + 1}: the amount must be more than 0.00.` });
-            if (tender.paymentClass === 'debtor') return res.status(400).json({ message: 'Charge to an AR debtor account is not supported yet - use the Member class or another tender.' });
             lines.push({
                 sortOrder: i + 1,
                 tender,
                 amount,
                 reference: line.reference ? String(line.reference).slice(0, 100) : null,
                 rainCheckId: tender.paymentClass === 'raincheck' && line.rainCheckId ? String(line.rainCheckId) : null,
+                // Debtor class (2026-10-18): the AR Other Debtor the line charges.
+                otherDebtorId: tender.paymentClass === 'debtor' && line.otherDebtorId ? String(line.otherDebtorId) : null,
             });
         }
         const paySum = round2(lines.reduce((s, l) => s + l.amount, 0));
@@ -1633,10 +1650,49 @@ exports.settleBill = async (req, res) => {
             if (pre.error) return res.status(400).json({ message: pre.error });
         }
 
-        // Member-class lines: resolve + post to AR BEFORE the settle commits
+        // Account-class lines post to AR BEFORE the settle commits
         // (enforceCredit true = the race-proof credit gate; a refusal aborts
-        // the whole settlement).
+        // the whole settlement). 'member' = the billed member's own account;
+        // 'debtor' (2026-10-18, Other Debtor only) = the city-ledger account
+        // picked on the line.
         const memberLines = lines.filter((l) => l.tender.paymentClass === 'member');
+        const debtorLines = lines.filter((l) => l.tender.paymentClass === 'debtor');
+        let arType = null;
+        if (memberLines.length || debtorLines.length) {
+            const arTypes = await arGateway.listTransactionTypes(companyId, { module: 'golf', trxClass: 'invoice' });
+            if (!arTypes.length) return res.status(400).json({ message: 'Open an AR invoice transaction type to the Golf module first (AR → Transaction Type).' });
+            if (arTypes.length > 1) return res.status(400).json({ message: 'Several AR transaction types are opened to Golf - keep exactly one so charges post unambiguously.' });
+            arType = arTypes[0];
+        }
+        if (debtorLines.length) {
+            const stamps0 = await callerStamps(req);
+            for (const line of debtorLines) {
+                if (!line.otherDebtorId) return res.status(400).json({ message: `Payment ${line.sortOrder}: pick the Other Debtor to charge.` });
+                const od = await arGateway.getOtherDebtor(companyId, line.otherDebtorId);
+                if (!od) return res.status(400).json({ message: `Payment ${line.sortOrder}: Other Debtor not found or inactive.` });
+                const amountC = cents(line.amount);
+                const posted = await arGateway.postCharge(req, {
+                    debtorType: 'other',
+                    sourceId: od.id,
+                    docDate: String(bill.billDate),
+                    trxDate: String(bill.billDate),
+                    transactionTypeId: arType.id,
+                    isInterestChargeable: arType.isInterestChargeable === true,
+                    description: `Golf bill ${bill.billNo} - ${registration.playerName} (charged to ${od.name})`,
+                    incurredByMemberId: null,
+                    sourceModule: 'golf',
+                    sourceRef: bill.id,
+                    amounts: { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null },
+                    stamps: stamps0,
+                    enforceCredit: true,
+                });
+                if (posted.error) return res.status(400).json({ message: `Payment ${line.sortOrder} (${od.name}): ${posted.error}` });
+                line.arDocId = posted.id;
+                line.arDocNo = posted.docNo;
+                line.debtorType = 'other';
+                line.debtorSourceId = od.id;
+            }
+        }
         if (memberLines.length) {
             if (!playerTypes.hasMemberStanding(await playerTypes.catalog(companyId), registration.playerType) || !registration.memberNo) {
                 return res.status(400).json({ message: 'Charge to member account needs a member bill.' });
@@ -1648,10 +1704,6 @@ exports.settleBill = async (req, res) => {
             }
             const target = await getChargeTarget(companyId, standing.memberId);
             if (!target) return res.status(400).json({ message: 'The member\'s charge-to-account target could not be resolved.' });
-            const arTypes = await arGateway.listTransactionTypes(companyId, { module: 'golf', trxClass: 'invoice' });
-            if (!arTypes.length) return res.status(400).json({ message: 'Open an AR invoice transaction type to the Golf module first (AR → Transaction Type).' });
-            if (arTypes.length > 1) return res.status(400).json({ message: 'Several AR transaction types are opened to Golf - keep exactly one so charges post unambiguously.' });
-            const arType = arTypes[0];
             const stamps0 = await callerStamps(req);
 
             for (const line of memberLines) {

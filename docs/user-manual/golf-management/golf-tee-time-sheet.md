@@ -94,6 +94,7 @@ Returning guests are matched by identity number, then mobile, so one guest profi
 3. Click **Settle bill**.
 
 A **Member**-class payment charges the amount to the member's own account (one invoice posts to Account Receivable; the member must be allowed to charge to account and have a ledger account); cash-like tenders simply record the payment.
+A **Debtor**-class payment charges the amount to an Account Receivable **Other Debtor** - a corporate, travel agent or society Finance keeps in the city ledger: pick the account on the line (a player of a group booking billed to an Other Debtor has that party offered first), and one invoice posts to that account with its credit limit enforced.
 A settled bill shows its payments and can only be viewed.
 
 ### Redeem a rain check
@@ -187,10 +188,11 @@ With the rule off, no-shows are recorded without charges.
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Payment type** | Yes | The tender, from the Payment Type catalog. | Debtor-class tenders are not supported yet. |
+| **Payment type** | Yes | The tender, from the Payment Type catalog. | Member and Debtor classes post an invoice to Account Receivable. |
 | **Amount** | Yes | The amount paid with this tender. | More than 0.00; all lines must total the bill exactly; up to 10 lines; a Rain Check line cannot exceed the rain check's value. |
 | **Reference** | No | A slip, voucher or approval number. | Up to 100 characters; not shown on a Rain Check line. |
 | **Rain check** | Rain Check class: Yes | One of this golfer's open rain checks. | Each rain check once per settlement; it must belong to the billed golfer and be issued and unexpired. |
+| **Charge to** | Debtor class: Yes | The Other Debtor account the line charges. | Active Other Debtors of Account Receivable; the account must be in the company's base currency, active and within its credit limit. |
 
 ### Issue rain check
 
@@ -233,6 +235,8 @@ With the rule off, no-shows are recorded without charges.
 - If you see "'PKG-JR' - Age 18 and under", the golfer does not qualify for the package; the greyed tile shows the same reason.
 - If you see "Payments (x) must equal the bill total (y)", adjust the amounts until Remaining reads 0.00.
 - If you see "Charge to member account needs a member bill", "Member ... is barred from charging to account", "Open an AR invoice transaction type to the Golf module first" or "Several AR transaction types are opened to Golf", the Member tender cannot post - settle with another tender or fix the setup.
+- If you see "Payment n: pick the Other Debtor to charge.", a Debtor-class line needs its account.
+- If you see "Payment n: Other Debtor not found or inactive.", "No ledger account exists for this debtor", "Debtor account is closed", "Credit limit exceeded." or "This ledger account is in USD; producer charges post in MYR only", the Debtor tender cannot post - settle with another tender or ask Finance to fix the account.
 - "This bill is settled and cannot be amended" - a settled bill is final; corrections go through Account Receivable.
 - If you see "Rain checks are switched off on Golf Specification.", turn on the Rain Checks section there first.
 - If you see "A rain check needs a SETTLED bill - the round must have been paid for.", settle the player's bill before issuing.

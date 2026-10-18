@@ -28,6 +28,7 @@ import {
   FrontDeskNoShowReview,
   GolfRainCheck,
   GolfRainCheckQuote,
+  GolfOtherDebtorRef,
 } from '../services/golf-frontdesk.service';
 import { GolfCaddyRequestService, GolfCaddyRequestCandidate } from '../services/golf-caddy-request.service';
 
@@ -62,12 +63,15 @@ interface PaymentLine {
   reference: string;
   // Rain Check-class line (2026-10-15): the golfer's rain check it redeems.
   rainCheckId: string;
+  // Debtor-class line (2026-10-18): the AR Other Debtor it charges.
+  otherDebtorId: string;
 }
 type PayGroup = FormGroup<{
   paymentTypeId: FormControl<string>;
   amount: FormControl<number>;
   reference: FormControl<string>;
   rainCheckId: FormControl<string>;
+  otherDebtorId: FormControl<string>;
 }>;
 
 type PlayerDayStatus = 'booked' | 'registered' | 'billed' | 'settled';
@@ -328,6 +332,11 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   // The billed golfer's open rain checks (2026-10-15), offered on a Rain
   // Check-class payment line; loaded with the bill.
   readonly openRainChecks = signal<GolfRainCheck[]>([]);
+  // Debtor-class tenders (2026-10-18, Other Debtor only): the active AR Other
+  // Debtors to charge, and the group's billing party offered first.
+  readonly otherDebtors = signal<GolfOtherDebtorRef[]>([]);
+  readonly defaultOtherDebtorId = signal('');
+  readonly otherDebtorOptions = computed(() => this.otherDebtors().map((o) => ({ value: o.id, label: `${o.code} - ${o.name}` })));
   readonly rainCheckOptions = computed(() => this.openRainChecks().map((r) => ({
     value: r.id,
     label: `${r.rainCheckNo} - ${r.amount.toFixed(2)} - valid until ${r.expiryDate}`,
@@ -730,6 +739,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
         this.bill.set(res.bill);
         this.ineligible.set(res.ineligible || {});
         this.openRainChecks.set(res.openRainChecks || []);
+        this.otherDebtors.set(res.otherDebtors || []);
+        this.defaultOtherDebtorId.set(res.defaultOtherDebtorId || '');
         for (const w of res.warnings || []) this.errorMessage.set(w);
         this.resetPayLines();
         this.fromFlight.set(this.dlgMode() === 'flight');
@@ -812,7 +823,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     if (!b || !this.billOpen() || b.items.length === 0) return;
     // Seed one line for the whole total (pristine: the guard only engages once the clerk edits).
     if (this.payLines.length === 0) {
-      this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: b.totalAmount, reference: '', rainCheckId: '' }), { emitEvent: false });
+      this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: b.totalAmount, reference: '', rainCheckId: '', otherDebtorId: '' }), { emitEvent: false });
       this.payLines.markAsPristine();
     }
     this.dlgMode.set('settle');
@@ -828,7 +839,27 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       amount: [l.amount],
       reference: [l.reference],
       rainCheckId: [l.rainCheckId],
+      otherDebtorId: [l.otherDebtorId],
     });
+  }
+
+  // Method, not computed: reads a form control.
+  isDebtorLine(i: number): boolean {
+    const g = this.payLines.at(i);
+    return !!g && this.tenderClass(g.controls.paymentTypeId.value) === 'debtor';
+  }
+
+  // The account a Debtor line charges: what was picked, else the group's billing party.
+  debtorLineValue(i: number): string {
+    const g = this.payLines.at(i);
+    return g ? (g.controls.otherDebtorId.value || this.defaultOtherDebtorId()) : '';
+  }
+
+  onOtherDebtorPicked(i: number, id: string): void {
+    const g = this.payLines.at(i);
+    if (!g) return;
+    g.controls.otherDebtorId.setValue(id);
+    g.markAsDirty();
   }
 
   // The payment class of a tender (meta), '' when unknown.
@@ -875,7 +906,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   }
 
   addPayment(): void {
-    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '', rainCheckId: '' }));
+    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '', rainCheckId: '', otherDebtorId: '' }));
     this.payLines.markAsDirty();
   }
 
@@ -895,6 +926,14 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     }
     if (rows.some((r) => this.tenderClass(r.paymentTypeId) === 'raincheck' && !r.rainCheckId)) {
       this.errorMessage.set('Pick the rain check to redeem on the Rain Check payment line.');
+      return;
+    }
+    // A Debtor line charges what was picked, else the group's billing party.
+    for (const r of rows) {
+      if (this.tenderClass(r.paymentTypeId) === 'debtor' && !r.otherDebtorId) r.otherDebtorId = this.defaultOtherDebtorId();
+    }
+    if (rows.some((r) => this.tenderClass(r.paymentTypeId) === 'debtor' && !r.otherDebtorId)) {
+      this.errorMessage.set('Pick the Other Debtor to charge on the Debtor payment line.');
       return;
     }
     if (this.remaining() !== 0) {
@@ -1243,6 +1282,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.bill.set(null);
     this.resetPayLines();
     this.openRainChecks.set([]);
+    this.otherDebtors.set([]);
+    this.defaultOtherDebtorId.set('');
     this.confirmKind.set(null);
     this.confirmTarget.set(null);
     this.rainCheckTarget.set(null);
