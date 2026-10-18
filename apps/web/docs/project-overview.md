@@ -792,6 +792,36 @@ Do NOT hand-roll per-screen fieldset/legend section chrome - compose these class
 Reference implementation: `club-specification.html` (`toggleSection`/`isExpanded` signal record) and `dashboard/settings`.
 A single run card (the "Generate a month" cards on AR Interest, Statement Generation, Membership Billing) folds the same way with one `runOpen` signal.
 
+#### Settings-screen chrome: switches, field-info popovers, sticky save bar, array-editor cards (standard 2026-10-18)
+
+Four primitives (user-approved on the Golf Specification pilot) complete the grouped-settings look.
+Older settings screens (AR Specification, Club Specification) migrate as they are touched; every new settings screen composes all four from day one.
+
+**Toggle switch vs checkbox - classify by what the control does.**
+A **feature enabler** - it turns a subsystem on/off and usually reveals dependent settings below ("Enable guest control", "Enable rain checks") - renders as a toggle: compose the global **`.switch`** on its label and add `role="switch"` to the input.
+It stays a native `<input type="checkbox">`, so `formControlName`, the dirty guard and Space-key operation are untouched; the styling is purely visual.
+A **behavioural option within a feature** ("Allow merge booking", "Prorate by holes not played") stays a plain checkbox.
+Never mix: two visual weights are the point - activating a module vs configuring it.
+
+**Field-info popover - long explanations live behind an (i), not under the field.**
+Each field keeps **at most ONE short inline hint** (value format, immediate consequence, "0 = no cap").
+Multi-sentence behavioural explanations move into the shared **`<app-field-info label="…" [text]="…" />`** placed INSIDE the `<label>` after its text (a button is interactive content, so clicking it never toggles the labelled control).
+Hover shows it, click/Enter pins it, Esc / outside press / outside scroll closes; the panel is viewport-fixed (flips up near the bottom) so cards and dialogs never clip it.
+It is deliberately NOT a hover-only tooltip - touch has no hover and keyboard users must reach it.
+What stays inline regardless: empty-state guidance ("No exceptions - …"), computed previews, option-meaning one-liners under selects, and conditional warnings that prevent mistakes.
+Long texts belong in a `readonly hint = {…}` record on the component, bound with `[text]="hint.x"`.
+
+**Sticky save bar - Save never needs a scroll on a long settings form.**
+The form's last child is `<div class="save-bar" *appCan="'edit'">`: sticky at the viewport bottom, holding the Save button (disabled until dirty) and - once `form.dirty` - an "Unsaved changes" `.save-bar__status` plus a "Discard changes" `.btn--link` that re-loads the saved state.
+Keep `bottom: 0` at every tier: the shell's `.content-area` bottom padding already clears the mobile bottom nav, so an explicit nav offset double-counts (measured on the pilot).
+Dialogs do NOT use it - the drawer footer already is a fixed action bar.
+
+**Array-editor card - FormArray row editors get a boundary.**
+Every add/remove row editor (overrides, exceptions, rules) sits on the global **`.array-editor`** card: a lightly sunken bordered surface holding the header row, the rows, the Add button and the empty-state hint - so the repeating group reads as one unit, separate from the static fields around it.
+Compose it on the editor's container; row inputs keep the grid-row field chrome standard.
+
+Reference implementation for all four: `golf-settings` (`.html`/`.ts`/`.css`); the popover component and its behaviour spec live in `shared/field-info/`.
+
 #### Dialog sections (long form drawers) - THE standard
 
 A long create/edit drawer groups its fields into **collapsible sections** with the global **`.dlg-sec`** primitive (`styles.css`, promoted from Memberships on 2026-10-09):
