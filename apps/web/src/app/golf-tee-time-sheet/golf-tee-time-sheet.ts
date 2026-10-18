@@ -946,6 +946,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       amount: Number(r.amount) || 0,
       reference: r.reference.trim() || undefined,
       rainCheckId: this.tenderClass(r.paymentTypeId) === 'raincheck' ? r.rainCheckId : undefined,
+      otherDebtorId: this.tenderClass(r.paymentTypeId) === 'debtor' ? r.otherDebtorId : undefined,
     }))).subscribe({
       next: (res) => {
         this.busy.set(false);
