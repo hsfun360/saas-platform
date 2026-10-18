@@ -95,7 +95,9 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Caddies](golf-management/golf-caddies.md) - The caddy register: badge number, grade, group, identity and contact, photo and badge QR, leave records, notes with points, and the active / inactive / blacklisted status.
 - [Caddy Station](golf-management/golf-caddy-station.md) - The starter hut's caddy screen: check caddies in to a first-in-first-out queue, assign them to flights from the paid single and shared caddy fees (named requests first), and record each round with the holes played or a mid-round swap.
 - [Caddy Rounds](golf-management/golf-caddy-rounds.md) - The rounds-of-service report per caddy over a period: rounds that count, 9 / 18 holes, holes and golfers served, rounds requested by name, the round detail and a CSV export for the caddy pay settled outside the system.
-- [Buggy Station](golf-management/golf-buggy-station.md) - The starter hut's screen: issue, return and swap buggies against the day's flights, one scan per buggy, with the slots derived from the paid single and shared buggy fees.
+- [Buggy Station](golf-management/golf-buggy-station.md) - The starter hut's screen: issue, return and swap buggies against the day's flights, one scan per buggy, with the slots derived from the paid single and shared buggy fees; a fault or damaged return opens the repair.
+- [Buggy Maintenance](golf-management/golf-buggy-maintenance.md) - Services, repairs and the five-system safety inspection of the fleet: a unit under service or repair is parked until the job is completed here.
+- [Buggy Damages](golf-management/golf-buggy-damages.md) - The damage register: every incident with the unit, the outing, the cause, the rider responsible and the repair it opened; compensation is settled outside the system.
 
 ## Membership Management
 

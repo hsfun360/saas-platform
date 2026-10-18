@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipStatusOption } from '../models/auth.models';
+import { GolfMaintenanceJob } from './golf-buggy-maintenance.service';
 
 // Buggy management (user decisions 2026-10-17): the fleet register
 // (golf.Buggy) and the outings the Buggy Station records (golf.BuggyIssue +
@@ -68,6 +69,8 @@ export interface GolfBuggy {
   location: GolfBuggyLocation;
   remarks: string | null;
   openIssue: GolfBuggyIssue | null;
+  // Slice 2 (2026-10-18): the open service / repair parking the unit.
+  openJob?: GolfMaintenanceJob | null;
   canModify?: boolean;
 }
 

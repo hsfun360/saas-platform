@@ -12,6 +12,7 @@ const GolfBuggyType = require('./buggyType.model');
 const GolfBuggyIssue = require('./buggyIssue.model');
 const GolfBuggyIssueRider = require('./buggyIssueRider.model');
 const station = require('./buggyStation.service');
+const maintenance = require('./buggyMaintenance.service');
 const {
     getUserContext,
     getCallerPlacement,
@@ -37,10 +38,12 @@ function esc(v) {
     return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function toDto(b, canModify = true, openIssue = null) {
+function toDto(b, canModify = true, openIssue = null, openJob = null) {
     return {
         id: b.id,
         canModify,
+        // Slice 2: the open service / repair parking the unit (or null).
+        openJob,
         buggyNo: b.buggyNo,
         buggyTypeId: b.buggyTypeId,
         buggyType: b.buggyType ? { id: b.buggyType.id, code: b.buggyType.code, name: b.buggyType.name, seats: Number(b.buggyType.seats) } : null,
@@ -112,9 +115,10 @@ exports.list = async (req, res) => {
             include: [{ model: GolfBuggyIssueRider, as: 'riders' }],
         });
         const openByBuggy = new Map(open.map((i) => [i.buggyId, i]));
+        const jobsByBuggy = await maintenance.openJobsByBuggy(companyId);
         const flags = await annotateCanModify(req, rows);
         res.status(200).json({
-            buggies: rows.map((r, i) => toDto(r, flags[i], openByBuggy.get(r.id) || null)),
+            buggies: rows.map((r, i) => toDto(r, flags[i], openByBuggy.get(r.id) || null, jobsByBuggy.get(r.id) || null)),
             fleet: await station.fleetCounts(companyId),
             enabled: await station.enabled(companyId),
         });

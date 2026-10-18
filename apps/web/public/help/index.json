@@ -32,6 +32,12 @@
   "golf-buggy-station": {
     "title": "Buggy Station"
   },
+  "golf-buggy-maintenance": {
+    "title": "Buggy Maintenance"
+  },
+  "golf-buggy-damages": {
+    "title": "Buggy Damages"
+  },
   "golf-caddy-grades": {
     "title": "Caddy Grades"
   },

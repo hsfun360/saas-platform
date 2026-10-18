@@ -227,7 +227,26 @@
                   <textarea id="bsRetRemarks" rows="2" wrap="off" formControlName="remarksIn" maxlength="255" placeholder="What was found"></textarea>
                 </div>
               </div>
-              <p class="cell-subtle field-hint">Returning frees the unit for the next flight. If the unit broke down mid-round, use Swap instead so the riders keep a buggy.</p>
+              @if (returnForm.controls.conditionIn.value === 'damaged') {
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="bsRetReason">Caused by</label>
+                    <select id="bsRetReason" formControlName="reasonType">
+                      @for (r of reasonTypes; track r.key) { <option [value]="r.key">{{ r.label }}</option> }
+                    </select>
+                  </div>
+                  @if (returnForm.controls.reasonType.value === 'player') {
+                    <div class="form-group">
+                      <label for="bsRetRider">Rider responsible</label>
+                      <select id="bsRetRider" formControlName="playerId">
+                        <option value="">Not named</option>
+                        @for (r of i.riders; track r.playerId) { <option [value]="r.playerId">{{ r.playerName }}{{ r.memberNo ? ' (' + r.memberNo + ')' : '' }}</option> }
+                      </select>
+                    </div>
+                  }
+                </div>
+              }
+              <p class="cell-subtle field-hint">Returning frees the unit for the next flight. A fault or damage opens a repair and parks the unit; damage is also recorded in the damage register. If the unit broke down mid-round, use Swap instead so the riders keep a buggy.</p>
             </form>
           }
           @case ('swap') {
@@ -269,6 +288,26 @@
                   <input id="bsSwapRemarks" type="text" formControlName="remarksIn" maxlength="255" placeholder="Optional" />
                 </div>
               </div>
+              @if (swapForm.controls.conditionIn.value === 'damaged') {
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="bsSwapReasonType">Caused by</label>
+                    <select id="bsSwapReasonType" formControlName="reasonType">
+                      @for (r of reasonTypes; track r.key) { <option [value]="r.key">{{ r.label }}</option> }
+                    </select>
+                  </div>
+                  @if (swapForm.controls.reasonType.value === 'player') {
+                    <div class="form-group">
+                      <label for="bsSwapRider">Rider responsible</label>
+                      <select id="bsSwapRider" formControlName="playerId">
+                        <option value="">Not named</option>
+                        @for (r of i.riders; track r.playerId) { <option [value]="r.playerId">{{ r.playerName }}{{ r.memberNo ? ' (' + r.memberNo + ')' : '' }}</option> }
+                      </select>
+                    </div>
+                  }
+                </div>
+              }
+              <p class="cell-subtle field-hint">A fault or damage on {{ i.buggyNo }} opens a repair and parks it; damage is also recorded in the damage register.</p>
             </form>
           }
         }

@@ -40,6 +40,8 @@ const GolfBuggyIssue = require('./buggyIssue.model');
 const GolfBuggyIssueRider = require('./buggyIssueRider.model');
 const { BUGGY_CHARGE_TYPE_KEY } = require('./transactionType.constants');
 const { CONDITION_OUT_KEYS, CONDITION_IN_KEYS } = require('./buggy.constants');
+// Slice 2 (2026-10-18): a fault / damaged return opens the repair and the damage record.
+const maintenance = require('./buggyMaintenance.service');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LIVE_ISSUE_STATUSES = ['out', 'returned'];
@@ -521,6 +523,7 @@ async function returnBuggy(req, body) {
     if (conditionIn !== 'good' && !remarksIn) return fail('Describe the fault or damage.');
     const callerId = getUserContext(req).userId;
 
+    const stamps = await callerStamps(req);
     const result = await sequelize.transaction(async (transaction) => {
         const found = await openIssueOf(companyId, body, { transaction });
         if (found.error) return found;
@@ -531,10 +534,13 @@ async function returnBuggy(req, body) {
         buggy.location = 'in-depot';
         buggy.updatedBy = callerId;
         await buggy.save({ transaction });
-        return { issue: open, buggy };
+        // Slice 2: a fault or damage opens the repair (and the damage record) and parks the unit.
+        const raised = await maintenance.openFromReturn({ companyId, buggy, issue: open, conditionIn, remarksIn, damage: body.damage, stamps, transaction });
+        return { issue: open, buggy, raised };
     });
     if (result.error) return result;
-    return { message: `Buggy ${result.buggy.buggyNo} returned${conditionIn === 'good' ? '' : ` - ${conditionIn} noted`}.`, issue: issueDto(result.issue) };
+    const note = conditionIn === 'good' ? '' : ` - ${conditionIn} noted, repair opened${result.raised.damage ? ' and damage recorded' : ''}, unit parked in maintenance`;
+    return { message: `Buggy ${result.buggy.buggyNo} returned${note}.`, issue: issueDto(result.issue) };
 }
 
 // The open issue of a unit named by id / code, or by issueId.
@@ -627,12 +633,14 @@ async function swap(req, body) {
         next.location = 'on-course';
         next.updatedBy = stamps.updatedBy;
         await next.save({ transaction });
+        // Slice 2: the swapped-out unit's fault or damage opens its repair and parks it.
+        const raised = await maintenance.openFromReturn({ companyId, buggy: oldBuggy, issue: old, conditionIn, remarksIn: remarksIn || swapReason, damage: body.damage, stamps, transaction });
         const full = await GolfBuggyIssue.findOne({ where: { id: created.id }, include: [{ model: GolfBuggyIssueRider, as: 'riders' }], transaction });
-        return { issue: full, old, next };
+        return { issue: full, old, next, raised };
     });
     if (result.error) return result;
     return {
-        message: `Buggy ${result.old.buggyNo} swapped for ${result.next.buggyNo}${swapHole ? ` at hole ${swapHole}` : ''}.`,
+        message: `Buggy ${result.old.buggyNo} swapped for ${result.next.buggyNo}${swapHole ? ` at hole ${swapHole}` : ''}${result.raised.job ? ` - repair opened on ${result.old.buggyNo}${result.raised.damage ? ', damage recorded' : ''}` : ''}.`,
         issue: issueDto(result.issue),
         swappedIssue: issueDto(result.old),
     };

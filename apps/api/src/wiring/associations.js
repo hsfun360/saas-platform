@@ -89,6 +89,14 @@ GolfBuggy.hasMany(GolfBuggyIssue, { foreignKey: 'buggyId', as: 'issues', onDelet
 GolfBuggyIssue.belongsTo(GolfBuggy, { foreignKey: 'buggyId', as: 'buggy' });
 GolfBuggyIssue.hasMany(GolfBuggyIssueRider, { foreignKey: 'buggyIssueId', as: 'riders', onDelete: 'CASCADE' });
 GolfBuggyIssueRider.belongsTo(GolfBuggyIssue, { foreignKey: 'buggyIssueId', as: 'issue' });
+// Buggy maintenance + damage (2026-10-18, slice 2): unit -> jobs / incidents
+// (restrict); the outing and the job-to-damage links stay id refs.
+const GolfBuggyMaintenance = require('../modules/golf/buggyMaintenance.model');
+const GolfBuggyDamage = require('../modules/golf/buggyDamage.model');
+GolfBuggy.hasMany(GolfBuggyMaintenance, { foreignKey: 'buggyId', as: 'maintenance', onDelete: 'RESTRICT' });
+GolfBuggyMaintenance.belongsTo(GolfBuggy, { foreignKey: 'buggyId', as: 'buggy' });
+GolfBuggy.hasMany(GolfBuggyDamage, { foreignKey: 'buggyId', as: 'damages', onDelete: 'RESTRICT' });
+GolfBuggyDamage.belongsTo(GolfBuggy, { foreignKey: 'buggyId', as: 'buggy' });
 // Caddy management (2026-10-17, slice 1): grade -> caddies (restrict), group
 // -> caddies (set null), caddy -> leaves and notes (cascade); nationality and
 // race codes stay subscriber value refs.

@@ -1,0 +1,251 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">handyman</span>
+      <div>
+        <h1>{{ 'Buggy Maintenance' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Services, repairs and safety inspections of the buggy fleet - a unit under service or repair is parked until the job is completed here.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Filters: status tabs + kind (+ the opened-on range for closed jobs) -->
+  <div class="bm-filter">
+    <div class="bm-tabs" role="group" aria-label="Job status">
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === 'open'" [class.btn--secondary]="status() !== 'open'" (click)="setStatus('open')">Open</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === 'done'" [class.btn--secondary]="status() !== 'done'" (click)="setStatus('done')">Done</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === ''" [class.btn--secondary]="status() !== ''" (click)="setStatus('')">All</button>
+    </div>
+    <label for="bmKind">Kind</label>
+    <select #bmKindSel id="bmKind" [value]="kind()" (change)="setKind(bmKindSel.value)">
+      <option value="">All kinds</option>
+      @for (k of kinds(); track k.key) { <option [value]="k.key">{{ k.label }}</option> }
+    </select>
+    @if (status() !== 'open') {
+      <label for="bmFrom">Opened from</label>
+      <input #bmFromInput id="bmFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(bmFromInput.value)" />
+      <label for="bmTo">to</label>
+      <input #bmToInput id="bmTo" type="date" [value]="dateTo()" (change)="setDateTo(bmToInput.value)" />
+    }
+    <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="openInspect()" [disabled]="loading()">
+      <span class="material-icons" aria-hidden="true">fact_check</span>
+      Inspect…
+    </button>
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #bmSearch class="saas-search__input" type="search" [value]="search()" (input)="search.set(bmSearch.value)"
+           placeholder="Search by buggy no, type, findings or work done…" aria-label="Search jobs" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="bm-count">{{ jobs().length }} job{{ jobs().length === 1 ? '' : 's' }}{{ status() === '' ? ' · ' + openCount() + ' open' : '' }} · {{ parkedUnits().length }} unit{{ parkedUnits().length === 1 ? '' : 's' }} parked in maintenance</p>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the jobs…</p></div>
+  } @else if (jobs().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>{{ status() === 'open' ? 'No open jobs - every unit is available. Use New job to park a unit for service or repair, or Inspect to record the safety checklist.' : 'No jobs in this period.' }}</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No jobs match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (j of filtered(); track j.id) {
+        <div class="data-card" [attr.data-return-id]="j.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ j.buggyNo }} - {{ j.kindLabel }}@if (j.buggyType) { <span class="data-card__reg">{{ j.buggyType.name }}</span> }</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">opened {{ j.openedAt | localDate:'datetime' }} · {{ sourceLabel(j) }}</span>
+                @if (j.faulty.length) { <span class="data-card__reg">faulty: {{ j.faulty.join(', ') }}</span> }
+                @else if (j.kind === 'inspection') { <span class="data-card__reg">all clear</span> }
+              </div>
+              @if (j.findings) { <div class="data-card__desc">{{ j.findings }}</div> }
+              @if (j.status === 'done' && j.kind !== 'inspection') {
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Completed</dt><dd>{{ j.completedAt | localDate:'datetime' }}{{ j.workDone ? ' · ' + j.workDone : '' }}{{ j.cost !== null ? ' · cost ' + j.cost.toFixed(2) : '' }}</dd></div>
+                </dl>
+              }
+            </div>
+            <span class="data-row__badge status-chip" [class.status-chip--danger]="j.status === 'open'" [class.status-chip--on]="j.status === 'done'">{{ j.status }}</span>
+            @if (j.status === 'open') {
+              <div class="data-row__actions">
+                <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openComplete(j)" [disabled]="busyId() === j.id">Complete</button>
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for the job on ' + j.buggyNo">
+                  <button type="button" appMenuItem (click)="askCancel(j)" [disabled]="busyId() === j.id || j.source !== 'manual'">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    Cancel job
+                  </button>
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openJob()" aria-label="New job">
+    <span class="material-icons" aria-hidden="true">add</span>
+    New job
+  </button>
+
+  <!-- ============ The one dialog: new job (drawer) / inspect (drawer) / complete (centred) ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [variant]="mode() === 'complete' ? 'center' : 'drawer'" [title]="dialogTitle()" [busy]="saving()"
+                [dirty]="(mode() === 'job' && jobForm.dirty) || (mode() === 'inspect' && inspectForm.dirty) || (mode() === 'complete' && completeForm.dirty)"
+                (close)="closeDialog()">
+      @switch (mode()) {
+        @case ('job') {
+          <form id="bmJob" [formGroup]="jobForm" (ngSubmit)="runJob()" class="saas-form saas-form--dialog">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="bmJobKind">Kind <span class="required">*</span></label>
+                <select id="bmJobKind" formControlName="kind">
+                  <option value="service">Service</option>
+                  <option value="repair">Repair</option>
+                </select>
+                <p class="cell-subtle field-hint">Either parks the picked units until the job is completed.</p>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="bmJobFindings">{{ jobForm.controls.kind.value === 'repair' ? 'Fault found' : 'Work planned' }}{{ jobForm.controls.kind.value === 'repair' ? ' *' : '' }}</label>
+              <textarea id="bmJobFindings" rows="2" wrap="off" formControlName="findings" maxlength="1000" [placeholder]="jobForm.controls.kind.value === 'repair' ? 'e.g. Brakes soft on the left' : 'e.g. 500-hour service'"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="bmJobRemarks">Remarks</label>
+              <input id="bmJobRemarks" type="text" formControlName="remarks" maxlength="255" placeholder="Optional" />
+            </div>
+            <h3 class="dlg-section">Buggies <span class="cell-subtle">({{ jobUnits().size }} picked)</span></h3>
+            <div class="saas-search">
+              <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+              <input #bmUnitSearch type="search" class="saas-search__input" [value]="unitSearch()" (input)="unitSearch.set(bmUnitSearch.value)" placeholder="Search by buggy no or type…" aria-label="Search buggies" />
+            </div>
+            @if (jobCandidates().length === 0) {
+              <p class="cell-subtle">No unit in the depot is free for a job{{ unitSearch() ? ' or no unit matches' : '' }} - units on the course or already under a job are not offered.</p>
+            } @else {
+              <ul class="bm-units">
+                @for (u of jobCandidates(); track u.id) {
+                  <li>
+                    <label class="gb-check">
+                      <input type="checkbox" [checked]="jobUnits().has(u.id)" (change)="toggleUnit(u.id)" />
+                      <span><strong>{{ u.buggyNo }}</strong>{{ u.buggyType ? ' · ' + u.buggyType.name : '' }}</span>
+                    </label>
+                  </li>
+                }
+              </ul>
+            }
+          </form>
+        }
+        @case ('inspect') {
+          <form id="bmInspect" [formGroup]="inspectForm" (ngSubmit)="runInspect()" class="saas-form saas-form--dialog">
+            <p>Tick each buggy inspected and untick any system found faulty. All clear closes the inspection on the spot; a fault opens a repair and parks the unit.</p>
+            <div class="bm-inspect-tools">
+              <div class="saas-search">
+                <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+                <input #bmInspectSearch type="search" class="saas-search__input" [value]="unitSearch()" (input)="unitSearch.set(bmInspectSearch.value)" placeholder="Search by buggy no or type…" aria-label="Search buggies" />
+              </div>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="includeAll(true)">Tick all shown</button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="includeAll(false)">Untick all</button>
+            </div>
+            <ul class="bm-inspect" formArrayName="rows">
+              @for (r of inspectRows.controls; track r.controls.buggyId.value; let i = $index) {
+                @if (rowVisible(i)) {
+                  <li class="bm-inspect__row" [formGroupName]="i" [class.bm-inspect__row--on]="r.controls.include.value" [class.bm-inspect__row--fault]="r.controls.include.value && rowHasFault(i)">
+                    <label class="gb-check bm-inspect__unit">
+                      <input type="checkbox" formControlName="include" />
+                      <span><strong>{{ unitOfRow(i)?.buggyNo }}</strong>{{ unitOfRow(i)?.buggyType ? ' · ' + unitOfRow(i)?.buggyType?.name : '' }}{{ unitOfRow(i)?.openJob ? ' · ' + unitOfRow(i)?.openJob?.kindLabel + ' open' : '' }}</span>
+                    </label>
+                    @if (r.controls.include.value) {
+                      <div class="bm-inspect__checks">
+                        @for (s of inspectionSystems; track s.key) {
+                          <label class="gb-check"><input type="checkbox" [formControlName]="s.key" /><span>{{ s.label }}</span></label>
+                        }
+                      </div>
+                      @if (rowHasFault(i)) {
+                        <div class="form-group">
+                          <label [for]="'bmFind' + i">Fault found <span class="required">*</span></label>
+                          <input [id]="'bmFind' + i" type="text" formControlName="findings" maxlength="1000" placeholder="What was found" />
+                        </div>
+                      }
+                    }
+                  </li>
+                }
+              }
+            </ul>
+            <div class="form-group">
+              <label for="bmInspectRemarks">Remarks</label>
+              <input id="bmInspectRemarks" type="text" formControlName="remarks" maxlength="255" placeholder="Optional, kept on every inspection of this batch" />
+            </div>
+          </form>
+        }
+        @case ('complete') {
+          @if (target(); as j) {
+            <form id="bmComplete" [formGroup]="completeForm" (ngSubmit)="runComplete()" class="saas-form saas-form--dialog">
+              <p>Complete the <strong>{{ j.kindLabel.toLowerCase() }}</strong> on buggy <strong>{{ j.buggyNo }}</strong>. The unit returns to the depot and the station can issue it again.</p>
+              @if (j.findings) { <p class="cell-subtle">{{ j.findings }}</p> }
+              <div class="form-group">
+                <label for="bmWorkDone">Work done</label>
+                <textarea id="bmWorkDone" rows="2" wrap="off" formControlName="workDone" maxlength="1000" placeholder="e.g. Brake pads replaced"></textarea>
+              </div>
+              <div class="form-group form-group--narrow">
+                <label for="bmCost">Cost</label>
+                <input id="bmCost" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="cost" />
+                <p class="cell-subtle field-hint">The club's own note; nothing is billed.</p>
+              </div>
+            </form>
+          }
+        }
+      }
+      <ng-container dialogFooter>
+        @switch (mode()) {
+          @case ('job') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="bmJob" class="btn btn--primary" [disabled]="saving() || jobUnits().size === 0">
+              {{ saving() ? 'Opening…' : 'Open ' + (jobForm.controls.kind.value === 'repair' ? 'repair' : 'service') + ' on ' + jobUnits().size + ' buggy' + (jobUnits().size === 1 ? '' : 's') }}
+            </button>
+          }
+          @case ('inspect') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="bmInspect" class="btn btn--primary" [disabled]="saving() || includedCount() === 0">
+              {{ saving() ? 'Saving…' : 'Record ' + includedCount() + ' inspection' + (includedCount() === 1 ? '' : 's') }}
+            </button>
+          }
+          @case ('complete') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="bmComplete" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Complete job' }}</button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

@@ -58,6 +58,13 @@ The QR code opens the Buggy Station on that unit when scanned with a phone camer
 2. Confirm; the old sticker stops working the moment the new code is issued.
 3. Click **Print label** and fit the new sticker.
 
+### Park a unit for service or repair, or inspect it
+
+- Open the card's ⋮ menu and click **Open service** or **Open repair** (a unit in the depot only); describe the work planned or the fault found and confirm.
+  The unit moves to **In maintenance** and the card shows the open job; the Buggy Station cannot issue it until the job is completed on Buggy Maintenance.
+- Click **Inspect** to run the safety checklist on the unit: untick any faulty system among **Steering**, **Brakes**, **Electrical**, **Drive** and **Body** and describe the fault.
+  All clear records the inspection and leaves the unit where it is; a fault opens a repair and parks it.
+
 ### Retire, reinstate or delete a buggy
 
 - Open the card's ⋮ menu and click **Retire**; give the **Reason** (sold, written off) and click **Retire buggy**.
@@ -93,11 +100,14 @@ The QR code opens the Buggy Station on that unit when scanned with a phone camer
 - If you see "Buggy B-012 has 34 outing(s) on record - retire it instead.", a unit with history cannot be deleted.
 - If you see "No buggies to print.", there is no active unit (or none of the ones picked) to put on the sheet.
 - If you see "Your role's data scope does not allow amending this record.", the unit was registered by someone outside your data scope.
+- If you see "Buggy B-012 already has an open repair - complete it first.", the unit is already parked; complete the job on Buggy Maintenance.
 - Printing opens a new browser tab; allow pop-ups for the app if nothing appears.
 
 ## Related options
 
 - Golf Management → Common Setup → Buggy Types - the kinds of buggy and their seats.
 - Golf Management → Front Desk → Buggy Station - issues, returns and swaps the units registered here.
+- Golf Management → Buggy Management → Buggy Maintenance - the services, repairs and inspections that park a unit; jobs opened here are completed there.
+- Golf Management → Buggy Management → Buggy Damages - the damage register.
 - Golf Management → Common Setup → Golf Specification - the Buggies switch that opens the station.
 - Golf Management → Common Setup → Courses - which courses make the buggy compulsory.

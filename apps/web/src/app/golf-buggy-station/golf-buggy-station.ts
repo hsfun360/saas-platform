@@ -12,6 +12,7 @@ import {
   GolfBuggyStationService, GolfStationDay, GolfStationFlight, GolfStationSlot, GolfStationBuggy,
 } from '../services/golf-buggy-station.service';
 import { GolfBuggyConditionIn, GolfBuggyIssue } from '../services/golf-buggy.service';
+import { GolfDamageAssessment, GolfDamageReasonType } from '../services/golf-buggy-maintenance.service';
 
 type DialogMode = 'return' | 'swap';
 
@@ -63,9 +64,14 @@ export class GolfBuggyStationComponent implements OnInit {
   readonly dialogOpen = signal(false);
   readonly mode = signal<DialogMode>('return');
   readonly targetIssue = signal<GolfBuggyIssue | null>(null);
+  // Slice 2 (2026-10-18): the desk assesses the unit on return - a fault or
+  // damage opens the repair and parks the unit; damage also names who or
+  // what caused it and the rider held responsible.
   readonly returnForm = this.fb.nonNullable.group({
     conditionIn: ['good' as GolfBuggyConditionIn],
     remarksIn: ['', [Validators.maxLength(255)]],
+    reasonType: ['player' as GolfDamageReasonType],
+    playerId: [''],
   });
   readonly swapForm = this.fb.nonNullable.group({
     newCode: ['', [Validators.required, Validators.maxLength(512)]],
@@ -73,7 +79,14 @@ export class GolfBuggyStationComponent implements OnInit {
     swapHole: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(18)]),
     conditionIn: ['fault' as GolfBuggyConditionIn],
     remarksIn: ['', [Validators.maxLength(255)]],
+    reasonType: ['player' as GolfDamageReasonType],
+    playerId: [''],
   });
+  readonly reasonTypes: { key: GolfDamageReasonType; label: string }[] = [
+    { key: 'player', label: 'Player' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'non-human', label: 'Not caused by a person' },
+  ];
 
   readonly flights = computed(() => this.day()?.flights || []);
   readonly out = computed(() => this.day()?.out || []);
@@ -295,7 +308,7 @@ export class GolfBuggyStationComponent implements OnInit {
     this.clearMessages();
     this.targetIssue.set(i);
     this.mode.set('return');
-    this.returnForm.reset({ conditionIn: 'good', remarksIn: '' });
+    this.returnForm.reset({ conditionIn: 'good', remarksIn: '', reasonType: 'player', playerId: i.riders.length === 1 ? i.riders[0].playerId : '' });
     this.dialogOpen.set(true);
   }
 
@@ -303,8 +316,14 @@ export class GolfBuggyStationComponent implements OnInit {
     this.clearMessages();
     this.targetIssue.set(i);
     this.mode.set('swap');
-    this.swapForm.reset({ newCode: '', swapReason: '', swapHole: null, conditionIn: 'fault', remarksIn: '' });
+    this.swapForm.reset({ newCode: '', swapReason: '', swapHole: null, conditionIn: 'fault', remarksIn: '', reasonType: 'player', playerId: i.riders.length === 1 ? i.riders[0].playerId : '' });
     this.dialogOpen.set(true);
+  }
+
+  // The damage assessment to send when the condition is damaged (else null).
+  private assessment(v: { conditionIn: GolfBuggyConditionIn; remarksIn: string; reasonType: GolfDamageReasonType; playerId: string }): GolfDamageAssessment | null {
+    if (v.conditionIn !== 'damaged') return null;
+    return { reasonType: v.reasonType, description: v.remarksIn.trim() || null, playerId: v.reasonType === 'player' && v.playerId ? v.playerId : null };
   }
 
   switchToSwap(): void {
@@ -330,7 +349,7 @@ export class GolfBuggyStationComponent implements OnInit {
       return;
     }
     this.busy.set(true);
-    this.service.returnBuggy({ issueId: i.id, conditionIn: v.conditionIn, remarksIn: v.remarksIn.trim() || null }).subscribe({
+    this.service.returnBuggy({ issueId: i.id, conditionIn: v.conditionIn, remarksIn: v.remarksIn.trim() || null, damage: this.assessment(v) }).subscribe({
       next: (res) => { this.busy.set(false); this.dialogOpen.set(false); this.successMessage.set(res.message); this.scanner()?.reset(); this.load(); },
       error: (err) => { this.busy.set(false); this.errorMessage.set(err.error?.message || 'The buggy could not be returned.'); },
     });
@@ -352,6 +371,7 @@ export class GolfBuggyStationComponent implements OnInit {
       swapHole: v.swapHole,
       conditionIn: v.conditionIn,
       remarksIn: v.remarksIn.trim() || null,
+      damage: this.assessment(v),
     }).subscribe({
       next: (res) => { this.busy.set(false); this.dialogOpen.set(false); this.successMessage.set(res.message); this.scanner()?.reset(); this.load(); },
       error: (err) => { this.busy.set(false); this.errorMessage.set(err.error?.message || 'The buggy could not be swapped.'); },

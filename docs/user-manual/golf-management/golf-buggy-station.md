@@ -62,6 +62,7 @@ Scanning a unit that is already out opens Return / Swap.
 
 1. Scan the returning unit (or click **Return** on its line).
 2. In **Return buggy B-012**, leave **Condition** as **Good**, or pick **Fault** or **Damaged** and write what was found in **Remarks**.
+   A fault or damage opens a repair on Buggy Maintenance and parks the unit; for **Damaged** also pick **Caused by** (a player, staff, or not caused by a person) and, for a player, the **Rider responsible**, and the incident is written to the Buggy Damages register.
 3. Click **Return buggy**.
    The unit is back in the depot and free for the next flight.
 
@@ -69,7 +70,8 @@ Scanning a unit that is already out opens Return / Swap.
 
 1. Scan the broken unit (or click **Swap** on its line); in the Return dialog click **Swap instead**, or click **Swap** directly.
 2. Scan or type the **Replacement buggy**, give the **Reason** (e.g. `Battery flat`) and, if known, the hole.
-3. Pick the **Condition** of the broken unit and any remarks, then click **Swap buggy**.
+3. Pick the **Condition** of the broken unit and any remarks (for **Damaged**, also **Caused by** and the **Rider responsible**), then click **Swap buggy**.
+   The broken unit gets a repair opened and is parked; damage is recorded in the register.
    The riders and their paid fees move to the replacement; the broken unit returns to the depot with its condition noted.
 
 ### Work from a phone
@@ -89,8 +91,10 @@ Scanning a unit that is already out opens Return / Swap.
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Condition** | Yes | Good, Fault or Damaged. | Defaults to Good. |
-| **Remarks** | When the condition is not Good | What was found on the unit. | Up to 255 characters. |
+| **Condition** | Yes | Good, Fault or Damaged. | Defaults to Good; Fault or Damaged opens a repair and parks the unit. |
+| **Remarks** | When the condition is not Good | What was found on the unit. | Up to 255 characters; becomes the repair's findings and the damage description. |
+| **Caused by** | When Damaged | Player, Staff, or Not caused by a person. | Written to the damage register. |
+| **Rider responsible** | No | The rider held responsible, when the cause is a player. | Defaults to the only rider; Not named leaves it open. |
 
 ### Swap buggy dialog
 
@@ -99,8 +103,9 @@ Scanning a unit that is already out opens Return / Swap.
 | **Replacement buggy** | Yes | The QR code or number of the unit taking over. | Must be an active unit in the depot, different from the broken one, with enough seats for the riders. |
 | **Reason** | Yes | Why the unit is swapped. | Up to 255 characters. |
 | **At hole** | No | Where on the course the swap happened. | Whole number from 1 to 18. |
-| **Condition of <unit>** | Yes | Fault, Damaged or Good for the unit coming back. | Defaults to Fault. |
-| **Remarks** | No | Anything else about the unit coming back. | Up to 255 characters. |
+| **Condition of <unit>** | Yes | Fault, Damaged or Good for the unit coming back. | Defaults to Fault; Fault or Damaged opens a repair and parks the unit. |
+| **Remarks** | No | Anything else about the unit coming back. | Up to 255 characters; the swap reason stands in when empty. |
+| **Caused by** / **Rider responsible** | When Damaged | As on the Return dialog. | Written to the damage register. |
 
 ## Tips & troubleshooting
 
@@ -114,6 +119,7 @@ Scanning a unit that is already out opens Return / Swap.
 - If you see "Buggy B-012 seats 2 - 3 riders picked.", split the riders over two units.
 - If you see "Ahmad already has a buggy out - swap or return it first.", the player is already riding.
 - If you see "Describe the fault or damage.", a return with a condition other than Good needs remarks.
+- A unit returned with a fault or damage shows **In maintenance** in the fleet counts and is refused until its repair is completed on Buggy Maintenance.
 - If the camera does not start, allow camera access for the app in the browser, or keep using a handheld scanner or the typed number - the camera is optional.
 - A handheld scanner must be set to send Enter after the code; the box then submits on its own.
 
@@ -121,6 +127,8 @@ Scanning a unit that is already out opens Return / Swap.
 
 - Golf Management → Front Desk → Tee Time Sheet - where the buggy fee reaches the bill (auto-charged on a buggy-compulsory course, or from the tiles) and is paid; each player's line there shows the buggy number once issued.
 - Golf Management → Common Setup → Buggies - the fleet register, the QR labels and each unit's history.
+- Golf Management → Buggy Management → Buggy Maintenance - the repairs a fault or damaged return opens, completed there to free the unit.
+- Golf Management → Buggy Management → Buggy Damages - the incidents a Damaged return records.
 - Golf Management → Common Setup → Buggy Types - the seats a unit carries.
 - Golf Management → Common Setup → Courses - the Buggy compulsory switch per course.
 - Golf Management → Common Setup → Transaction Type - the single and shared buggy fee items.

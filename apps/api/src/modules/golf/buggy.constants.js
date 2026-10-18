@@ -48,6 +48,48 @@ const CONDITION_IN_KEYS = CONDITIONS_IN.map((c) => c.key);
 const MIN_SEATS = 1;
 const MAX_SEATS = 6;
 
+// --- maintenance (slice 2, user decisions 2026-10-18) ---
+
+// One job on one unit: a routine service, a repair (a fault or damage), or
+// the safety inspection (the spec's 安检 five-system checklist).
+const MAINTENANCE_KINDS = [
+    { key: 'service', label: 'Service' },
+    { key: 'repair', label: 'Repair' },
+    { key: 'inspection', label: 'Inspection' },
+];
+const MAINTENANCE_KIND_KEYS = MAINTENANCE_KINDS.map((k) => k.key);
+const MAINTENANCE_STATUSES = [
+    { key: 'open', label: 'Open' },
+    { key: 'done', label: 'Done' },
+];
+const MAINTENANCE_STATUS_KEYS = MAINTENANCE_STATUSES.map((s) => s.key);
+// How the job was raised: keyed by hand, by a fault / damaged return at the
+// station, or by an inspection that found a fault.
+const MAINTENANCE_SOURCES = [
+    { key: 'manual', label: 'Keyed' },
+    { key: 'station-return', label: 'Station return' },
+    { key: 'inspection', label: 'Inspection' },
+];
+const MAINTENANCE_SOURCE_KEYS = MAINTENANCE_SOURCES.map((s) => s.key);
+// The inspection checklist (spec 球车安检): steering, brakes, electrical,
+// drive, body - each ok or faulty.
+const INSPECTION_SYSTEMS = [
+    { key: 'steeringOk', label: 'Steering' },
+    { key: 'brakesOk', label: 'Brakes' },
+    { key: 'electricalOk', label: 'Electrical' },
+    { key: 'driveOk', label: 'Drive' },
+    { key: 'bodyOk', label: 'Body' },
+];
+const INSPECTION_SYSTEM_KEYS = INSPECTION_SYSTEMS.map((s) => s.key);
+// Who or what damaged the unit (spec 损坏原因所属的类型). Compensation stays
+// OUTSIDE the system (user decision 2026-10-18): the record is the register.
+const DAMAGE_REASON_TYPES = [
+    { key: 'player', label: 'Player' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'non-human', label: 'Not caused by a person' },
+];
+const DAMAGE_REASON_TYPE_KEYS = DAMAGE_REASON_TYPES.map((r) => r.key);
+
 module.exports = {
     BUGGY_STATUSES, BUGGY_STATUS_KEYS,
     BUGGY_LOCATIONS, BUGGY_LOCATION_KEYS,
@@ -55,4 +97,9 @@ module.exports = {
     CONDITIONS_OUT, CONDITION_OUT_KEYS,
     CONDITIONS_IN, CONDITION_IN_KEYS,
     MIN_SEATS, MAX_SEATS,
+    MAINTENANCE_KINDS, MAINTENANCE_KIND_KEYS,
+    MAINTENANCE_STATUSES, MAINTENANCE_STATUS_KEYS,
+    MAINTENANCE_SOURCES, MAINTENANCE_SOURCE_KEYS,
+    INSPECTION_SYSTEMS, INSPECTION_SYSTEM_KEYS,
+    DAMAGE_REASON_TYPES, DAMAGE_REASON_TYPE_KEYS,
 };

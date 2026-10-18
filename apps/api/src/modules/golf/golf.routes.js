@@ -45,6 +45,9 @@ router.use('/player-types', requireMenuAction('/golf/player-types'), require('./
 router.use('/buggy-types', requireMenuAction('/golf/buggy-types'), require('./buggyTypes.routes'));
 router.use('/buggies', requireMenuAction('/golf/buggies'), require('./buggies.routes'));
 router.use('/buggy-station', requireMenuAction('/golf/buggy-station'), require('./buggyStation.routes'));
+// Buggy maintenance + damage register (slice 2, 2026-10-18): the Buggy Management group.
+router.use('/buggy-maintenance', requireMenuAction('/golf/buggy-maintenance'), require('./buggyMaintenance.routes'));
+router.use('/buggy-damages', requireMenuAction('/golf/buggy-damages'), require('./buggyDamages.routes'));
 // Caddy management slice 1 (2026-10-17): grades, groups and the caddy
 // register (leave records, notes, badge QR sheet) - Common Setup menus.
 router.use('/caddy-grades', requireMenuAction('/golf/caddy-grades'), require('./caddyGrades.routes'));

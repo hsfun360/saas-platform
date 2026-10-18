@@ -1,0 +1,176 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">report</span>
+      <div>
+        <h1>{{ 'Buggy Damages' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The damage register of the buggy fleet - every incident with the unit, the outing, who or what caused it and the repair it opened. Compensation is settled outside the system.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div class="bm-filter">
+    <div class="bm-tabs" role="group" aria-label="Record status">
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === 'open'" [class.btn--secondary]="status() !== 'open'" (click)="setStatus('open')">Open</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === 'resolved'" [class.btn--secondary]="status() !== 'resolved'" (click)="setStatus('resolved')">Resolved</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === ''" [class.btn--secondary]="status() !== ''" (click)="setStatus('')">All</button>
+    </div>
+    @if (status() !== 'open') {
+      <label for="bdFrom">Date from</label>
+      <input #bdFromInput id="bdFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(bdFromInput.value)" />
+      <label for="bdTo">to</label>
+      <input #bdToInput id="bdTo" type="date" [value]="dateTo()" (change)="setDateTo(bdToInput.value)" />
+    }
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #bdSearch class="saas-search__input" type="search" [value]="search()" (input)="search.set(bdSearch.value)"
+           placeholder="Search by buggy no, golfer, member no or description…" aria-label="Search damage records" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="bm-count">{{ damages().length }} record{{ damages().length === 1 ? '' : 's' }}{{ status() === '' ? ' · ' + openCount() + ' open' : '' }}</p>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the damage register…</p></div>
+  } @else if (damages().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>{{ status() === 'open' ? 'No open damage records. A damaged return at the Buggy Station records one here; use Record damage for anything found later.' : 'No damage records in this period.' }}</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No records match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (d of filtered(); track d.id) {
+        <div class="data-card" [attr.data-return-id]="d.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ d.buggyNo }} - {{ d.playDate | localDate }}@if (d.buggyType) { <span class="data-card__reg">{{ d.buggyType.name }}</span> }</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ d.reasonTypeLabel }}</span>
+                @if (d.golferName) { <span class="data-card__reg">{{ d.golferName }}{{ d.memberNo ? ' (' + d.memberNo + ')' : '' }}</span> }
+                @if (d.buggyIssueId) { <span class="data-card__reg">recorded at the station</span> }
+                @if (d.maintenanceId) { <span class="data-card__reg">repair {{ d.status === 'resolved' ? 'completed' : 'open' }}</span> }
+              </div>
+              <div class="data-card__desc">{{ d.description }}</div>
+              @if (d.remarks) { <div class="data-card__desc cell-subtle">{{ d.remarks }}</div> }
+              @if (d.resolvedAt) {
+                <dl class="data-card__meta"><div class="meta"><dt>Resolved</dt><dd>{{ d.resolvedAt | localDate:'datetime' }}</dd></div></dl>
+              }
+            </div>
+            <span class="data-row__badge status-chip" [class.status-chip--danger]="d.status === 'open'" [class.status-chip--on]="d.status === 'resolved'">{{ d.status }}</span>
+            <div class="data-row__actions">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)" [disabled]="busyId() === d.id">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                Edit
+              </button>
+              @if (d.status === 'open') {
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for the damage on ' + d.buggyNo">
+                  <button type="button" appMenuItem (click)="askResolve(d)" [disabled]="busyId() === d.id">
+                    <span class="material-icons" aria-hidden="true">check_circle</span>
+                    Resolve
+                  </button>
+                </app-overflow-menu>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="Record damage">
+    <span class="material-icons" aria-hidden="true">add</span>
+    Record damage
+  </button>
+
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="editId() ? 'Edit damage record' : 'Record damage'" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this damage record." (close)="closeDialog()">
+      <form id="bdForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="bdBuggy">Buggy <span class="required">*</span></label>
+            <app-combobox inputId="bdBuggy" formControlName="buggyId" [options]="unitOptions()" [allowEmpty]="false" placeholder="Type the buggy no…"
+                          [invalid]="showError(form.controls.buggyId)" describedBy="bdBuggyErr" />
+            @if (showError(form.controls.buggyId)) { <p id="bdBuggyErr" class="field-error" role="alert">Pick the buggy.</p> }
+          </div>
+          <div class="form-group">
+            <label for="bdDate">Date <span class="required">*</span></label>
+            <input id="bdDate" type="date" formControlName="playDate" [attr.aria-invalid]="showError(form.controls.playDate)" />
+            @if (showError(form.controls.playDate)) { <p class="field-error" role="alert">Pick the date of the damage.</p> }
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="bdReason">Caused by <span class="required">*</span></label>
+            <select id="bdReason" formControlName="reasonType">
+              @for (r of reasonTypes(); track r.key) { <option [value]="r.key">{{ r.label }}</option> }
+            </select>
+          </div>
+        </div>
+        @if (form.controls.reasonType.value === 'player') {
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="bdGolfer">Golfer responsible</label>
+              <input id="bdGolfer" type="text" formControlName="golferName" maxlength="255" placeholder="Name, if known" />
+            </div>
+            <div class="form-group">
+              <label for="bdMember">Member No</label>
+              <input id="bdMember" type="text" formControlName="memberNo" maxlength="50" placeholder="Optional" />
+            </div>
+          </div>
+        }
+        <div class="form-group">
+          <label for="bdDesc">Description <span class="required">*</span></label>
+          <textarea id="bdDesc" rows="2" wrap="off" formControlName="description" maxlength="1000" placeholder="What was damaged and how"
+                    [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="bdDescErr"></textarea>
+          @if (showError(form.controls.description)) { <p id="bdDescErr" class="field-error" role="alert">Describe the damage.</p> }
+        </div>
+        <div class="form-group">
+          <label for="bdRemarks">Remarks</label>
+          <input id="bdRemarks" type="text" formControlName="remarks" maxlength="255" placeholder="Optional" />
+        </div>
+        @if (!editId()) {
+          <label class="gb-check">
+            <input type="checkbox" formControlName="openRepair" />
+            <span>Open a repair and park the unit</span>
+          </label>
+          <p class="cell-subtle field-hint">Unticked, the record is kept with no job; a unit already under a job gets this record attached to it.</p>
+        }
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="bdForm" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

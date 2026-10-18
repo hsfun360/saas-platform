@@ -1,0 +1,53 @@
+/* Buggy Maintenance (slice 2, 2026-10-18) - the filter row, the unit pickers
+   and the batch inspection rows; .gb-check comes from the Buggies stylesheet. */
+
+.bm-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.bm-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.bm-filter input[type='date'],
+.bm-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.bm-filter input[type='date']:focus,
+.bm-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.bm-tabs { display: flex; gap: var(--space-xs); }
+.bm-count { margin: 0 0 var(--space-sm); font-size: var(--font-body-2); color: var(--text-secondary); }
+
+.bm-units { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+@media (min-width: 768px) {
+  .bm-units { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-lg); }
+}
+
+.bm-inspect-tools { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); }
+.bm-inspect-tools .saas-search { flex: 1 1 220px; margin-bottom: 0; }
+.bm-inspect { list-style: none; margin: 0 0 var(--space-md); padding: 0; display: grid; gap: var(--space-xs); }
+.bm-inspect__row {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.bm-inspect__row--on { border-color: var(--brand); background: var(--surface-selected); }
+.bm-inspect__row--fault { border-color: var(--danger-border); background: var(--danger-surface); }
+.bm-inspect__checks { display: flex; flex-wrap: wrap; gap: 0 var(--space-lg); padding-left: var(--space-lg); }
+.bm-inspect__row .form-group { margin: 0 0 var(--space-sm) var(--space-lg); }

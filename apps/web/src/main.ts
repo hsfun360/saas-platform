@@ -226,6 +226,9 @@ const routes: Routes = [
       { path: 'golf/buggies', loadComponent: () => import('./app/golf-buggies/golf-buggies').then((m) => m.GolfBuggiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/buggy-station', loadComponent: () => import('./app/golf-buggy-station/golf-buggy-station').then((m) => m.GolfBuggyStationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Caddy management slice 1 (2026-10-17): grades, groups and the caddy register (Common Setup).
+      // Buggy Management group (slice 2, 2026-10-18).
+      { path: 'golf/buggy-maintenance', loadComponent: () => import('./app/golf-buggy-maintenance/golf-buggy-maintenance').then((m) => m.GolfBuggyMaintenanceComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/buggy-damages', loadComponent: () => import('./app/golf-buggy-damages/golf-buggy-damages').then((m) => m.GolfBuggyDamagesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/caddy-grades', loadComponent: () => import('./app/golf-caddy-grades/golf-caddy-grades').then((m) => m.GolfCaddyGradesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/caddy-groups', loadComponent: () => import('./app/golf-caddy-groups/golf-caddy-groups').then((m) => m.GolfCaddyGroupsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/caddies', loadComponent: () => import('./app/golf-caddies/golf-caddies').then((m) => m.GolfCaddiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },

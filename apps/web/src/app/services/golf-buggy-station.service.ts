@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { GolfBuggyConditionIn, GolfBuggyConditionOut, GolfBuggyIssue, GolfBuggyTypeRef, GolfFleetCounts } from './golf-buggy.service';
+import { GolfDamageAssessment } from './golf-buggy-maintenance.service';
 
 // The Buggy Station (Golf Management → Front Desk → Buggy Station; user
 // decisions 2026-10-17): the day's flights with the buggy SLOTS derived from
@@ -109,11 +110,12 @@ export class GolfBuggyStationService {
     return this.http.post<{ message: string; issue: GolfBuggyIssue; warnings: string[] }>(`${this.base}/issue`, payload);
   }
 
-  returnBuggy(payload: { buggy?: GolfBuggyRef; issueId?: string; conditionIn: GolfBuggyConditionIn; remarksIn?: string | null }): Observable<{ message: string; issue: GolfBuggyIssue }> {
+  // `damage` (slice 2) = the desk's assessment when the condition is damaged.
+  returnBuggy(payload: { buggy?: GolfBuggyRef; issueId?: string; conditionIn: GolfBuggyConditionIn; remarksIn?: string | null; damage?: GolfDamageAssessment | null }): Observable<{ message: string; issue: GolfBuggyIssue }> {
     return this.http.post<{ message: string; issue: GolfBuggyIssue }>(`${this.base}/return`, payload);
   }
 
-  swap(payload: { buggy?: GolfBuggyRef; issueId?: string; newBuggy: GolfBuggyRef; swapReason: string; swapHole?: number | null; conditionIn?: GolfBuggyConditionIn; remarksIn?: string | null }): Observable<{ message: string; issue: GolfBuggyIssue; swappedIssue: GolfBuggyIssue }> {
+  swap(payload: { buggy?: GolfBuggyRef; issueId?: string; newBuggy: GolfBuggyRef; swapReason: string; swapHole?: number | null; conditionIn?: GolfBuggyConditionIn; remarksIn?: string | null; damage?: GolfDamageAssessment | null }): Observable<{ message: string; issue: GolfBuggyIssue; swappedIssue: GolfBuggyIssue }> {
     return this.http.post<{ message: string; issue: GolfBuggyIssue; swappedIssue: GolfBuggyIssue }>(`${this.base}/swap`, payload);
   }
 }

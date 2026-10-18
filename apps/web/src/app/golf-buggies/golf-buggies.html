@@ -101,6 +101,10 @@
                 <dl class="data-card__meta">
                   <div class="meta"><dt>On course with</dt><dd>{{ ridersOf(i) }}{{ i.teeTime ? ' · ' + i.teeTime : '' }} · since {{ i.issuedAt | localDate:'datetime' }}</dd></div>
                 </dl>
+              } @else if (b.openJob; as j) {
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>{{ j.kindLabel }} open</dt><dd>since {{ j.openedAt | localDate:'datetime' }}{{ j.findings ? ' · ' + j.findings : '' }}</dd></div>
+                </dl>
               } @else if (b.status === 'retired' && b.retireReason) {
                 <dl class="data-card__meta">
                   <div class="meta"><dt>Retired</dt><dd>{{ b.retiredAt | localDate }} · {{ b.retireReason }}</dd></div>
@@ -136,6 +140,20 @@
                   <span class="material-icons" aria-hidden="true">qr_code_2</span>
                   Print label
                 </button>
+                @if (b.status === 'active') {
+                  <button type="button" appMenuItem (click)="openJob(b, 'service')" [disabled]="busyId() === b.id || b.location !== 'in-depot'">
+                    <span class="material-icons" aria-hidden="true">build</span>
+                    Open service
+                  </button>
+                  <button type="button" appMenuItem (click)="openJob(b, 'repair')" [disabled]="busyId() === b.id || b.location !== 'in-depot'">
+                    <span class="material-icons" aria-hidden="true">handyman</span>
+                    Open repair
+                  </button>
+                  <button type="button" appMenuItem (click)="openInspect(b)" [disabled]="busyId() === b.id || b.location === 'on-course'">
+                    <span class="material-icons" aria-hidden="true">fact_check</span>
+                    Inspect
+                  </button>
+                }
                 @if (b.canModify !== false) {
                   <ng-container *appCan="'edit'">
                     <button type="button" appMenuItem (click)="askRegenerateQr(b)" [disabled]="busyId() === b.id">
@@ -176,7 +194,7 @@
   <!-- ============ The one dialog: form (drawer) / retire / history (centred) ============ -->
   @if (dialogOpen()) {
     <app-dialog #dlg [variant]="mode() === 'form' ? 'drawer' : 'center'" [title]="dialogTitle()" [busy]="saving()"
-                [dirty]="mode() === 'form' && form.dirty"
+                [dirty]="(mode() === 'form' && form.dirty) || (mode() === 'job' && jobForm.dirty) || (mode() === 'inspect' && inspectForm.dirty)"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this buggy. Leaving now will discard them."
                 (close)="closeDialog()">
@@ -243,6 +261,36 @@
             </div>
           }
         }
+        @case ('job') {
+          @if (target(); as b) {
+            <form id="gbJob" [formGroup]="jobForm" (ngSubmit)="runJob()" class="saas-form saas-form--dialog">
+              <p>Open a <strong>{{ jobKind() === 'repair' ? 'repair' : 'service' }}</strong> on buggy <strong>{{ b.buggyNo }}</strong>. The unit is parked in maintenance and the station cannot issue it until the job is completed on the Buggy Maintenance screen.</p>
+              <div class="form-group">
+                <label for="gbJobFindings">{{ jobKind() === 'repair' ? 'Fault found' : 'Work planned' }}{{ jobKind() === 'repair' ? ' *' : '' }}</label>
+                <textarea id="gbJobFindings" rows="2" wrap="off" formControlName="findings" maxlength="1000" [placeholder]="jobKind() === 'repair' ? 'e.g. Brakes soft on the left' : 'e.g. 500-hour service'"></textarea>
+              </div>
+            </form>
+          }
+        }
+        @case ('inspect') {
+          @if (target(); as b) {
+            <form id="gbInspect" [formGroup]="inspectForm" (ngSubmit)="runInspect()" class="saas-form saas-form--dialog">
+              <p>Safety inspection of buggy <strong>{{ b.buggyNo }}</strong>. Untick a system that is faulty; all clear closes the inspection, a fault opens a repair and parks the unit.</p>
+              <div class="gb-checks">
+                @for (s of inspectionSystems; track s.key) {
+                  <label class="gb-check">
+                    <input type="checkbox" [formControlName]="s.key" />
+                    <span>{{ s.label }}</span>
+                  </label>
+                }
+              </div>
+              <div class="form-group">
+                <label for="gbInspectFindings">Findings{{ inspectHasFault() ? ' *' : '' }}</label>
+                <textarea id="gbInspectFindings" rows="2" wrap="off" formControlName="findings" maxlength="1000" placeholder="What was found"></textarea>
+              </div>
+            </form>
+          }
+        }
         @case ('history') {
           @if (historyLoading()) {
             <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading outings…</p></div>
@@ -279,6 +327,14 @@
             <button type="button" class="btn btn--danger" (click)="runRetire()" [disabled]="saving() || !retireReason().trim()">
               {{ saving() ? 'Retiring…' : 'Retire buggy' }}
             </button>
+          }
+          @case ('job') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="gbJob" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Opening…' : (jobKind() === 'repair' ? 'Open repair' : 'Open service') }}</button>
+          }
+          @case ('inspect') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="gbInspect" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : (inspectHasFault() ? 'Record fault and open repair' : 'Record inspection - all clear') }}</button>
           }
           @default {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>

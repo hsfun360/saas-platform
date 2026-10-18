@@ -13,8 +13,9 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { openBlobInNewTab } from '../shared/open-blob';
+import { GolfBuggyMaintenanceService, GolfInspectionSystem } from '../services/golf-buggy-maintenance.service';
 
-type DialogMode = 'form' | 'retire' | 'history';
+type DialogMode = 'form' | 'retire' | 'history' | 'job' | 'inspect';
 
 // Golf Management → Common Setup → Buggies (/golf/buggies; user decisions
 // 2026-10-17). The fleet register: one card per unit with its type, the live
@@ -34,6 +35,7 @@ type DialogMode = 'form' | 'retire' | 'history';
 })
 export class GolfBuggiesComponent implements OnInit {
   private readonly service = inject(GolfBuggyService);
+  private readonly maintenance = inject(GolfBuggyMaintenanceService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
@@ -65,6 +67,22 @@ export class GolfBuggiesComponent implements OnInit {
     remarks: ['', [Validators.maxLength(255)]],
   });
 
+  // Slice 2 (2026-10-18): open a service / repair or inspect from the register.
+  readonly jobKind = signal<'service' | 'repair'>('service');
+  readonly jobForm = this.fb.nonNullable.group({ findings: ['', [Validators.maxLength(1000)]] });
+  readonly inspectionSystems: { key: GolfInspectionSystem; label: string }[] = [
+    { key: 'steeringOk', label: 'Steering' }, { key: 'brakesOk', label: 'Brakes' }, { key: 'electricalOk', label: 'Electrical' }, { key: 'driveOk', label: 'Drive' }, { key: 'bodyOk', label: 'Body' },
+  ];
+  readonly inspectForm = this.fb.nonNullable.group({
+    steeringOk: [true], brakesOk: [true], electricalOk: [true], driveOk: [true], bodyOk: [true],
+    findings: ['', [Validators.maxLength(1000)]],
+  });
+  // A method, not a computed: it reads form controls, which signals cannot track.
+  inspectHasFault(): boolean {
+    const v = this.inspectForm.getRawValue();
+    return this.inspectionSystems.some((s) => v[s.key] === false);
+  }
+
   readonly search = signal('');
   readonly filter = signal<'all' | 'in-depot' | 'on-course' | 'maintenance' | 'retired'>('all');
   readonly successMessage = signal('');
@@ -93,6 +111,8 @@ export class GolfBuggiesComponent implements OnInit {
     switch (this.mode()) {
       case 'retire': return `Retire buggy ${this.target()?.buggyNo || ''}`;
       case 'history': return `Buggy ${this.target()?.buggyNo || ''} - history`;
+      case 'job': return `${this.jobKind() === 'repair' ? 'Open repair' : 'Open service'} - buggy ${this.target()?.buggyNo || ''}`;
+      case 'inspect': return `Inspect buggy ${this.target()?.buggyNo || ''}`;
       default: return this.editId() ? 'Edit buggy' : 'New buggy';
     }
   });
@@ -176,6 +196,55 @@ export class GolfBuggiesComponent implements OnInit {
 
   closeDialog(): void {
     this.dialogOpen.set(false);
+  }
+
+  // ---- maintenance (slice 2) ----
+
+  openJob(b: GolfBuggy, kind: 'service' | 'repair'): void {
+    this.clearMessages();
+    this.target.set(b);
+    this.jobKind.set(kind);
+    this.mode.set('job');
+    this.jobForm.reset({ findings: '' });
+    this.dialogOpen.set(true);
+  }
+
+  runJob(): void {
+    const b = this.target();
+    if (!b) return;
+    const findings = this.jobForm.getRawValue().findings.trim();
+    if (this.jobKind() === 'repair' && !findings) {
+      this.errorMessage.set('Describe the fault found.');
+      return;
+    }
+    this.saving.set(true);
+    this.maintenance.open({ buggyIds: [b.id], kind: this.jobKind(), findings: findings || null }).subscribe({
+      next: (res) => { this.saving.set(false); this.jobForm.markAsPristine(); this.dialogOpen.set(false); this.successMessage.set(res.message); this.returnScroll.remember(GolfBuggiesComponent.LIST_PATH, b.id); this.load(); },
+      error: (err) => { this.saving.set(false); this.errorMessage.set(err.error?.message || 'The job could not be opened.'); },
+    });
+  }
+
+  openInspect(b: GolfBuggy): void {
+    this.clearMessages();
+    this.target.set(b);
+    this.mode.set('inspect');
+    this.inspectForm.reset({ steeringOk: true, brakesOk: true, electricalOk: true, driveOk: true, bodyOk: true, findings: '' });
+    this.dialogOpen.set(true);
+  }
+
+  runInspect(): void {
+    const b = this.target();
+    if (!b) return;
+    const v = this.inspectForm.getRawValue();
+    if (this.inspectHasFault() && !v.findings.trim()) {
+      this.errorMessage.set('Describe the fault found.');
+      return;
+    }
+    this.saving.set(true);
+    this.maintenance.inspect({ items: [{ buggyId: b.id, steeringOk: v.steeringOk, brakesOk: v.brakesOk, electricalOk: v.electricalOk, driveOk: v.driveOk, bodyOk: v.bodyOk, findings: v.findings.trim() || null }] }).subscribe({
+      next: (res) => { this.saving.set(false); this.inspectForm.markAsPristine(); this.dialogOpen.set(false); this.successMessage.set(res.message); this.returnScroll.remember(GolfBuggiesComponent.LIST_PATH, b.id); this.load(); },
+      error: (err) => { this.saving.set(false); this.errorMessage.set(err.error?.message || 'The inspection could not be recorded.'); },
+    });
   }
 
   onSave(): void {

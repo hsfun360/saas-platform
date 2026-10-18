@@ -40,6 +40,19 @@
 }
 .gb-toolbar .saas-search { flex: 1 1 260px; margin-bottom: 0; }
 
+/* The inspection checklist (slice 2): five tick boxes in a wrapping row. */
+.gb-checks { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); margin-bottom: var(--space-md); }
+.gb-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.gb-check input[type='checkbox'] { width: var(--icon-sm); height: var(--icon-sm); flex-shrink: 0; }
+
 .gb-hist {
   list-style: none;
   margin: 0;

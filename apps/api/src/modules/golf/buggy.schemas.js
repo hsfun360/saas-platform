@@ -25,7 +25,24 @@ const buggyRef = z.object({ id: str(64), code: str(512) }).nullable().optional()
 
 const idParam = { params: z.object({ id }) };
 
+// The desk's damage assessment on a damaged return / swap (slice 2).
+const damageRef = z.object({ reasonType: str(20), description: str(1000), playerId: str(64) }).nullable().optional();
+const inspectionItem = z.object({
+    buggyId: str(64),
+    steeringOk: z.boolean().optional(), brakesOk: z.boolean().optional(), electricalOk: z.boolean().optional(), driveOk: z.boolean().optional(), bodyOk: z.boolean().optional(),
+    findings: str(1000),
+});
+const damageBody = z.object({ buggyId: str(64), playDate: str(10), reasonType: str(20), description: str(1000), golferName: str(255), memberNo: str(50), remarks: str(255), openRepair: z.boolean().optional() });
+
 module.exports = {
+    // --- maintenance + damage (slice 2, 2026-10-18) ---
+    maintenanceList: { query: z.object({ status: str(20), kind: str(20), dateFrom: str(10), dateTo: str(10), buggyId: str(64) }) },
+    maintenanceOpen: { body: z.object({ buggyIds: z.array(z.string().max(64)).max(200).nullable().optional(), kind: str(20), findings: str(1000), remarks: str(255) }) },
+    maintenanceInspect: { body: z.object({ items: z.array(inspectionItem).max(200).nullable().optional(), remarks: str(255) }) },
+    maintenanceComplete: { ...idParam, body: z.object({ workDone: str(1000), cost: numberish }) },
+    damageList: { query: z.object({ status: str(20), dateFrom: str(10), dateTo: str(10), buggyId: str(64) }) },
+    damageCreate: { body: damageBody },
+    damageUpdate: { ...idParam, body: damageBody },
     // --- fleet register ---
     create: { body: buggyBody },
     update: { ...idParam, body: buggyBody },
@@ -49,6 +66,7 @@ module.exports = {
             issueId: str(64),
             conditionIn: str(20),
             remarksIn: str(255),
+            damage: damageRef,
         }),
     },
     swap: {
@@ -60,6 +78,7 @@ module.exports = {
             swapHole: numberish,
             conditionIn: str(20),
             remarksIn: str(255),
+            damage: damageRef,
         }),
     },
 };
