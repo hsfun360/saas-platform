@@ -573,6 +573,13 @@ export class GolfSettingsComponent implements OnInit {
     return `Bookings for a play date open ${days} day(s) before - and already the previous evening from ${label} (${hours} hour(s) before midnight).`;
   }
 
+  // The save bar's "Discard changes": re-load from the server, which resets
+  // every control (and the FormArrays) to the saved state, pristine.
+  discard(): void {
+    this.clearMessages();
+    this.load();
+  }
+
   onSave(): void {
     this.clearMessages();
     if (this.form.invalid) {

@@ -77,7 +77,7 @@
             </div>
 
             @if (overridesOn()) {
-              <div class="gs-overrides">
+              <div class="gs-overrides array-editor">
                 @if (overrides.length > 0) {
                   <div class="gs-ov-row gs-ov-row--head" aria-hidden="true">
                     <span>Membership Type</span>
@@ -160,7 +160,7 @@
                  them, so a club can stage the bands. NOT a .form-row: that is
                  the 2-column form grid, which scattered these rows into two
                  interleaved columns on wide screens (user report 2026-10-05). -->
-            <div class="gs-sessions" style="margin-top: var(--space-md);">
+            <div class="gs-sessions array-editor" style="margin-top: var(--space-md);">
               <label style="font-weight: var(--weight-semibold);">Sessions
                 <app-field-info label="Sessions" [text]="hint.sessions" />
               </label>
@@ -245,7 +245,7 @@
             </div>
             <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum - or when joining an existing flight brings the flight's total to it.</p>
 
-            <div class="gs-overrides">
+            <div class="gs-overrides array-editor">
               @if (minPlayerRules.length > 0) {
                 <div class="gs-mp-row gs-mp-row--head" aria-hidden="true">
                   <span>Course</span>
@@ -341,7 +341,7 @@
                 </div>
               </div>
 
-              <div class="gs-overrides">
+              <div class="gs-overrides array-editor">
                 @if (guestRules.length > 0) {
                   <div class="gs-gc-row gs-gc-row--head" aria-hidden="true">
                     <span>Course</span>
@@ -417,6 +417,7 @@
 
             @if (handicapControlOn()) {
               <p class="gs-hc-title">Handicap limits</p>
+              <div class="array-editor">
               @if (limitRules.length > 0) {
                 <div class="gs-hl-row gs-hl-row--head" aria-hidden="true">
                   <span>Course</span>
@@ -472,8 +473,10 @@
               @if (limitRules.length === 0) {
                 <p class="cell-subtle field-hint">No limits - any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
               }
+              </div>
 
               <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
+              <div class="array-editor">
               @if (accRules.length > 0) {
                 <div class="gs-ha-row gs-ha-row--head" aria-hidden="true">
                   <span>Course</span>
@@ -539,6 +542,7 @@
               @if (accRules.length === 0) {
                 <p class="cell-subtle field-hint">No rules - beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
               }
+              </div>
             }
           </div>
         }
@@ -734,7 +738,7 @@
 
             @if (playingRightsOn()) {
               <h3 class="gs-subhead">Playing rights (whitelist)</h3>
-              <div class="gs-overrides">
+              <div class="gs-overrides array-editor">
                 @if (rightRules.length > 0) {
                   <div class="gs-pr-row gs-pr-row--head" aria-hidden="true">
                     <span>Target</span>
@@ -790,7 +794,7 @@
               </div>
 
               <h3 class="gs-subhead" style="margin-top: var(--space-lg);">Round quotas</h3>
-              <div class="gs-overrides">
+              <div class="gs-overrides array-editor">
                 @if (quotaRules.length > 0) {
                   <div class="gs-rq-row gs-rq-row--head" aria-hidden="true">
                     <span>Target</span>
@@ -990,7 +994,13 @@
         }
       </div>
 
-      <div class="gs-actions" *appCan="'edit'">
+      <!-- Sticky save bar (house standard for long settings forms): Save is
+           reachable without scrolling, and the dirty state stays visible. -->
+      <div class="save-bar" *appCan="'edit'">
+        @if (form.dirty) {
+          <span class="save-bar__status">Unsaved changes</span>
+          <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
+        }
         <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>

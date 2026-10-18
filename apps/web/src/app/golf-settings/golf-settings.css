@@ -271,6 +271,18 @@
   color: var(--text-muted);
   margin: var(--space-sm) 0 var(--space-xs);
 }
+/* Narrow screens: the fixed 120px time tracks starve the Name track to zero
+   (headers overlapped). Stack: Name takes its own line, From/Until/remove
+   share the next; the header row goes (each input carries an aria-label). */
+@media (max-width: 600px) {
+  .gs-sess-head { display: none; }
+  .gs-sess-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .gs-sess-row input[type='text'] {
+    grid-column: 1 / -1;
+  }
+}
 .gs-ha-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 130px 64px 100px 100px 40px 40px 56px 74px 74px 100px auto;
@@ -325,8 +337,4 @@
   cursor: pointer;
 }
 
-.gs-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-lg);
-}
+/* Save moved into the global sticky .save-bar (styles.css). */

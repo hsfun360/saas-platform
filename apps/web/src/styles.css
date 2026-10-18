@@ -865,6 +865,55 @@ textarea:disabled {
 }
 
 /* ============================================================== */
+/* Sticky save bar - long settings FORMS (standard 2026-10-18)    */
+/* Pinned to the viewport bottom while the form is on screen, so  */
+/* Save never needs a scroll; shows the dirty state ("Unsaved     */
+/* changes") per the show-expected-results principle. Sits under  */
+/* the shell chrome (header 1100, drawer 1000) and clears the     */
+/* mobile bottom nav. Pilot/reference: golf-settings.             */
+/* ============================================================== */
+.save-bar {
+  position: sticky;
+  /* bottom: 0 is correct at every tier: the shell's .content-area already
+     pads its bottom (mobile: nav + gutter), and sticky anchors above that
+     padding - so the bar docks as a floating card just above the gutter.
+     Do NOT add a bottom-nav offset here; it double-counts. */
+  bottom: 0;
+  z-index: 900;
+  display: flex;
+  flex-wrap: wrap; /* mobile: full-width Save drops below the status/discard */
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm) var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+.save-bar__status {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* ============================================================== */
+/* Array-editor card - FormArray row editors (standard 2026-10-18) */
+/* The repeating add/remove rows (overrides, exceptions, rules)   */
+/* sit on a lightly sunken card so they read as ONE group with a  */
+/* clear boundary from the static fields around them; the header  */
+/* row, the rows, the Add button and the empty-state hint all     */
+/* live inside. Compose on the editor's container element.        */
+/* Pilot/reference: golf-settings (all eight rule editors).       */
+/* ============================================================== */
+.array-editor {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+/* ============================================================== */
 /* Master–detail "return to row" flash                            */
 /* Applied by ScrollReturnService to the card the user came back  */
 /* from, so they can re-orient after the list re-renders. Outline */
