@@ -46,9 +46,11 @@ export class GolfBuggyDamagesComponent implements OnInit {
   readonly fleet = signal<GolfMaintenanceUnit[]>([]);
   readonly reasonTypes = signal<MembershipStatusOption[]>([]);
 
+  // The date range applies to Resolved / All; the upper bound is open by
+  // default so an incident on a future play date (tomorrow's flight) shows.
   readonly status = signal<'open' | 'resolved' | ''>('open');
   readonly dateFrom = signal(localDateOnly().slice(0, 8) + '01');
-  readonly dateTo = signal(localDateOnly());
+  readonly dateTo = signal('');
   readonly search = signal('');
 
   readonly filtered = computed(() => {
@@ -94,8 +96,8 @@ export class GolfBuggyDamagesComponent implements OnInit {
   }
 
   setStatus(v: 'open' | 'resolved' | ''): void { this.status.set(v); this.load(); }
-  setDateFrom(v: string): void { if (v) { this.dateFrom.set(v); this.load(); } }
-  setDateTo(v: string): void { if (v) { this.dateTo.set(v); this.load(); } }
+  setDateFrom(v: string): void { this.dateFrom.set(v); this.load(); }
+  setDateTo(v: string): void { this.dateTo.set(v); this.load(); }
   clearSearch(): void { this.search.set(''); }
 
   showError(control: AbstractControl): boolean {

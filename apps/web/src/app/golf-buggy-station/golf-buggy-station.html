@@ -85,7 +85,7 @@
       @for (f of flights(); track f.key) {
         <div class="data-card bs-flight" [class.data-card--selected]="selectedFlightKey() === f.key">
           <div class="bs-flight__head">
-            <div class="data-card__title">{{ f.teeTime }} · {{ f.courseCode }}@if (f.courseDescription) { <span class="data-card__reg">{{ f.courseDescription }}</span> }</div>
+            <div class="data-card__title">{{ f.teeTime }} · {{ f.courseCode }}@if (f.courseDescription) { <span class="data-card__reg">{{ ' ' + f.courseDescription }}</span> }</div>
             <div class="data-card__subline">
               @if (f.buggyCompulsory) { <span class="status-chip status-chip--info">Buggy compulsory</span> }
               @if (f.groupName) { <span class="data-card__reg">{{ f.groupName }}</span> }

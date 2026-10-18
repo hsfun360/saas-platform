@@ -79,7 +79,7 @@
         <div class="data-card" [attr.data-return-id]="j.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ j.buggyNo }} - {{ j.kindLabel }}@if (j.buggyType) { <span class="data-card__reg">{{ j.buggyType.name }}</span> }</div>
+              <div class="data-card__title">{{ j.buggyNo }} - {{ j.kindLabel }}@if (j.buggyType) { <span class="data-card__reg">{{ ' · ' + j.buggyType.name }}</span> }</div>
               <div class="data-card__subline">
                 <span class="data-card__reg">opened {{ j.openedAt | localDate:'datetime' }} · {{ sourceLabel(j) }}</span>
                 @if (j.faulty.length) { <span class="data-card__reg">faulty: {{ j.faulty.join(', ') }}</span> }

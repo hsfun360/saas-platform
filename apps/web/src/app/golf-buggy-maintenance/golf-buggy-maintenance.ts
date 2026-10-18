@@ -63,11 +63,12 @@ export class GolfBuggyMaintenanceComponent implements OnInit {
   readonly kinds = signal<MembershipStatusOption[]>([]);
   readonly systems = signal<MembershipStatusOption[]>([]);
 
-  // Server filters: status tab + kind + the opened-on range (done jobs only).
+  // Server filters: status tab + kind + the opened-on range (done jobs only;
+  // the upper bound is open by default so a job on a future play date shows).
   readonly status = signal<'open' | 'done' | ''>('open');
   readonly kind = signal('');
   readonly dateFrom = signal(localDateOnly().slice(0, 8) + '01');
-  readonly dateTo = signal(localDateOnly());
+  readonly dateTo = signal('');
   readonly search = signal('');
 
   readonly filtered = computed(() => {
@@ -138,8 +139,8 @@ export class GolfBuggyMaintenanceComponent implements OnInit {
 
   setStatus(v: 'open' | 'done' | ''): void { this.status.set(v); this.load(); }
   setKind(v: string): void { this.kind.set(v); this.load(); }
-  setDateFrom(v: string): void { if (v) { this.dateFrom.set(v); this.load(); } }
-  setDateTo(v: string): void { if (v) { this.dateTo.set(v); this.load(); } }
+  setDateFrom(v: string): void { this.dateFrom.set(v); this.load(); }
+  setDateTo(v: string): void { this.dateTo.set(v); this.load(); }
   clearSearch(): void { this.search.set(''); }
 
   sourceLabel(j: GolfMaintenanceJob): string {

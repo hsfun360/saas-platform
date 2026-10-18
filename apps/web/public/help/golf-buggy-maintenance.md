@@ -17,7 +17,7 @@ Costs are the club's own note; nothing is billed from here.
 
 [Screenshot: Buggy Maintenance with open jobs]
 
-- **Open**, **Done** and **All** tabs; **Kind** narrows to services, repairs or inspections; on Done and All an **Opened from / to** range applies.
+- **Open**, **Done** and **All** tabs; **Kind** narrows to services, repairs or inspections; on Done and All an **Opened from / to** range applies (from the first of the month, with no upper bound until you set one).
 - **Inspect…** opens the safety checklist for several units at once.
 - The search box filters the loaded cards by buggy number, type, findings or work done.
 - A count line: jobs listed and units parked in maintenance.

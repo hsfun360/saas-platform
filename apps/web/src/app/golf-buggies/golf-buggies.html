@@ -90,7 +90,7 @@
         <div class="data-card" [attr.data-return-id]="b.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ b.buggyNo }}@if (b.buggyType) { <span class="data-card__reg">- {{ b.buggyType.name }}</span> }</div>
+              <div class="data-card__title">{{ b.buggyNo }}@if (b.buggyType) { <span class="data-card__reg">{{ ' - ' + b.buggyType.name }}</span> }</div>
               <div class="data-card__subline">
                 @if (b.buggyType) { <span class="mt-chip">{{ b.buggyType.seats }} seat{{ b.buggyType.seats === 1 ? '' : 's' }}</span> }
                 @if (b.model) { <span class="data-card__reg">{{ b.model }}</span> }

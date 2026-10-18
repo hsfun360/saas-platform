@@ -69,7 +69,7 @@
         <div class="data-card" [attr.data-return-id]="d.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ d.buggyNo }} - {{ d.playDate | localDate }}@if (d.buggyType) { <span class="data-card__reg">{{ d.buggyType.name }}</span> }</div>
+              <div class="data-card__title">{{ d.buggyNo }} - {{ d.playDate | localDate }}@if (d.buggyType) { <span class="data-card__reg">{{ ' · ' + d.buggyType.name }}</span> }</div>
               <div class="data-card__subline">
                 <span class="data-card__reg">{{ d.reasonTypeLabel }}</span>
                 @if (d.golferName) { <span class="data-card__reg">{{ d.golferName }}{{ d.memberNo ? ' (' + d.memberNo + ')' : '' }}</span> }

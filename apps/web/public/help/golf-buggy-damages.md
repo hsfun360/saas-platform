@@ -16,7 +16,7 @@ A record resolves when its repair is completed on Buggy Maintenance, or by hand 
 
 [Screenshot: Buggy Damages with an open record]
 
-- **Open**, **Resolved** and **All** tabs; on Resolved and All a **Date from / to** range applies.
+- **Open**, **Resolved** and **All** tabs; on Resolved and All a **Date from / to** range applies (from the first of the month, with no upper bound until you set one).
 - The search box filters the loaded cards by buggy number, golfer, member number or description.
 - One card per record: the buggy number and date, the cause, the golfer responsible, "recorded at the station" when the Buggy Station wrote it, the state of its repair, the description and remarks, and the resolved time.
   **Edit** is the visible action; an open record also has **Resolve** in its ⋮ menu.
