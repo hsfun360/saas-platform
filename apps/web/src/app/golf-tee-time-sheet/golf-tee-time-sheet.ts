@@ -1007,14 +1007,16 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   // ---------- named-caddy requests (2026-10-18) ----------
 
   // The desk door: the station is on, the golfer is booked or registered (not
-  // awaiting approval), has no caddy assigned and no live request yet.
+  // awaiting approval), has no caddy assigned and no live request of their
+  // OWN yet (a flight-level request from the booking does not block a golfer
+  // asking for a different caddy).
   canRequestCaddy(e: FrontDeskEntry): boolean {
     if (!this.caddyManagementEnabled() || e.bookingStatus === 'pending-approval' || e.caddy) return false;
     const r = e.caddyRequest;
-    return !r || !(r.status === 'requested' || r.status === 'confirmed');
+    return !r || !r.forPlayer || !(r.status === 'requested' || r.status === 'confirmed');
   }
 
-  // A live request on THIS golfer (not one inherited from the booking) can be cancelled here.
+  // The live request shown on the line (the golfer's own, or the booking's) can be cancelled here.
   canCancelCaddyRequest(e: FrontDeskEntry): boolean {
     const r = e.caddyRequest;
     return !!r && (r.status === 'requested' || r.status === 'confirmed') && !e.caddy;

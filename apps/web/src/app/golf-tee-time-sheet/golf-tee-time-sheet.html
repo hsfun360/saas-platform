@@ -298,7 +298,7 @@
                       @if (canCancelCaddyRequest(e)) {
                         <button type="button" appMenuItem (click)="askCancelCaddyRequest(e)">
                           <span class="material-icons" aria-hidden="true">person_remove</span>
-                          Cancel caddy request
+                          Cancel caddy request {{ e.caddyRequest?.caddyNo }}{{ e.caddyRequest?.forPlayer ? '' : ' (flight)' }}
                         </button>
                       }
                     </app-overflow-menu>

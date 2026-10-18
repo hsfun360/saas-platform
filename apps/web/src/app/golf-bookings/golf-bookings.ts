@@ -75,8 +75,7 @@ function localToday(): string {
     PhoneInputComponent, ConfirmDialogComponent,
   ],
   templateUrl: './golf-bookings.html',
-  // membership-types.css supplies the shared .mt-chip pill (the caddy-request chips).
-  styleUrls: ['../membership-types/membership-types.css', './golf-bookings.css'],
+  styleUrls: ['./golf-bookings.css'],
 })
 export class GolfBookingsComponent implements OnInit, OnDestroy {
   private readonly service = inject(GolfBookingService);

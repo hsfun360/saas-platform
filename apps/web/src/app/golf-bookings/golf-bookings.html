@@ -64,7 +64,7 @@
               @if (b.caddyRequests?.length) {
                 <div class="data-card__subline">
                   @for (r of b.caddyRequests; track r.id) {
-                    <span class="mt-chip" [title]="r.remarks || ''">{{ caddyRequestLabel(r, b) }}</span>
+                    <span class="data-card__reg" [title]="r.remarks || ''">{{ caddyRequestLabel(r, b) }}</span>
                   }
                 </div>
               }

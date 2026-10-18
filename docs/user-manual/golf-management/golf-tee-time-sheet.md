@@ -135,8 +135,8 @@ Billing and settlement follow the normal flow; the visitor is billed at their ho
 3. Click **Request caddy**.
    The golfer's line reads "caddy C-001 Ali requested", then "confirmed" once the caddy has checked in at the Caddy Station, and the station assigns that caddy to the golfer by name.
 
-A request made on the Golf Booking screen for the whole flight shows on every line of that booking with "(flight)".
-To withdraw a request, open the golfer's ⋮ menu and click **Cancel caddy request**, add an optional reason and confirm; a request the caddy cannot honour is cancelled at the Caddy Station.
+A request made on the Golf Booking screen for the whole flight shows on every line of that booking with "(flight)"; a golfer of that flight may still ask for a different caddy of their own.
+To withdraw a request, open the golfer's ⋮ menu and click **Cancel caddy request C-001** (marked "(flight)" when it is the booking's request), add an optional reason and confirm; a request the caddy cannot honour is cancelled at the Caddy Station.
 
 ### Cancel a registration or void a bill
 

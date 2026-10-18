@@ -23,7 +23,7 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 - Each booking is a card titled with the tee time and the course, then the booking number, the holes (9 or 18), the crossover time for an 18-hole flight, the contact mobile, and the players ("3 player(s): Ahmad Faizal, Lim Wei, Guest").
 - A status chip at the top right shows **BOOKED** (green), **CANCELLED** or **NO SHOW** (grey); NO SHOW appears when every player of the booking was recorded as a no-show at the front desk.
 - A booked card has a ⋮ menu holding **Change booking** and **Cancel booking**; a booking that has been changed also shows a blue **Changed ×n** chip and a **Change history** item in the menu.
-  While caddy management is switched on in Golf Specification the menu also offers **Request caddy**, and a **Cancel caddy request C-001** item for each live request; the card then shows a chip per request, e.g. "Caddy C-001 Ali for Ahmad - confirmed".
+  While caddy management is switched on in Golf Specification the menu also offers **Request caddy**, and a **Cancel caddy request C-001** item for each live request; the card then shows a line per request, e.g. "Caddy C-001 Ali for the flight - confirmed".
 - The **New booking** button floats at the bottom right of the screen.
 
 ## Common tasks
@@ -112,7 +112,7 @@ With no approval chain configured for the purpose Golf flight booking, such a bo
 1. Open the booked card's ⋮ menu and click **Request caddy** (offered while caddy management is on in Golf Specification).
 2. In the **Request caddy - B...** drawer pick the **Caddy** (type the badge number or name; caddies on leave that day, inactive or blacklisted are not listed, and one already requested that day is counted but not offered), choose who it is **For** (the whole flight, or one golfer of the booking) and add **Remarks** such as the language wanted.
 3. Click **Request caddy**.
-   The message reads "Caddy C-001 Ali requested for booking B..." and the card shows the request chip as **requested**.
+   The message reads "Caddy C-001 Ali requested for booking B..." and the card shows the request line as **requested**.
 
 On the play date the request turns **confirmed** when the caddy checks in at the Caddy Station, which then assigns that caddy to the flight by name; a request the caddy cannot honour shows **cancelled by caddy**, and one whose tee time passed unassigned shows **lapsed**.
 Cancelling the booking cancels its requests; moving the booking to another flight keeps them on the new flight.
