@@ -69,11 +69,11 @@
             }
 
             <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="allowMembershipTypeOverride" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="allowMembershipTypeOverride" />
                 <span>Allow Membership Type to override the advance booking days</span>
+                <app-field-info label="Membership Type override" [text]="hint.typeOverride" />
               </label>
-              <p class="cell-subtle field-hint">Grants selected membership types the privilege to book earlier than the general rule. The hours above always apply club-wide.</p>
             </div>
 
             @if (overridesOn()) {
@@ -128,13 +128,15 @@
               <label class="gs-check">
                 <input type="checkbox" formControlName="allowBookingMerge" />
                 <span>Allow merge booking - a flight may be shared by players from different bookings</span>
+                <app-field-info label="Merge booking" [text]="hint.merge" />
               </label>
-              <p class="cell-subtle field-hint">When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.</p>
             </div>
 
             <div class="gs-grid" style="margin-top: var(--space-md);">
               <div class="form-group">
-                <label for="gsLimitWd">Weekday booking limit <span class="required">*</span></label>
+                <label for="gsLimitWd">Weekday booking limit <span class="required">*</span>
+                  <app-field-info label="Weekday booking limit" [text]="hint.bookingLimit" />
+                </label>
                 <select id="gsLimitWd" formControlName="bookingLimitWeekday">
                   @for (l of bookingLimits; track l.key) {
                     <option [value]="l.key">{{ l.label }}</option>
@@ -142,7 +144,9 @@
                 </select>
               </div>
               <div class="form-group">
-                <label for="gsLimitWe">Weekend &amp; holiday booking limit <span class="required">*</span></label>
+                <label for="gsLimitWe">Weekend &amp; holiday booking limit <span class="required">*</span>
+                  <app-field-info label="Weekend and holiday booking limit" [text]="hint.bookingLimit" />
+                </label>
                 <select id="gsLimitWe" formControlName="bookingLimitWeekend">
                   @for (l of bookingLimits; track l.key) {
                     <option [value]="l.key">{{ l.label }}</option>
@@ -150,7 +154,6 @@
                 </select>
               </div>
             </div>
-            <p class="cell-subtle field-hint">Counted as the booking maker or a Member player line; playing as a member-guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions' flights.</p>
 
             <!-- Golf Sessions: the named day parts the per-session limit uses
                  (and future session analysis). Stored even while no limit uses
@@ -158,14 +161,12 @@
                  the 2-column form grid, which scattered these rows into two
                  interleaved columns on wide screens (user report 2026-10-05). -->
             <div class="gs-sessions" style="margin-top: var(--space-md);">
-              <label style="font-weight: var(--weight-semibold);">Sessions</label>
-              <p class="cell-subtle field-hint">
-                The club's day parts - e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
-                a tee time outside every session is unrestricted.
-                @if (sessionLimitOn() && sessions.length === 0) {
-                  <strong>Define at least one session for the per-session limit to constrain anything.</strong>
-                }
-              </p>
+              <label style="font-weight: var(--weight-semibold);">Sessions
+                <app-field-info label="Sessions" [text]="hint.sessions" />
+              </label>
+              @if (sessionLimitOn() && sessions.length === 0) {
+                <p class="cell-subtle field-hint"><strong>Define at least one session for the per-session limit to constrain anything.</strong></p>
+              }
               @if (sessions.length) {
                 <div class="gs-sess-head" aria-hidden="true">
                   <span>Name</span><span>From</span><span>Until</span><span></span>
@@ -197,16 +198,16 @@
               <label class="gs-check">
                 <input type="checkbox" formControlName="allowSameDayBooking" />
                 <span>Allow same-day booking - today's flights can be booked</span>
+                <app-field-info label="Same-day booking" [text]="hint.sameDay" />
               </label>
-              <p class="cell-subtle field-hint">When off, bookings start from tomorrow up to the advance window - golfers take today's flights by registering at the front desk.</p>
             </div>
 
             <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="juniorBookingControlEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="juniorBookingControlEnabled" />
                 <span>Junior booking control - a junior must play with their principal (parent)</span>
+                <app-field-info label="Junior booking control" [text]="hint.junior" />
               </label>
-              <p class="cell-subtle field-hint">A junior member (a dependent whose relationship is son, daughter or ward) may not be in a booking unless their principal is also a player - or, if no principal is on record, at least one adult member. The booking refuses; the front desk registers with a warning.</p>
             </div>
           </div>
         }
@@ -307,8 +308,8 @@
         @if (isExpanded('guests')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="guestControlEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="guestControlEnabled" />
                 <span>Enable guest control - restrict when a booking may bring guests</span>
               </label>
               <p class="cell-subtle field-hint">Off means no restriction anywhere: guests are always welcome.</p>
@@ -407,11 +408,11 @@
         @if (isExpanded('handicap')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="handicapControlEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="handicapControlEnabled" />
                 <span>Enable handicap control - bookings refuse violations; the front desk registers with a warning</span>
+                <app-field-info label="Handicap control" [text]="hint.handicap" />
               </label>
-              <p class="cell-subtle field-hint">Golfers with no handicap recorded are exempt from the limits; only golfers marked Beginner or Provisional need accompanying.</p>
             </div>
 
             @if (handicapControlOn()) {
@@ -556,11 +557,11 @@
         @if (isExpanded('noshow')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="noShowControlEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="noShowControlEnabled" />
                 <span>Enable cancellation &amp; no-show control</span>
+                <app-field-info label="Cancellation and no-show control" [text]="hint.noShow" />
               </label>
-              <p class="cell-subtle field-hint">The front desk reviews and confirms the day's no-shows before anything is charged; late cancellations are priced on the Bookings screen before the cancel is confirmed. Charges post to the booker's member account.</p>
             </div>
 
             @if (noShowControlOn()) {
@@ -575,22 +576,24 @@
                   <p class="cell-subtle field-hint">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
                 </div>
                 <div class="form-group">
-                  <label for="gsLateAction">Late Cancellation</label>
+                  <label for="gsLateAction">Late Cancellation
+                    <app-field-info label="Late Cancellation" [text]="hint.lateAction" />
+                  </label>
                   <select id="gsLateAction" formControlName="lateCancellationAction">
                     @for (a of lateActions; track a.key) {
                       <option [value]="a.key">{{ a.label }}</option>
                     }
                   </select>
-                  <p class="cell-subtle field-hint">Charging frees the flight for others; refusing keeps the booking, and players who do not turn up are recorded as no-shows.</p>
                 </div>
               </div>
               <div class="gs-grid" style="margin-top: var(--space-md);">
                 <div class="form-group">
-                  <label for="gsNoShowType">No-show Charge <span class="required">*</span></label>
+                  <label for="gsNoShowType">No-show Charge <span class="required">*</span>
+                    <app-field-info label="No-show Charge" [text]="hint.noShowType" />
+                  </label>
                   <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
                                 [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="- Select -"
                                 placeholder="Type to search…" />
-                  <p class="cell-subtle field-hint">A No Show Charges transaction type - its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsChargeBasis">Charge Basis</label>
@@ -620,11 +623,11 @@
         @if (isExpanded('raincheck')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="rainCheckEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="rainCheckEnabled" />
                 <span>Enable rain checks</span>
+                <app-field-info label="Rain checks" [text]="hint.rainCheck" />
               </label>
-              <p class="cell-subtle field-hint">On: the Tee Time Sheet offers Issue rain check on a registered player whose bill is settled, and a Rain Check payment type can redeem it on a later bill of the same golfer. A rain check is used once; value above that bill is forfeited.</p>
             </div>
 
             @if (rainCheckOn()) {
@@ -652,8 +655,8 @@
                 <label class="gs-check">
                   <input type="checkbox" formControlName="rainCheckProrate" />
                   <span>Prorate by holes not played</span>
+                  <app-field-info label="Prorate by holes not played" [text]="hint.prorate" />
                 </label>
-                <p class="cell-subtle field-hint">Ticked: the value is the basis times the unplayed share (the desk keys the holes played). Unticked: the full basis whatever was played.</p>
               </div>
               @if (rainCheckPreview(); as preview) {
                 <p class="cell-subtle field-hint">{{ preview }}</p>
@@ -676,11 +679,11 @@
         @if (isExpanded('buggies')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="buggyManagementEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="buggyManagementEnabled" />
                 <span>Enable buggy management</span>
+                <app-field-info label="Buggy management" [text]="hint.buggy" />
               </label>
-              <p class="cell-subtle field-hint">On: the Buggy Station issues a unit per buggy slot - a single buggy fee is one slot, two shared buggy fees in the same flight are one slot for both riders - and only once the fees are paid. Off: the fleet register and buggy types can still be keyed, nothing is issued. Which courses make the buggy compulsory (the fee auto-charged at registration) is set per course under Courses; the single and shared fee items under Transaction Type.</p>
             </div>
           </div>
         }
@@ -699,11 +702,11 @@
         @if (isExpanded('caddies')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="caddyManagementEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="caddyManagementEnabled" />
                 <span>Enable caddy management</span>
+                <app-field-info label="Caddy management" [text]="hint.caddy" />
               </label>
-              <p class="cell-subtle field-hint">On: the Caddy Station checks caddies in (first in is next up, back of the queue after each round), assigns one caddy per caddy slot - a single caddy fee is one slot, two shared caddy fees in the same flight are one slot for both golfers - only once the fees are paid, and records each round with the holes played. A caddy is assigned out of turn only when the player asked for them. Off: the register, grades and groups can still be keyed. The single and shared caddy fee items live under Transaction Type.</p>
             </div>
           </div>
         }
@@ -722,11 +725,11 @@
         @if (isExpanded('rights')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="playingRightsEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="playingRightsEnabled" />
                 <span>Enable playing rights &amp; round quotas</span>
+                <app-field-info label="Playing rights and round quotas" [text]="hint.rights" />
               </label>
-              <p class="cell-subtle field-hint">On: a booking is refused when a player's target has playing-right rules and the flight falls outside every one of them, or when the player would exceed their round quota; the front desk warns. A target with no playing-right rows is unrestricted. Rules are kept while off.</p>
             </div>
 
             @if (playingRightsOn()) {
@@ -858,11 +861,11 @@
         @if (isExpanded('groups')) {
           <div class="settings-body">
             <div class="form-row">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="groupBookingControlEnabled" />
+              <label class="gs-check switch">
+                <input type="checkbox" role="switch" formControlName="groupBookingControlEnabled" />
                 <span>Enable group booking control</span>
+                <app-field-info label="Group booking control" [text]="hint.group" />
               </label>
-              <p class="cell-subtle field-hint">Off: a group booking is confirmed the moment it is created - the committee club keying its own events. On: a new booking is tentative, its reserved flights expire unless it is submitted for approval, approval starts the deposit clock, and the booking is confirmed when the deposit is received. The approval chain itself is set up under Workflow (purpose Golf group booking); with no chain, submitting approves at once.</p>
             </div>
 
             @if (groupControlOn()) {
@@ -900,8 +903,10 @@
               }
             }
 
-            <h3 class="gs-hc-title">Share caps</h3>
-            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The hard ceiling on the share of a course's tee times that all group bookings together may hold on one day - whatever an approver decides. Reserve flights refuses past it. Club events are exempt and do not count. 0 = no cap.</p>
+            <h3 class="gs-hc-title">Share caps
+              <app-field-info label="Share caps" [text]="hint.shareCaps" />
+            </h3>
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Club events are exempt and do not count. 0 = no cap.</p>
             <div class="gs-grid">
               <div class="form-group">
                 <label for="gsCapWd">Weekday Group Share Cap (%) <span class="required">*</span></label>

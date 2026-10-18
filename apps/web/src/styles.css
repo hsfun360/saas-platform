@@ -818,6 +818,53 @@ textarea:disabled {
 }
 
 /* ============================================================== */
+/* Toggle switch - FEATURE enablers (standard 2026-10-18)         */
+/* A switch turns a feature/subsystem on-off (usually revealing   */
+/* its dependent settings below); a checkbox stays for behavioural */
+/* options WITHIN a feature. It is still a native checkbox - add  */
+/* role="switch" and compose .switch on its label - so reactive    */
+/* forms, the dirty guard and Space-key operation are unchanged.  */
+/* Pilot/reference: golf-settings ("Enable guest control", ...).  */
+/* ============================================================== */
+.switch input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.switch input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: left 0.15s, background 0.15s;
+}
+.switch input[type='checkbox']:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.switch input[type='checkbox']:checked::after {
+  left: 22px;
+  background: var(--text-on-brand);
+}
+.switch input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================== */
 /* Master–detail "return to row" flash                            */
 /* Applied by ScrollReturnService to the card the user came back  */
 /* from, so they can re-orient after the list re-renders. Outline */

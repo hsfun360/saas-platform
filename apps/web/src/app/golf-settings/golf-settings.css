@@ -34,7 +34,9 @@
   cursor: pointer;
   min-height: 44px;
 }
-.gs-check input[type='checkbox'] {
+/* Plain option checkboxes only - feature-enabler rows compose the global
+   .switch, whose input must keep the 44x24 toggle sizing. */
+.gs-check input[type='checkbox']:not([role='switch']) {
   width: var(--icon-sm);
   height: var(--icon-sm);
   flex-shrink: 0;
