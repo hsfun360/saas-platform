@@ -63,6 +63,9 @@ export interface FrontDeskEntry {
   buggyCompulsory?: boolean;
   // Caddy management (2026-10-17): the caddy assigned to this player.
   caddy?: { caddyNo: string; caddyName: string | null; status: string; assignmentId: string } | null;
+  // Named-caddy request (2026-10-18): the request on this golfer (forPlayer)
+  // or on its booking, live or fulfilled.
+  caddyRequest?: { id: string; caddyNo: string; caddyName: string | null; status: string; forPlayer: boolean } | null;
 }
 
 // A golfer's rain check (golf.RainCheck): a credit for an abandoned paid

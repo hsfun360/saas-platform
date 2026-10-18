@@ -29,6 +29,7 @@ import {
   GolfRainCheck,
   GolfRainCheckQuote,
 } from '../services/golf-frontdesk.service';
+import { GolfCaddyRequestService, GolfCaddyRequestCandidate } from '../services/golf-caddy-request.service';
 
 // Per-booking decision in the no-show review: include it, charge the
 // booker (default) or waive with a reason.
@@ -98,6 +99,7 @@ function localToday(): string {
 export class GolfTeeTimeSheetComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GolfFrontDeskService);
+  private readonly caddyRequests = inject(GolfCaddyRequestService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
@@ -217,7 +219,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   }
 
   // ---- the one drawer dialog: mode + per-mode state ----
-  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | 'raincheck' | null>(null);
+  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | 'raincheck' | 'caddyrequest' | null>(null);
   readonly busy = signal(false);
 
   // The open flight, tracked by reference so a reload refreshes it in place.
@@ -345,8 +347,26 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   });
   readonly rainCheckEnabled = computed(() => this.meta()?.rainCheckEnabled === true);
 
-  // In-dialog confirm view: cancel a registration or void a bill.
-  readonly confirmKind = signal<'cancel-registration' | 'void-bill' | 'visit-arrival' | null>(null);
+  // Named-caddy request (2026-10-18): an in-drawer view on a booked or
+  // registered golfer - the candidates of the day (active, not on leave; one
+  // already requested that day is listed but not offered) and a remark.
+  readonly caddyManagementEnabled = computed(() => this.meta()?.caddyManagementEnabled === true);
+  readonly caddyRequestTarget = signal<FrontDeskEntry | null>(null);
+  readonly caddyCandidates = signal<GolfCaddyRequestCandidate[]>([]);
+  readonly caddyCandidatesLoading = signal(false);
+  readonly caddyRequestForm = this.fb.nonNullable.group({
+    caddyId: ['', [Validators.required]],
+    remarks: ['', [Validators.maxLength(255)]],
+  });
+  readonly caddyOptions = computed(() => this.caddyCandidates().filter((c) => !c.requestedAt).map((c) => ({
+    value: c.id,
+    label: `${c.caddyNo} - ${c.name}${c.grade ? ' - ' + c.grade.name : ''}${c.languages ? ' - ' + c.languages : ''}`,
+  })));
+  readonly caddyTakenCount = computed(() => this.caddyCandidates().filter((c) => !!c.requestedAt).length);
+
+  // In-dialog confirm view: cancel a registration, void a bill, receive a
+  // visitor or cancel a caddy request.
+  readonly confirmKind = signal<'cancel-registration' | 'void-bill' | 'visit-arrival' | 'cancel-caddy-request' | null>(null);
   readonly confirmTarget = signal<FrontDeskEntry | null>(null);
   readonly confirmReason = signal('');
   // Affiliated visit arrival (2026-10-15): the two desk checks before a
@@ -419,7 +439,15 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'noshows': return 'No-shows';
       case 'settle': return `Settle bill ${this.bill()?.billNo || ''}`;
       case 'raincheck': return `Issue rain check · ${this.rainCheckTarget()?.playerName || ''}`;
-      case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : (this.confirmKind() === 'visit-arrival' ? 'Receive visitor' : 'Cancel registration');
+      case 'caddyrequest': return `Request caddy · ${this.caddyRequestTarget()?.playerName || ''}`;
+      case 'confirm': {
+        switch (this.confirmKind()) {
+          case 'void-bill': return 'Void bill';
+          case 'visit-arrival': return 'Receive visitor';
+          case 'cancel-caddy-request': return 'Cancel caddy request';
+          default: return 'Cancel registration';
+        }
+      }
       default: return `Bill ${this.bill()?.billNo || ''}`;
     }
   });
@@ -976,6 +1004,82 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.dlgMode.set('flight');
   }
 
+  // ---------- named-caddy requests (2026-10-18) ----------
+
+  // The desk door: the station is on, the golfer is booked or registered (not
+  // awaiting approval), has no caddy assigned and no live request yet.
+  canRequestCaddy(e: FrontDeskEntry): boolean {
+    if (!this.caddyManagementEnabled() || e.bookingStatus === 'pending-approval' || e.caddy) return false;
+    const r = e.caddyRequest;
+    return !r || !(r.status === 'requested' || r.status === 'confirmed');
+  }
+
+  // A live request on THIS golfer (not one inherited from the booking) can be cancelled here.
+  canCancelCaddyRequest(e: FrontDeskEntry): boolean {
+    const r = e.caddyRequest;
+    return !!r && (r.status === 'requested' || r.status === 'confirmed') && !e.caddy;
+  }
+
+  caddyRequestText(e: FrontDeskEntry): string {
+    const r = e.caddyRequest;
+    if (!r) return '';
+    const state = r.status === 'confirmed' ? 'confirmed' : (r.status === 'fulfilled' ? 'assigned' : 'requested');
+    return `caddy ${r.caddyNo}${r.caddyName ? ' ' + r.caddyName : ''} ${state}${r.forPlayer ? '' : ' (flight)'}`;
+  }
+
+  askCaddyRequest(entry: FrontDeskEntry): void {
+    this.clearMessages();
+    this.caddyRequestTarget.set(entry);
+    this.caddyRequestForm.reset({ caddyId: '', remarks: '' }, { emitEvent: false });
+    this.caddyCandidates.set([]);
+    this.caddyCandidatesLoading.set(true);
+    this.dlgMode.set('caddyrequest');
+    this.caddyRequests.candidatesForDesk(this.listDate()).subscribe({
+      next: (res) => { this.caddyCandidates.set(res.caddies); this.caddyCandidatesLoading.set(false); },
+      error: (err) => { this.caddyCandidatesLoading.set(false); this.errorMessage.set(err.error?.message || 'Failed to load the caddies.'); },
+    });
+  }
+
+  submitCaddyRequest(): void {
+    const target = this.caddyRequestTarget();
+    if (!target) return;
+    if (this.caddyRequestForm.invalid) {
+      this.caddyRequestForm.markAllAsTouched();
+      return;
+    }
+    this.clearMessages();
+    const v = this.caddyRequestForm.getRawValue();
+    this.busy.set(true);
+    this.caddyRequests.requestForPlayer({ playerId: target.playerId, caddyId: v.caddyId, remarks: v.remarks.trim() || null }).subscribe({
+      next: (res) => {
+        this.busy.set(false);
+        this.caddyRequestForm.markAsPristine();
+        this.successMessage.set(res.message);
+        this.caddyRequestTarget.set(null);
+        this.dlgMode.set('flight');
+        this.load();
+      },
+      error: (err) => {
+        this.busy.set(false);
+        this.errorMessage.set(err.error?.message || 'The caddy could not be requested.');
+      },
+    });
+  }
+
+  keepCaddyRequest(): void {
+    this.caddyRequestTarget.set(null);
+    this.caddyRequestForm.markAsPristine();
+    this.dlgMode.set('flight');
+  }
+
+  askCancelCaddyRequest(entry: FrontDeskEntry): void {
+    this.clearMessages();
+    this.confirmKind.set('cancel-caddy-request');
+    this.confirmTarget.set(entry);
+    this.confirmReason.set('');
+    this.dlgMode.set('confirm');
+  }
+
   // ---------- in-dialog confirmations ----------
 
   askCancelRegistration(entry: FrontDeskEntry): void {
@@ -1033,6 +1137,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       this.service.voidBill(entry.bill.id, this.confirmReason().trim()).subscribe({ next: (r) => done(r.message), error: fail });
     } else if (kind === 'visit-arrival' && entry.visit) {
       this.service.receiveVisit(entry.visit.id, { letterSighted: this.visitLetterSighted(), idSighted: this.visitIdSighted() }).subscribe({ next: (r) => done(r.message), error: fail });
+    } else if (kind === 'cancel-caddy-request' && entry.caddyRequest) {
+      this.caddyRequests.cancelFromDesk(entry.caddyRequest.id, this.confirmReason().trim() || null).subscribe({ next: (r) => done(r.message), error: fail });
     }
   }
 
@@ -1140,6 +1246,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.rainCheckTarget.set(null);
     this.rainCheckQuote.set(null);
     this.rainCheckForm.markAsPristine();
+    this.caddyRequestTarget.set(null);
+    this.caddyRequestForm.markAsPristine();
     this.slotWalkinOpen.set(false);
     this.selected.set(new Set());
     this.noShowReview.set(null);
@@ -1153,6 +1261,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'walkin': return this.walkinForm.dirty;
       case 'settle': return this.payLines.dirty;
       case 'raincheck': return this.rainCheckForm.dirty;
+      case 'caddyrequest': return this.caddyRequestForm.dirty;
       case 'noshows': return this.noShowLines.dirty;
       default: return false; // bill items save immediately
     }

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { GolfPlayerTypeOption } from './golf-player-type.service';
+import { GolfCaddyRequest } from './golf-caddy-request.service';
 
 // Golf Booking - the make-booking flow against the DYNAMIC tee sheet:
 // context (member + window) → availability (5 nearest flights per course) →
@@ -89,6 +90,8 @@ export interface GolfBookingRow {
   bookerName: string | null;
   changeCount: number;
   players: GolfBookingPlayer[];
+  // Named-caddy requests (2026-10-18): the live and fulfilled ones.
+  caddyRequests?: GolfCaddyRequest[];
 }
 
 export interface GolfSearchPayload {
@@ -196,9 +199,10 @@ export class GolfBookingService {
     return this.http.post<{ message: string; booking: GolfBookingRow }>(this.base, payload);
   }
 
-  // `playerTypes` = the club's pickable player types (code, label, base identity).
-  list(playDate: string): Observable<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[] }> {
-    return this.http.get<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[] }>(this.base, { params: { playDate } });
+  // `playerTypes` = the club's pickable player types (code, label, base identity);
+  // `caddyManagementEnabled` = whether a caddy may be requested on a booking.
+  list(playDate: string): Observable<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }> {
+    return this.http.get<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }>(this.base, { params: { playDate } });
   }
 
   // What cancelling NOW means under the cancellation-notice rule (show

@@ -1,0 +1,75 @@
+/* Caddy Rounds - the rounds-of-service report (2026-10-18). Composes the
+   shared listing primitives; only the screen-specific bits live here. */
+
+.cr-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.cr-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.cr-filter input[type='date'] {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cr-filter input[type='date']:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.cr-filter__caddy { flex: 1 1 240px; max-width: 360px; }
+@media (max-width: 767px) {
+  .cr-filter__caddy { flex-basis: 100%; max-width: none; }
+}
+
+/* The period totals strip. */
+.cr-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+.cr-totals div { display: grid; gap: var(--space-2xs); }
+.cr-totals dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cr-totals dd { margin: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+
+/* The round detail folded under a caddy card. */
+.cr-detail { list-style: none; margin: var(--space-sm) 0 0; padding: 0; display: grid; gap: var(--space-xs); }
+.cr-round {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.cr-round--void { background: var(--surface-sunken); color: var(--text-secondary); }
+.cr-round__icon { font-size: var(--icon-md); color: var(--success-text); flex-shrink: 0; }
+.cr-round--void .cr-round__icon { color: var(--text-muted); }
+.cr-round__main { display: grid; gap: var(--space-2xs); min-width: 0; }
+.cr-round__title { font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.cr-round__meta { font-size: var(--font-caption); color: var(--text-secondary); }

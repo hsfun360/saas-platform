@@ -22,5 +22,12 @@ router.post('/:id/cancel', validate(s.cancel), controller.cancel);
 router.post('/:id/change-preview', validate(s.change), controller.changePreview);
 router.post('/:id/change', validate(s.change), controller.change);
 router.get('/:id/changes', validate(s.id), controller.listChanges);
+// Named-caddy requests (2026-10-18): a player asks for a particular caddy on
+// the booking; the candidates picker and the player's cancel live here too.
+const caddyRequests = require('./caddyRequest.controller');
+const cs = require('./caddy.schemas');
+router.get('/caddy-request-candidates', validate(cs.requestCandidates), caddyRequests.candidates);
+router.post('/:id/caddy-requests', validate(cs.requestForBooking), caddyRequests.createForBooking);
+router.post('/caddy-requests/:requestId/cancel', validate(cs.requestCancel), caddyRequests.cancelByPlayer);
 
 module.exports = router;

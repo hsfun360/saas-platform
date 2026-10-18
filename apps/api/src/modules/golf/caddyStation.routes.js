@@ -14,5 +14,9 @@ router.post('/check-out', validate(s.stationCheckOut), controller.checkOut);
 router.post('/assign', validate(s.stationAssign), controller.assign);
 router.post('/complete', validate(s.stationComplete), controller.complete);
 router.post('/swap', validate(s.stationSwap), controller.swap);
+// Named-caddy requests (2026-10-18): the station records that the requested
+// caddy cannot serve.
+const caddyRequests = require('./caddyRequest.controller');
+router.post('/requests/:requestId/cancel-by-caddy', validate(s.requestCancel), caddyRequests.cancelByCaddy);
 
 module.exports = router;

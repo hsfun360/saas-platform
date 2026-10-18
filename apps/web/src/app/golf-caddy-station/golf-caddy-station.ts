@@ -11,9 +11,11 @@ import { QrScannerComponent } from '../shared/qr-scanner/qr-scanner';
 import { GolfStationSlot } from '../services/golf-buggy-station.service';
 import {
   GolfCaddyStationService, GolfCaddyStationDay, GolfCaddyStationFlight, GolfCaddyAssignment, GolfStationCaddy, GolfCaddyAttendance, GolfCaddySwapReason,
+  GolfStationRequest,
 } from '../services/golf-caddy-station.service';
+import { GolfCaddyRequestService } from '../services/golf-caddy-request.service';
 
-type DialogMode = 'complete' | 'swap' | 'out-of-turn' | 'check-in';
+type DialogMode = 'complete' | 'swap' | 'out-of-turn' | 'check-in' | 'cannot-serve';
 
 // Golf Management → Front Desk → Caddy Station (/golf/caddy-station; user
 // decisions 2026-10-17). The starter hut's caddy screen: the day's check-in
@@ -25,6 +27,11 @@ type DialogMode = 'complete' | 'swap' | 'out-of-turn' | 'check-in';
 // assigned only when the player asked for them. Scanning a caddy on the
 // course opens Complete / Swap; scanning one not yet checked in checks them
 // in. No caddy is ever assigned without a caddy-fee line.
+// Named requests (slice 3, 2026-10-18): a flight card lists the caddies its
+// players asked for by name (confirmed once the caddy is in); "Assign" hands
+// that caddy the matching slot without the out-of-turn confirmation, the
+// queue marks a caddy reserved by a request teeing off soon (Next up passes
+// over them), and "Cannot serve" records the caddy's cancellation.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-caddy-station',
@@ -37,6 +44,7 @@ type DialogMode = 'complete' | 'swap' | 'out-of-turn' | 'check-in';
 })
 export class GolfCaddyStationComponent implements OnInit {
   private readonly service = inject(GolfCaddyStationService);
+  private readonly requests = inject(GolfCaddyRequestService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -66,6 +74,11 @@ export class GolfCaddyStationComponent implements OnInit {
   readonly targetAssignment = signal<GolfCaddyAssignment | null>(null);
   readonly outOfTurnCaddy = signal<GolfStationCaddy | null>(null);
   readonly checkInSearch = signal('');
+  // Cannot serve: the named request the caddy cancels, with the reason.
+  readonly targetRequest = signal<GolfStationRequest | null>(null);
+  readonly cannotServeForm = this.fb.nonNullable.group({
+    reason: ['', [Validators.required, Validators.maxLength(255)]],
+  });
   readonly completeForm = this.fb.nonNullable.group({
     holesPlayed: this.fb.control<number | null>(null, [Validators.min(0), Validators.max(18)]),
     note: ['', [Validators.maxLength(255)]],
@@ -82,7 +95,13 @@ export class GolfCaddyStationComponent implements OnInit {
   readonly flights = computed(() => this.day()?.flights || []);
   readonly board = computed(() => this.day()?.board || { checkedIn: 0, available: 0, onCourse: 0, checkedOut: 0, queue: [], out: [] });
   readonly enabled = computed(() => this.day()?.enabled === true);
-  readonly nextUp = computed(() => this.board().queue[0] || null);
+  // The head of the queue for an ordinary slot: a caddy reserved by a named
+  // request teeing off soon is passed over (the server applies the same rule
+  // and lets the requesting flight take them).
+  readonly nextUp = computed(() => this.board().queue.find((a) => !a.reservedFor) || null);
+  readonly reservedCount = computed(() => this.board().queue.filter((a) => !!a.reservedFor).length);
+  readonly otherRequests = computed(() => this.day()?.otherRequests || []);
+  readonly liveRequestCount = computed(() => this.flights().reduce((n, f) => n + (f.requests || []).filter((r) => r.live).length, 0) + this.otherRequests().length);
   readonly readySlots = computed(() => this.flights().reduce((n, f) => n + f.slots.filter((s) => s.issuable && !this.slotAssigned(f, s)).length, 0));
   readonly pendingSlots = computed(() => this.flights().reduce((n, f) => n + f.slots.filter((s) => !this.slotAssigned(f, s)).length, 0));
   readonly openRounds = computed(() => this.flights().flatMap((f) => f.assignments.filter((a) => a.status === 'assigned')));
@@ -110,6 +129,7 @@ export class GolfCaddyStationComponent implements OnInit {
       case 'swap': return `Swap caddy ${a?.caddyNo || ''}`;
       case 'out-of-turn': return `Assign caddy ${this.outOfTurnCaddy()?.caddyNo || ''} out of turn`;
       case 'check-in': return 'Check in a caddy';
+      case 'cannot-serve': return `Caddy ${this.targetRequest()?.caddyNo || ''} cannot serve`;
       default: return `Complete round - caddy ${a?.caddyNo || ''}`;
     }
   });
@@ -268,8 +288,14 @@ export class GolfCaddyStationComponent implements OnInit {
     });
   }
 
-  // Out of turn? Ask whether the player requested the caddy before assigning.
+  // Out of turn? Ask whether the player requested the caddy before assigning -
+  // unless the flight holds a named request for this very caddy.
   private tryAssign(caddy: GolfStationCaddy, playerIds: string[]): void {
+    const f = this.selectedFlight();
+    if (f && this.requestFor(f, caddy.id, playerIds)) {
+      this.assignCaddy(caddy, playerIds, true);
+      return;
+    }
     const head = this.nextUp();
     if (head && head.caddyId !== caddy.id) {
       this.pendingCaddy.set(caddy);
@@ -299,6 +325,69 @@ export class GolfCaddyStationComponent implements OnInit {
     this.service.assign({ caddy: { id: caddy.id }, playerIds, requestedByName }).subscribe({
       next: (res) => { this.busy.set(false); this.successMessage.set(res.message); this.clearSelection(); this.scanner()?.reset(); this.load(); },
       error: (err) => { this.busy.set(false); this.pendingCaddy.set(null); this.scanner()?.reset(); this.errorMessage.set(err.error?.message || 'The caddy could not be assigned.'); },
+    });
+  }
+
+  // ---- named requests ----
+
+  // The live request on this flight for a caddy, for the golfers picked (a
+  // request naming a golfer matches when that golfer is among them).
+  requestFor(f: GolfCaddyStationFlight, caddyId: string, playerIds: string[]): GolfStationRequest | null {
+    return (f.requests || []).find((r) => r.live && r.caddyId === caddyId && (!r.playerId || playerIds.includes(r.playerId))) || null;
+  }
+
+  requestWho(f: GolfCaddyStationFlight, r: GolfStationRequest): string {
+    if (!r.playerId) return 'the flight';
+    return f.players.find((p) => p.playerId === r.playerId)?.playerName || 'a golfer';
+  }
+
+  // The ready slot a request can take: the one holding the named golfer, else
+  // the first ready slot of the flight.
+  requestSlot(f: GolfCaddyStationFlight, r: GolfStationRequest): GolfStationSlot | null {
+    const ready = f.slots.filter((s) => this.slotState(f, s) === 'ready');
+    if (r.playerId) return ready.find((s) => s.riders.some((x) => x.playerId === r.playerId)) || null;
+    return ready[0] || null;
+  }
+
+  canAssignRequest(f: GolfCaddyStationFlight, r: GolfStationRequest): boolean {
+    return this.enabled() && r.live && r.checkedIn && !!this.requestSlot(f, r);
+  }
+
+  assignRequest(f: GolfCaddyStationFlight, r: GolfStationRequest): void {
+    this.clearMessages();
+    const slot = this.requestSlot(f, r);
+    if (!slot) {
+      this.errorMessage.set('No ready slot for this request - settle the caddy fee first.');
+      return;
+    }
+    this.selectedFlightKey.set(f.key);
+    this.selectedSlotKey.set(slot.key);
+    this.busy.set(true);
+    this.service.assign({ caddy: { id: r.caddyId }, playerIds: slot.riders.map((x) => x.playerId), requestedByName: true }).subscribe({
+      next: (res) => { this.busy.set(false); this.successMessage.set(res.message); this.clearSelection(); this.load(); },
+      error: (err) => { this.busy.set(false); this.errorMessage.set(err.error?.message || 'The requested caddy could not be assigned.'); },
+    });
+  }
+
+  openCannotServe(r: GolfStationRequest): void {
+    this.clearMessages();
+    this.targetRequest.set(r);
+    this.cannotServeForm.reset({ reason: '' });
+    this.mode.set('cannot-serve');
+    this.dialogOpen.set(true);
+  }
+
+  runCannotServe(): void {
+    const r = this.targetRequest();
+    if (!r) return;
+    if (this.cannotServeForm.invalid) {
+      this.cannotServeForm.markAllAsTouched();
+      return;
+    }
+    this.busy.set(true);
+    this.requests.cancelByCaddy(r.id, this.cannotServeForm.getRawValue().reason.trim()).subscribe({
+      next: (res) => { this.busy.set(false); this.cannotServeForm.markAsPristine(); this.dialogOpen.set(false); this.successMessage.set(res.message); this.load(); },
+      error: (err) => { this.busy.set(false); this.errorMessage.set(err.error?.message || 'The request could not be cancelled.'); },
     });
   }
 

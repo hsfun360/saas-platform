@@ -76,6 +76,38 @@ const SWAP_REASONS = [
 ];
 const SWAP_REASON_KEYS = SWAP_REASONS.map((r) => r.key);
 
+// --- named-caddy requests (slice 3, user decisions 2026-10-18) ---
+
+// A player's request for a particular caddy ahead of play (the starter-hut
+// spec's 球僮预订 + 点号球僮报到): keyed on the booking or at the desk,
+// confirmed when the caddy checks in on the day, fulfilled when the station
+// assigns that caddy to that flight; cancelled by the player (or with the
+// booking) or by the caddy (with a reason); lapsed when the tee time passed
+// with no assignment.
+const REQUEST_STATUSES = [
+    { key: 'requested', label: 'Requested' },
+    { key: 'confirmed', label: 'Confirmed' },
+    { key: 'fulfilled', label: 'Fulfilled' },
+    { key: 'cancelled-by-player', label: 'Cancelled by player' },
+    { key: 'cancelled-by-caddy', label: 'Cancelled by caddy' },
+    { key: 'lapsed', label: 'Lapsed' },
+];
+const REQUEST_STATUS_KEYS = REQUEST_STATUSES.map((s) => s.key);
+const LIVE_REQUEST_STATUS_KEYS = ['requested', 'confirmed'];
+
+const REQUEST_SOURCES = [
+    { key: 'booking', label: 'Golf Booking' },
+    { key: 'desk', label: 'Tee Time Sheet' },
+    { key: 'portal', label: 'Member portal' },
+];
+const REQUEST_SOURCE_KEYS = REQUEST_SOURCES.map((s) => s.key);
+
+// Next up skips a caddy whose confirmed request tees off within this many
+// minutes (user decision 2026-10-18: keep 90).
+const RESERVE_WINDOW_MINUTES = 90;
+// A live request whose tee time passed by this much with no assignment lapses.
+const LAPSE_GRACE_MINUTES = 60;
+
 module.exports = {
     CADDY_STATUSES, CADDY_STATUS_KEYS,
     LEAVE_TYPES, LEAVE_TYPE_KEYS,
@@ -85,4 +117,7 @@ module.exports = {
     ATTENDANCE_STATUSES, ATTENDANCE_STATUS_KEYS,
     ASSIGNMENT_STATUSES, ASSIGNMENT_STATUS_KEYS,
     SWAP_REASONS, SWAP_REASON_KEYS,
+    REQUEST_STATUSES, REQUEST_STATUS_KEYS, LIVE_REQUEST_STATUS_KEYS,
+    REQUEST_SOURCES, REQUEST_SOURCE_KEYS,
+    RESERVE_WINDOW_MINUTES, LAPSE_GRACE_MINUTES,
 };

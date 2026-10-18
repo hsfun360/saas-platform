@@ -126,6 +126,18 @@ One rain check per settled bill; the ⋮ item disappears once it is issued.
 
 Billing and settlement follow the normal flow; the visitor is billed at their home club's player type.
 
+### Request a caddy by name
+
+[Screenshot: Request caddy view]
+
+1. With caddy management switched on in Golf Specification, open the flight workspace, open the ⋮ menu of a booked or registered golfer who has no caddy yet and click **Request caddy**.
+2. The drawer switches to **Request caddy · <player>**: pick the **Caddy** (type the badge number or name; caddies on leave today, inactive or blacklisted are not listed, and one already requested today is counted but not offered) and add **Remarks** such as the language wanted.
+3. Click **Request caddy**.
+   The golfer's line reads "caddy C-001 Ali requested", then "confirmed" once the caddy has checked in at the Caddy Station, and the station assigns that caddy to the golfer by name.
+
+A request made on the Golf Booking screen for the whole flight shows on every line of that booking with "(flight)".
+To withdraw a request, open the golfer's ⋮ menu and click **Cancel caddy request**, add an optional reason and confirm; a request the caddy cannot honour is cancelled at the Caddy Station.
+
 ### Cancel a registration or void a bill
 
 - In the flight workspace, open the player's ⋮ menu and click **Cancel registration** (a registration without a bill) or **Void bill** (an open bill).
@@ -188,11 +200,18 @@ With the rule off, no-shows are recorded without charges.
 | **Amount** | No | A lower value than the computed one. | 0.00 or more; cannot exceed the computed value; blank = the computed value. |
 | **Reason** | No | Why play was abandoned. | Up to 255 characters; quoted in the golfer's email. |
 
-### Confirm (cancel registration / void bill)
+### Request caddy
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Reason** | No | Why the registration is cancelled or the bill voided. | Kept on the record. |
+| **Caddy** | Yes | The caddy the golfer asks for. | Active caddies not on leave today; one request per caddy per day. |
+| **Remarks** | No | Anything the station should know, e.g. `Speaks Mandarin`. | Up to 255 characters. |
+
+### Confirm (cancel registration / void bill / cancel caddy request)
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Reason** | No | Why the registration is cancelled, the bill voided or the caddy request withdrawn. | Kept on the record. |
 
 ### No-shows review (per booking)
 
@@ -226,7 +245,9 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Visit V...: record Tan Wei Ming's arrival first (letter of introduction and ID sighted).", click **Receive** on that line before registering.
 - If you see "Tick that the letter of introduction was sighted." or "Tick that the home club card and ID were sighted.", both checks are required to record the arrival.
 - If you see "E1 is buggy-compulsory but no active shared buggy fee is the default for 'member' - buggy fee not auto-charged.", set up the single and shared buggy fee items for that golfer type under Transaction Type.
-- A player's line reads "buggy B-012" once the Buggy Station has issued a unit to them ("(returned)" after it comes back), and "caddy C-001 Ali" once the Caddy Station has assigned a caddy ("(done)" after the round).
+- A player's line reads "buggy B-012" once the Buggy Station has issued a unit to them ("(returned)" after it comes back), and "caddy C-001 Ali" once the Caddy Station has assigned a caddy ("(done)" after the round); before that it reads "caddy C-001 Ali requested" or "confirmed" while a named request is open.
+- If you see "Caddy C-001 is already requested on <date> (10:00) - one request per caddy per day.", another flight holds that caddy today; pick another.
+- If you see "Caddy C-003 is on sick leave on <date>." or "Caddy management is switched off (Golf Specification).", pick another caddy or switch the Caddies section on there.
 - Leaving the drawer scrolls the flight you were working on back into view.
 
 ## Related options
@@ -235,7 +256,7 @@ With the rule off, no-shows are recorded without charges.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
 - Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
 - Golf Management → Front Desk → Buggy Station - issues the buggies against the buggy fees paid here.
-- Golf Management → Front Desk → Caddy Station - assigns the caddies against the caddy fees paid here.
+- Golf Management → Front Desk → Caddy Station - assigns the caddies against the caddy fees paid here and honours the caddy requests made here.
 - Membership Management → Affiliated Visits - the letters of introduction whose visitors are received here.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.

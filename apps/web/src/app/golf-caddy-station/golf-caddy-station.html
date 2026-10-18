@@ -92,7 +92,7 @@
               <li class="cs-qrow" [class.cs-qrow--next]="i === 0">
                 <span class="cs-qrow__pos">{{ i + 1 }}</span>
                 <span class="cs-qrow__main">
-                  <span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddy?.name }}</span>
+                  <span class="bs-slot__riders">{{ a.caddyNo }} {{ a.caddy?.name }}@if (a.reservedFor) { <span class="status-chip status-chip--info">Requested {{ a.reservedFor }}</span> }</span>
                   <span class="bs-slot__meta">{{ a.caddy?.grade?.name }}{{ a.caddy?.languages ? ' · ' + a.caddy?.languages : '' }} · in queue since {{ a.queuedAt | localDate:'datetime' }}</span>
                 </span>
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="checkOut(a)" [disabled]="busy()">Check out</button>
@@ -111,6 +111,9 @@
             }
           </ul>
         }
+        @if (reservedCount()) {
+          <p class="cell-subtle cs-qsub">{{ reservedCount() }} caddy(ies) requested by name for a flight within {{ day()?.reserveWindowMinutes || 90 }} minutes - Next up passes over them.</p>
+        }
         <div class="cs-queue__actions">
           <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openCheckIn()" [disabled]="busy() || !enabled()">
             <span class="material-icons" aria-hidden="true">how_to_reg</span>
@@ -121,7 +124,28 @@
     }
   </div>
 
-  <p class="bs-count">{{ flights().length }} flight{{ flights().length === 1 ? '' : 's' }} registered · {{ readySlots() }} slot{{ readySlots() === 1 ? '' : 's' }} ready of {{ pendingSlots() }} waiting · {{ openRounds().length }} round{{ openRounds().length === 1 ? '' : 's' }} out</p>
+  <!-- Named requests for flights not yet registered today -->
+  @if (otherRequests().length) {
+    <div class="data-card cs-queue">
+      <div class="cs-queue__body">
+        <div class="data-card__title">Requested by name · {{ otherRequests().length }} flight{{ otherRequests().length === 1 ? '' : 's' }} not yet registered</div>
+        <ul class="cs-qlist">
+          @for (r of otherRequests(); track r.id) {
+            <li class="cs-qrow">
+              <span class="material-icons bs-slot__icon" aria-hidden="true">{{ r.checkedIn ? 'how_to_reg' : 'schedule' }}</span>
+              <span class="cs-qrow__main">
+                <span class="bs-slot__riders">{{ r.teeTime || 'flight' }} · caddy {{ r.caddyNo }} {{ r.caddyName }}</span>
+                <span class="bs-slot__meta">{{ r.statusLabel }}{{ r.checkedIn ? ' · checked in' : ' · not yet in' }}{{ r.remarks ? ' · ' + r.remarks : '' }}</span>
+              </span>
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openCannotServe(r)" [disabled]="busy()">Cannot serve</button>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+
+  <p class="bs-count">{{ flights().length }} flight{{ flights().length === 1 ? '' : 's' }} registered · {{ readySlots() }} slot{{ readySlots() === 1 ? '' : 's' }} ready of {{ pendingSlots() }} waiting · {{ openRounds().length }} round{{ openRounds().length === 1 ? '' : 's' }} out@if (liveRequestCount()) { · {{ liveRequestCount() }} requested by name }</p>
 
   @if (loading() && !day()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the station…</p></div>
@@ -142,6 +166,28 @@
               <span class="data-card__reg">{{ f.players.length }} registered</span>
             </div>
           </div>
+
+          @if (f.requests?.length) {
+            <ul class="cs-reqs" aria-label="Caddies requested by name">
+              @for (r of f.requests; track r.id) {
+                <li class="bs-out" [class.bs-out--closed]="!r.live">
+                  <span class="material-icons bs-slot__icon" aria-hidden="true">{{ r.status === 'fulfilled' ? 'check_circle' : (r.live ? 'star' : 'star_outline') }}</span>
+                  <span class="bs-slot__main">
+                    <span class="bs-slot__riders">Requested caddy {{ r.caddyNo }} {{ r.caddyName }} - for {{ requestWho(f, r) }}</span>
+                    <span class="bs-slot__meta">{{ r.statusLabel.toLowerCase() }}{{ r.live ? (r.checkedIn ? ' · checked in' : ' · not yet in') : '' }}{{ r.remarks ? ' · ' + r.remarks : '' }}{{ r.cancelReason ? ' · ' + r.cancelReason : '' }}</span>
+                  </span>
+                  @if (r.live) {
+                    <span class="bs-out__actions">
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openCannotServe(r)" [disabled]="busy()">Cannot serve</button>
+                      @if (canAssignRequest(f, r)) {
+                        <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="assignRequest(f, r)" [disabled]="busy()">Assign</button>
+                      }
+                    </span>
+                  }
+                </li>
+              }
+            </ul>
+          }
 
           @if (f.slots.length) {
             <ul class="bs-slots" aria-label="Caddy slots">
@@ -220,7 +266,7 @@
 
   <!-- ============ Dialog: complete / swap / out-of-turn / check-in ============ -->
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="dialogTitle()" [busy]="busy()" [dirty]="mode() === 'swap' && swapForm.dirty" (close)="closeDialog()">
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="busy()" [dirty]="(mode() === 'swap' && swapForm.dirty) || (mode() === 'cannot-serve' && cannotServeForm.dirty)" (close)="closeDialog()">
       @switch (mode()) {
         @case ('complete') {
           @if (targetAssignment(); as a) {
@@ -298,6 +344,21 @@
             <p class="cell-subtle">{{ targetLabel() }}</p>
           }
         }
+        @case ('cannot-serve') {
+          @if (targetRequest(); as r) {
+            <form id="csCannotServe" [formGroup]="cannotServeForm" (ngSubmit)="runCannotServe()" class="saas-form saas-form--dialog">
+              <p>Caddy <strong>{{ r.caddyNo }} {{ r.caddyName }}</strong> was requested by name for the {{ r.teeTime || '' }} flight. Record that the caddy cannot serve; the flight takes the ordinary queue instead.</p>
+              <div class="form-group">
+                <label for="csCannotReason">Reason <span class="required">*</span></label>
+                <textarea id="csCannotReason" rows="2" wrap="off" formControlName="reason" maxlength="255" placeholder="e.g. Unwell, went home"
+                          [attr.aria-invalid]="cannotServeForm.controls.reason.invalid && cannotServeForm.controls.reason.touched" aria-describedby="csCannotReasonErr"></textarea>
+                @if (cannotServeForm.controls.reason.invalid && cannotServeForm.controls.reason.touched) {
+                  <p id="csCannotReasonErr" class="field-error" role="alert">Give the reason the caddy cannot serve.</p>
+                }
+              </div>
+            </form>
+          }
+        }
         @case ('check-in') {
           <div class="saas-search">
             <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
@@ -335,6 +396,10 @@
           @case ('out-of-turn') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Cancel</button>
             <button type="button" class="btn btn--primary" (click)="confirmOutOfTurn()" [disabled]="busy()">Player requested this caddy - assign</button>
+          }
+          @case ('cannot-serve') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="busy()">Keep request</button>
+            <button type="submit" form="csCannotServe" class="btn btn--danger" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Cancel request' }}</button>
           }
           @default {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>

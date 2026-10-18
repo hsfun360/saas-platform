@@ -117,6 +117,11 @@ GolfCaddy.hasMany(GolfCaddyAssignment, { foreignKey: 'caddyId', as: 'assignments
 GolfCaddyAssignment.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
 GolfCaddyAssignment.hasMany(GolfCaddyAssignmentPlayer, { foreignKey: 'caddyAssignmentId', as: 'players', onDelete: 'CASCADE' });
 GolfCaddyAssignmentPlayer.belongsTo(GolfCaddyAssignment, { foreignKey: 'caddyAssignmentId', as: 'assignment' });
+// Named-caddy requests (2026-10-18, slice 3): caddy -> requests (restrict);
+// the booking / player / assignment refs stay plain value refs.
+const GolfCaddyRequest = require('../modules/golf/caddyRequest.model');
+GolfCaddy.hasMany(GolfCaddyRequest, { foreignKey: 'caddyId', as: 'requests', onDelete: 'RESTRICT' });
+GolfCaddyRequest.belongsTo(GolfCaddy, { foreignKey: 'caddyId', as: 'caddy' });
 // Golfer identity pair (2026-09-17), mirroring AR's Debtor/OtherDebtor: Golfer
 // references its profile polymorphically (golferType + sourceId -> membership
 // Member OR golf.OtherGolfer) - validated in the service, no FKs, so no

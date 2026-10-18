@@ -38,5 +38,12 @@ router.post('/registrations/:id/rain-check', validate(rs.issue), rainChecks.issu
 // (letter of introduction and ID sighted) before their line can register.
 const { z } = require('../../platform/validate');
 router.post('/visits/:id/arrive', validate({ params: z.object({ id: z.string().uuid() }), body: z.object({ letterSighted: z.boolean().optional(), idSighted: z.boolean().optional() }) }), controller.receiveVisit);
+// Named-caddy requests (2026-10-18): the desk keys a request on a booked or
+// registered golfer (walk-ins included) and cancels it for the player.
+const caddyRequests = require('./caddyRequest.controller');
+const cs = require('./caddy.schemas');
+router.get('/caddy-request-candidates', validate(cs.requestCandidates), caddyRequests.candidates);
+router.post('/caddy-requests', validate(cs.requestForPlayer), caddyRequests.createForPlayer);
+router.post('/caddy-requests/:requestId/cancel', validate(cs.requestCancel), caddyRequests.cancelByPlayer);
 
 module.exports = router;

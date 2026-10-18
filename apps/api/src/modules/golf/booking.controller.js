@@ -34,6 +34,8 @@ const Course = require('./course.model');
 const Golfer = require('./golfer.model');
 const GolfSession = require('./golfSession.model');
 const noShow = require('./noShowCharge.service');
+// Named-caddy requests (2026-10-18): listed per booking, cancelled with it.
+const caddyRequests = require('./caddyRequest.service');
 const bookingChange = require('./bookingChange.service');
 const BookingChange = require('./bookingChange.model');
 
@@ -718,13 +720,18 @@ exports.list = async (req, res) => {
             })
             : [];
         const changeCountById = new Map(changeRows.map((r) => [r.bookingProfileId, Number(r.count)]));
+        // Named-caddy requests (2026-10-18): live + fulfilled per booking.
+        const requestsById = await caddyRequests.byBookings(companyId, rows.map((r) => r.id));
         const dtos = rows.map((b) => {
             const booker = bookerById.get(b.bookerGolferId);
-            return bookingDto(b, byProfile.get(b.id), courseById, {
-                bookerMemberNo: booker ? booker.memberNo : null,
-                bookerName: booker ? booker.name : null,
-                changeCount: changeCountById.get(b.id) || 0,
-            });
+            return {
+                ...bookingDto(b, byProfile.get(b.id), courseById, {
+                    bookerMemberNo: booker ? booker.memberNo : null,
+                    bookerName: booker ? booker.name : null,
+                    changeCount: changeCountById.get(b.id) || 0,
+                }),
+                caddyRequests: requestsById.get(b.id) || [],
+            };
         });
         dtos.sort((a, b) => String(a.startTime || '').localeCompare(String(b.startTime || '')) || a.bookingNo.localeCompare(b.bookingNo));
         res.status(200).json({
@@ -732,6 +739,8 @@ exports.list = async (req, res) => {
             statuses: BOOKING_STATUSES,
             // The club's pickable player types (active, not affiliate-base).
             playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
+            // Named-caddy requests (2026-10-18) show only while the station is on.
+            caddyManagementEnabled: await caddyRequests.enabled(companyId),
         });
     } catch (error) {
         console.error('Error listing golf bookings:', error);
@@ -880,6 +889,7 @@ exports.cancel = async (req, res) => {
                 where: { bookingProfileId: profile.id, status: 'booked' },
                 transaction,
             });
+            await caddyRequests.onBookingCancelled(companyId, profile.id, callerId, { transaction });
             if (penalty) {
                 chargeRow = await noShow.raise({
                     req, profile, booker: penalty.booker, players: bookedFirsts,

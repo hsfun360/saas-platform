@@ -61,6 +61,13 @@
                 }
               </div>
               <div class="data-card__desc">{{ b.players.length }} player(s): {{ playerSummary(b) }}</div>
+              @if (b.caddyRequests?.length) {
+                <div class="data-card__subline">
+                  @for (r of b.caddyRequests; track r.id) {
+                    <span class="mt-chip" [title]="r.remarks || ''">{{ caddyRequestLabel(r, b) }}</span>
+                  }
+                </div>
+              }
             </div>
             <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--info]="b.status === 'pending-approval'" [class.status-chip--off]="b.status !== 'booked' && b.status !== 'pending-approval'">
               {{ statusLabel(b.status) }}
@@ -73,6 +80,18 @@
                       <span class="material-icons" aria-hidden="true">edit_calendar</span>
                       Change booking
                     </button>
+                  }
+                  @if (canRequestCaddy(b)) {
+                    <button type="button" appMenuItem (click)="openCaddyRequest(b)">
+                      <span class="material-icons" aria-hidden="true">sports_golf</span>
+                      Request caddy
+                    </button>
+                    @for (r of liveCaddyRequests(b); track r.id) {
+                      <button type="button" appMenuItem (click)="askCancelCaddyRequest(b, r)">
+                        <span class="material-icons" aria-hidden="true">person_remove</span>
+                        Cancel caddy request {{ r.caddyNo }}
+                      </button>
+                    }
                   }
                   @if (b.changeCount > 0) {
                     <button type="button" appMenuItem (click)="openHistory(b)">
@@ -461,6 +480,63 @@
         <button type="button" class="btn btn--secondary" (click)="historyTarget.set(null)">Close</button>
       </ng-container>
     </app-dialog>
+  }
+
+  <!-- ============ Request caddy (drawer; 2026-10-18) ============ -->
+  @if (caddyTarget(); as target) {
+    <app-dialog #cdlg variant="drawer" [title]="'Request caddy - ' + target.bookingNo" [busy]="caddySaving() || caddyLoading()" [dirty]="caddyForm.dirty"
+                discardTitle="Discard this request?" discardMessage="No caddy has been requested yet." (close)="closeCaddyRequest()">
+      <form id="gbCaddyRequest" [formGroup]="caddyForm" (ngSubmit)="submitCaddyRequest()" class="saas-form saas-form--dialog">
+        <p>Ask for a particular caddy on <strong>{{ target.playDate | localDate }}</strong> at {{ target.startTime }} ({{ target.courseCode }}).
+          The request is confirmed when the caddy checks in that day, and the Caddy Station assigns them to this flight by name.
+          One request per caddy per day.</p>
+        @if (caddyLoading()) {
+          <p class="cell-subtle">Loading the caddies…</p>
+        } @else if (caddyOptions().length === 0) {
+          <p class="cell-subtle">No caddy is available to request on this date{{ caddyTakenCount() ? ' - ' + caddyTakenCount() + ' already requested' : '' }}.</p>
+        } @else {
+          <div class="form-group">
+            <label for="gbCaddy">Caddy <span class="required">*</span></label>
+            <app-combobox inputId="gbCaddy" formControlName="caddyId" [options]="caddyOptions()" [allowEmpty]="false"
+                          placeholder="Type the badge number or name…" [invalid]="showCaddyError('caddyId')" describedBy="gbCaddyErr" />
+            @if (showCaddyError('caddyId')) {
+              <p id="gbCaddyErr" class="field-error" role="alert">Pick the caddy.</p>
+            }
+            @if (caddyTakenCount()) {
+              <p class="cell-subtle field-hint">{{ caddyTakenCount() }} caddy(ies) already requested on this date are not offered.</p>
+            }
+          </div>
+        }
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="gbCaddyFor">For</label>
+            <select id="gbCaddyFor" formControlName="playerId">
+              <option value="">The whole flight</option>
+              @for (p of target.players; track p.playerId) {
+                @if (p.status === 'booked' || p.status === 'registered') {
+                  <option [value]="p.playerId">{{ p.playerName }}{{ p.memberNo ? ' (' + p.memberNo + ')' : '' }}</option>
+                }
+              }
+            </select>
+            <p class="cell-subtle field-hint">Name the golfer when the caddy is for one player of a shared flight.</p>
+          </div>
+          <div class="form-group">
+            <label for="gbCaddyRemarks">Remarks</label>
+            <textarea id="gbCaddyRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255" placeholder="e.g. Speaks Mandarin"></textarea>
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cdlg.requestClose()" [disabled]="caddySaving()">Cancel</button>
+        <button type="submit" form="gbCaddyRequest" class="btn btn--primary" [disabled]="caddySaving() || caddyLoading() || caddyOptions().length === 0">
+          {{ caddySaving() ? 'Requesting…' : 'Request caddy' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 
   <!-- ============ Cancel confirmation (centred) ============ -->

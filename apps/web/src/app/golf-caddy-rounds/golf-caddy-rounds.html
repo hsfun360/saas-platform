@@ -1,0 +1,114 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">fact_check</span>
+      <div>
+        <h1>{{ 'Caddy Rounds' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The rounds of caddy service over a period, per caddy - what counts, holes and golfers served, rounds requested by name - the record the club settles caddy pay from.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- FILTERS: period + caddy (server) · search (client) -->
+  <div class="cr-filter">
+    <label for="crFrom">Play date from</label>
+    <input #fromInput id="crFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(fromInput.value)" />
+    <label for="crTo">to</label>
+    <input #toInput id="crTo" type="date" [value]="dateTo()" (change)="setDateTo(toInput.value)" />
+    <label for="crCaddy">Caddy</label>
+    <app-combobox class="cr-filter__caddy" inputId="crCaddy" [value]="caddyId()" (valueChange)="setCaddy($event)" [options]="caddyOptions()" emptyLabel="All caddies" placeholder="All caddies" />
+    <button type="button" class="btn btn--secondary" (click)="exportCsv()" [disabled]="loading() || rows().length === 0">
+      <span class="material-icons" aria-hidden="true">download</span>
+      Export CSV
+    </button>
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by badge number, name, grade or group…" aria-label="Search caddies" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (totals(); as t) {
+    <dl class="cr-totals" aria-label="Totals for the period">
+      <div><dt>Caddies</dt><dd>{{ t.caddies }}</dd></div>
+      <div><dt>Rounds</dt><dd>{{ t.rounds }}</dd></div>
+      <div><dt>Not counted</dt><dd>{{ t.roundsNotCounted }}</dd></div>
+      <div><dt>9 / 18 holes</dt><dd>{{ t.rounds9 }} / {{ t.rounds18 }}</dd></div>
+      <div><dt>Holes served</dt><dd>{{ t.holesServed }}</dd></div>
+      <div><dt>Golfers served</dt><dd>{{ t.golfersServed }}</dd></div>
+      <div><dt>By name</dt><dd>{{ t.requestedByName }}</dd></div>
+      @if (t.open) { <div><dt>On the course</dt><dd>{{ t.open }}</dd></div> }
+    </dl>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the caddy rounds…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No rounds of caddy service between {{ dateFrom() | localDate }} and {{ dateTo() | localDate }}. Rounds are recorded at the Caddy Station.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No caddies match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of filtered(); track r.caddyId) {
+        <div class="data-card" [attr.data-return-id]="r.caddyId">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ r.caddyNo }} - {{ r.caddyName }}</div>
+              <div class="data-card__subline">
+                @if (r.grade) { <span class="data-card__reg">{{ r.grade.name }}</span> }
+                @if (r.group) { <span class="data-card__reg">{{ r.group.name }}</span> }
+                @if (r.open) { <span class="data-card__reg">{{ r.open }} on the course</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Rounds</dt><dd>{{ r.rounds }}{{ r.roundsNotCounted ? ' (+' + r.roundsNotCounted + ' not counted)' : '' }}</dd></div>
+                <div class="meta"><dt>9 / 18</dt><dd>{{ r.rounds9 }} / {{ r.rounds18 }}</dd></div>
+                <div class="meta"><dt>Holes</dt><dd>{{ r.holesServed }}</dd></div>
+                <div class="meta"><dt>Golfers</dt><dd>{{ r.golfersServed }}</dd></div>
+                <div class="meta"><dt>By name</dt><dd>{{ r.requestedByName }}</dd></div>
+              </dl>
+            </div>
+            <span class="data-row__badge status-chip" [class.status-chip--on]="r.caddyStatus === 'active'" [class.status-chip--off]="r.caddyStatus !== 'active'">{{ r.caddyStatus || 'unknown' }}</span>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="toggleDetail(r)" [attr.aria-expanded]="isOpen(r)">
+                {{ isOpen(r) ? 'Hide rounds' : 'Rounds' }}
+              </button>
+            </div>
+          </div>
+          @if (isOpen(r)) {
+            <ul class="cr-detail" aria-label="Rounds of this caddy">
+              @for (d of detailOf(r); track d.id) {
+                <li class="cr-round" [class.cr-round--void]="d.counts === false">
+                  <span class="material-icons cr-round__icon" aria-hidden="true">{{ d.status === 'assigned' ? 'directions_walk' : (d.status === 'swapped' ? 'swap_horiz' : 'check_circle') }}</span>
+                  <span class="cr-round__main">
+                    <span class="cr-round__title">{{ d.playDate | localDate }} {{ d.teeTime || '' }}{{ d.courseCode ? ' · ' + d.courseCode : '' }} - {{ golfersOf(d) }}</span>
+                    <span class="cr-round__meta">{{ roundText(d) }}{{ d.requestedByName ? ' · requested by name' : '' }}</span>
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

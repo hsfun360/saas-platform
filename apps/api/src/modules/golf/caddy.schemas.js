@@ -48,6 +48,13 @@ const activeBody = z.object({ isActive: z.boolean().optional() });
 const caddyRef = z.object({ id: str(64), code: str(512) }).nullable().optional();
 
 module.exports = {
+    // --- named-caddy requests (slice 3) ---
+    requestForBooking: { ...idParam, body: z.object({ caddyId: str(64), caddyNo: str(20), playerId: str(64), remarks: str(255) }) },
+    requestForPlayer: { body: z.object({ playerId: str(64), caddyId: str(64), caddyNo: str(20), remarks: str(255) }) },
+    requestCancel: { params: z.object({ requestId: id }), body: z.object({ reason: str(255) }) },
+    requestCandidates: { query: z.object({ playDate: str(10) }) },
+    // --- the rounds-served report (slice 3) ---
+    rounds: { query: z.object({ dateFrom: str(10), dateTo: str(10), caddyId: str(64) }) },
     // --- the Caddy Station (slice 2) ---
     stationDay: { query: z.object({ playDate: str(10), courseId: str(64) }) },
     stationResolve: { query: z.object({ code: str(512), playDate: str(10) }) },

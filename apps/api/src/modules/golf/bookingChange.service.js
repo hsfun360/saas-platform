@@ -37,6 +37,8 @@ const Golfer = require('./golfer.model');
 const GolfSession = require('./golfSession.model');
 const BookingChange = require('./bookingChange.model');
 const noShow = require('./noShowCharge.service');
+// Named-caddy requests (2026-10-18) follow a moved booking.
+const caddyRequests = require('./caddyRequest.service');
 
 const MAX_PLAYERS = 10;
 
@@ -571,6 +573,8 @@ async function apply(req, id, body) {
         profile.updatedBy = callerId;
         await profile.save({ transaction });
         if (target.lockRows.length) await FlightLock.destroy({ where: { companyId, groupId: String(body.lockGroupId) }, transaction });
+        // Named-caddy requests (2026-10-18) follow the flight when it moved.
+        if (target.moved) await caddyRequests.onBookingMoved(companyId, profile.id, { playDate: after.playDate, teeTime: after.teeTime, courseId: course.id }, callerId, { transaction });
 
         // 5. The late-change penalty, inside the change (posted after commit).
         if (p.priced) {

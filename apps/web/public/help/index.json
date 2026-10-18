@@ -44,6 +44,9 @@
   "golf-caddy-station": {
     "title": "Caddy Station"
   },
+  "golf-caddy-rounds": {
+    "title": "Caddy Rounds"
+  },
   "golf-transaction-types": {
     "title": "Transaction Type"
   },

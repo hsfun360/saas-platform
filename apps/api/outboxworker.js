@@ -50,6 +50,18 @@ async function scanRainChecks() {
     }
 }
 
+// Golf named-caddy requests (2026-10-18): live requests whose tee time passed
+// without an assignment lapse on the tick (club-local clock).
+async function scanCaddyRequests() {
+    try {
+        const { scanCaddyRequests: scan } = require('./src/modules/golf/caddyRequest.service');
+        return await scan();
+    } catch (err) {
+        console.error('[GOLF CADDY REQUEST] lapse scan failed:', err);
+        return null;
+    }
+}
+
 // Affiliated visits (Membership, 2026-10-15/16): open visits whose date passed
 // without an arrival expire on the tick (club-local date), with a bell to the office.
 async function scanVisits() {
@@ -92,6 +104,7 @@ if (MODE === 'drain') {
                     await scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err));
                     await scanGroupLifecycle();
                     await scanRainChecks();
+                    await scanCaddyRequests();
                     await scanVisits();
                     // AR nightly reconciliation (report-only; drift goes to the
                     // logs for ops). Gated to the 03:00 MYT hour (19:00 UTC) -
@@ -142,6 +155,7 @@ if (MODE === 'drain') {
     setInterval(() => scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err)), 5 * 60 * 1000);
     setInterval(() => scanGroupLifecycle(), 5 * 60 * 1000);
     setInterval(() => scanRainChecks(), 60 * 60 * 1000);
+    setInterval(() => scanCaddyRequests(), 60 * 60 * 1000);
     setInterval(() => scanVisits(), 60 * 60 * 1000);
 
     // 4. AR statement runs (poll mode): check for queued/expired-lease runs

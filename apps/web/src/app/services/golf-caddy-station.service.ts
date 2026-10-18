@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipStatusOption } from '../models/auth.models';
 import { GolfStationFeeLine, GolfStationSlot } from './golf-buggy-station.service';
+import { GolfCaddyRequest } from './golf-caddy-request.service';
 
 // The Caddy Station (Golf Management → Front Desk → Caddy Station; user
 // decisions 2026-10-17): the day's check-in queue (FIFO, back of the queue
@@ -36,7 +37,13 @@ export interface GolfCaddyAttendance {
   status: GolfCaddyAttendanceStatus;
   remarks: string | null;
   caddy?: GolfStationCaddy;
+  // Named requests (2026-10-18): the tee time of the confirmed request that
+  // reserves this caddy within the window (Next up passes over them).
+  reservedFor?: string | null;
 }
+
+// A named request as the station lists it: with whether the caddy is in today.
+export type GolfStationRequest = GolfCaddyRequest & { checkedIn: boolean };
 
 export interface GolfCaddyAssignment {
   id: string;
@@ -76,6 +83,7 @@ export interface GolfCaddyStationFlight {
   feeLines: GolfStationFeeLine[];
   bookingNos: string[];
   groupName: string | null;
+  requests?: GolfStationRequest[];
 }
 
 export interface GolfCaddyStationBoard {
@@ -95,6 +103,9 @@ export interface GolfCaddyStationDay {
   board: GolfCaddyStationBoard;
   notCheckedIn: GolfStationCaddy[];
   swapReasons: (MembershipStatusOption & { countsAsRound: boolean })[];
+  // Live requests for flights not yet registered today.
+  otherRequests?: GolfStationRequest[];
+  reserveWindowMinutes?: number;
 }
 
 export interface GolfCaddyRef {

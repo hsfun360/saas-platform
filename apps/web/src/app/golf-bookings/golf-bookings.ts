@@ -26,6 +26,8 @@ import {
   GolfChangePreview,
   GolfBookingChange,
 } from '../services/golf-booking.service';
+import { GolfCaddyRequestService, GolfCaddyRequest, GolfCaddyRequestCandidate } from '../services/golf-caddy-request.service';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 
 // Golf Management → Booking (/golf/bookings) - the make-booking flow against
 // the DYNAMIC tee sheet (user decisions 2026-09-20, modeled on the 2006 SRS
@@ -70,13 +72,15 @@ function localToday(): string {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent,
     CanDirective, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe,
-    PhoneInputComponent,
+    PhoneInputComponent, ConfirmDialogComponent,
   ],
   templateUrl: './golf-bookings.html',
-  styleUrls: ['./golf-bookings.css'],
+  // membership-types.css supplies the shared .mt-chip pill (the caddy-request chips).
+  styleUrls: ['../membership-types/membership-types.css', './golf-bookings.css'],
 })
 export class GolfBookingsComponent implements OnInit, OnDestroy {
   private readonly service = inject(GolfBookingService);
+  private readonly caddyRequests = inject(GolfCaddyRequestService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
@@ -139,6 +143,28 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   readonly cancelTarget = signal<GolfBookingRow | null>(null);
   readonly cancelReason = signal('');
   readonly cancelling = signal(false);
+
+  // ---- named-caddy request (2026-10-18) ----
+  // A drawer with the candidates of the play date (active caddies not on
+  // leave; one already requested that day is listed but not offered), the
+  // golfer it is for (or the whole flight) and a remark; cancelling a live
+  // request confirms first.
+  readonly caddyManagementEnabled = signal(false);
+  readonly caddyTarget = signal<GolfBookingRow | null>(null);
+  readonly caddyCandidates = signal<GolfCaddyRequestCandidate[]>([]);
+  readonly caddyLoading = signal(false);
+  readonly caddySaving = signal(false);
+  readonly caddyForm = this.fb.nonNullable.group({
+    caddyId: ['', [Validators.required]],
+    playerId: [''],
+    remarks: ['', [Validators.maxLength(255)]],
+  });
+  readonly caddyOptions = computed(() => this.caddyCandidates().filter((c) => !c.requestedAt).map((c) => ({
+    value: c.id,
+    label: `${c.caddyNo} - ${c.name}${c.grade ? ' - ' + c.grade.name : ''}${c.languages ? ' - ' + c.languages : ''}`,
+  })));
+  readonly caddyTakenCount = computed(() => this.caddyCandidates().filter((c) => !!c.requestedAt).length);
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   // Cancellation-notice preview (show expected results): fetched when the
   // dialog opens so the confirm states whether this cancel is late, what the
   // booker will be charged, or that it is refused.
@@ -222,6 +248,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.bookings.set(res.bookings);
         this.playerTypes.set(res.playerTypes || []);
+        this.caddyManagementEnabled.set(res.caddyManagementEnabled === true);
         this.loading.set(false);
         this.returnScroll.consume('/golf/bookings', this.injector);
       },
@@ -755,6 +782,85 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
         this.errorMessage.set(err.error?.message || 'Failed to cancel the booking.');
       },
     });
+  }
+
+  // ---------- named-caddy request ----------
+
+  // The requests worth showing on the row: live ones and the fulfilled one.
+  liveCaddyRequests(b: GolfBookingRow): GolfCaddyRequest[] {
+    return (b.caddyRequests || []).filter((r) => r.live);
+  }
+
+  caddyRequestLabel(r: GolfCaddyRequest, b: GolfBookingRow): string {
+    const who = r.playerId ? (b.players.find((p) => p.playerId === r.playerId)?.playerName || 'a golfer') : 'the flight';
+    return `Caddy ${r.caddyNo}${r.caddyName ? ' ' + r.caddyName : ''} for ${who} - ${r.statusLabel.toLowerCase()}`;
+  }
+
+  canRequestCaddy(b: GolfBookingRow): boolean {
+    return this.caddyManagementEnabled() && (b.status === 'booked' || b.status === 'pending-approval') && b.canModify !== false;
+  }
+
+  openCaddyRequest(b: GolfBookingRow): void {
+    this.clearMessages();
+    this.caddyTarget.set(b);
+    this.caddyForm.reset({ caddyId: '', playerId: '', remarks: '' });
+    this.caddyCandidates.set([]);
+    this.caddyLoading.set(true);
+    this.caddyRequests.candidatesForBooking(b.playDate).subscribe({
+      next: (res) => { this.caddyCandidates.set(res.caddies); this.caddyLoading.set(false); },
+      error: (err) => { this.caddyLoading.set(false); this.errorMessage.set(err.error?.message || 'Failed to load the caddies.'); },
+    });
+  }
+
+  closeCaddyRequest(): void {
+    this.caddyTarget.set(null);
+    this.caddyForm.markAsPristine();
+  }
+
+  submitCaddyRequest(): void {
+    const b = this.caddyTarget();
+    if (!b) return;
+    if (this.caddyForm.invalid) {
+      this.caddyForm.markAllAsTouched();
+      return;
+    }
+    const v = this.caddyForm.getRawValue();
+    this.caddySaving.set(true);
+    this.caddyRequests.requestForBooking(b.id, { caddyId: v.caddyId, playerId: v.playerId || null, remarks: v.remarks.trim() || null }).subscribe({
+      next: (res) => {
+        this.caddySaving.set(false);
+        this.caddyForm.markAsPristine();
+        this.caddyTarget.set(null);
+        this.successMessage.set(res.message);
+        this.returnScroll.remember('/golf/bookings', b.id);
+        this.load();
+      },
+      error: (err) => {
+        this.caddySaving.set(false);
+        this.errorMessage.set(err.error?.message || 'The caddy could not be requested.');
+      },
+    });
+  }
+
+  askCancelCaddyRequest(b: GolfBookingRow, r: GolfCaddyRequest): void {
+    this.clearMessages();
+    this.confirmAction.set({
+      title: 'Cancel caddy request',
+      message: `Cancel the request for caddy ${r.caddyNo}${r.caddyName ? ' ' + r.caddyName : ''} on booking ${b.bookingNo}? The caddy goes back to the ordinary queue for that day.`,
+      confirmLabel: 'Cancel request',
+      run: () => {
+        this.confirmAction.set(null);
+        this.caddyRequests.cancelFromBooking(r.id).subscribe({
+          next: (res) => { this.successMessage.set(res.message); this.returnScroll.remember('/golf/bookings', b.id); this.load(); },
+          error: (err) => this.errorMessage.set(err.error?.message || 'The caddy request could not be cancelled.'),
+        });
+      },
+    });
+  }
+
+  showCaddyError(name: 'caddyId'): boolean {
+    const c = this.caddyForm.controls[name];
+    return c.invalid && (c.touched || c.dirty);
   }
 
   private clearMessages(): void {

@@ -37,8 +37,11 @@ const GolfCaddyAttendance = require('./caddyAttendance.model');
 const GolfCaddyAssignment = require('./caddyAssignment.model');
 const GolfCaddyAssignmentPlayer = require('./caddyAssignmentPlayer.model');
 const { CADDY_CHARGE_TYPE_KEY } = require('./transactionType.constants');
-const { SWAP_REASONS, SWAP_REASON_KEYS } = require('./caddy.constants');
+const { SWAP_REASONS, SWAP_REASON_KEYS, RESERVE_WINDOW_MINUTES } = require('./caddy.constants');
 const caddySvc = require('./caddy.service');
+// Named-caddy requests (slice 3, 2026-10-18): confirmed on check-in, fulfilled
+// by the assignment, and the queue's Next up skips a reserved caddy.
+const caddyRequests = require('./caddyRequest.service');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LIVE_ASSIGNMENT_STATUSES = ['assigned', 'completed'];
@@ -78,10 +81,23 @@ function queueOrder(rows) {
         .sort((a, b) => new Date(a.queuedAt) - new Date(b.queuedAt) || String(a.caddyNo).localeCompare(String(b.caddyNo)));
 }
 
-// The head of the queue, or null.
-function nextUp(rows) {
-    const q = queueOrder(rows);
+// The head of the queue, or null. `skip` holds the caddy ids reserved by a
+// confirmed named request teeing off within the reserve window: Next up
+// passes over them (the requesting flight takes them by name).
+function nextUp(rows, skip = new Set()) {
+    const q = queueOrder(rows).filter((r) => !skip.has(r.caddyId));
     return q.length ? q[0] : null;
+}
+
+// The reserved caddies to skip for THIS flight: a reservation for the very
+// flight being served does not block it.
+function reservedToSkip(reserved, { bookingProfileId, playerIds }) {
+    const skip = new Set();
+    for (const [caddyId, r] of reserved) {
+        const mine = r.playerId ? (playerIds || []).includes(r.playerId) : (r.bookingProfileId && r.bookingProfileId === bookingProfileId);
+        if (!mine) skip.add(caddyId);
+    }
+    return skip;
 }
 
 // Does the reason count the swapped-out caddy's round?
@@ -279,6 +295,24 @@ async function day(req, query) {
         flights.push(view);
     }
     flights.sort((a, b) => a.teeTime.localeCompare(b.teeTime) || a.courseCode.localeCompare(b.courseCode));
+    // Named requests (slice 3): each flight lists the requests keyed on its
+    // bookings or golfers; the queue marks a caddy reserved within the window;
+    // the rest of the day's requests (flights not yet registered) list apart.
+    const clubTime = availability.clubNow(await companyTimezoneById(companyId)).time;
+    const [requestRows, reserved] = await Promise.all([
+        caddyRequests.listForDay(companyId, playDate),
+        caddyRequests.reservedCaddyIds(companyId, playDate, clubTime),
+    ]);
+    const placed = new Set();
+    for (const f of flights) {
+        const bookingIds = new Set(f.players.map((p) => p.bookingProfileId).filter(Boolean));
+        const playerIds = new Set(f.players.map((p) => p.playerId));
+        f.requests = requestRows
+            .filter((r) => (r.playerId ? playerIds.has(r.playerId) : bookingIds.has(r.bookingProfileId)))
+            .map((r) => { placed.add(r.id); return { ...caddyRequests.dto(r), checkedIn: checkedInIds(attendance).has(r.caddyId) }; });
+    }
+    const dayBoard = board(attendance);
+    for (const q of dayBoard.queue) q.reservedFor = reserved.has(q.caddyId) ? reserved.get(q.caddyId).teeTime : null;
     // Who could still check in today: active caddies not yet checked in and not on leave.
     const onLeave = await caddySvc.caddyIdsOnLeave(companyId, playDate);
     const checkedIn = new Set(attendance.map((a) => a.caddyId));
@@ -288,10 +322,16 @@ async function day(req, query) {
         playDate,
         courses: courses.map((c) => ({ id: c.id, courseCode: c.courseCode, description: c.description || null, isActive: c.isActive !== false })),
         flights,
-        board: board(attendance),
+        board: dayBoard,
         notCheckedIn: roster.filter((c) => !checkedIn.has(c.id)).map((c) => ({ ...caddyBrief(c), onLeaveType: onLeave.get(c.id) || null })),
         swapReasons: SWAP_REASONS,
+        otherRequests: requestRows.filter((r) => !placed.has(r.id) && ['requested', 'confirmed'].includes(r.status)).map((r) => ({ ...caddyRequests.dto(r), checkedIn: checkedIn.has(r.caddyId) })),
+        reserveWindowMinutes: RESERVE_WINDOW_MINUTES,
     };
+}
+
+function checkedInIds(attendance) {
+    return new Set(attendance.filter((a) => a.status !== 'off').map((a) => a.caddyId));
 }
 
 // GET /caddy-station/resolve?code= - the caddy, today's attendance, the open round.
@@ -330,16 +370,22 @@ async function checkIn(req, body) {
             // Back after a check-out: rejoin the queue at the back.
             Object.assign(existing, { status: 'present', queuedAt: now, checkedOutAt: null, checkedOutBy: null, updatedBy: stamps.updatedBy });
             await existing.save({ transaction });
+            await caddyRequests.confirmOnCheckIn(companyId, caddy.id, workDate, { transaction });
             return { row: existing, caddy, rejoined: true };
         }
         const row = await GolfCaddyAttendance.create({
             companyId, caddyId: caddy.id, caddyNo: caddy.caddyNo, workDate, checkedInAt: now, checkedInBy: stamps.updatedBy,
             queuedAt: now, status: 'present', remarks: typeof body.remarks === 'string' ? body.remarks.trim().slice(0, 255) || null : null, ...stamps,
         }, { transaction });
+        // The caddy's named requests for the day are now confirmed.
+        await caddyRequests.confirmOnCheckIn(companyId, caddy.id, workDate, { transaction });
         return { row, caddy, rejoined: false };
     });
     if (result.error) return result;
-    return { message: `Caddy ${result.caddy.caddyNo} ${result.rejoined ? 'back in the queue' : 'checked in'}.`, attendance: attendanceDto(result.row, result.caddy) };
+    const requests = await caddyRequests.listForDay(companyId, workDate);
+    const mine = requests.filter((r) => r.caddyId === result.caddy.id && r.status === 'confirmed');
+    const note = mine.length ? ` Requested by name for ${mine.map((r) => (r.teeTime ? availability.hhmm(r.teeTime) : 'a flight')).join(', ')}.` : '';
+    return { message: `Caddy ${result.caddy.caddyNo} ${result.rejoined ? 'back in the queue' : 'checked in'}.${note}`, attendance: attendanceDto(result.row, result.caddy) };
 }
 
 // POST /caddy-station/check-out { caddy: { id | code } | attendanceId }
@@ -406,13 +452,23 @@ async function assign(req, body) {
 
         // The day's queue, locked so two stations cannot hand out the same head.
         const attendance = await GolfCaddyAttendance.findAll({ where: { companyId, workDate: playDate }, transaction, lock: transaction.LOCK.UPDATE });
-        const head = nextUp(attendance);
+        // Named requests (slice 3): a confirmed request teeing off soon reserves
+        // its caddy against Next up; a request for THIS flight is the player's
+        // ask, so no out-of-turn confirmation is needed.
+        const clubTime = availability.clubNow(await companyTimezoneById(companyId)).time;
+        const reserved = await caddyRequests.reservedCaddyIds(companyId, playDate, clubTime, { transaction });
+        const flightRef = { bookingProfileId: first.bookingProfileId || null, playerIds };
+        const head = nextUp(attendance, reservedToSkip(reserved, flightRef));
+        const liveRequests = await caddyRequests.listForDay(companyId, playDate, { transaction });
+        const requestFor = (caddyId) => liveRequests.find((r) => r.live !== false && ['requested', 'confirmed'].includes(r.status) && caddyRequests.requestMatches(r, { caddyId, playDate, ...flightRef })) || null;
         let caddy;
         let att;
+        let byName = requestedByName;
         if (body.next === true) {
-            if (!head) return fail('No caddy is waiting in the queue - check one in first.', 409);
+            if (!head) return fail(reserved.size ? `Every waiting caddy is reserved by a request teeing off within ${RESERVE_WINDOW_MINUTES} minutes - assign one by badge or check another in.` : 'No caddy is waiting in the queue - check one in first.', 409);
             caddy = await GolfCaddy.findOne({ where: { companyId, id: head.caddyId }, include: CADDY_INCLUDE, transaction });
             att = head;
+            byName = !!requestFor(caddy.id);
         } else {
             caddy = await findCaddy(companyId, body.caddy || {}, { transaction });
             if (!caddy) return fail(`No caddy matches '${String((body.caddy || {}).code || '').trim()}'.`, 404);
@@ -420,8 +476,13 @@ async function assign(req, body) {
             if (!att) return fail(`Caddy ${caddy.caddyNo} has not checked in on ${playDate}.`, 409);
             if (att.status === 'out') return fail(`Caddy ${caddy.caddyNo} is already on the course - complete or swap that round first.`, 409);
             if (att.status === 'off') return fail(`Caddy ${caddy.caddyNo} has checked out - check in again to rejoin the queue.`, 409);
+            if (requestFor(caddy.id)) byName = true;
+            // A caddy reserved for ANOTHER flight within the window stays with it.
+            if (reserved.has(caddy.id) && !requestFor(caddy.id) && !requestedByName) {
+                return fail(`Caddy ${caddy.caddyNo} is requested by name for the ${reserved.get(caddy.id).teeTime} flight - assign them elsewhere only when this player asked for them too.`, 409);
+            }
             // FIFO: out of turn only when the player asked for this caddy.
-            if (head && head.caddyId !== caddy.id && !requestedByName) {
+            if (head && head.caddyId !== caddy.id && !byName) {
                 return fail(`Caddy ${head.caddyNo} is next in the queue - assign ${caddy.caddyNo} out of turn only when the player asked for them (tick "Player requested this caddy").`, 409);
             }
         }
@@ -457,7 +518,7 @@ async function assign(req, body) {
         const created = await GolfCaddyAssignment.create({
             companyId, caddyId: caddy.id, caddyNo: caddy.caddyNo, caddyAttendanceId: att.id,
             playDate: first.playDate, courseId: first.courseId, bookingProfileId: first.bookingProfileId || null, teeTime: first.teeTime,
-            holes, assignedAt: now, assignedBy: stamps.updatedBy, requestedByName: body.next === true ? false : requestedByName, status: 'assigned', ...stamps,
+            holes, assignedAt: now, assignedBy: stamps.updatedBy, requestedByName: byName, status: 'assigned', ...stamps,
         }, { transaction });
         await GolfCaddyAssignmentPlayer.bulkCreate(rows.map((r) => ({
             caddyAssignmentId: created.id, playerId: r.id, golferId: r.golferId || null, playerName: r.playerName, memberNo: r.memberNo || null,
@@ -466,11 +527,13 @@ async function assign(req, body) {
         att.status = 'out';
         att.updatedBy = stamps.updatedBy;
         await att.save({ transaction });
+        // The named request this assignment fulfils (if any).
+        const fulfilled = await caddyRequests.fulfil({ companyId, caddyId: caddy.id, playDate, bookingProfileId: first.bookingProfileId || null, playerIds, assignmentId: created.id, transaction });
         const full = await GolfCaddyAssignment.findOne({ where: { id: created.id }, include: [{ model: GolfCaddyAssignmentPlayer, as: 'players' }, { model: GolfCaddy, as: 'caddy', attributes: ['id', 'name'] }], transaction });
-        return { assignment: full, caddy, names: rows.map((r) => r.playerName) };
+        return { assignment: full, caddy, names: rows.map((r) => r.playerName), fulfilled: !!fulfilled };
     });
     if (result.error) return result;
-    return { message: `Caddy ${result.caddy.caddyNo} ${result.caddy.name} assigned to ${result.names.join(' and ')}.`, assignment: assignmentDto(result.assignment) };
+    return { message: `Caddy ${result.caddy.caddyNo} ${result.caddy.name} assigned to ${result.names.join(' and ')}${result.fulfilled ? ' (requested by name)' : ''}.`, assignment: assignmentDto(result.assignment) };
 }
 
 // The open assignment named by caddy / code or by assignmentId (locked, no include).
@@ -545,13 +608,22 @@ async function swap(req, body) {
         if (found.error) return found;
         const { open: old, caddy: oldCaddy } = found;
         const attendance = await GolfCaddyAttendance.findAll({ where: { companyId, workDate: String(old.playDate) }, transaction, lock: transaction.LOCK.UPDATE });
-        const head = nextUp(attendance);
+        const playDate = String(old.playDate);
+        const oldPlayerIds = old.players.map((p) => p.playerId);
+        const clubTime = availability.clubNow(await companyTimezoneById(companyId)).time;
+        const reserved = await caddyRequests.reservedCaddyIds(companyId, playDate, clubTime, { transaction });
+        const flightRef = { bookingProfileId: old.bookingProfileId || null, playerIds: oldPlayerIds };
+        const head = nextUp(attendance, reservedToSkip(reserved, flightRef));
+        const liveRequests = await caddyRequests.listForDay(companyId, playDate, { transaction });
+        const requestFor = (caddyId) => liveRequests.find((r) => ['requested', 'confirmed'].includes(r.status) && caddyRequests.requestMatches(r, { caddyId, playDate, ...flightRef })) || null;
         let next;
         let att;
+        let byName = requestedByName;
         if (body.next === true) {
-            if (!head) return fail('No caddy is waiting in the queue - check one in first.', 409);
+            if (!head) return fail(reserved.size ? `Every waiting caddy is reserved by a request teeing off within ${RESERVE_WINDOW_MINUTES} minutes - pick one by badge or check another in.` : 'No caddy is waiting in the queue - check one in first.', 409);
             next = await GolfCaddy.findOne({ where: { companyId, id: head.caddyId }, include: CADDY_INCLUDE, transaction });
             att = head;
+            byName = !!requestFor(next.id);
         } else {
             next = await findCaddy(companyId, body.newCaddy || {}, { transaction });
             if (!next) return fail(`No caddy matches '${String((body.newCaddy || {}).code || '').trim()}'.`, 404);
@@ -559,7 +631,11 @@ async function swap(req, body) {
             att = attendance.find((a) => a.caddyId === next.id) || null;
             if (!att) return fail(`Caddy ${next.caddyNo} has not checked in on ${old.playDate}.`, 409);
             if (att.status !== 'present') return fail(`Caddy ${next.caddyNo} is ${att.status === 'out' ? 'on the course' : 'checked out'}.`, 409);
-            if (head && head.caddyId !== next.id && !requestedByName) {
+            if (requestFor(next.id)) byName = true;
+            if (reserved.has(next.id) && !requestFor(next.id) && !requestedByName) {
+                return fail(`Caddy ${next.caddyNo} is requested by name for the ${reserved.get(next.id).teeTime} flight - swap them in only when this player asked for them too.`, 409);
+            }
+            if (head && head.caddyId !== next.id && !byName) {
                 return fail(`Caddy ${head.caddyNo} is next in the queue - assign ${next.caddyNo} out of turn only when the player asked for them.`, 409);
             }
         }
@@ -570,9 +646,10 @@ async function swap(req, body) {
         const created = await GolfCaddyAssignment.create({
             companyId, caddyId: next.id, caddyNo: next.caddyNo, caddyAttendanceId: att.id,
             playDate: old.playDate, courseId: old.courseId, bookingProfileId: old.bookingProfileId, teeTime: old.teeTime, holes: old.holes,
-            assignedAt: now, assignedBy: stamps.updatedBy, requestedByName: body.next === true ? false : requestedByName, status: 'assigned',
+            assignedAt: now, assignedBy: stamps.updatedBy, requestedByName: byName, status: 'assigned',
             replacesAssignmentId: old.id, ...stamps,
         }, { transaction });
+        await caddyRequests.fulfil({ companyId, caddyId: next.id, playDate, bookingProfileId: old.bookingProfileId || null, playerIds: oldPlayerIds, assignmentId: created.id, transaction });
         await GolfCaddyAssignmentPlayer.bulkCreate(old.players.map((p) => ({
             caddyAssignmentId: created.id, playerId: p.playerId, golferId: p.golferId, playerName: p.playerName, memberNo: p.memberNo, billItemId: p.billItemId,
         })), { transaction });
@@ -617,7 +694,7 @@ async function caddyTagsByPlayer(companyId, playerIds, { transaction } = {}) {
 }
 
 module.exports = {
-    queueOrder, nextUp, countsAsRound, tokenFromCode, enabled,
+    queueOrder, nextUp, reservedToSkip, countsAsRound, tokenFromCode, enabled,
     day, resolve, checkIn, checkOut, assign, complete, swap,
     caddyTagsByPlayer, assignmentDto, attendanceDto, caddyBrief,
 };

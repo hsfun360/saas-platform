@@ -24,7 +24,12 @@ The grade of a caddy decides how many golfers they serve at once, so a one-bag g
 The queue is first in, first out: the first caddy checked in is **next up**, and a caddy who completes a round goes to the back.
 A caddy who is not next up is assigned only when the player asked for that caddy by name.
 
-Each round of service is kept on record with the caddy, the golfers, the holes and whether it counts, which is what the club settles its caddy pay from outside the system.
+Players can ask for a caddy by name ahead of play - on the Golf Booking screen when the booking is made, or at the Tee Time Sheet on the day.
+Such a **named request** is confirmed the moment that caddy checks in, the flight card shows it, and the station assigns the caddy to that flight without the out-of-turn question.
+A caddy with a confirmed request for a flight teeing off within the next 90 minutes is held for it: **Next up** passes over them so they are still there when the flight arrives.
+A request whose tee time passes with no assignment lapses by itself.
+
+Each round of service is kept on record with the caddy, the golfers, the holes and whether it counts, which is what the club settles its caddy pay from outside the system; the Caddy Rounds screen totals them per period.
 
 ## The screen at a glance
 
@@ -34,8 +39,11 @@ Each round of service is kept on record with the caddy, the golfers, the holes a
 - The **scan box**: type a badge number or scan the badge QR and press **Go**; **Camera** reads badges with the device camera; **Next up** names the caddy at the head of the queue and assigns them to the selected slot.
   A line under the box says what the next scan will do.
 - The **Queue** card: the caddies waiting in order (the next one highlighted) with **Check out**, the caddies on course, and **Check in…**.
-- A count line: flights registered, slots ready of slots waiting, rounds out.
+  A waiting caddy held by a named request shows a blue **Requested 10:00** chip with the tee time, and a line under the list counts them.
+- A **Requested by name** card lists the live requests for flights not yet registered today (tee time, caddy, whether the caddy is in), each with **Cannot serve**.
+- A count line: flights registered, slots ready of slots waiting, rounds out, and how many caddies are requested by name.
 - One card per flight with registered golfers: the time and course, booking numbers and the golfer count, then:
+  - the **named requests** of the flight - "Requested caddy C-001 Ali - for Ahmad" (or "for the flight") with its state (requested, confirmed, fulfilled, cancelled, lapsed), whether the caddy is checked in, and for a live request the **Cannot serve** and **Assign** buttons;
   - the **slots** - a tick for a slot that has its caddy (with the badge number and name), a radio-style button for a slot that is **ready** (fee paid), and a dashed note for a slot that is **blocked** with the reason;
   - **No caddy fee** - the golfers without a fee line;
   - the rounds out for the flight, each with **Swap** and **Complete**, and the rounds already completed or swapped.
@@ -56,9 +64,18 @@ Each round of service is kept on record with the caddy, the golfers, the holes a
 
 ### Assign a caddy the player asked for
 
-1. Tap the ready slot and scan the requested caddy's badge.
-2. If that caddy is not next up, the station asks you to confirm **Player requested this caddy - assign**.
-   The round is marked as requested by the player.
+- **Requested ahead (a named request on the flight card):** once the caddy is checked in and the slot's fee is paid, click **Assign** on the request line, or tap the slot and scan that caddy's badge.
+  No confirmation is asked - the request is the player's ask - and the round is marked as requested by name.
+  The message reads "Caddy C-001 Ali assigned to Ahmad (requested by name)."
+- **Asked for at the station:** tap the ready slot and scan the caddy's badge.
+  If that caddy is not next up, the station asks you to confirm **Player requested this caddy - assign**.
+  The round is marked as requested by the player.
+
+### Record that a requested caddy cannot serve
+
+1. On the request line (on the flight card, or in the **Requested by name** card for a flight not yet registered) click **Cannot serve**.
+2. Type the **Reason** (for example unwell, went home) and click **Cancel request**.
+   The flight takes the ordinary queue instead; the player's office sees the request as cancelled by the caddy.
 
 ### Complete a round
 
@@ -107,6 +124,12 @@ Each round of service is kept on record with the caddy, the golfers, the holes a
 | **Reason** | Yes | Caddy unwell or injured, Player request, Complaint against the caddy, Other. | A complaint means the swapped-out round does not count. |
 | **At hole** | No | Where the swap happened. | Whole number from 1 to 18. |
 
+### Cannot serve dialog
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Reason** | Yes | Why the requested caddy cannot take the flight. | Up to 255 characters; kept on the request. |
+
 ## Tips & troubleshooting
 
 - If you see "Caddy management is switched off (Golf Specification).", tick **Enable caddy management** there first.
@@ -118,11 +141,18 @@ Each round of service is kept on record with the caddy, the golfers, the holes a
 - If you see "Caddy C-001 (Trainee) serves 1 golfer - 2 picked.", the grade does not take a shared slot; pick a caddy of a grade that does.
 - If you see "Caddy C-001 is already on the course - complete or swap that round first.", the caddy has an open round.
 - If you see "Caddy C-001 is on the course - complete the round first.", complete the round before checking the caddy out.
+- If you see "Caddy C-002 is requested by name for the 10:00 flight - assign them elsewhere only when this player asked for them too.", the caddy is held for a request teeing off soon; use Next up or another caddy, or confirm the player's request to take them anyway.
+- If you see "Every waiting caddy is reserved by a request teeing off within 90 minutes - assign one by badge or check another in.", the queue holds only requested caddies at the moment.
+- If you see "No ready slot for this request - settle the caddy fee first.", the requesting golfer's caddy fee is unpaid or missing; see the Tee Time Sheet.
+- If you see "Give the reason the caddy cannot serve.", the Cannot serve dialog needs a reason.
+- A request whose tee time passed more than an hour ago with no assignment shows as **lapsed**; nothing needs doing.
 - A handheld scanner must be set to send Enter after the code; the camera is optional and needs camera permission in the browser.
 
 ## Related options
 
-- Golf Management → Front Desk → Tee Time Sheet - where the caddy fee reaches the bill and is paid; each golfer's line there shows the caddy once assigned.
+- Golf Management → Golf Booking - where a player asks for a caddy by name when the booking is made.
+- Golf Management → Front Desk → Caddy Rounds - the rounds recorded here totalled per caddy over a period, with CSV export.
+- Golf Management → Front Desk → Tee Time Sheet - where the caddy fee reaches the bill and is paid, where a caddy is requested by name on the day, and where each golfer's line shows the request or the caddy once assigned.
 - Golf Management → Common Setup → Caddies - the register, the badge QR sheet, leave and notes.
 - Golf Management → Common Setup → Caddy Grades - the golfers a caddy serves at once.
 - Golf Management → Common Setup → Transaction Type - the single and shared caddy fee items.

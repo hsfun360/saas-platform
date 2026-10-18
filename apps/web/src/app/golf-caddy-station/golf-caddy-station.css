@@ -46,6 +46,12 @@
   flex-shrink: 0;
 }
 .cs-qrow__main { display: grid; gap: var(--space-2xs); min-width: 0; flex: 1 1 auto; }
+.cs-qrow .status-chip { margin-left: var(--space-sm); vertical-align: middle; }
+
+/* The named requests of a flight (slice 3): the bs-out row chrome in a list. */
+.cs-reqs { list-style: none; margin: 0 0 var(--space-sm); padding: 0; display: grid; gap: var(--space-xs); }
+.cs-reqs .bs-out .bs-slot__icon { color: var(--brand-text); }
+.cs-reqs .bs-out--closed .bs-slot__icon { color: var(--text-muted); }
 
 /* The check-out / check-in switch rows reuse the register's check style. */
 .gcd-check {

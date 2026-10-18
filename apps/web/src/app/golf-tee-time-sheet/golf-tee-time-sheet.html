@@ -257,6 +257,7 @@
                     @if (e.visit) { · visit {{ e.visit.visitNo }}{{ e.visit.status === 'confirmed' ? ' (not yet received)' : '' }} }
                     @if (e.buggy) { · buggy {{ e.buggy.buggyNo }}{{ e.buggy.status === 'returned' ? ' (returned)' : '' }} }
                     @if (e.caddy) { · caddy {{ e.caddy.caddyNo }}{{ e.caddy.caddyName ? ' ' + e.caddy.caddyName : '' }}{{ e.caddy.status === 'completed' ? ' (done)' : '' }} }
+                    @else if (e.caddyRequest) { · {{ caddyRequestText(e) }} }
                   </span>
                 </span>
                 <span class="fd-slot__status" [style.color]="colorFor(statusOf(e))">{{ statusLabel(statusOf(e)).toUpperCase() }}</span>
@@ -269,14 +270,14 @@
                   @if (!e.registration && e.visit?.status === 'confirmed') {
                     <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="askVisitArrival(e)" [disabled]="busy()">Receive</button>
                   }
-                  @if (e.registration && (!e.bill || e.bill.status === 'open' || canIssueRainCheck(e))) {
+                  @if ((e.registration && (!e.bill || e.bill.status === 'open' || canIssueRainCheck(e))) || canRequestCaddy(e) || canCancelCaddyRequest(e)) {
                     <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + e.playerName">
-                      @if (!e.bill) {
+                      @if (e.registration && !e.bill) {
                         <button type="button" appMenuItem (click)="askCancelRegistration(e)">
                           <span class="material-icons" aria-hidden="true">person_off</span>
                           Cancel registration
                         </button>
-                      } @else if (e.bill.status === 'open') {
+                      } @else if (e.registration && e.bill?.status === 'open') {
                         <button type="button" appMenuItem (click)="askVoidBill(e)">
                           <span class="material-icons" aria-hidden="true">block</span>
                           Void bill
@@ -286,6 +287,18 @@
                         <button type="button" appMenuItem (click)="askRainCheck(e)">
                           <span class="material-icons" aria-hidden="true">umbrella</span>
                           Issue rain check
+                        </button>
+                      }
+                      @if (canRequestCaddy(e)) {
+                        <button type="button" appMenuItem (click)="askCaddyRequest(e)">
+                          <span class="material-icons" aria-hidden="true">sports_golf</span>
+                          Request caddy
+                        </button>
+                      }
+                      @if (canCancelCaddyRequest(e)) {
+                        <button type="button" appMenuItem (click)="askCancelCaddyRequest(e)">
+                          <span class="material-icons" aria-hidden="true">person_remove</span>
+                          Cancel caddy request
                         </button>
                       }
                     </app-overflow-menu>
@@ -657,11 +670,44 @@
           </form>
         }
 
-        <!-- ---- Confirm (cancel registration / void bill) ---- -->
+        <!-- ---- Request caddy: a booked or registered golfer asks for a particular caddy ---- -->
+        @case ('caddyrequest') {
+          <form id="fdCaddyRequest" [formGroup]="caddyRequestForm" (ngSubmit)="submitCaddyRequest()" class="saas-form saas-form--dialog">
+            @if (caddyRequestTarget(); as target) {
+              <p>Ask for a particular caddy for <strong>{{ target.playerName }}</strong>{{ target.memberNo ? ' (' + target.memberNo + ')' : '' }} on {{ listDate() | localDate }}.
+                The request is confirmed when the caddy checks in, and the Caddy Station assigns them to this golfer by name. One request per caddy per day.</p>
+            }
+            @if (caddyCandidatesLoading()) {
+              <p class="cell-subtle">Loading the caddies…</p>
+            } @else if (caddyOptions().length === 0) {
+              <p class="cell-subtle">No caddy is available to request today{{ caddyTakenCount() ? ' - ' + caddyTakenCount() + ' already requested' : '' }}.</p>
+            } @else {
+              <div class="form-group">
+                <label for="fdCaddy">Caddy <span class="required">*</span></label>
+                <app-combobox inputId="fdCaddy" formControlName="caddyId" [options]="caddyOptions()" [allowEmpty]="false"
+                              placeholder="Type the badge number or name…" [invalid]="showError(caddyRequestForm.controls.caddyId)" describedBy="fdCaddyErr" />
+                @if (showError(caddyRequestForm.controls.caddyId)) {
+                  <p id="fdCaddyErr" class="field-error" role="alert">Pick the caddy.</p>
+                }
+                @if (caddyTakenCount()) {
+                  <p class="cell-subtle field-hint">{{ caddyTakenCount() }} caddy(ies) already requested today are not offered.</p>
+                }
+              </div>
+            }
+            <div class="form-group">
+              <label for="fdCaddyRemarks">Remarks</label>
+              <textarea id="fdCaddyRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255" placeholder="e.g. Speaks Mandarin"></textarea>
+            </div>
+          </form>
+        }
+
+        <!-- ---- Confirm (cancel registration / void bill / receive visitor / cancel caddy request) ---- -->
         @case ('confirm') {
           @if (confirmTarget(); as target) {
             @if (confirmKind() === 'void-bill') {
               <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
+            } @else if (confirmKind() === 'cancel-caddy-request') {
+              <p>Cancel the request for caddy <strong>{{ target.caddyRequest?.caddyNo }}{{ target.caddyRequest?.caddyName ? ' ' + target.caddyRequest?.caddyName : '' }}</strong> for {{ target.playerName }}? The caddy goes back to the ordinary queue.</p>
             } @else if (confirmKind() === 'visit-arrival') {
               <p>Receive <strong>{{ target.visit?.visitorName }}</strong> for visit <strong>{{ target.visit?.visitNo }}</strong>. Tick what was sighted; the party can register once both are ticked.</p>
               <label class="fd-check"><input #vLetter type="checkbox" [checked]="visitLetterSighted()" (change)="visitLetterSighted.set(vLetter.checked)" /> <span>Letter of introduction sighted</span></label>
@@ -731,6 +777,12 @@
               {{ busy() ? 'Issuing…' : (rainCheckQuote() ? 'Issue rain check ' + rainCheckQuote()!.amount.toFixed(2) : 'Issue rain check') }}
             </button>
           }
+          @case ('caddyrequest') {
+            <button type="button" class="btn btn--secondary" (click)="keepCaddyRequest()" [disabled]="busy()">« Back</button>
+            <button type="submit" form="fdCaddyRequest" class="btn btn--primary" [disabled]="busy() || caddyCandidatesLoading() || caddyOptions().length === 0">
+              {{ busy() ? 'Requesting…' : 'Request caddy' }}
+            </button>
+          }
           @case ('confirm') {
             @if (confirmKind() === 'visit-arrival') {
               <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">« Back</button>
@@ -740,7 +792,7 @@
             } @else {
               <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>
               <button type="button" class="btn btn--danger" (click)="confirmAction()" [disabled]="busy()">
-                {{ busy() ? 'Working…' : (confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration') }}
+                {{ busy() ? 'Working…' : (confirmKind() === 'void-bill' ? 'Void bill' : (confirmKind() === 'cancel-caddy-request' ? 'Cancel request' : 'Cancel registration')) }}
               </button>
             }
           }

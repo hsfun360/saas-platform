@@ -23,6 +23,7 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 - Each booking is a card titled with the tee time and the course, then the booking number, the holes (9 or 18), the crossover time for an 18-hole flight, the contact mobile, and the players ("3 player(s): Ahmad Faizal, Lim Wei, Guest").
 - A status chip at the top right shows **BOOKED** (green), **CANCELLED** or **NO SHOW** (grey); NO SHOW appears when every player of the booking was recorded as a no-show at the front desk.
 - A booked card has a ⋮ menu holding **Change booking** and **Cancel booking**; a booking that has been changed also shows a blue **Changed ×n** chip and a **Change history** item in the menu.
+  While caddy management is switched on in Golf Specification the menu also offers **Request caddy**, and a **Cancel caddy request C-001** item for each live request; the card then shows a chip per request, e.g. "Caddy C-001 Ali for Ahmad - confirmed".
 - The **New booking** button floats at the bottom right of the screen.
 
 ## Common tasks
@@ -104,6 +105,19 @@ The seats stay held while the club decides through its approval chain: on approv
 Until then the front desk cannot register the players and the booking cannot be changed; the booker's office can **Withdraw booking** from the ⋮ menu, which cancels it freely.
 With no approval chain configured for the purpose Golf flight booking, such a booking is booked at once.
 
+### Request a caddy by name
+
+[Screenshot: Request caddy drawer]
+
+1. Open the booked card's ⋮ menu and click **Request caddy** (offered while caddy management is on in Golf Specification).
+2. In the **Request caddy - B...** drawer pick the **Caddy** (type the badge number or name; caddies on leave that day, inactive or blacklisted are not listed, and one already requested that day is counted but not offered), choose who it is **For** (the whole flight, or one golfer of the booking) and add **Remarks** such as the language wanted.
+3. Click **Request caddy**.
+   The message reads "Caddy C-001 Ali requested for booking B..." and the card shows the request chip as **requested**.
+
+On the play date the request turns **confirmed** when the caddy checks in at the Caddy Station, which then assigns that caddy to the flight by name; a request the caddy cannot honour shows **cancelled by caddy**, and one whose tee time passed unassigned shows **lapsed**.
+Cancelling the booking cancels its requests; moving the booking to another flight keeps them on the new flight.
+To withdraw a request, open the ⋮ menu and click **Cancel caddy request C-001**, then confirm.
+
 ### Cancel a booking
 
 [Screenshot: Cancel booking dialog]
@@ -158,6 +172,14 @@ A posted charge is shown on the No-show Charges screen.
 | **Waive reason** | Yes when waiving | Why the charge is waived. | Up to 255 characters; kept on the charge record. |
 | **Reason** | No | Why the booking is changed. | Up to 255 characters; kept in the change history. |
 
+### Request caddy dialog
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Caddy** | Yes | The caddy the player asks for. | Active caddies not on leave on the play date; one per caddy per day. |
+| **For** | No | The whole flight (default) or one golfer of the booking. | Name the golfer when the caddy is for one player of a shared flight. |
+| **Remarks** | No | Anything the station should know, e.g. `Speaks Mandarin`. | Up to 255 characters. |
+
 ### Cancel booking dialog
 
 | Field | Required | What to enter | Rules |
@@ -200,6 +222,10 @@ A posted charge is shown on the No-show Charges screen.
 - If you see "Player n: E1 at 08:04 on 2026-10-20 is outside the playing rights of <type>." the club restricts where or when that player type may play (Golf Specification → Playing Rights & Round Quotas); pick a flight inside the allowed course, days or time band.
 - If you see "Player n: already has 4 weekend round(s) this month (... to ...) - <type> allows 4." the player has used their round quota for the period.
 - If you see "Booking B... awaits approval", nothing is wrong: the flight is held until the club approves the booking.
+- If you see "Caddy C-001 is already requested on <date> (10:00) - one request per caddy per day." another flight holds that caddy; pick another caddy or ask the other party to release theirs.
+- If you see "Caddy C-001 is already requested for this booking." the booking already has that request - see the chip on the card.
+- If you see "Caddy C-003 is on sick leave on <date>." or "Caddy C-004 is inactive and cannot be requested." pick another caddy; the Caddies screen holds the leave records and statuses.
+- If you see "Caddy management is switched off (Golf Specification)." requests need the Caddies switch on there.
 - A member with no golfing right may still book and is charged the member green fee at registration; members with golfing rights are not charged a green fee.
 - Keep the Play date filter in mind when a booking "disappears": the list shows one date at a time, and a confirmed booking moves the filter to its play date.
 
@@ -214,5 +240,7 @@ A posted charge is shown on the No-show Charges screen.
 - Golf Management → Numbering Control - the Booking No. series.
 - Golf Management → Front Desk → Tee Time Sheet - registers the booked players on the day, takes walk-ins and records no-shows.
 - Golf Management → Front Desk → No-show Charges - follow-up of late-cancellation charges raised here.
+- Golf Management → Front Desk → Caddy Station - confirms and fulfils the caddy requests made here on the play date.
+- Golf Management → Common Setup → Caddies - the caddies offered in Request caddy, with their leave and status.
 - Golf Management → Group Bookings - group and tournament bookings.
 - Membership Management → Membership Type - golf guest quota per booking and golfing rights.
