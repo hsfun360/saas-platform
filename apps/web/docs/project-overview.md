@@ -812,7 +812,7 @@ What stays inline regardless: empty-state guidance ("No exceptions - …"), comp
 Long texts belong in a `readonly hint = {…}` record on the component, bound with `[text]="hint.x"`.
 
 **Sticky save bar - Save never needs a scroll on a long settings form.**
-The form's last child is `<div class="save-bar" *appCan="'edit'">`: sticky at the viewport bottom, holding the Save button (disabled until dirty) and - once `form.dirty` - an "Unsaved changes" `.save-bar__status` plus a "Discard changes" `.btn--link` that re-loads the saved state.
+The form's last child is `@if (form.dirty) { <div class="save-bar" *appCan="'edit'"> }`: the bar exists ONLY while the form is dirty (user feedback 2026-10-19: a pristine bar holding one lonely Save read as a stray floating button), then docks sticky at the viewport bottom with "Unsaved changes" (`.save-bar__status`), a "Discard changes" `.btn--link` that re-loads the saved state, and Save.
 Keep `bottom: 0` at every tier: the shell's `.content-area` bottom padding already clears the mobile bottom nav, so an explicit nav offset double-counts (measured on the pilot).
 Dialogs do NOT use it - the drawer footer already is a fixed action bar.
 

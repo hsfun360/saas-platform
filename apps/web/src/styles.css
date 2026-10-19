@@ -896,6 +896,19 @@ textarea:disabled {
   font-size: var(--font-body-2);
   color: var(--text-secondary);
 }
+/* The bar exists ONLY while the form is dirty (a pristine screen shows no
+   floating chrome - a lone empty bar read as a stray floating button);
+   ease it in when the first edit summons it. */
+.save-bar {
+  animation: save-bar-in 0.2s ease;
+}
+@keyframes save-bar-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-bar { animation: none; }
+}
 
 /* ============================================================== */
 /* Array-editor card - FormArray row editors (standard 2026-10-18) */

@@ -994,17 +994,19 @@
         }
       </div>
 
-      <!-- Sticky save bar (house standard for long settings forms): Save is
-           reachable without scrolling, and the dirty state stays visible. -->
-      <div class="save-bar" *appCan="'edit'">
-        @if (form.dirty) {
+      <!-- Sticky save bar (house standard for long settings forms): appears
+           ONLY once the form is dirty - a pristine screen shows no floating
+           chrome - then docks at the viewport bottom so Save is reachable
+           without scrolling and the unsaved state stays visible. -->
+      @if (form.dirty) {
+        <div class="save-bar" *appCan="'edit'">
           <span class="save-bar__status">Unsaved changes</span>
           <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
-        }
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">
-          {{ saving() ? 'Saving…' : 'Save' }}
-        </button>
-      </div>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      }
     </form>
   }
 </div>
