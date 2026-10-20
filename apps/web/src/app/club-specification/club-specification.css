@@ -101,13 +101,4 @@
   border-top: 1px solid var(--border);
 }
 
-.cs-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 767px) {
-  .cs-actions .btn {
-    width: 100%;
-  }
-}
+/* Save moved into the global sticky .save-bar (styles.css). */

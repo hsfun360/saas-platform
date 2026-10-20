@@ -156,7 +156,7 @@ const routes: Routes = [
       { path: 'membership/membership-analysis', loadComponent: () => import('./app/membership-insights/membership-analysis').then((m) => m.MembershipAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/agent-performance', loadComponent: () => import('./app/membership-insights/agent-performance').then((m) => m.AgentPerformanceComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Club Specification (SRS 2.1.1) - the per-company membership system master.
-      { path: 'membership/settings', loadComponent: () => import('./app/club-specification/club-specification').then((m) => m.ClubSpecificationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/settings', loadComponent: () => import('./app/club-specification/club-specification').then((m) => m.ClubSpecificationComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Master File Setup → Membership Status (per-company master file).
       { path: 'membership/statuses', loadComponent: () => import('./app/membership-statuses/membership-statuses').then((m) => m.MembershipStatusesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/fees', loadComponent: () => import('./app/membership-fees/membership-fees').then((m) => m.MembershipFeesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
@@ -210,7 +210,7 @@ const routes: Routes = [
       { path: 'ar/analysis', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       { path: 'ar/analysis/:id', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Specification - company-wide AR options (same role as Club Specification).
-      { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
+      { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'AR' } },
       { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       { path: 'ar/statements', loadComponent: () => import('./app/ar-statements/ar-statements').then((m) => m.ArStatementsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).

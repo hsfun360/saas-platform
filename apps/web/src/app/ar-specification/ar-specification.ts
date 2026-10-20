@@ -8,6 +8,9 @@ import { CanDirective } from '../shared/can.directive';
 import { ArService } from '../services/ar.service';
 import { ArDesignatedTypeOption, ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { FieldInfoComponent } from '../shared/field-info/field-info';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
 import { openBlobInNewTab } from '../shared/open-blob';
 
 // Combobox row for a designated-transaction-type picker: code - description.
@@ -46,13 +49,63 @@ const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     CanDirective, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent,
+    FieldInfoComponent, ConfirmDialogComponent,
   ],
   templateUrl: './ar-specification.html',
   styleUrls: ['./ar-specification.css'],
+  host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
-export class ArSpecificationComponent implements OnInit {
+export class ArSpecificationComponent implements OnInit, UnsavedChangesAware {
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
+
+  // Long behavioural explanations live in <app-field-info> popovers (the
+  // settings-chrome standard): each field keeps at most ONE short inline hint.
+  readonly hint = {
+    cutoff: 'Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug. Short months clamp to their last day. Day 31 behaves the same as blank.',
+    aging: '30, 60, 90, 120 prints <=30, 31-60, 61-90, 91-120, >120 - N filled boundaries print N+1 buckets.',
+    integration: 'Off = fees are collected at the membership front desk (cash/card) and the runs refuse to post. Independent of Club Specification\'s credit facility - that switch governs frontend charge-to-account.',
+    multiCurrency: 'Off = every account is in the base currency and no currency controls are shown. Membership and Nominee accounts always stay in the base currency; a foreign-currency customer gets its own Other Debtor account per currency. Maintain the rates under Exchange Rates.',
+    forex: 'Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under this one entry for the GL - gain vs loss by the sign of the difference - never posted to the debtor.',
+  };
+
+  // Route-leave guard (unsavedChangesGuard on the route).
+  readonly leaveConfirm = signal<ConfirmRequest | null>(null);
+  private leaveResolve: ((leave: boolean) => void) | null = null;
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
+  confirmLeave(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.leaveResolve = resolve;
+      this.leaveConfirm.set({
+        title: 'Discard unsaved changes?',
+        message: 'Your AR specification changes have not been saved and will be lost if you leave this screen.',
+        confirmLabel: 'Discard changes',
+        cancelLabel: 'Keep editing',
+        run: () => this.resolveLeave(true),
+      });
+    });
+  }
+
+  cancelLeave(): void {
+    this.resolveLeave(false);
+  }
+
+  private resolveLeave(leave: boolean): void {
+    this.leaveConfirm.set(null);
+    this.leaveResolve?.(leave);
+    this.leaveResolve = null;
+  }
+
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -110,6 +163,19 @@ export class ArSpecificationComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  // Also the save bar's "Discard changes": re-loading resets every control
+  // (and the columns FormArray) to the saved state, pristine.
+  discard(): void {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.loading.set(true);
+    this.load();
+  }
+
+  private load(): void {
     this.service.getArSetting().subscribe({
       next: (res) => {
         this.membershipEntitled.set(res.membershipModuleEntitled === true);

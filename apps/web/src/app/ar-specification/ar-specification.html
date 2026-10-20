@@ -45,7 +45,9 @@
         @if (isExpanded('cutoff')) {
           <div class="settings-body">
             <div class="form-group form-group--narrow">
-              <label for="arspCutoff">Statement cutoff day</label>
+              <label for="arspCutoff">Statement cutoff day
+                <app-field-info label="Statement cutoff day" [text]="hint.cutoff" />
+              </label>
               <input id="arspCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
                      formControlName="statementCutoffDay" placeholder="Blank = calendar month"
                      [attr.aria-invalid]="showError(form.controls.statementCutoffDay)"
@@ -53,7 +55,6 @@
               @if (showError(form.controls.statementCutoffDay)) {
                 <div id="arspCutoffErr" class="field-error" role="alert">Cutoff day must be a whole day between 1 and 31 (or blank for calendar month).</div>
               }
-              <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug. Short months clamp to their last day. Day 31 behaves the same as blank.</small>
             </div>
           </div>
         }
@@ -73,7 +74,9 @@
           <div class="settings-body">
             <div class="arsp-aging__grid">
               <div class="form-group">
-                <label for="arspA1">Aging 1 <span class="required">*</span></label>
+                <label for="arspA1">Aging 1 <span class="required">*</span>
+                  <app-field-info label="Aging boundaries" [text]="hint.aging" />
+                </label>
                 <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" [attr.aria-invalid]="showError(form.controls.aging1)" aria-describedby="arspA1Err" />
                 @if (showError(form.controls.aging1)) {
                   <div class="field-error" role="alert" id="arspA1Err">The first boundary is required.</div>
@@ -85,7 +88,7 @@
               <div class="form-group"><label for="arspA5">Aging 5</label><input id="arspA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
               <div class="form-group"><label for="arspA6">Aging 6</label><input id="arspA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
             </div>
-            <small class="cell-subtle">Fill left to right, each greater than the last. 30, 60, 90, 120 prints &lt;=30, 31-60, 61-90, 91-120, &gt;120. Changing boundaries only affects statements generated AFTER the change - existing statements keep the buckets they were printed with.</small>
+            <small class="cell-subtle">Fill left to right, each greater than the last. Changing boundaries only affects statements generated after the change.</small>
           </div>
         }
       </section>
@@ -167,14 +170,11 @@
           @if (isExpanded('integration')) {
             <div class="settings-body">
               <div class="form-group">
-                <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-                  <input type="checkbox" formControlName="membershipIntegration" style="width: 18px; height: 18px; accent-color: var(--brand);" />
-                  Membership bills through AR (fee runs and standing charges post as AR documents)
+                <label class="arsp-check switch">
+                  <input type="checkbox" role="switch" formControlName="membershipIntegration" />
+                  <span>Membership bills through AR (fee runs and standing charges post as AR documents)</span>
+                  <app-field-info label="Membership billing through AR" [text]="hint.integration" />
                 </label>
-                <small class="cell-subtle">
-                  Off = fees are collected at the membership front desk (cash/card) and the runs refuse to post.
-                  Independent of Club Specification's credit facility - that switch governs frontend charge-to-account.
-                </small>
               </div>
               <div class="form-grid">
                 <div class="form-group">
@@ -224,42 +224,53 @@
               </p>
             }
             <div class="form-group">
-              <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-                <input type="checkbox" formControlName="multiCurrencyEnabled"
-                       style="width: 18px; height: 18px; accent-color: var(--brand);" />
-                Enable multi-currency (Other Debtor accounts may be opened in a foreign currency)
+              <label class="arsp-check switch">
+                <input type="checkbox" role="switch" formControlName="multiCurrencyEnabled" />
+                <span>Enable multi-currency (Other Debtor accounts may be opened in a foreign currency)</span>
+                <app-field-info label="Multi-currency" [text]="hint.multiCurrency" />
               </label>
-              <small class="cell-subtle">
-                Off = every account is in {{ baseCurrencyCode() || 'the base currency' }} and no currency controls are shown.
-                Membership and Nominee accounts always stay in the base currency; a foreign-currency customer gets its own Other Debtor account per currency.
-                Maintain the rates under Exchange Rates.
-              </small>
             </div>
             <div class="form-grid">
               <div class="form-group">
-                <label for="arspFxType">Exchange difference posts under</label>
+                <label for="arspFxType">Exchange difference posts under
+                  <app-field-info label="Exchange difference" [text]="hint.forex" />
+                </label>
                 <app-combobox inputId="arspFxType" formControlName="fxTransactionTypeId"
                               [options]="forexTypeChoices()"
                               [allowEmpty]="true" emptyLabel="- Not set -"
                               placeholder="Type to search…" />
               </div>
             </div>
-            <small class="cell-subtle">A Forex-class entry of the Transaction Type master. Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under this one entry for the GL - gain vs loss by the sign of the difference - never posted to the debtor.</small>
+            <small class="cell-subtle">A Forex-class entry of the Transaction Type master.</small>
           </div>
         }
       </section>
 
       <div class="arsp-actions">
-        <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="saving()">
-          {{ saving() ? 'Saving…' : 'Save specification' }}
-        </button>
         <button type="button" class="btn btn--secondary" [disabled]="previewing()" (click)="onPreviewLayout()">
           <span class="material-icons" aria-hidden="true">visibility</span>
           {{ previewing() ? 'Rendering…' : 'Preview layout (PDF)' }}
         </button>
       </div>
       <small class="cell-subtle">The preview renders the last SAVED options on a sample statement - save first to see changes.</small>
+
+      <!-- Sticky save bar (settings-chrome standard): exists only while the
+           form is dirty, docked at the viewport bottom. -->
+      @if (form.dirty) {
+        <div class="save-bar" *appCan="'edit'">
+          <span class="save-bar__status">Unsaved changes</span>
+          <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      }
     </form>
+
+    <!-- Route-leave confirmation (unsavedChangesGuard). -->
+    @if (leaveConfirm(); as c) {
+      <app-confirm-dialog [request]="c" (cancelled)="cancelLeave()" />
+    }
   }
 
 </div>

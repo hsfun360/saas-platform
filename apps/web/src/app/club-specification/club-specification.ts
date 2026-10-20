@@ -7,6 +7,8 @@ import { ClubSpecificationService } from '../services/club-specification.service
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ClubNumbering, ClubSpecification, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
 
 // Membership Management → Club Specification (SRS 2.1.1 - the membership
 // system master). A per-company singleton the club sets once: club type,
@@ -19,13 +21,60 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-club-specification',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ConfirmDialogComponent],
   templateUrl: './club-specification.html',
   styleUrls: ['../numbering/numbering.css', './club-specification.css'],
+  host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
-export class ClubSpecificationComponent implements OnInit {
+export class ClubSpecificationComponent implements OnInit, UnsavedChangesAware {
   private readonly service = inject(ClubSpecificationService);
   private readonly fb = inject(FormBuilder);
+
+  // Route-leave guard (unsavedChangesGuard on the route): a menu click,
+  // browser Back or refresh cannot silently drop a dirty form.
+  readonly leaveConfirm = signal<ConfirmRequest | null>(null);
+  private leaveResolve: ((leave: boolean) => void) | null = null;
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
+  confirmLeave(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.leaveResolve = resolve;
+      this.leaveConfirm.set({
+        title: 'Discard unsaved changes?',
+        message: 'Your club specification changes have not been saved and will be lost if you leave this screen.',
+        confirmLabel: 'Discard changes',
+        cancelLabel: 'Keep editing',
+        run: () => this.resolveLeave(true),
+      });
+    });
+  }
+
+  cancelLeave(): void {
+    this.resolveLeave(false);
+  }
+
+  private resolveLeave(leave: boolean): void {
+    this.leaveConfirm.set(null);
+    this.leaveResolve?.(leave);
+    this.leaveResolve = null;
+  }
+
+  // The save bar's "Discard changes": re-load resets everything pristine.
+  discard(): void {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.load();
+  }
+
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
 
   readonly loading = signal(false);
   readonly saving = signal(false);

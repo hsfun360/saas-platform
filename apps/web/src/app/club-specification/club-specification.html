@@ -234,12 +234,23 @@
         }
       </section>
 
-      <div class="cs-actions">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">
-          {{ saving() ? 'Saving…' : 'Save club specification' }}
-        </button>
-      </div>
+      <!-- Sticky save bar (settings-chrome standard): exists only while the
+           form is dirty, docked at the viewport bottom. -->
+      @if (form.dirty) {
+        <div class="save-bar">
+          <span class="save-bar__status">Unsaved changes</span>
+          <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      }
     </form>
+
+    <!-- Route-leave confirmation (unsavedChangesGuard). -->
+    @if (leaveConfirm(); as c) {
+      <app-confirm-dialog [request]="c" (cancelled)="cancelLeave()" />
+    }
   }
 
   <!-- ============ Configure numbering format dialog ============ -->

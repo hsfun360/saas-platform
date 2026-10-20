@@ -73,7 +73,9 @@ input[type='number'] {
   cursor: pointer;
 }
 
-.arsp-check input[type='checkbox'] {
+/* Plain option checkboxes only - the feature-enabler rows compose the global
+   .switch, whose input must keep the 44x24 toggle sizing. */
+.arsp-check input[type='checkbox']:not([role='switch']) {
   width: var(--icon-sm);
   height: var(--icon-sm);
   accent-color: var(--brand);
