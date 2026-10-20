@@ -24,7 +24,7 @@ export interface ConfirmRequest {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DialogComponent],
   template: `
-    <app-dialog [title]="request().title" (close)="cancelled.emit()">
+    <app-dialog [title]="request().title" [backTrap]="backTrap()" (close)="cancelled.emit()">
       <p style="margin: 0;">{{ request().message }}</p>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="cancelled.emit()">Cancel</button>
@@ -37,5 +37,8 @@ export interface ConfirmRequest {
 })
 export class ConfirmDialogComponent {
   readonly request = input.required<ConfirmRequest>();
+  // false ONLY when the confirm opens during a paused router navigation (the
+  // route-leave unsaved-changes guard) - see <app-dialog>'s backTrap note.
+  readonly backTrap = input(true);
   readonly cancelled = output<void>();
 }

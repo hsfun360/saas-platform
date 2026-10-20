@@ -27,6 +27,7 @@ import { LoginComponent } from './app/login/login';
 import { Dashboard } from './app/dashboard/dashboard';
 import { authGuard, onboardingGuard, mfaSetupGuard } from './app/auth.guard';
 import { systemAccessGuard } from './app/access.guard';
+import { unsavedChangesGuard } from './app/shared/unsaved-changes.guard';
 
 // 1. Define Routes
 //
@@ -255,7 +256,7 @@ const routes: Routes = [
       // the old path redirects so bookmarks keep working).
       { path: 'golf/tee-time-sheet', loadComponent: () => import('./app/golf-tee-time-sheet/golf-tee-time-sheet').then((m) => m.GolfTeeTimeSheetComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/front-desk', redirectTo: 'golf/tee-time-sheet', pathMatch: 'full' },
-      { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 

@@ -816,6 +816,10 @@ The form's last child is `@if (form.dirty) { <div class="save-bar" *appCan="'edi
 Keep `bottom: 0` at every tier: the shell's `.content-area` bottom padding already clears the mobile bottom nav, so an explicit nav offset double-counts (measured on the pilot).
 Dialogs do NOT use it - the drawer footer already is a fixed action bar.
 
+**Route-leave guard - a dirty settings form is never silently abandoned.**
+The screen-level counterpart of the dialog `[dirty]` guard: the route mounts `canDeactivate: [unsavedChangesGuard]` (`shared/unsaved-changes.guard.ts`) and the component implements `UnsavedChangesAware` - `hasUnsavedChanges()` (`form.dirty && !saving()`) and `confirmLeave()`, which opens the shared `<app-confirm-dialog>` ("Discard unsaved changes?" / Cancel) with **`[backTrap]="false"`** (the router navigation is paused while it shows; the dialog's own history trap would pop after the guard resolves and yank the navigation around - that is why `<app-dialog>` grew the `backTrap` input).
+A sidebar menu click, `router.navigate` and the SPA browser Back all pause on the confirm (on Back the URL flips first and the router restores it on Cancel - normal popstate behaviour); a refresh / tab close gets the native "Leave site?" prompt via a `(window:beforeunload)` host binding on the component.
+
 **Array-editor card - FormArray row editors get a boundary.**
 Every add/remove row editor (overrides, exceptions, rules) sits on the global **`.array-editor`** card: a lightly sunken bordered surface holding the header row, the rows, the Add button and the empty-state hint - so the repeating group reads as one unit, separate from the static fields around it.
 Compose it on the editor's container; row inputs keep the grid-row field chrome standard.

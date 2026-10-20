@@ -1008,5 +1008,12 @@
         </div>
       }
     </form>
+
+    <!-- Route-leave confirmation (unsavedChangesGuard): the router pauses the
+         navigation while this asks; backTrap off because the navigation is
+         already in flight. -->
+    @if (leaveConfirm(); as c) {
+      <app-confirm-dialog [request]="c" [backTrap]="false" (cancelled)="cancelLeave()" />
+    }
   }
 </div>

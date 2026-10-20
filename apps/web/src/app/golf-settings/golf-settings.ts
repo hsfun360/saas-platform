@@ -24,6 +24,8 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { FieldInfoComponent } from '../shared/field-info/field-info';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
 import {
   GolfSettingService,
   GolfAdvanceBookingOverride,
@@ -56,13 +58,55 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, ComboboxComponent, FieldInfoComponent],
+  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, ComboboxComponent, FieldInfoComponent, ConfirmDialogComponent],
   templateUrl: './golf-settings.html',
   styleUrls: ['./golf-settings.css'],
+  host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
-export class GolfSettingsComponent implements OnInit {
+export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
   private readonly service = inject(GolfSettingService);
   private readonly fb = inject(FormBuilder);
+
+  // Route-leave guard (unsavedChangesGuard on the route): a menu click,
+  // browser Back or refresh cannot silently drop a dirty form - the user
+  // chooses Discard or stays.
+  readonly leaveConfirm = signal<ConfirmRequest | null>(null);
+  private leaveResolve: ((leave: boolean) => void) | null = null;
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
+  confirmLeave(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.leaveResolve = resolve;
+      this.leaveConfirm.set({
+        title: 'Discard unsaved changes?',
+        message: 'Your golf specification changes have not been saved and will be lost if you leave this screen.',
+        confirmLabel: 'Discard changes',
+        run: () => this.resolveLeave(true),
+      });
+    });
+  }
+
+  cancelLeave(): void {
+    this.resolveLeave(false);
+  }
+
+  private resolveLeave(leave: boolean): void {
+    this.leaveConfirm.set(null);
+    this.leaveResolve?.(leave);
+    this.leaveResolve = null;
+  }
+
+  // Browser refresh / tab close while dirty: the native "Leave site?" prompt
+  // (the only leave path the browser lets us guard).
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
 
   // Long behavioural explanations live in <app-field-info> popovers (the
   // field-info standard): each field keeps at most ONE short inline hint;
