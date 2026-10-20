@@ -72,7 +72,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, inject, inpu
   `,
 })
 export class FieldInfoComponent implements OnDestroy {
-  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // The field's label, for the icon's accessible name ("About <label>").
   readonly label = input<string>('');

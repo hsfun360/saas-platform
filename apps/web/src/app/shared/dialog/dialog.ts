@@ -87,12 +87,6 @@ export class DialogComponent implements OnInit, OnDestroy {
   // Typed nullable because NgForm.dirty is `boolean | null`; every read is a
   // truthy check so null/undefined behave as "not dirty".
   readonly dirty = input<boolean | null | undefined>(false);
-  // The browser-Back history trap (see the class comment). Leave it ON for
-  // normal screen dialogs; a dialog opened DURING a paused router navigation
-  // (the route-leave unsaved-changes confirm) must pass false - its pushed
-  // entry would pop only after the guard resolves and yank the router's own
-  // navigation around.
-  readonly backTrap = input(true);
   readonly discardTitle = input('Discard unsaved changes?');
   readonly discardMessage = input(
     'Your changes have not been saved and will be lost if you leave this form.',
@@ -129,12 +123,12 @@ export class DialogComponent implements OnInit, OnDestroy {
     // Trap browser Back / mobile back while the dialog is open: push a same-URL
     // history entry so a Back press pops THIS instead of navigating the whole
     // editing screen away (which would silently drop the user's edits).
-    // (Here rather than the constructor: signal inputs are not readable there.)
-    if (this.backTrap()) {
-      history.pushState({ appDialogGuard: true }, '');
-      this.pushedGuardEntry = true;
-      window.addEventListener('popstate', this.onPopState);
-    }
+    // (A confirmation that may open during a PAUSED router navigation - the
+    // route-leave guard - must not be an <app-dialog>: the shared
+    // <app-confirm-dialog> card exists for that and pushes no history.)
+    history.pushState({ appDialogGuard: true }, '');
+    this.pushedGuardEntry = true;
+    window.addEventListener('popstate', this.onPopState);
   }
 
   ngOnDestroy(): void {

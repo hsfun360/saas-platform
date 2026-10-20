@@ -84,6 +84,7 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
         title: 'Discard unsaved changes?',
         message: 'Your golf specification changes have not been saved and will be lost if you leave this screen.',
         confirmLabel: 'Discard changes',
+        cancelLabel: 'Keep editing',
         run: () => this.resolveLeave(true),
       });
     });

@@ -37,7 +37,7 @@ export interface ComboOption {
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => ComboboxComponent), multi: true }],
 })
 export class ComboboxComponent implements OnDestroy, ControlValueAccessor {
-  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly options = input<ComboOption[]>([]);
   readonly value = input<string>('');

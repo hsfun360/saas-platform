@@ -6,8 +6,8 @@ import { CanDeactivateFn } from '@angular/router';
 // router.navigate all pause here until the user chooses Discard or stays.
 // This is the routed-screen counterpart of <app-dialog>'s [dirty] guard.
 //
-// The screen owns the confirmation UI (the shared <app-confirm-dialog>, with
-// [backTrap]="false" because the router navigation is paused while it shows):
+// The screen owns the confirmation UI (the shared <app-confirm-dialog> card,
+// which pushes no history, so the paused router navigation is undisturbed):
 //   readonly leaveConfirm = signal<ConfirmRequest | null>(null);
 //   hasUnsavedChanges(): boolean { return this.form.dirty && !this.saving(); }
 //   confirmLeave(): Promise<boolean> { ... resolve(true) on Discard ... }
