@@ -236,11 +236,12 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     return d < now.date || (d === now.date && f.teeTime <= now.time);
   }
 
-  // The current flight of a course: the first one still to tee off today.
+  // The current flight of a course: the first one still to tee off today
+  // that can take a tee-off (closed and crossover-only rows are skipped).
   isNow(c: FrontDeskCourseSheet, f: FrontDeskFlight): boolean {
     const now = this.clubNow();
     if (!now || this.listDate() !== now.date) return false;
-    const next = c.flights.find((x) => x.teeTime > now.time);
+    const next = c.flights.find((x) => x.teeTime > now.time && !x.closed && !x.crossoverOnly);
     return !!next && next.teeTime === f.teeTime;
   }
 
