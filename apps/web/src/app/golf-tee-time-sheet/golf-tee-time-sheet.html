@@ -157,9 +157,16 @@
                         [class.fd-flight--closed]="f.closed || f.crossoverOnly"
                         [class.fd-flight--full]="!f.closed && !f.crossoverOnly && !f.offGrid && f.seatsLeft === 0"
                         [class.fd-flight--dim]="searchActive() && !isHit(c.courseId, f.teeTime)"
-                        [class.fd-flight--hit]="isHit(c.courseId, f.teeTime)">
+                        [class.fd-flight--hit]="isHit(c.courseId, f.teeTime)"
+                        [class.fd-flight--past]="isPast(f)"
+                        [class.fd-flight--now]="isNow(c, f)">
                   <span class="fd-flight__top">
                     <span class="fd-flight__time">{{ f.teeTime }}</span>
+                    @if (isNow(c, f)) {
+                      <span class="fd-flight__state fd-flight__state--now" title="The next flight to tee off">NEXT</span>
+                    } @else if (isPast(f) && !f.closed && !f.crossoverOnly) {
+                      <span class="fd-flight__state" title="Teed off - registration is closed">TEED OFF</span>
+                    }
                     @if (f.closed && f.heldBy) {
                       <span class="fd-flight__state fd-flight__state--held" [title]="'Held for ' + f.heldBy">HELD · {{ f.heldBy }}</span>
                     } @else if (f.closed) {
@@ -226,13 +233,19 @@
             <div class="fd-bill-head">
               <span>{{ listDate() | localDate }} · <strong>{{ flightCourse()?.courseDescription || flightCourse()?.courseCode }}</strong></span>
               @if (f.offGrid) { <span class="fd-flight__state">OFF GRID</span> }
+              @else if (flightPast()) { <span class="fd-flight__state" title="Teed off - registration is closed">TEED OFF</span> }
               @else { <span class="cell-subtle">{{ f.seatsLeft }} seat{{ f.seatsLeft === 1 ? '' : 's' }} free</span> }
             </div>
+            @if (flightPast()) {
+              <p class="cell-subtle fd-teedoff">This flight has teed off - booked players can no longer register here and no walk-in can be added; registered players are billed as usual.</p>
+            }
 
             @for (e of f.entries; track e.playerId) {
               <div class="fd-slot">
                 @if (!e.registration && e.bookingStatus === 'pending-approval') {
                   <span class="fd-seat fd-slot__dot" title="Awaiting approval"></span>
+                } @else if (!e.registration && flightPast()) {
+                  <span class="fd-seat fd-slot__dot" title="Teed off - registration is closed"></span>
                 } @else if (!e.registration) {
                   <input type="checkbox" class="fd-slot__check" [checked]="selected().has(e.playerId)"
                          (change)="toggleSelected(e.playerId)"
@@ -353,7 +366,7 @@
                     </button>
                   </div>
                 </form>
-              } @else if (i === 0) {
+              } @else if (i === 0 && !flightPast()) {
                 <button *appCan="'create'" type="button" class="fd-slot fd-slot--free" (click)="openSlotWalkin()" [disabled]="busy()">
                   <span class="fd-seat fd-slot__dot"></span>
                   <span class="fd-slot__free">+ Add walk-in</span>

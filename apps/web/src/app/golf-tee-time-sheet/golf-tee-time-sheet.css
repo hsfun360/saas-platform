@@ -215,6 +215,21 @@
 .fd-flight--dim {
   opacity: 0.6; /* dimmed but still AA-readable */
 }
+/* The club clock (2026-10-21): flights that have teed off read muted;
+   the next flight to tee off carries a brand rail and the NEXT tag. */
+.fd-flight--past .fd-flight__time {
+  color: var(--text-muted);
+}
+.fd-flight--now {
+  border-color: var(--brand);
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+.fd-flight__state--now {
+  color: var(--brand-text);
+}
+.fd-teedoff {
+  margin: 0 0 var(--space-sm);
+}
 .fd-flight--hit {
   /* The field halo: a BLURRED glow, never a hard spread ring (it rasterises
      into a flat offset box at fractional display scaling). */

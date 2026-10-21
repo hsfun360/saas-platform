@@ -15,6 +15,8 @@ Bookings are made elsewhere (Golf Booking); this screen is where the day actuall
 [Screenshot: Tee Time Sheet with two course cards]
 
 - **Play date** picks the day; today is selected by default.
+  On today's sheet the screen opens scrolled to the next flight to tee off (by the club's clock), tagged **NEXT** with a blue rail; flights already teed off are tagged **TEED OFF** with a muted time.
+  A flight that has teed off, on today or any past date, takes no registration: booked players cannot be registered on it and no walk-in can be added, while its registered players are billed and settled as usual.
 - The search box highlights the flights holding a matching golfer (name, member no, booking no or registration no) and dims the rest; the first match scrolls into view.
 - **No-shows** (today and past dates only) opens the review of booked players who did not register.
 - A legend shows the four dot colours (set on Golf Specification): **Booked**, **Registered**, **Billed**, **Settled**, plus **Available** for the blank outline of a free seat.
@@ -226,6 +228,7 @@ With the rule off, no-shows are recorded without charges.
 ## Tips & troubleshooting
 
 - If you see "No tee sheet is configured for this course on that date", the course has no tee-time set covering the day - see Course Setup.
+- If you see "Flight 09:00 has already teed off - registration is closed." (with the date when it is not today), the tee time is at or before the club's current time; a late arrival is recorded as a no-show by the No-shows review, or registered on a later free flight as a walk-in.
 - If you see "That flight time is closed for crossover - no new tee-offs", "That flight is blocked by a course closure" or "That flight is full", pick another flight.
 - If you see "No crossover flight remains for 18 holes at that time" or "The crossover nine is closed at ...", register the walk-in for 9 holes.
 - If you see "Configure the Registration No. (or Bill No.) numbering scheme first", set the series under Numbering Control.

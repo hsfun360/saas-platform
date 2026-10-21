@@ -487,7 +487,10 @@ exports.getDay = async (req, res) => {
             }
         }
 
-        res.status(200).json({ playDate, dayType, courses: sheets });
+        // The club clock (2026-10-21): the sheet scrolls to the current flight
+        // and marks the flights that have already teed off.
+        const clubNow = availability.clubNow(await companyTimezone(req));
+        res.status(200).json({ playDate, dayType, courses: sheets, clubNow });
     } catch (error) {
         console.error('Error loading golf front-desk day:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -744,7 +747,23 @@ async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, gue
 // booked -> registered on BOTH records of the pair; the Registration No.
 // lives on the starting-nine record. Returns { row, shape } or
 // { fail, status }.
+// Registration closes once the flight has teed off (user decision
+// 2026-10-21): a flight on a past date, or on today at or before the club
+// clock, takes no registration - booked players, walk-ins and group
+// registration alike. Returns the refusal, or null.
+async function teedOff(req, playDate, teeTime) {
+    const now = availability.clubNow(await companyTimezone(req));
+    const date = String(playDate);
+    const time = availability.hhmm(teeTime);
+    if (date < now.date || (date === now.date && time <= now.time)) {
+        return `Flight ${time}${date === now.date ? '' : ` on ${date}`} has already teed off - registration is closed.`;
+    }
+    return null;
+}
+
 async function registerBookedRecord({ req, companyId, row, guest, manualRegistrationNo, stamps, transaction }) {
+    const closed = await teedOff(req, row.playDate, row.teeTime);
+    if (closed) return { fail: closed, status: 409 };
     // A visiting affiliate's booking registers only once the desk has
     // recorded the arrival (letter and ID sighted).
     const gate = await affiliatedVisitRegistrationGate(companyId, row.bookingProfileId, { transaction });
@@ -868,6 +887,8 @@ exports.register = async (req, res) => {
             if (!day || !day.set || !day.slots.length) return { fail: 'No tee sheet is configured for this course on that date.', status: 400 };
             const slot = day.slots.find((s) => availability.hhmm(s.teeTime) === teeTime);
             if (!slot) return { fail: 'That flight time is not on the tee sheet.', status: 400 };
+            const closed = await teedOff(req, playDate, teeTime);
+            if (closed) return { fail: closed, status: 409 };
             // Crossover-only slots take NO new tee-offs from any channel -
             // they exist as second-nine landing times (2026-09-28). The
             // front-desk-only flag is fine here: this IS the front desk.

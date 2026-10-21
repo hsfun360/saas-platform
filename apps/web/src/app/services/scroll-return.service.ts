@@ -23,6 +23,11 @@ export class ScrollReturnService {
     this.pending.set(listPath, id);
   }
 
+  /** Is a return pending for this list? (A screen with its own default scroll yields to it.) */
+  has(listPath: string): boolean {
+    return this.pending.has(listPath);
+  }
+
   /**
    * If a record was remembered for this list, scroll its card into view once the
    * freshly-set list data has rendered, then forget it (one-shot).

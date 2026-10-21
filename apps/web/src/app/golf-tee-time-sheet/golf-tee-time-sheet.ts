@@ -222,6 +222,47 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     return f.entries.length > 0 || (!f.offGrid && (f.seatsLeft > 0 || f.maxPlayers !== null));
   }
 
+  // ---- the club clock (2026-10-21) ----
+
+  // The club-local date and time when the sheet was loaded.
+  readonly clubNow = signal<{ date: string; time: string } | null>(null);
+
+  // Has this flight teed off? A past date, or today at or before the club
+  // clock - registration is closed on it (the server refuses too).
+  isPast(f: FrontDeskFlight): boolean {
+    const now = this.clubNow();
+    if (!now) return false;
+    const d = this.listDate();
+    return d < now.date || (d === now.date && f.teeTime <= now.time);
+  }
+
+  // The current flight of a course: the first one still to tee off today.
+  isNow(c: FrontDeskCourseSheet, f: FrontDeskFlight): boolean {
+    const now = this.clubNow();
+    if (!now || this.listDate() !== now.date) return false;
+    const next = c.flights.find((x) => x.teeTime > now.time);
+    return !!next && next.teeTime === f.teeTime;
+  }
+
+  // Today's sheet opens at the current flight of the first course card.
+  private scrollToNow(): void {
+    const now = this.clubNow();
+    if (!now || this.listDate() !== now.date) return;
+    afterNextRender(
+      () => {
+        const el = this.flightEls().find((f) => f.nativeElement.classList.contains('fd-flight--now'));
+        el?.nativeElement.scrollIntoView({ block: 'center', inline: 'nearest' });
+      },
+      { injector: this.injector },
+    );
+  }
+
+  // The open flight has teed off: no registration, no walk-in on it.
+  readonly flightPast = computed(() => {
+    const f = this.flight();
+    return !!f && this.isPast(f);
+  });
+
   // ---- the one drawer dialog: mode + per-mode state ----
   readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | 'raincheck' | 'caddyrequest' | null>(null);
   readonly busy = signal(false);
@@ -282,7 +323,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
 
   readonly selectableCount = computed(() => {
     const f = this.flight();
-    return f ? f.entries.filter((e) => !e.registration).length : 0;
+    if (!f || this.flightPast()) return 0;
+    return f.entries.filter((e) => !e.registration).length;
   });
 
   // Inline walk-in form inside a free slot of the flight drawer.
@@ -496,8 +538,12 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.service.day(this.listDate()).subscribe({
       next: (res) => {
         this.sheet.set(res.courses);
+        this.clubNow.set(res.clubNow || null);
         this.loading.set(false);
-        this.returnScroll.consume('/golf/tee-time-sheet', this.injector);
+        // A remembered flight (back from the drawer) wins; otherwise today's
+        // sheet opens at the current flight.
+        if (this.returnScroll.has('/golf/tee-time-sheet')) this.returnScroll.consume('/golf/tee-time-sheet', this.injector);
+        else this.scrollToNow();
       },
       error: (err) => {
         this.loading.set(false);
@@ -512,8 +558,9 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     if (!this.flightOpenable(f)) return;
     this.clearMessages();
     this.flightRef.set({ courseId: course.courseId, teeTime: f.teeTime });
-    // Preselect every still-booked player - "register the flight" is one click.
-    this.selected.set(new Set(f.entries.filter((e) => !e.registration).map((e) => e.playerId)));
+    // Preselect every still-booked player - "register the flight" is one
+    // click; a flight that has teed off takes no registration.
+    this.selected.set(new Set(this.isPast(f) ? [] : f.entries.filter((e) => !e.registration).map((e) => e.playerId)));
     this.slotWalkinOpen.set(false);
     this.resetSlotWalkin();
     this.fromFlight.set(false);

@@ -206,6 +206,9 @@ export interface FrontDeskDay {
   playDate: string;
   dayType: string;
   courses: FrontDeskCourseSheet[];
+  // The club-local clock when the day was loaded (2026-10-21): the sheet
+  // scrolls to the current flight and marks the ones that have teed off.
+  clubNow?: { date: string; time: string };
 }
 
 export interface FrontDeskTile {
