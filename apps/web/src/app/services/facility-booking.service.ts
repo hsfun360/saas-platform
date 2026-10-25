@@ -201,6 +201,120 @@ export interface FacilityBookingRow {
   slots: FacilityBookingSlotRow[];
   participants: FacilityBookingParticipant[];
   cancelVerdict?: FacilityCancelVerdict | null;
+  // The live (open or settled) bill, when one exists.
+  bill?: FacilityBillSummary | null;
+}
+
+// ---- slice 2c: the bill on a booking ----
+
+export interface FacilityBillSummary {
+  id: string;
+  billNo: string;
+  status: 'open' | 'settled' | 'voided';
+  totalAmount: number;
+}
+
+export interface FacilityBillItemRow {
+  id: string;
+  sortOrder: number;
+  transactionTypeId: string;
+  bookingSlotId: string | null;
+  bookingParticipantId: string | null;
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  amount: number;
+  priceOverridden: boolean;
+  taxSchemeCode: string | null;
+  taxAmount: number;
+  ieFlag: string | null;
+  payable: number;
+}
+
+export interface FacilityBillPaymentRow {
+  id: string;
+  sortOrder: number;
+  paymentTypeId: string;
+  paymentClass: string;
+  amount: number;
+  reference: string | null;
+  arDocId: string | null;
+  arDocNo: string | null;
+  debtorType: string | null;
+}
+
+export interface FacilityBillDoc {
+  id: string;
+  billNo: string;
+  bookingId: string;
+  patronId: string;
+  billDate: string;
+  status: 'open' | 'settled' | 'voided';
+  totalAmount: number;
+  taxTotal: number;
+  remarks: string | null;
+  settledAt: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  canModify?: boolean;
+  items: FacilityBillItemRow[];
+  payments: FacilityBillPaymentRow[];
+}
+
+// A desk billing tile (an active facility transaction type of this type or of none).
+export interface FacilityBillTile {
+  id: string;
+  transactionType: string;
+  description: string;
+  chargeType: string;
+  feeBasis: string;
+  participantType: string | null;
+  allowPriceOverride: boolean;
+  iconUrl: string | null;
+}
+
+export interface FacilityTenderOption {
+  id: string;
+  paymentType: string;
+  paymentClass: string;
+  description: string;
+  iconUrl: string | null;
+}
+
+export interface FacilityOtherDebtorRef {
+  id: string;
+  code: string | null;
+  name: string;
+}
+
+// What the bill screen renders: the bill, its booking facts, the tiles, the tenders, the AR Other Debtors.
+export interface FacilityBillScreen {
+  bill: FacilityBillDoc;
+  booking: {
+    id: string;
+    bookingNo: string;
+    status: string;
+    bookingDate: string | null;
+    startTime: string | null;
+    endTime: string | null;
+    facilityType: { id: string; code: string; description: string } | null;
+    facilities: string[];
+    booker: { id: string; patronType: 'member' | 'other'; name: string; memberNo: string | null } | null;
+    slots: number;
+    participants: { id: string; name: string; participantType: string }[];
+  };
+  tiles: FacilityBillTile[];
+  tenders: FacilityTenderOption[];
+  otherDebtors: FacilityOtherDebtorRef[];
+  warnings: string[];
+  message?: string;
+}
+
+export interface FacilityPaymentLine {
+  paymentTypeId: string;
+  amount: number;
+  reference?: string | null;
+  otherDebtorId?: string | null;
 }
 
 export interface FacilityCancelPreview extends FacilityCancelVerdict {
@@ -266,5 +380,37 @@ export class FacilityBookingService {
 
   saveParticipants(id: string, payload: { participants: FacilityParticipantLine[]; hostMemberNo?: string | null }): Observable<{ message: string; booking: FacilityBookingRow }> {
     return this.http.put<{ message: string; booking: FacilityBookingRow }>(`${this.base}/${id}/participants`, payload);
+  }
+
+  // ---- the bill (slice 2c) ----
+
+  // Open the booking's bill (the default fees auto-charge) or fetch the live one.
+  openBill(bookingId: string, billNo?: string | null): Observable<FacilityBillScreen> {
+    return this.http.post<FacilityBillScreen>(`${this.base}/${bookingId}/bill`, { billNo: billNo || null });
+  }
+
+  getBill(billId: string): Observable<FacilityBillScreen> {
+    return this.http.get<FacilityBillScreen>(`${environment.apiUrl}/facility/bills/${billId}`);
+  }
+
+  addBillItem(billId: string, transactionTypeId: string, quantity: number): Observable<{ bill: FacilityBillDoc }> {
+    return this.http.post<{ bill: FacilityBillDoc }>(`${environment.apiUrl}/facility/bills/${billId}/items`, { transactionTypeId, quantity });
+  }
+
+  // Presence matters: an absent key leaves the value unchanged.
+  updateBillItem(billId: string, itemId: string, patch: { quantity?: number; unitAmount?: number }): Observable<{ bill: FacilityBillDoc }> {
+    return this.http.put<{ bill: FacilityBillDoc }>(`${environment.apiUrl}/facility/bills/${billId}/items/${itemId}`, patch);
+  }
+
+  removeBillItem(billId: string, itemId: string): Observable<{ bill: FacilityBillDoc }> {
+    return this.http.delete<{ bill: FacilityBillDoc }>(`${environment.apiUrl}/facility/bills/${billId}/items/${itemId}`);
+  }
+
+  settleBill(billId: string, payments: FacilityPaymentLine[]): Observable<{ message: string; bill: FacilityBillDoc }> {
+    return this.http.post<{ message: string; bill: FacilityBillDoc }>(`${environment.apiUrl}/facility/bills/${billId}/settle`, { payments });
+  }
+
+  voidBill(billId: string, reason: string | null): Observable<{ message: string; bill: FacilityBillDoc }> {
+    return this.http.post<{ message: string; bill: FacilityBillDoc }>(`${environment.apiUrl}/facility/bills/${billId}/void`, { reason });
   }
 }

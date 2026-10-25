@@ -11,6 +11,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe, formatLocalDate, localDateOnly } from '../shared/local-date.pipe';
+import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { onDebounced } from '../shared/debounce';
 import {
@@ -20,6 +21,9 @@ import {
   FacilityBookingRow,
   FacilityBookingService,
   FacilityBookingTypeFacts,
+  FacilityBillDoc,
+  FacilityBillScreen,
+  FacilityPaymentLine,
   FacilityGridCell,
   FacilityGridColumn,
   FacilityParticipantLine,
@@ -33,6 +37,14 @@ type RosterGroup = FormGroup<{
   participantType: FormControl<string>;
   memberNo: FormControl<string>;
   name: FormControl<string>;
+}>;
+
+// One tender line of a settlement (typed FormGroup in the FormArray).
+type PayGroup = FormGroup<{
+  paymentTypeId: FormControl<string>;
+  amount: FormControl<number>;
+  reference: FormControl<string>;
+  otherDebtorId: FormControl<string>;
 }>;
 
 // A rule check mirrored on the screen before confirm (show expected results);
@@ -61,7 +73,7 @@ interface RuleCheck {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, PhoneInputComponent,
-    ConfirmDialogComponent, LocalDatePipe,
+    ConfirmDialogComponent, LocalDatePipe, MoneyInputDirective,
   ],
   templateUrl: './facility-bookings.html',
   styleUrls: ['./facility-bookings.css'],
@@ -118,12 +130,29 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   readonly liveCount = computed(() => this.bookings().filter((b) => b.status !== 'cancelled').length);
 
   // ---- the ONE drawer: 'book' | 'detail' | 'participants' ----
-  readonly dlgMode = signal<'book' | 'detail' | 'participants' | null>(null);
+  readonly dlgMode = signal<'book' | 'detail' | 'participants' | 'bill' | 'settle' | null>(null);
   readonly saving = signal(false);
   readonly detail = signal<FacilityBookingRow | null>(null);
   readonly detailLoading = signal(false);
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly cancellingId = signal<string | null>(null);
+
+  // ---- the bill on the booking (slice 2c): items, tiles, tenders ----
+  readonly billScreen = signal<FacilityBillScreen | null>(null);
+  readonly billBusy = signal(false);
+  readonly billWarnings = signal<string[]>([]);
+  readonly payLines: FormArray<PayGroup> = this.fb.array<PayGroup>([]);
+  readonly settleForm = this.fb.group({ lines: this.payLines });
+  readonly payVersion = signal(0);
+  readonly billOpen = computed(() => this.billScreen()?.bill.status === 'open');
+  readonly tenderOptions = computed<ComboOption[]>(() => (this.billScreen()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType} - ${t.description}` })));
+  readonly otherDebtorOptions = computed<ComboOption[]>(() => (this.billScreen()?.otherDebtors || []).map((d) => ({ value: d.id, label: `${d.code ? d.code + ' - ' : ''}${d.name}` })));
+  readonly remaining = computed(() => {
+    this.payVersion();
+    const total = this.billScreen()?.bill.totalAmount || 0;
+    const sum = this.payLines.controls.reduce((s, g) => s + (Number(g.controls.amount.value) || 0), 0);
+    return Math.round((total - sum) * 100) / 100;
+  });
 
   readonly rosterLines: FormArray<RosterGroup> = this.fb.array<RosterGroup>([]);
   readonly form = this.fb.nonNullable.group({
@@ -155,6 +184,9 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     const d = this.detail();
     if (mode === 'book') return `New booking - ${this.selectionSummary()}`;
     if (mode === 'participants') return d ? `Participants - ${d.bookingNo}` : 'Participants';
+    const bs = this.billScreen();
+    if (mode === 'bill') return bs ? `Bill ${bs.bill.billNo} - booking ${bs.booking.bookingNo}` : 'Bill';
+    if (mode === 'settle') return bs ? `Settle bill ${bs.bill.billNo}` : 'Settle';
     return d ? `Booking ${d.bookingNo}` : 'Booking';
   });
 
@@ -722,13 +754,220 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     this.rosterLines.clear();
     this.rosterLines.markAsPristine();
     this.form.markAsPristine();
+    this.payLines.clear();
+    this.payLines.markAsPristine();
+    this.billScreen.set(null);
     if (mode === 'book') this.clearSelection();
+  }
+
+  // ---- the bill ----
+
+  // Open the booking's bill (the default fees auto-charge) or show the live one.
+  openBill(bookingId: string): void {
+    this.clearMessages();
+    this.billBusy.set(true);
+    this.service.openBill(bookingId).subscribe({
+      next: (res) => {
+        this.billBusy.set(false);
+        this.billScreen.set(res);
+        this.billWarnings.set(res.warnings || []);
+        if (res.message) this.successMessage.set(res.message);
+        this.dlgMode.set('bill');
+        if (res.message) this.loadDay();
+      },
+      error: (err) => {
+        this.billBusy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to open the bill.');
+      },
+    });
+  }
+
+  private applyBill(bill: FacilityBillDoc): void {
+    const bs = this.billScreen();
+    if (bs) this.billScreen.set({ ...bs, bill });
+  }
+
+  tileAllowsOverride(transactionTypeId: string): boolean {
+    return !!this.billScreen()?.tiles.find((t) => t.id === transactionTypeId)?.allowPriceOverride;
+  }
+
+  addTile(transactionTypeId: string): void {
+    const bs = this.billScreen();
+    if (!bs) return;
+    this.clearMessages();
+    this.billBusy.set(true);
+    this.service.addBillItem(bs.bill.id, transactionTypeId, 1).subscribe({
+      next: (res) => { this.billBusy.set(false); this.applyBill(res.bill); },
+      error: (err) => { this.billBusy.set(false); this.errorMessage.set(err.error?.message || 'Failed to add the item.'); },
+    });
+  }
+
+  setItemQuantity(itemId: string, raw: string): void {
+    const bs = this.billScreen();
+    const quantity = Number(raw);
+    if (!bs || !Number.isInteger(quantity) || quantity < 1) return;
+    this.clearMessages();
+    this.service.updateBillItem(bs.bill.id, itemId, { quantity }).subscribe({
+      next: (res) => this.applyBill(res.bill),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to amend the item.'),
+    });
+  }
+
+  setItemPrice(itemId: string, raw: string): void {
+    const bs = this.billScreen();
+    const unitAmount = Number(raw);
+    if (!bs || !Number.isFinite(unitAmount) || unitAmount < 0) return;
+    this.clearMessages();
+    this.service.updateBillItem(bs.bill.id, itemId, { unitAmount }).subscribe({
+      next: (res) => this.applyBill(res.bill),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to amend the price.'),
+    });
+  }
+
+  removeBillItem(itemId: string): void {
+    const bs = this.billScreen();
+    if (!bs) return;
+    this.clearMessages();
+    this.service.removeBillItem(bs.bill.id, itemId).subscribe({
+      next: (res) => this.applyBill(res.bill),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to remove the item.'),
+    });
+  }
+
+  private newPayGroup(v: { paymentTypeId: string; amount: number; reference: string; otherDebtorId: string }): PayGroup {
+    return this.fb.nonNullable.group({
+      paymentTypeId: [v.paymentTypeId, Validators.required],
+      amount: [v.amount, [Validators.required, Validators.min(0.01)]],
+      reference: [v.reference, Validators.maxLength(100)],
+      otherDebtorId: [v.otherDebtorId],
+    });
+  }
+
+  openSettle(): void {
+    const bs = this.billScreen();
+    if (!bs || bs.bill.status !== 'open') return;
+    this.clearMessages();
+    this.payLines.clear({ emitEvent: false });
+    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: bs.bill.totalAmount, reference: '', otherDebtorId: '' }), { emitEvent: false });
+    this.payLines.markAsPristine();
+    this.payVersion.update((v) => v + 1);
+    this.dlgMode.set('settle');
+  }
+
+  addPayment(): void {
+    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '', otherDebtorId: '' }));
+    this.payLines.markAsDirty();
+    this.payVersion.update((v) => v + 1);
+  }
+
+  removePayment(i: number): void {
+    this.payLines.removeAt(i);
+    this.payLines.markAsDirty();
+    this.payVersion.update((v) => v + 1);
+  }
+
+  payChanged(): void {
+    this.payVersion.update((v) => v + 1);
+  }
+
+  tenderClass(paymentTypeId: string): string {
+    return this.billScreen()?.tenders.find((t) => t.id === paymentTypeId)?.paymentClass || '';
+  }
+
+  isDebtorLine(i: number): boolean {
+    return this.tenderClass(this.payLines.at(i).controls.paymentTypeId.value) === 'debtor';
+  }
+
+  onTenderPicked(i: number, id: string): void {
+    this.payLines.at(i).controls.paymentTypeId.setValue(id);
+    this.payLines.at(i).controls.paymentTypeId.markAsDirty();
+    this.payVersion.update((v) => v + 1);
+  }
+
+  onOtherDebtorPicked(i: number, id: string): void {
+    this.payLines.at(i).controls.otherDebtorId.setValue(id);
+    this.payLines.at(i).controls.otherDebtorId.markAsDirty();
+    this.payVersion.update((v) => v + 1);
+  }
+
+  settle(): void {
+    this.clearMessages();
+    const bs = this.billScreen();
+    if (!bs) return;
+    const rows = this.payLines.controls.map((g) => g.getRawValue());
+    if (rows.some((r) => !r.paymentTypeId)) { this.errorMessage.set('Every payment line needs a payment type.'); return; }
+    if (rows.some((r) => this.tenderClass(r.paymentTypeId) === 'debtor' && !r.otherDebtorId)) { this.errorMessage.set('Pick the Other Debtor to charge on the Debtor payment line.'); return; }
+    if (this.remaining() !== 0) { this.errorMessage.set('Payments must equal the bill total.'); return; }
+    const payments: FacilityPaymentLine[] = rows.map((r) => ({
+      paymentTypeId: r.paymentTypeId,
+      amount: Number(r.amount) || 0,
+      reference: r.reference.trim() || null,
+      otherDebtorId: this.tenderClass(r.paymentTypeId) === 'debtor' ? r.otherDebtorId : null,
+    }));
+    this.billBusy.set(true);
+    this.service.settleBill(bs.bill.id, payments).subscribe({
+      next: (res) => {
+        this.billBusy.set(false);
+        this.successMessage.set(res.message);
+        this.payLines.markAsPristine();
+        this.applyBill(res.bill);
+        this.dlgMode.set('bill');
+        this.loadDay();
+      },
+      error: (err) => {
+        this.billBusy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to settle the bill.');
+      },
+    });
+  }
+
+  askVoidBill(): void {
+    const bs = this.billScreen();
+    if (!bs) return;
+    this.confirmAction.set({
+      title: 'Void this bill?',
+      message: `Bill ${bs.bill.billNo} (${bs.bill.items.length} line${bs.bill.items.length === 1 ? '' : 's'}, total ${bs.bill.totalAmount.toFixed(2)}) will be voided. The booking stays and can be billed again.`,
+      confirmLabel: 'Void bill',
+      cancelLabel: 'Keep bill',
+      run: () => {
+        this.confirmAction.set(null);
+        this.billBusy.set(true);
+        this.service.voidBill(bs.bill.id, null).subscribe({
+          next: (res) => {
+            this.billBusy.set(false);
+            this.successMessage.set(res.message);
+            this.applyBill(res.bill);
+            this.loadDay();
+          },
+          error: (err) => {
+            this.billBusy.set(false);
+            this.errorMessage.set(err.error?.message || 'Failed to void the bill.');
+          },
+        });
+      },
+    });
+  }
+
+  // Back from the bill to the booking detail (refreshed, so its bill chip is current).
+  backToDetail(): void {
+    const bs = this.billScreen();
+    const d = this.detail();
+    const id = d?.id || bs?.booking.id;
+    if (!id) { this.dlgMode.set(null); return; }
+    this.openDetail(id);
+  }
+
+  billStatusClass(status: string): string {
+    if (status === 'settled') return 'status-chip--on';
+    if (status === 'open') return 'status-chip--info';
+    return 'status-chip--off';
   }
 
   isDirty(): boolean {
     const mode = this.dlgMode();
     if (mode === 'book') return this.form.dirty || this.rosterLines.dirty;
     if (mode === 'participants') return this.rosterLines.dirty || this.form.controls.hostMemberNo.dirty;
+    if (mode === 'settle') return this.payLines.dirty;
     return false;
   }
 

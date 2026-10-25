@@ -93,4 +93,41 @@ describe('FacilityBookingService', () => {
     expect(roster.request.body.participants[0].participantType).toBe('member');
     roster.flush({ message: 'Participants saved.', booking: { id: 'b1' } });
   });
+
+  it('opens a bill from the booking and drives the bill endpoints', () => {
+    service.openBill('b1').subscribe();
+    const open = http.expectOne('/api/facility/bookings/b1/bill');
+    expect(open.request.method).toBe('POST');
+    open.flush({ bill: { id: 'bill1' }, tiles: [], tenders: [], otherDebtors: [], warnings: [] });
+
+    service.getBill('bill1').subscribe();
+    http.expectOne('/api/facility/bills/bill1').flush({ bill: { id: 'bill1' } });
+
+    service.addBillItem('bill1', 'tt1', 2).subscribe();
+    const add = http.expectOne('/api/facility/bills/bill1/items');
+    expect(add.request.method).toBe('POST');
+    expect(add.request.body).toEqual({ transactionTypeId: 'tt1', quantity: 2 });
+    add.flush({ bill: { id: 'bill1' } });
+
+    service.updateBillItem('bill1', 'i1', { unitAmount: 12.5 }).subscribe();
+    const upd = http.expectOne('/api/facility/bills/bill1/items/i1');
+    expect(upd.request.method).toBe('PUT');
+    expect(upd.request.body).toEqual({ unitAmount: 12.5 });
+    upd.flush({ bill: { id: 'bill1' } });
+
+    service.removeBillItem('bill1', 'i1').subscribe();
+    expect(http.expectOne('/api/facility/bills/bill1/items/i1').request.method).toBe('DELETE');
+
+    service.settleBill('bill1', [{ paymentTypeId: 'pt1', amount: 40 }, { paymentTypeId: 'pt2', amount: 10, otherDebtorId: 'od1' }]).subscribe();
+    const settle = http.expectOne('/api/facility/bills/bill1/settle');
+    expect(settle.request.method).toBe('POST');
+    expect(settle.request.body.payments.length).toBe(2);
+    expect(settle.request.body.payments[1].otherDebtorId).toBe('od1');
+    settle.flush({ message: 'Bill settled.', bill: { id: 'bill1' } });
+
+    service.voidBill('bill1', 'Keyed on the wrong booking').subscribe();
+    const v = http.expectOne('/api/facility/bills/bill1/void');
+    expect(v.request.body.reason).toBe('Keyed on the wrong booking');
+    v.flush({ message: 'Bill voided.', bill: { id: 'bill1' } });
+  });
 });

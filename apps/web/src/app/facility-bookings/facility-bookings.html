@@ -169,6 +169,7 @@
                     @if (b.booker?.memberNo) { <span class="data-card__reg">({{ b.booker?.memberNo }})</span> }
                     @else { <span class="data-card__reg">(visitor)</span> }
                     @if (searchResults()) { <span class="data-card__reg">· {{ b.facilityType?.code }} · {{ b.bookingDate | localDate }}</span> }
+                    @if (b.bill) { <span class="status-chip" [class]="'status-chip ' + billStatusClass(b.bill.status)">Bill {{ b.bill.billNo }} · {{ b.bill.status }}</span> }
                   </div>
                   <dl class="data-card__meta">
                     <div class="meta"><dt>Slots</dt><dd>{{ b.slots.length }}</dd></div>
@@ -187,6 +188,12 @@
                   </button>
                   @if (b.status !== 'cancelled' && b.canModify !== false) {
                     <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + b.bookingNo">
+                      @if (b.status === 'booked' || b.bill) {
+                        <button type="button" appMenuItem (click)="openBill(b.id)" [disabled]="billBusy()">
+                          <span class="material-icons" aria-hidden="true">receipt_long</span>
+                          {{ b.bill ? 'Bill ' + b.bill.billNo : 'Open bill' }}
+                        </button>
+                      }
                       <button type="button" appMenuItem (click)="askCancel(b)" [disabled]="cancellingId() === b.id">
                         <span class="material-icons" aria-hidden="true">event_busy</span>
                         Cancel booking
@@ -383,6 +390,129 @@
             }
           }
 
+          <!-- ---- BILL: the booking's bill - lines, totals, tiles, payments ---- -->
+          @case ('bill') {
+            @if (billScreen(); as bs) {
+              <div class="fb-bill-head">
+                <span><strong>{{ bs.booking.booker?.name }}</strong>{{ bs.booking.booker?.memberNo ? ' (' + bs.booking.booker?.memberNo + ')' : '' }} · {{ bs.bill.billDate | localDate }} · {{ bs.booking.facilities.join(', ') }} {{ bs.booking.startTime }}{{ bs.booking.endTime ? ' - ' + bs.booking.endTime : '' }}</span>
+                <span class="status-chip" [class]="'status-chip ' + billStatusClass(bs.bill.status)">{{ bs.bill.status }}</span>
+              </div>
+              @for (w of billWarnings(); track $index) {
+                <p class="fb-bill-warn"><span class="material-icons" aria-hidden="true">warning</span>{{ w }}</p>
+              }
+
+              @if (bs.bill.items.length === 0) {
+                <p class="cell-subtle">No items yet - add from the tiles below.</p>
+              } @else {
+                <div class="fb-items">
+                  <div class="fb-item fb-item--head" aria-hidden="true">
+                    <span>Item</span><span>Qty</span><span>Price</span><span>Tax</span><span>Payable</span><span></span>
+                  </div>
+                  @for (i of bs.bill.items; track i.id) {
+                    <div class="fb-item">
+                      <span class="fb-item__desc">
+                        {{ i.description }}
+                        @if (i.priceOverridden) { <span class="fb-tag">amended</span> }
+                      </span>
+                      @if (billOpen()) {
+                        <input #qtyInput type="number" inputmode="numeric" min="1" max="99" step="1" [value]="i.quantity"
+                               (change)="setItemQuantity(i.id, qtyInput.value)" [attr.aria-label]="'Quantity for ' + i.description" />
+                        <input #priceInput type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="i.unitAmount"
+                               [disabled]="!tileAllowsOverride(i.transactionTypeId)"
+                               (change)="setItemPrice(i.id, priceInput.value)" [attr.aria-label]="'Unit price for ' + i.description" />
+                      } @else {
+                        <span>{{ i.quantity }}</span>
+                        <span>{{ i.unitAmount.toFixed(2) }}</span>
+                      }
+                      <span>{{ i.taxAmount.toFixed(2) }}</span>
+                      <span class="fb-item__payable">{{ i.payable.toFixed(2) }}</span>
+                      @if (billOpen()) {
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeBillItem(i.id)" [attr.aria-label]="'Remove ' + i.description">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      } @else { <span></span> }
+                    </div>
+                  }
+                </div>
+              }
+              <div class="fb-totals">
+                <span>Tax: <strong>{{ bs.bill.taxTotal.toFixed(2) }}</strong></span>
+                <span>Total: <strong>{{ bs.bill.totalAmount.toFixed(2) }}</strong></span>
+              </div>
+
+              @if (billOpen()) {
+                <h3 class="dlg-section">Add items</h3>
+                @if (bs.tiles.length === 0) {
+                  <p class="cell-subtle">No billing items are set up for {{ bs.booking.facilityType?.code }} - add them under Transaction Types.</p>
+                } @else {
+                  <div class="fb-tiles">
+                    @for (t of bs.tiles; track t.id) {
+                      <button type="button" class="btn btn--secondary fb-tile" (click)="addTile(t.id)" [disabled]="billBusy()" [title]="t.description">
+                        @if (t.iconUrl) { <img class="fb-tile__icon" [src]="t.iconUrl" alt="" /> }
+                        @else { <span class="material-icons" aria-hidden="true">receipt_long</span> }
+                        <span class="fb-tile__text">{{ t.transactionType }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+              } @else if (bs.bill.payments.length) {
+                <h3 class="dlg-section">Payments</h3>
+                @for (p of bs.bill.payments; track p.id) {
+                  <div class="fb-payment-row">
+                    <span>{{ p.paymentClass }}</span>
+                    <span>{{ p.amount.toFixed(2) }}</span>
+                    <span class="cell-subtle">{{ p.arDocNo || p.reference || '' }}</span>
+                  </div>
+                }
+              }
+              @if (bs.bill.status === 'voided') {
+                <p class="cell-subtle">Voided {{ bs.bill.voidedAt | localDate:'datetime' }}{{ bs.bill.voidReason ? ' - ' + bs.bill.voidReason : '' }}. The booking can be billed again.</p>
+              }
+            }
+          }
+
+          <!-- ---- SETTLE: the tenders ---- -->
+          @case ('settle') {
+            <form id="fbSettle" [formGroup]="settleForm" (ngSubmit)="settle()">
+              @if (billScreen(); as bs) {
+                <div class="fb-bill-head">
+                  <span><strong>{{ bs.booking.booker?.name }}</strong> · Total <strong>{{ bs.bill.totalAmount.toFixed(2) }}</strong></span>
+                  <span [class.fb-remaining--due]="remaining() !== 0">Remaining: <strong>{{ remaining().toFixed(2) }}</strong></span>
+                </div>
+                <div formArrayName="lines">
+                  @for (g of payLines.controls; track g; let i = $index) {
+                    <div class="fb-pay-line" [formGroupName]="i">
+                      <app-combobox [value]="g.controls.paymentTypeId.value" (valueChange)="onTenderPicked(i, $event)"
+                                    [options]="tenderOptions()" [allowEmpty]="false"
+                                    [ariaLabel]="'Payment ' + (i + 1) + ' type'" placeholder="Type to search…" />
+                      <input type="number" inputmode="decimal" min="0.01" step="0.01" appMoney formControlName="amount" (input)="payChanged()"
+                             [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
+                      @if (isDebtorLine(i)) {
+                        <app-combobox [value]="g.controls.otherDebtorId.value" (valueChange)="onOtherDebtorPicked(i, $event)"
+                                      [options]="otherDebtorOptions()" [allowEmpty]="false"
+                                      [ariaLabel]="'Payment ' + (i + 1) + ' charge to'" placeholder="Charge to Other Debtor…" />
+                      } @else {
+                        <input type="text" formControlName="reference" maxlength="100" placeholder="Reference"
+                               [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+                      }
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removePayment(i)" [attr.aria-label]="'Remove payment ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                      @if (isDebtorLine(i) && otherDebtorOptions().length === 0) {
+                        <p class="cell-subtle fb-pay-line__hint">No active Other Debtor in Account Receivable - Finance keys them under AR - Other Debtors.</p>
+                      }
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addPayment()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add payment
+                </button>
+                <p class="cell-subtle field-hint">Member class charges the bill to the booker's own account and Debtor class to an Other Debtor of Account Receivable (both credit checked); Suspend counts toward settlement; cash-like tenders just record the payment.</p>
+              }
+            </form>
+          }
+
           <!-- ---- PARTICIPANTS: edit the roster of a live booking ---- -->
           @case ('participants') {
             <form id="fbRoster" [formGroup]="form" (ngSubmit)="saveParticipants()">
@@ -453,10 +583,26 @@
               @if (d.status !== 'cancelled' && d.canModify !== false) {
                 <button *appCan="'edit'" type="button" class="btn btn--danger" (click)="askCancel(d)" [disabled]="cancellingId() === d.id">Cancel booking</button>
                 @if (d.status === 'booked') {
-                  <button *appCan="'edit'" type="button" class="btn btn--primary" (click)="openParticipants()">Participants</button>
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="openParticipants()">Participants</button>
+                  <button *appCan="'edit'" type="button" class="btn btn--primary" (click)="openBill(d.id)" [disabled]="billBusy()">{{ d.bill ? 'Bill ' + d.bill.billNo : 'Open bill' }}</button>
                 }
+              } @else if (d.bill) {
+                <button type="button" class="btn btn--secondary" (click)="openBill(d.id)" [disabled]="billBusy()">Bill {{ d.bill.billNo }}</button>
               }
             }
+          }
+          @case ('bill') {
+            <button type="button" class="btn btn--secondary" (click)="backToDetail()" [disabled]="billBusy()">Back</button>
+            @if (billOpen()) {
+              <button *appCan="'edit'" type="button" class="btn btn--danger" (click)="askVoidBill()" [disabled]="billBusy()">Void bill</button>
+              <button *appCan="'edit'" type="button" class="btn btn--primary" (click)="openSettle()" [disabled]="billBusy() || !billScreen()?.bill?.items?.length">Settle</button>
+            }
+          }
+          @case ('settle') {
+            <button type="button" class="btn btn--secondary" (click)="dlgMode.set('bill')" [disabled]="billBusy()">Back</button>
+            <button type="submit" form="fbSettle" class="btn btn--primary" [disabled]="billBusy() || remaining() !== 0">
+              {{ billBusy() ? 'Settling…' : 'Settle ' + (billScreen()?.bill?.totalAmount || 0).toFixed(2) }}
+            </button>
           }
           @case ('participants') {
             <button type="button" class="btn btn--secondary" (click)="dlgMode.set('detail')" [disabled]="saving()">Back</button>

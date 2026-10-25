@@ -534,3 +534,159 @@
   font-weight: var(--weight-semibold);
   text-align: right;
 }
+
+/* ---- the bill (slice 2c): head, lines, totals, tiles, tenders ---- */
+.fb-bill-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.fb-bill-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  background: var(--info-surface);
+  color: var(--info-text);
+  font-size: var(--font-body-2);
+}
+.fb-bill-warn .material-icons {
+  font-size: var(--icon-md);
+  flex-shrink: 0;
+}
+.fb-remaining--due {
+  color: var(--danger-text);
+}
+.fb-items {
+  margin-bottom: var(--space-sm);
+}
+.fb-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 110px 80px 90px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.fb-item input {
+  min-height: 44px;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fb-item input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
+}
+.fb-item--head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: none;
+}
+.fb-item__desc {
+  min-width: 0;
+}
+.fb-item__payable {
+  font-weight: var(--weight-semibold);
+  text-align: right;
+}
+.fb-item span:nth-child(2),
+.fb-item span:nth-child(3),
+.fb-item span:nth-child(4) {
+  text-align: right;
+}
+@media (max-width: 767px) {
+  .fb-item {
+    grid-template-columns: minmax(0, 1fr) 56px 90px auto;
+  }
+  .fb-item span:nth-child(4),
+  .fb-item--head span:nth-child(4) {
+    display: none;
+  }
+}
+.fb-totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-lg);
+  padding: var(--space-sm) 0;
+  color: var(--text-primary);
+}
+.fb-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-sm);
+}
+.fb-tile {
+  flex-direction: column;
+  min-height: 72px;
+  gap: var(--space-xs);
+}
+.fb-tile__icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.fb-tile__text {
+  font-size: var(--font-body-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.fb-pay-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 160px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.fb-pay-line input {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fb-pay-line input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
+}
+.fb-pay-line__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .fb-pay-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+.fb-payment-row {
+  display: grid;
+  grid-template-columns: 120px 110px minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
