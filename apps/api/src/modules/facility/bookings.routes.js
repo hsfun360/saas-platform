@@ -3,6 +3,8 @@ const { validate } = require('../../platform/validate');
 const router = express.Router();
 const controller = require('./booking.controller');
 const s = require('./booking.schemas');
+const billController = require('./bill.controller');
+const billSchemas = require('./bill.schemas');
 
 // Mounted at /api/facility/bookings behind requireMenuAction('/facility/bookings').
 // The parent facility router already applies verifyToken + requireModule('FACILITY').
@@ -19,5 +21,7 @@ router.get('/:id', validate(s.id), controller.get);
 router.get('/:id/cancel-preview', validate(s.id), controller.cancelPreview);
 router.post('/:id/cancel', validate(s.cancel), controller.cancel);
 router.put('/:id/participants', validate(s.participants), controller.saveParticipants);
+// Slice 2c: open (or fetch) the booking's bill.
+router.post('/:id/bill', validate(billSchemas.openBill), billController.openBill);
 
 module.exports = router;

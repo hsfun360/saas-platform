@@ -497,6 +497,18 @@ Facility.hasMany(FacilityBookingSlot, { foreignKey: 'facilityId', as: 'BookingSl
 FacilityBookingSlot.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
 Facility.hasMany(FacilitySlotLock, { foreignKey: 'facilityId', as: 'SlotLocks', onDelete: 'CASCADE' });
 FacilitySlotLock.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+// Facility slice 2c billing (structures approved 2026-10-25): ONE bill per
+// booking -> items / payments (cascade); the booking is never deleted under
+// a bill (RESTRICT). Transaction and payment types are referenced by id.
+const FacilityBill = require('../modules/facility/bill.model');
+const FacilityBillItem = require('../modules/facility/billItem.model');
+const FacilityBillPayment = require('../modules/facility/billPayment.model');
+FacilityBooking.hasMany(FacilityBill, { foreignKey: 'bookingId', as: 'Bills', onDelete: 'RESTRICT' });
+FacilityBill.belongsTo(FacilityBooking, { foreignKey: 'bookingId', as: 'Booking' });
+FacilityBill.hasMany(FacilityBillItem, { foreignKey: 'billId', as: 'Items', onDelete: 'CASCADE' });
+FacilityBillItem.belongsTo(FacilityBill, { foreignKey: 'billId', as: 'Bill' });
+FacilityBill.hasMany(FacilityBillPayment, { foreignKey: 'billId', as: 'Payments', onDelete: 'CASCADE' });
+FacilityBillPayment.belongsTo(FacilityBill, { foreignKey: 'billId', as: 'Bill' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -596,6 +608,9 @@ module.exports = {
     FacilityBookingSlot,
     FacilityBookingParticipant,
     FacilitySlotLock,
+    FacilityBill,
+    FacilityBillItem,
+    FacilityBillPayment,
     GuestVisit,
     GolfNoShowCharge,
     GolfGroupPlayDay,

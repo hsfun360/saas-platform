@@ -34,6 +34,7 @@ const participantTypes = require('./participantType.service');
 const patrons = require('./patron.service');
 const approval = require('./bookingApproval.service');
 const shared = require('./bookingShared');
+const billing = require('./billing.service');
 const { companyIdOf, stampsFor, DATE_RE, TIME_RE, toMinutes } = require('./facilityShared');
 const { BOOKING_STATUSES, SLOT_STATUSES, BOOKING_CHANNELS, BOOKING_LIMITS, ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 
@@ -620,8 +621,9 @@ exports.list = async (req, res) => {
         const ids = slotRows.map((s) => s.bookingId);
         const rows = ids.length ? await Booking.findAll({ where: { companyId, id: { [Op.in]: ids } } }) : [];
         await annotateCanModify(req, rows);
+        const bills = await billing.summariesFor(companyId, rows.map((b) => b.id));
         const dtos = [];
-        for (const b of rows) dtos.push(bookingDto(b, await shared.bookingFacts(b)));
+        for (const b of rows) dtos.push(bookingDto(b, await shared.bookingFacts(b), { bill: bills.get(b.id) || null }));
         dtos.sort((a, b) => String(a.startTime || '').localeCompare(String(b.startTime || '')) || a.bookingNo.localeCompare(b.bookingNo));
         res.status(200).json({ bookings: dtos });
     } catch (error) {
@@ -646,8 +648,9 @@ exports.search = async (req, res) => {
             limit: BOOKING_LIMITS.searchLimit,
         });
         await annotateCanModify(req, rows);
+        const bills = await billing.summariesFor(companyId, rows.map((b) => b.id));
         const dtos = [];
-        for (const b of rows) dtos.push(bookingDto(b, await shared.bookingFacts(b)));
+        for (const b of rows) dtos.push(bookingDto(b, await shared.bookingFacts(b), { bill: bills.get(b.id) || null }));
         res.status(200).json({ bookings: dtos });
     } catch (error) {
         console.error('Error searching facility bookings:', error);
@@ -667,7 +670,8 @@ exports.get = async (req, res) => {
         const verdict = facts.liveSlots.length
             ? rules.cancelVerdict({ setting, now: rules.clubNow(timezone), bookingDate: String(facts.liveSlots[0].bookingDate), startTime: facts.firstStart })
             : null;
-        res.status(200).json(bookingDto(booking, facts, { cancelVerdict: verdict }));
+        const bills = await billing.summariesFor(companyId, [booking.id]);
+        res.status(200).json(bookingDto(booking, facts, { cancelVerdict: verdict, bill: bills.get(booking.id) || null }));
     } catch (error) {
         console.error('Error loading facility booking:', error);
         res.status(500).json({ message: 'Internal server error' });

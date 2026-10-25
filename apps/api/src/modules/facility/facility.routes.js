@@ -59,6 +59,8 @@ router.use('/payment-types', requireMenuAction('/facility/payment-types'), requi
 // Bookings menu grant. ---
 router.use('/bookings', requireMenuAction('/facility/bookings'), require('./bookings.routes'));
 router.use('/patrons', requireMenuAction('/facility/bookings'), require('./patrons.routes'));
+// --- Slice 2c billing: the bill engine on a booking, same grant. ---
+router.use('/bills', requireMenuAction('/facility/bookings'), require('./bills.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
