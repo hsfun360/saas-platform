@@ -120,6 +120,10 @@
 }
 .fb-grid {
   display: grid;
+  /* The column count is data (one per facility), published as a custom
+     property: an inline grid-template-columns would be collapsed to one
+     column by the global mobile rule, and the grid scrolls sideways instead. */
+  grid-template-columns: var(--fb-cols, 72px);
   gap: 1px;
   background: var(--border);
   min-width: max-content;
@@ -294,6 +298,11 @@
   }
   .fb-select-bar .btn--primary {
     flex: 1;
+  }
+  /* The extend / drop hint is desktop guidance; the phone bar keeps one line
+     of summary so it hides as little of the grid as possible. */
+  .fb-select-bar__text .cell-subtle {
+    display: none;
   }
 }
 
