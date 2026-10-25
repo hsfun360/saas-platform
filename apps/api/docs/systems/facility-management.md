@@ -219,7 +219,7 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 
 ### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, approved 2026-10-25; 2a and 2b BUILT 2026-10-25, 2c pending)
 
-**Status:** 2a (Patron / OtherPatron models, Participant Types, Transaction Types with rate cards and cells, Payment Types, the facility numbering series, guest exception rules and membership-type overrides on the Specification, the default-fee pickers and approval switch on Facility Types, the Membership monthly allowance and GuestVisit ledger with its gateway) is built and smoked on dev (2026-10-25); 2b (Booking / BookingSlot / BookingParticipant / SlotLock, the availability engine, the nine rules, the Facility Bookings screen) is built and awaiting the dev smoke.
+**Status:** 2a (Patron / OtherPatron models, Participant Types, Transaction Types with rate cards and cells, Payment Types, the facility numbering series, guest exception rules and membership-type overrides on the Specification, the default-fee pickers and approval switch on Facility Types, the Membership monthly allowance and GuestVisit ledger with its gateway) is built and smoked on dev (2026-10-25); 2b (Booking / BookingSlot / BookingParticipant / SlotLock, the availability engine, the nine rules, the Facility Bookings screen) is built and SMOKED on dev (2026-10-25: Tropicana BADMINTON, Monday 2 Nov 2026 grid, two-slot claim on BC1 with the consecutive rule refusing a gap, FB-00001 booked by MEM26-000001 with a visitor guest recorded on the Membership ledger, roster edited to two guests (ledger 2), cancelled outside the notice with both visits voided and the cells freed, FB-00002 rebooked and a third slot refused by the weekday limit of 2 on both the screen and the server; FB-00002 stays as test residue).
 
 **2b as built (2026-10-25):**
 
@@ -590,4 +590,4 @@ Golf is wired to the same ledger in a later golf slice; nothing in golf changes 
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, dev smoke pending) · [ ] Slice 2c billing · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [ ] Slice 2c billing · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
