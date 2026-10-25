@@ -18,7 +18,7 @@ router.use(verifyToken);
 router.use(requireModule('FACILITY'));
 
 const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
-    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering'];
+    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -53,6 +53,12 @@ router.use('/closure-plans', requireMenuAction('/facility/closures'), require('.
 router.use('/participant-types', requireMenuAction('/facility/participant-types'), require('./participantTypes.routes'));
 router.use('/transaction-types', requireMenuAction('/facility/transaction-types'), require('./transactionTypes.routes'));
 router.use('/payment-types', requireMenuAction('/facility/payment-types'), require('./paymentTypes.routes'));
+
+// --- Slice 2b booking (structures approved 2026-10-25): the day grid, slot
+// claims, bookings and the patron search all live behind the ONE Facility
+// Bookings menu grant. ---
+router.use('/bookings', requireMenuAction('/facility/bookings'), require('./bookings.routes'));
+router.use('/patrons', requireMenuAction('/facility/bookings'), require('./patrons.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

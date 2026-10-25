@@ -920,4 +920,176 @@ module.exports = [
             <p>Until <strong>{{offerExpiresText}}</strong> no other group may reserve flights on that course and date - open the booking under Golf Management → Group Bookings and reserve them. After that the offer passes to the next group in the queue.</p>
         `),
     },
+    // ---- Facility Management booking emails (structures approved 2026-10-25,
+    // sub-slice 2b): ONE email to the booker's contact address and every
+    // member participant with an address, like golf. ----
+    {
+        key: 'facility.booking.confirmed',
+        name: 'Facility booking confirmation',
+        description: 'Sent to the booker and every member participant with an email address when a facility booking is confirmed.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'bookingDateText', description: "The booking date, e.g. '27 Sept 2026'." },
+            { name: 'timeRange', description: "The first slot start to the last slot end, e.g. '19:00 - 21:00'." },
+            { name: 'facilityType', description: 'The facility type, e.g. BADMINTON - Badminton Courts.' },
+            { name: 'facilities', description: 'The unit codes booked, e.g. BC1.' },
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'slotsTable', description: 'The booked slots as an HTML table (insert with triple braces).' },
+            { name: 'participantsTable', description: 'The participants as an HTML table (insert with triple braces; empty when none were keyed).' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookingNo: 'FB-00012', bookingDateText: '27 Sept 2026', timeRange: '19:00 - 20:00',
+            facilityType: 'BADMINTON - Badminton Courts', facilities: 'BC1', bookerName: 'Ahmad Faizal',
+            slotsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">BC1 - Badminton Court 1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">19:00 - 20:00</td></tr></table>',
+            participantsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} confirmed - {{bookingDateText}} {{timeRange}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Facility booking confirmed</h2>
+            <p>Dear Member,</p>
+            <p>Your booking at <strong>{{companyName}}</strong> is confirmed.</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{bookingDateText}}<br>
+                <strong>Time:</strong> {{timeRange}}<br>
+                <strong>Facility:</strong> {{facilityType}} ({{facilities}})<br>
+                <strong>Booked by:</strong> {{bookerName}}
+            </p>
+            {{{slotsTable}}}
+            {{{participantsTable}}}
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Please arrive in good time before your slot. Contact the front desk for any changes.</p>
+        `),
+    },
+    {
+        key: 'facility.booking.pending',
+        name: 'Facility booking awaiting approval',
+        description: 'Sent to the booker when a facility booking is held pending the club\'s approval.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'bookingDateText', description: "The booking date, e.g. '27 Sept 2026'." },
+            { name: 'timeRange', description: "The first slot start to the last slot end, e.g. '19:00 - 21:00'." },
+            { name: 'facilityType', description: 'The facility type, e.g. BADMINTON - Badminton Courts.' },
+            { name: 'facilities', description: 'The unit codes booked, e.g. BC1.' },
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'slotsTable', description: 'The booked slots as an HTML table (insert with triple braces).' },
+            { name: 'participantsTable', description: 'The participants as an HTML table (insert with triple braces; empty when none were keyed).' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookingNo: 'FB-00012', bookingDateText: '27 Sept 2026', timeRange: '19:00 - 20:00',
+            facilityType: 'BADMINTON - Badminton Courts', facilities: 'BC1', bookerName: 'Ahmad Faizal',
+            slotsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">BC1 - Badminton Court 1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">19:00 - 20:00</td></tr></table>',
+            participantsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} awaiting approval - {{bookingDateText}} {{timeRange}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking awaiting approval</h2>
+            <p>Dear Member,</p>
+            <p>Your booking at <strong>{{companyName}}</strong> has been received and is <strong>awaiting the club's approval</strong>. The slots are held for you while the club decides; you will receive a confirmation or a notice once decided.</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{bookingDateText}}<br>
+                <strong>Time:</strong> {{timeRange}}<br>
+                <strong>Facility:</strong> {{facilityType}} ({{facilities}})<br>
+                <strong>Booked by:</strong> {{bookerName}}
+            </p>
+            {{{slotsTable}}}
+            {{{participantsTable}}}
+        `),
+    },
+    {
+        key: 'facility.booking.rejected',
+        name: 'Facility booking not approved',
+        description: 'Sent to the booker when a pending facility booking is rejected or its approval withdrawn.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'bookingDateText', description: "The booking date, e.g. '27 Sept 2026'." },
+            { name: 'timeRange', description: "The first slot start to the last slot end, e.g. '19:00 - 21:00'." },
+            { name: 'facilityType', description: 'The facility type, e.g. BADMINTON - Badminton Courts.' },
+            { name: 'facilities', description: 'The unit codes booked, e.g. BC1.' },
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'slotsTable', description: 'The booked slots as an HTML table (insert with triple braces).' },
+            { name: 'participantsTable', description: 'The participants as an HTML table (insert with triple braces; empty when none were keyed).' },
+            { name: 'companyName', description: "The club's name." },
+            { name: 'reason', description: 'The rejection reason.' },
+        ],
+        sample: {
+            bookingNo: 'FB-00012', bookingDateText: '27 Sept 2026', timeRange: '19:00 - 20:00',
+            facilityType: 'BADMINTON - Badminton Courts', facilities: 'BC1', bookerName: 'Ahmad Faizal',
+            slotsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">BC1 - Badminton Court 1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">19:00 - 20:00</td></tr></table>',
+            participantsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+            reason: 'Rejected in approval.',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} not approved - {{bookingDateText}} {{timeRange}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking not approved</h2>
+            <p>Dear Member,</p>
+            <p>Your booking at <strong>{{companyName}}</strong> was <strong>not approved</strong> and the slots have been released.</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{bookingDateText}}<br>
+                <strong>Time:</strong> {{timeRange}}<br>
+                <strong>Facility:</strong> {{facilityType}} ({{facilities}})<br>
+                <strong>Booked by:</strong> {{bookerName}}
+            </p>
+            {{{slotsTable}}}
+            {{{participantsTable}}}
+            {{#if reason}}<p><strong>Reason:</strong> {{reason}}</p>{{/if}}
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Please contact the front desk if you have any questions.</p>
+        `),
+    },
+    {
+        key: 'facility.booking.cancelled',
+        name: 'Facility booking cancellation',
+        description: 'Sent to the booker and every member participant with an email address when a facility booking is cancelled.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'bookingDateText', description: "The booking date, e.g. '27 Sept 2026'." },
+            { name: 'timeRange', description: "The first slot start to the last slot end, e.g. '19:00 - 21:00'." },
+            { name: 'facilityType', description: 'The facility type, e.g. BADMINTON - Badminton Courts.' },
+            { name: 'facilities', description: 'The unit codes booked, e.g. BC1.' },
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'slotsTable', description: 'The booked slots as an HTML table (insert with triple braces).' },
+            { name: 'participantsTable', description: 'The participants as an HTML table (insert with triple braces; empty when none were keyed).' },
+            { name: 'companyName', description: "The club's name." },
+            { name: 'cancelReason', description: 'The reason keyed at cancellation (may be empty).' },
+        ],
+        sample: {
+            bookingNo: 'FB-00012', bookingDateText: '27 Sept 2026', timeRange: '19:00 - 20:00',
+            facilityType: 'BADMINTON - Badminton Courts', facilities: 'BC1', bookerName: 'Ahmad Faizal',
+            slotsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">BC1 - Badminton Court 1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">19:00 - 20:00</td></tr></table>',
+            participantsTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+            cancelReason: 'Court maintenance',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} cancelled - {{bookingDateText}} {{timeRange}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking cancelled</h2>
+            <p>Dear Member,</p>
+            <p>The following booking at <strong>{{companyName}}</strong> has been <strong>cancelled</strong>.</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{bookingDateText}}<br>
+                <strong>Time:</strong> {{timeRange}}<br>
+                <strong>Facility:</strong> {{facilityType}} ({{facilities}})<br>
+                <strong>Booked by:</strong> {{bookerName}}
+            </p>
+            {{{slotsTable}}}
+            {{{participantsTable}}}
+            {{#if cancelReason}}<p><strong>Reason:</strong> {{cancelReason}}</p>{{/if}}
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">If this is unexpected, please contact the club's front desk.</p>
+        `),
+    },
 ];

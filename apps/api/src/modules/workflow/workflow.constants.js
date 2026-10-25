@@ -124,6 +124,29 @@ const PURPOSES = [
             { name: 'approvalTypes', label: 'The player type codes that required this approval', type: 'string' },
         ],
     },
+    // Facility booking (structures approved 2026-10-25, sub-slice 2b): a
+    // booking of a Facility Type that requires approval, or carrying a
+    // participant of a requires-approval Participant Type, is created
+    // pending-approval with its slots held; approval books it, rejection
+    // cancels it (slots released, guest visits voided).
+    {
+        key: 'facility-booking',
+        name: 'Facility booking',
+        entityType: 'FacilityBooking',
+        documentRoute: '/facility/bookings',
+        entityRouteParam: false,
+        contextFields: [
+            { name: 'facilityTypeCode', label: 'Facility type code', type: 'string' },
+            { name: 'dayType', label: 'Day type (weekday | weekend)', type: 'string' },
+            { name: 'bookingDate', label: 'Booking date (YYYY-MM-DD)', type: 'string' },
+            { name: 'startTime', label: 'First slot start (HH:MM)', type: 'string' },
+            { name: 'slots', label: 'Slots on the booking', type: 'number' },
+            { name: 'participants', label: 'Participants on the booking', type: 'number' },
+            { name: 'guests', label: 'Guest-like participants (guest, member as guest)', type: 'number' },
+            { name: 'participantTypes', label: 'Participant type codes on the booking (comma separated)', type: 'string' },
+            { name: 'approvalTypes', label: 'What required this approval (facility-type and/or participant type codes)', type: 'string' },
+        ],
+    },
     // Affiliated / reciprocal club visit (user decisions 2026-10-15; owned by
     // Membership since 2026-10-16): an inbound visit request from a club or
     // player type that requires approval routes here on Confirm; approval

@@ -478,6 +478,25 @@ FacilityTransactionType.hasMany(FacilityTransactionTypeRate, { foreignKey: 'tran
 FacilityTransactionTypeRate.belongsTo(FacilityTransactionType, { foreignKey: 'transactionTypeId', as: 'TransactionType' });
 FacilityTransactionTypeRate.hasMany(FacilityTransactionTypeRateCell, { foreignKey: 'rateId', as: 'Cells', onDelete: 'CASCADE' });
 FacilityTransactionTypeRateCell.belongsTo(FacilityTransactionTypeRate, { foreignKey: 'rateId', as: 'Rate' });
+// Facility slice 2b booking (structures approved 2026-10-25): Booking ->
+// BookingSlot -> BookingParticipant (cascade); the slot's type and unit are
+// intra-service FKs (RESTRICT - a unit with bookings is never deleted);
+// SlotLock is the short-lived claim on a unit's slot. The booker and the
+// participants reference facility.Patron by plain id.
+const FacilityBooking = require('../modules/facility/booking.model');
+const FacilityBookingSlot = require('../modules/facility/bookingSlot.model');
+const FacilityBookingParticipant = require('../modules/facility/bookingParticipant.model');
+const FacilitySlotLock = require('../modules/facility/slotLock.model');
+FacilityBooking.hasMany(FacilityBookingSlot, { foreignKey: 'bookingId', as: 'Slots', onDelete: 'CASCADE' });
+FacilityBookingSlot.belongsTo(FacilityBooking, { foreignKey: 'bookingId', as: 'Booking' });
+FacilityBookingSlot.hasMany(FacilityBookingParticipant, { foreignKey: 'bookingSlotId', as: 'Participants', onDelete: 'CASCADE' });
+FacilityBookingParticipant.belongsTo(FacilityBookingSlot, { foreignKey: 'bookingSlotId', as: 'Slot' });
+FacilityType.hasMany(FacilityBooking, { foreignKey: 'facilityTypeId', as: 'Bookings', onDelete: 'RESTRICT' });
+FacilityBooking.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+Facility.hasMany(FacilityBookingSlot, { foreignKey: 'facilityId', as: 'BookingSlots', onDelete: 'RESTRICT' });
+FacilityBookingSlot.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+Facility.hasMany(FacilitySlotLock, { foreignKey: 'facilityId', as: 'SlotLocks', onDelete: 'CASCADE' });
+FacilitySlotLock.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -573,6 +592,10 @@ module.exports = {
     FacilityNumberingScheme,
     FacilityGuestControlRule,
     FacilityAdvanceBookingOverride,
+    FacilityBooking,
+    FacilityBookingSlot,
+    FacilityBookingParticipant,
+    FacilitySlotLock,
     GuestVisit,
     GolfNoShowCharge,
     GolfGroupPlayDay,
