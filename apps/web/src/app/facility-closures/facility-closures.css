@@ -23,7 +23,11 @@
   color: var(--text-muted);
 }
 
-/* Unit multi-select on the create form - one checkbox per active unit. */
+/* Unit multi-select on the create form - one checkbox per active unit; the
+   block keeps the form-row rhythm below it. */
+.fcl-units {
+  margin-bottom: var(--space-lg);
+}
 .fcl-unit-picks {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

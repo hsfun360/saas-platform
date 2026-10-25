@@ -425,9 +425,8 @@
                       <div class="ft-set__desc">{{ s.description }}</div>
                     }
                     <div class="ft-set__meta">
-                      {{ s.firstSlotTime }} - {{ s.lastSlotTime }} · {{ s.slotMinutes }} min slots ·
-                      {{ activeSlotCount(s) }} of {{ slotCount(s) }} slot{{ slotCount(s) === 1 ? '' : 's' }} on
-                      @if (s.frontDeskFrom) { · front desk from {{ s.frontDeskFrom }} }
+                      {{ s.firstSlotTime }} - {{ s.lastSlotTime }} · {{ s.slotMinutes }} min ·
+                      {{ slotCount(s) }} slot{{ slotCount(s) === 1 ? '' : 's' }}@if (activeSlotCount(s) !== slotCount(s)) { ({{ slotCount(s) - activeSlotCount(s) }} off)}@if (s.frontDeskFrom) { · front desk from {{ s.frontDeskFrom }}}
                     </div>
                   </div>
                   <div class="ft-set__actions">

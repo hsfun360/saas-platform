@@ -127,6 +127,7 @@
                   <input id="fclTarget" type="text" [value]="targetLabel(p)" disabled />
                 </div>
               } @else {
+                <div class="form-row">
                 <div class="form-group">
                   <label for="fclType">Facility type <span class="required">*</span></label>
                   <select #fclTypeSel id="fclType" formControlName="facilityTypeId" (change)="setPickedType(fclTypeSel.value)"
@@ -140,8 +141,9 @@
                     <p id="fclTypeErr" class="field-error" role="alert">Pick the facility type that closes.</p>
                   }
                 </div>
+                </div>
                 @if (pickedTypeId()) {
-                  <div class="form-group">
+                  <div class="form-group fcl-units">
                     <label id="fclUnitsLabel">Facilities</label>
                     @if (unitsOfPickedType().length === 0) {
                       <p class="fcl-hint">This type has no active facilities yet - the plan closes the whole type.</p>
