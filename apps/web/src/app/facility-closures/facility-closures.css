@@ -1,0 +1,139 @@
+/* Facility Closures - composes the shared listing/dialog primitives; only
+   the screen-specific bits live here (the golf Course Closure shape). */
+
+.fcl-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The closed target's code chip on a plan card's subline. */
+.fcl-target {
+  font-weight: var(--weight-semibold);
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-sunken));
+  border-radius: 8px;
+  padding: 1px var(--space-sm);
+  font-size: var(--font-body-2);
+}
+
+.fcl-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* Unit multi-select on the create form - one checkbox per active unit. */
+.fcl-unit-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-xs);
+}
+
+.fcl-unit-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.fcl-unit-pick input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  accent-color: var(--brand);
+}
+
+.fcl-unit-pick__desc {
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+/* Closure day editor - date | from | until | on-checkbox | remove.
+   Wide grid scrolls horizontally on narrow screens; the 4px padding keeps the
+   focus ring unclipped inside the scroll container. */
+.fcl-day-scroll {
+  overflow-x: auto;
+  padding: 4px;
+  margin: -4px -4px var(--space-sm);
+}
+
+.fcl-day-head,
+.fcl-day-row {
+  display: grid;
+  grid-template-columns: 170px 110px 110px 44px 36px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.fcl-day-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.fcl-day-row {
+  margin-bottom: var(--space-xs);
+}
+
+.fcl-day-row--off > .fcl-day-date {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.fcl-day-date {
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.fcl-day-tag {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px var(--space-xs);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+/* Grid-row field chrome (the .form-group rules do not reach these rows). */
+.fcl-day-row input[type='time'] {
+  min-height: 40px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.fcl-day-row input[type='time']:focus {
+  background: var(--surface-card);
+  border-color: var(--brand);
+}
+
+.fcl-day-on {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.fcl-day-on input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  accent-color: var(--brand);
+}

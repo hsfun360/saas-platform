@@ -1,0 +1,243 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">tune</span>
+      <div>
+        <h1>{{ 'Facility Specification' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Facility-wide settings for this club - the booking window, guest control, cancellation notice and the day sessions.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading facility specification…</p></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+
+      <!-- ============ Booking window ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('booking')"
+                [attr.aria-expanded]="isExpanded('booking')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Booking Window</span>
+            <span class="settings-header__sub">How far in advance a slot can be booked, when the daily window opens, and how long a picked slot is held.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('booking')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('booking')) {
+          <div class="settings-body">
+            <div class="fs-grid">
+              <div class="form-group">
+                <label for="fsDays">Advance Booking Days <span class="required">*</span>
+                  <app-field-info label="Advance booking window" [text]="hint.window" />
+                </label>
+                <input id="fsDays" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays"
+                       [attr.aria-invalid]="showError(form.controls.advanceBookingDays)" aria-describedby="fsDaysErr" />
+                @if (showError(form.controls.advanceBookingDays)) {
+                  <p id="fsDaysErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
+                }
+                <p class="cell-subtle field-hint">The general rule; a facility type may set its own days.</p>
+              </div>
+              <div class="form-group">
+                <label for="fsHours">Advance Booking Hours <span class="required">*</span></label>
+                <input id="fsHours" type="number" inputmode="numeric" min="0" max="23" step="1" formControlName="advanceBookingHours"
+                       [attr.aria-invalid]="showError(form.controls.advanceBookingHours)" aria-describedby="fsHoursErr" />
+                @if (showError(form.controls.advanceBookingHours)) {
+                  <p id="fsHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 23.</p>
+                }
+                <p class="cell-subtle field-hint">Opens the daily window this many hours before midnight.</p>
+              </div>
+            </div>
+            @if (windowPreview(); as preview) {
+              <p class="fs-preview">{{ preview }}</p>
+            }
+
+            <div class="fs-grid" style="margin-top: var(--space-md);">
+              <div class="form-group">
+                <label for="fsLock">Booking Lock (minutes) <span class="required">*</span>
+                  <app-field-info label="Booking lock" [text]="hint.lock" />
+                </label>
+                <input id="fsLock" type="number" inputmode="numeric" min="1" max="60" step="1" formControlName="bookingLockMinutes"
+                       [attr.aria-invalid]="showError(form.controls.bookingLockMinutes)" aria-describedby="fsLockErr" />
+                @if (showError(form.controls.bookingLockMinutes)) {
+                  <p id="fsLockErr" class="field-error" role="alert">Enter a whole number between 1 and 60.</p>
+                }
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-top: var(--space-md);">
+              <label class="fs-check">
+                <input type="checkbox" formControlName="allowSameDayBooking" />
+                <span>Allow same-day booking - today's slots can be booked</span>
+                <app-field-info label="Same-day booking" [text]="hint.sameDay" />
+              </label>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- ============ Sessions ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('sessions')"
+                [attr.aria-expanded]="isExpanded('sessions')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Sessions</span>
+            <span class="settings-header__sub">The club's day parts - the peak and off-peak bands facility fees and booking limits can follow.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('sessions')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('sessions')) {
+          <div class="settings-body">
+            <div class="fs-sessions array-editor">
+              <label style="font-weight: var(--weight-semibold);">Sessions
+                <app-field-info label="Sessions" [text]="hint.sessions" />
+              </label>
+              @if (sessions.length) {
+                <div class="fs-sess-head" aria-hidden="true">
+                  <span>Name</span><span>From</span><span>Until</span><span></span>
+                </div>
+              }
+              <div formArrayName="sessions">
+                @for (g of sessions.controls; track g; let i = $index) {
+                  <div class="fs-sess-row" [formGroupName]="i">
+                    <input type="text" formControlName="name" maxlength="50" placeholder="e.g. Morning"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' name'" />
+                    <input type="time" formControlName="startTime"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' from'" />
+                    <input type="time" formControlName="endTime"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' until'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeSession(i)"
+                            [attr.aria-label]="'Remove session ' + (g.controls.name.value || i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
+              <button type="button" class="btn btn--secondary btn--sm" style="margin-top: var(--space-xs); align-self: start;" (click)="addSession()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add session
+              </button>
+              @if (sessions.length === 0) {
+                <p class="cell-subtle field-hint">No sessions yet - every slot is priced and counted the same across the day.</p>
+              } @else {
+                <p class="cell-subtle field-hint">Until is exclusive: a 17:00 - 22:00 session owns slots starting 17:00 to 21:59. Bands must not overlap.</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- ============ Guest control ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('guests')"
+                [attr.aria-expanded]="isExpanded('guests')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Guest Control</span>
+            <span class="settings-header__sub">Whether members may bring guests, by day type - each facility type can tighten these.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('guests')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('guests')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="guestControlEnabled" />
+                <span>Enable guest control</span>
+                <app-field-info label="Guest control" [text]="hint.guests" />
+              </label>
+            </div>
+            @if (guestControlOn()) {
+              <div class="fs-grid" style="margin-top: var(--space-md);">
+                <div>
+                  <p class="fs-day-title">Weekdays</p>
+                  <label class="fs-check"><input type="checkbox" formControlName="allowGuestWeekday" /><span>Visitor guests allowed</span></label>
+                  <label class="fs-check"><input type="checkbox" formControlName="allowMemberGuestWeekday" /><span>Members may join another member's booking</span></label>
+                </div>
+                <div>
+                  <p class="fs-day-title">Weekends and public holidays</p>
+                  <label class="fs-check"><input type="checkbox" formControlName="allowGuestWeekend" /><span>Visitor guests allowed</span></label>
+                  <label class="fs-check"><input type="checkbox" formControlName="allowMemberGuestWeekend" /><span>Members may join another member's booking</span></label>
+                </div>
+              </div>
+              <p class="cell-subtle field-hint">Per-type limits (guests per booking, host must be present) are set on each facility type.</p>
+            } @else {
+              <p class="cell-subtle field-hint">Off - guests are not restricted on any facility.</p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ============ Cancellation and no-show ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('noshow')"
+                [attr.aria-expanded]="isExpanded('noshow')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Cancellation and No-show</span>
+            <span class="settings-header__sub">The notice a cancellation needs, and whether no-shows are penalised.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('noshow')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('noshow')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="noShowControlEnabled" />
+                <span>Enable cancellation notice and no-show control</span>
+                <app-field-info label="Cancellation and no-show control" [text]="hint.noShow" />
+              </label>
+            </div>
+            @if (noShowControlOn()) {
+              <div class="fs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="fsNotice">Cancellation Notice (hours) <span class="required">*</span></label>
+                  <input id="fsNotice" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="cancellationNoticeHours"
+                         [attr.aria-invalid]="showError(form.controls.cancellationNoticeHours)" aria-describedby="fsNoticeErr" />
+                  @if (showError(form.controls.cancellationNoticeHours)) {
+                    <p id="fsNoticeErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
+                  }
+                  <p class="cell-subtle field-hint">A cancel closer than this to the slot is a late cancellation; 0 = no notice rule.</p>
+                </div>
+              </div>
+              <p class="cell-subtle field-hint">The no-show charge and the strike rule per facility type arrive with the No show slice.</p>
+            } @else {
+              <p class="cell-subtle field-hint">Off - bookings cancel at any time without penalty.</p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Sticky save bar (settings-chrome standard): only while dirty. -->
+      @if (form.dirty) {
+        <div class="save-bar" *appCan="'edit'">
+          <span class="save-bar__status">Unsaved changes</span>
+          <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      }
+    </form>
+
+    @if (leaveConfirm(); as c) {
+      <app-confirm-dialog [request]="c" (cancelled)="cancelLeave()" />
+    }
+  }
+</div>

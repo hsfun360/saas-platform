@@ -1,0 +1,283 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">event_busy</span>
+      <div>
+        <h1>{{ 'Facility Closures' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Close a facility, or every facility of a type, for maintenance or an event - its slots stop taking bookings and the station refuses entry.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <p class="fcl-count">{{ plans().length }} closure plan{{ plans().length === 1 ? '' : 's' }}, {{ activeCount() }} active</p>
+
+  <!-- SEARCH -->
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by description, type, facility or date…" aria-label="Search closure plans" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading closure plans…</p></div>
+  } @else if (plans().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">construction</span>
+      <p>No closure plans yet. Use 'New closure plan' to close a facility or a whole type over a date period - e.g. court resurfacing on weekday mornings, or the pool for a swim meet.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No closure plans match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (p of filtered(); track p.id) {
+        <div class="data-card" [attr.data-return-id]="p.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ p.description }}</div>
+              <div class="data-card__subline">
+                <span class="fcl-target">{{ targetCode(p) }}</span>
+                <span class="data-card__reg">{{ targetLabel(p) }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Period</dt><dd>{{ p.dateFrom | localDate }} to {{ p.dateTo | localDate }}</dd></div>
+                <div class="meta"><dt>Days</dt><dd>{{ scopeLabel(p.dayScope) }}</dd></div>
+                <div class="meta"><dt>Closed</dt><dd>{{ closureWindow(p.startTime, p.endTime) }}</dd></div>
+                <div class="meta"><dt>Closure days</dt><dd>{{ dayCount(p) }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              @if (p.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
+                <span class="material-icons" aria-hidden="true">event_busy</span>
+                Closure days ({{ dayCount(p) }})
+              </button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + p.description">
+                <button type="button" appMenuItem (click)="openEdit(p)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <button type="button" appMenuItem (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
+                  <span class="material-icons" aria-hidden="true">{{ p.isActive === false ? 'check_circle' : 'block' }}</span>
+                  {{ p.isActive === false ? 'Enable' : 'Disable' }}
+                </button>
+                <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(p)" [disabled]="togglingId() === p.id">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  Delete
+                </button>
+              </app-overflow-menu>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New closure plan FAB -->
+  @if (types().length > 0) {
+    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New closure plan" *appCan="'create'">
+      <span class="material-icons" aria-hidden="true">add</span>
+      New closure plan
+    </button>
+  }
+
+  <!-- ============ The ONE drawer dialog: plan form / day editor ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved closure changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          @case ('form') {
+            <form id="fclForm" [formGroup]="form" (ngSubmit)="onSave()">
+              @if (editPlan(); as p) {
+                <div class="form-group">
+                  <label for="fclTarget">Closes</label>
+                  <input id="fclTarget" type="text" [value]="targetLabel(p)" disabled />
+                </div>
+              } @else {
+                <div class="form-group">
+                  <label for="fclType">Facility type <span class="required">*</span></label>
+                  <select #fclTypeSel id="fclType" formControlName="facilityTypeId" (change)="setPickedType(fclTypeSel.value)"
+                          [attr.aria-invalid]="showError(form.controls.facilityTypeId)" aria-describedby="fclTypeErr">
+                    <option value="" disabled>- Select -</option>
+                    @for (t of types(); track t.id) {
+                      <option [value]="t.id">{{ t.code }} - {{ t.description }}</option>
+                    }
+                  </select>
+                  @if (showError(form.controls.facilityTypeId)) {
+                    <p id="fclTypeErr" class="field-error" role="alert">Pick the facility type that closes.</p>
+                  }
+                </div>
+                @if (pickedTypeId()) {
+                  <div class="form-group">
+                    <label id="fclUnitsLabel">Facilities</label>
+                    @if (unitsOfPickedType().length === 0) {
+                      <p class="fcl-hint">This type has no active facilities yet - the plan closes the whole type.</p>
+                    } @else {
+                      <div class="fcl-unit-picks" role="group" aria-labelledby="fclUnitsLabel">
+                        @for (u of unitsOfPickedType(); track u.id) {
+                          <label class="fcl-unit-pick">
+                            <input type="checkbox" [checked]="pickedUnits().has(u.id)" (change)="toggleUnit(u.id)" />
+                            {{ u.code }} <span class="fcl-unit-pick__desc">- {{ u.name }}</span>
+                          </label>
+                        }
+                      </div>
+                      <p class="fcl-hint">
+                        @if (pickedUnits().size === 0) { None ticked: ONE plan closes every facility of this type. }
+                        @else { One plan is created per ticked facility; each plan's days are generated separately. }
+                      </p>
+                    }
+                  </div>
+                }
+              }
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fclDesc">Description <span class="required">*</span></label>
+                  <input id="fclDesc" type="text" formControlName="description" placeholder="e.g. Court resurfacing" maxlength="255"
+                         [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fclDescErr" />
+                  @if (showError(form.controls.description)) {
+                    <p id="fclDescErr" class="field-error" role="alert">Description is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fclScope">Day scope <span class="required">*</span></label>
+                  <select id="fclScope" formControlName="dayScope" aria-describedby="fclScopeHint">
+                    @for (sc of dayScopes; track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                  <p id="fclScopeHint" class="fcl-hint">Public holidays count as weekends.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fclFrom">Start date <span class="required">*</span></label>
+                  <input id="fclFrom" type="date" formControlName="dateFrom"
+                         [attr.aria-invalid]="showError(form.controls.dateFrom)" aria-describedby="fclFromErr" />
+                  @if (showError(form.controls.dateFrom)) {
+                    <p id="fclFromErr" class="field-error" role="alert">Start date is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="fclTo">End date <span class="required">*</span></label>
+                  <input id="fclTo" type="date" formControlName="dateTo"
+                         [attr.aria-invalid]="showError(form.controls.dateTo)" aria-describedby="fclToErr" />
+                  @if (showError(form.controls.dateTo)) {
+                    <p id="fclToErr" class="field-error" role="alert">End date is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fclStart">Closed from</label>
+                  <input id="fclStart" type="time" formControlName="startTime" aria-describedby="fclTimeHint" />
+                </div>
+                <div class="form-group">
+                  <label for="fclEnd">Closed until</label>
+                  <input id="fclEnd" type="time" formControlName="endTime" />
+                </div>
+              </div>
+              <p id="fclTimeHint" class="fcl-hint">Leave both times empty to close for the whole day.</p>
+            </form>
+          }
+
+          @case ('days') {
+            <form id="fclDays" [formGroup]="daysForm" (ngSubmit)="onSaveDays()">
+            @if (dayLines.length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">construction</span>
+                <p>No closure days yet - generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
+              </div>
+            } @else {
+              <div class="fcl-day-scroll" formArrayName="days">
+                <div class="fcl-day-head" aria-hidden="true">
+                  <span>Date</span><span>From</span><span>Until</span><span>On</span><span></span>
+                </div>
+                @for (g of dayLines.controls; track g.controls.closureDate.value; let i = $index) {
+                  <div class="fcl-day-row" [formGroupName]="i" [class.fcl-day-row--off]="!g.controls.isActive.value">
+                    <span class="fcl-day-date">
+                      {{ g.controls.closureDate.value | localDate }}
+                      @if (g.controls.isHoliday.value) {
+                        <span class="fcl-day-tag">Holiday</span>
+                      } @else if (g.controls.dayType.value === 'weekend') {
+                        <span class="fcl-day-tag">Weekend</span>
+                      }
+                    </span>
+                    <input type="time" formControlName="startTime" [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closed from'" />
+                    <input type="time" formControlName="endTime" [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closed until'" />
+                    <label class="fcl-day-on">
+                      <input type="checkbox" formControlName="isActive" [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closure applies'" />
+                    </label>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeDay(i)" [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+            <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
+              <span class="material-icons" aria-hidden="true">event_busy</span>
+              <span>{{ generating() ? 'Generating…' : (dayLines.length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' to ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
+            </button>
+            </form>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="fclForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : (editPlan() || pickedUnits().size < 2 ? 'Save' : 'Save on ' + pickedUnits().size + ' facilities') }}
+            </button>
+          }
+          @case ('days') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
+            <button type="submit" form="fclDays" class="btn btn--primary" [disabled]="daysSaving()">
+              {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + (dayLines.length === 1 ? ' day' : ' days') }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

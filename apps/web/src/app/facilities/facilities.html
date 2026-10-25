@@ -1,0 +1,266 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">domain</span>
+      <div>
+        <h1>{{ 'Facilities' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The physical units under each facility type - every court, the gym, every locker.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} facilit{{ rows().length === 1 ? 'y' : 'ies' }}, {{ activeCount() }} active
+      } @else if (!loading() && types().length === 0) {
+        No facility types yet - add the types under Facility Types first, then their facilities here.
+      } @else if (!loading()) {
+        No facilities yet. Use 'New facility' to add the first court, room or locker.
+      } @else {
+        Loading the club's facilities…
+      }
+    </span>
+  </div>
+
+  <!-- Type filter + live search -->
+  @if (!loading() && rows().length > 0) {
+    @if (filterTypes().length > 1) {
+      <div class="fa-filters" role="group" aria-label="Filter by facility type">
+        <button type="button" class="btn btn--sm" [class.btn--primary]="typeFilter() === ''" [class.btn--secondary]="typeFilter() !== ''" (click)="typeFilter.set('')">All types</button>
+        @for (t of filterTypes(); track t.id) {
+          <button type="button" class="btn btn--sm" [class.btn--primary]="typeFilter() === t.id" [class.btn--secondary]="typeFilter() !== t.id" (click)="typeFilter.set(t.id)">
+            <span class="material-icons" aria-hidden="true">{{ modeIcon(t.usageMode) }}</span>
+            {{ t.description }}
+          </button>
+        }
+      </div>
+    }
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #faSearchBox type="search" [value]="search()" (input)="search.set(faSearchBox.value)"
+             placeholder="Search facilities…" aria-label="Search facilities" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading facilities…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No facilities match{{ search() ? ' "' + search() + '"' : ' this type' }}.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); typeFilter.set('')">Clear filters</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (r of filtered(); track r.id) {
+        <div class="data-card" [attr.data-return-id]="r.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main fa-main">
+              @if (r.pictureUrl) {
+                <img class="fa-thumb" [src]="r.pictureUrl" [alt]="r.code + ' picture'" />
+              } @else {
+                <span class="fa-thumb fa-thumb--glyph material-icons" aria-hidden="true">{{ modeIcon(r.facilityType?.usageMode) }}</span>
+              }
+              <div class="fa-info">
+                <div class="data-card__title">{{ r.code }} - {{ r.name }}</div>
+                <div class="data-card__subline">
+                  <span class="mt-chip">{{ r.facilityType?.description || r.facilityType?.code }}</span>
+                  @if (r.location) { <span class="data-card__reg">{{ r.location }}</span> }
+                  @if (r.isIndoor) { <span class="mt-chip">Indoor</span> }
+                  @if (r.isFloodlit) { <span class="mt-chip">Floodlit</span> }
+                  @if (r.capacity) { <span class="data-card__reg">Capacity {{ r.capacity }}</span> }
+                </div>
+                @if (r.remarks) {
+                  <div class="data-card__desc">{{ r.remarks }}</div>
+                }
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (r.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (r.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + r.code">
+                    <button type="button" appMenuItem (click)="openClosures(r)">
+                      <span class="material-icons" aria-hidden="true">event_busy</span>
+                      Closures
+                    </button>
+                    <button type="button" appMenuItem (click)="toggleActive(r)" [disabled]="togglingId() === r.id">
+                      <span class="material-icons" aria-hidden="true">{{ r.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ r.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(r)" [disabled]="togglingId() === r.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New facility FAB -->
+  @if (types().length > 0) {
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New facility">
+      <span class="material-icons" aria-hidden="true">add</span>
+      <span>New facility</span>
+    </button>
+  }
+
+  <!-- ============ Add / edit drawer ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving() || uploading()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this facility. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="faForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="faType">Facility type <span class="required">*</span></label>
+            <select id="faType" formControlName="facilityTypeId"
+                    [attr.aria-invalid]="showError(form.controls.facilityTypeId)" aria-describedby="faTypeErr faTypeHint">
+              <option value="" disabled>- Select -</option>
+              @for (t of pickerTypes(); track t.id) {
+                <option [value]="t.id">{{ t.code }} - {{ t.description }}</option>
+              }
+            </select>
+            @if (showError(form.controls.facilityTypeId)) {
+              <p id="faTypeErr" class="field-error" role="alert">Pick the facility type.</p>
+            }
+            <p id="faTypeHint" class="cell-subtle field-hint">
+              @if (editId()) { Fixed once the facility exists - create a new facility to move a unit to another type. }
+              @else if (selectedType(); as t) { {{ t.usageMode === 'slot' ? 'Booked by the type\'s slot sets.' : t.usageMode === 'entry' ? 'Entered on registration at the Control Station.' : (t.trackUnits ? 'One numbered unit issued and returned at the station.' : 'A counted consumable - one row for the counter is enough.') }} }
+              @else { Decides how the unit is used - slot booking, entry registration or issue and return. }
+            </p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="faCode">Code <span class="required">*</span></label>
+            <input id="faCode" type="text" formControlName="code" placeholder="e.g. BC1" autocomplete="off" maxlength="20"
+                   style="text-transform: uppercase;"
+                   [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="faCodeErr" />
+            @if (showError(form.controls.code)) {
+              <p id="faCodeErr" class="field-error" role="alert">
+                @if (form.controls.code.errors?.['required']) { Code is required. }
+                @else if (form.controls.code.errors?.['pattern']) { Use letters, digits, underscores and hyphens only. }
+                @else { Use 20 characters or fewer. }
+              </p>
+            }
+            <p class="cell-subtle field-hint">Stored in capitals; unique across the club's facilities.</p>
+          </div>
+          <div class="form-group form-group--narrow">
+            <label for="faSort">Sort Order <span class="required">*</span></label>
+            <input id="faSort" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="sortOrder"
+                   [attr.aria-invalid]="showError(form.controls.sortOrder)" aria-describedby="faSortErr" />
+            @if (showError(form.controls.sortOrder)) {
+              <p id="faSortErr" class="field-error" role="alert">Enter a whole number between 0 and 9999.</p>
+            }
+            <p class="cell-subtle field-hint">Order on the booking grid.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="faName">Name <span class="required">*</span></label>
+            <input id="faName" type="text" formControlName="name" placeholder="e.g. Badminton Court 1" maxlength="255"
+                   [attr.aria-invalid]="showError(form.controls.name)" aria-describedby="faNameErr" />
+            @if (showError(form.controls.name)) {
+              <p id="faNameErr" class="field-error" role="alert">Name is required (255 characters or fewer).</p>
+            }
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="faLocation">Location</label>
+            <input id="faLocation" type="text" formControlName="location" placeholder="e.g. Sports Hall, Level 2" maxlength="255" />
+          </div>
+          @if (selectedType()?.usageMode === 'entry') {
+            <div class="form-group">
+              <label for="faCap">Capacity</label>
+              <input id="faCap" type="number" inputmode="numeric" min="1" max="100000" step="1" formControlName="capacity" placeholder="Counted under the type"
+                     [attr.aria-invalid]="showError(form.controls.capacity)" aria-describedby="faCapErr" />
+              @if (showError(form.controls.capacity)) {
+                <p id="faCapErr" class="field-error" role="alert">Enter a whole number between 1 and 100000, or leave blank.</p>
+              }
+              <p class="cell-subtle field-hint">This unit's own cap (a second pool); blank = the type's capacity applies.</p>
+            </div>
+          }
+        </div>
+        <div class="form-grid">
+          <label class="fa-check"><input type="checkbox" formControlName="isIndoor" /><span>Indoor</span></label>
+          <label class="fa-check"><input type="checkbox" formControlName="isFloodlit" /><span>Floodlit</span></label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="faRemarks">Remarks</label>
+            <textarea id="faRemarks" formControlName="remarks" rows="2" wrap="off" maxlength="2000" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="faPicture">Picture</label>
+            @if (form.controls.pictureUrl.value) {
+              <img class="fa-picture-preview" [src]="form.controls.pictureUrl.value" alt="Facility picture preview" />
+            }
+            <div class="fa-picture-actions">
+              <input #faPictureFile id="faPicture" type="file" accept="image/*" class="fa-picture-file" (change)="onPictureSelected(faPictureFile)" />
+              <button type="button" class="btn btn--secondary btn--sm" (click)="faPictureFile.click()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : (form.controls.pictureUrl.value ? 'Replace picture' : 'Upload picture') }}
+              </button>
+              @if (form.controls.pictureUrl.value) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removePicture()" [disabled]="uploading()">Remove</button>
+              }
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="faForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

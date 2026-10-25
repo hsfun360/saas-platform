@@ -1,0 +1,604 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">category</span>
+      <div>
+        <h1>{{ 'Facility Types' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The kinds of facility the club runs and their rules - courts booked by slot, the gym and pool entered on registration, lockers and towels issued at the station.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} facility type{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No facility types yet. Use 'New facility type' to add the first one - every facility belongs to a type.
+      } @else {
+        Loading the club's facility types…
+      }
+    </span>
+  </div>
+
+  <!-- Usage-mode filter + live search -->
+  @if (!loading() && rows().length > 0) {
+    <div class="ft-filters" role="group" aria-label="Filter by usage mode">
+      <button type="button" class="btn btn--sm" [class.btn--primary]="modeFilter() === ''" [class.btn--secondary]="modeFilter() !== ''" (click)="modeFilter.set('')">All modes</button>
+      @for (m of usageModes(); track m.key) {
+        <button type="button" class="btn btn--sm" [class.btn--primary]="modeFilter() === m.key" [class.btn--secondary]="modeFilter() !== m.key" (click)="modeFilter.set(m.key)">
+          <span class="material-icons" aria-hidden="true">{{ modeIcon(m.key) }}</span>
+          {{ m.label }}
+        </button>
+      }
+    </div>
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #ftSearchBox type="search" [value]="search()" (input)="search.set(ftSearchBox.value)"
+             placeholder="Search facility types…" aria-label="Search facility types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading facility types…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No facility types match{{ search() ? ' "' + search() + '"' : ' this mode' }}.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); modeFilter.set('')">Clear filters</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card" [attr.data-return-id]="t.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main ft-main">
+              @if (t.iconUrl) {
+                <img class="ft-icon" [src]="t.iconUrl" [alt]="t.code + ' icon'" />
+              } @else {
+                <span class="ft-icon ft-icon--glyph material-icons" aria-hidden="true">{{ modeIcon(t.usageMode) }}</span>
+              }
+              <div class="ft-info">
+                <div class="data-card__title">{{ t.code }} - {{ t.description }}</div>
+                <div class="data-card__subline">
+                  <span class="mt-chip">{{ modeLabel(t.usageMode) }}</span>
+                  <span class="data-card__reg">{{ t.unitCount }} facilit{{ t.unitCount === 1 ? 'y' : 'ies' }}@if (t.unitCount && t.activeUnitCount !== t.unitCount) {, {{ t.activeUnitCount }} active}</span>
+                  @if (t.usageMode === 'slot') {
+                    <span class="data-card__reg">{{ t.slotSetCount }} slot set{{ t.slotSetCount === 1 ? '' : 's' }}</span>
+                  }
+                  @if (!t.guestsAllowed) { <span class="mt-chip">No guests</span> }
+                </div>
+                @if (ruleSummary(t); as summary) {
+                  <div class="data-card__desc">{{ summary }}</div>
+                }
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + t.code">
+                    @if (t.usageMode === 'slot') {
+                      <button type="button" appMenuItem (click)="openSets(t)">
+                        <span class="material-icons" aria-hidden="true">schedule</span>
+                        Slot sets ({{ t.slotSetCount }})
+                      </button>
+                    }
+                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New facility type FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New facility type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New facility type</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog: type form / slot sets / set form / slots ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved facility type changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          @case ('form') {
+            <form id="ftForm" [formGroup]="form" (ngSubmit)="onSave()">
+              <details class="dlg-sec" open>
+                <summary><h3 class="dlg-section">Identity</h3></summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="ftCode">Code <span class="required">*</span></label>
+                    <input id="ftCode" type="text" formControlName="code" placeholder="e.g. BADMINTON" autocomplete="off" maxlength="20"
+                           style="text-transform: uppercase;"
+                           [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="ftCodeErr" />
+                    @if (showError(form.controls.code)) {
+                      <p id="ftCodeErr" class="field-error" role="alert">
+                        @if (form.controls.code.errors?.['required']) { Code is required. }
+                        @else if (form.controls.code.errors?.['pattern']) { Use letters, digits and underscores only. }
+                        @else { Use 20 characters or fewer. }
+                      </p>
+                    }
+                    <p class="cell-subtle field-hint">Stored in capitals; the key the limits, rate cards and reports use.</p>
+                  </div>
+                  <div class="form-group form-group--narrow">
+                    <label for="ftSort">Sort Order <span class="required">*</span></label>
+                    <input id="ftSort" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="sortOrder"
+                           [attr.aria-invalid]="showError(form.controls.sortOrder)" aria-describedby="ftSortErr" />
+                    @if (showError(form.controls.sortOrder)) {
+                      <p id="ftSortErr" class="field-error" role="alert">Enter a whole number between 0 and 9999.</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="ftDesc">Description <span class="required">*</span></label>
+                    <input id="ftDesc" type="text" formControlName="description" placeholder="e.g. Badminton" maxlength="255"
+                           [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="ftDescErr" />
+                    @if (showError(form.controls.description)) {
+                      <p id="ftDescErr" class="field-error" role="alert">Description is required (255 characters or fewer).</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="ftMode">Usage Mode <span class="required">*</span>
+                      <app-field-info label="Usage mode" [text]="hint.mode" />
+                    </label>
+                    <select id="ftMode" formControlName="usageMode">
+                      @for (m of usageModes(); track m.key) {
+                        <option [value]="m.key">{{ m.label }}</option>
+                      }
+                    </select>
+                    @if (modeFrozen()) {
+                      <p class="cell-subtle field-hint">Frozen - {{ editRow()?.unitCount }} facilit{{ editRow()?.unitCount === 1 ? 'y' : 'ies' }} already exist under this type.</p>
+                    } @else {
+                      <p class="cell-subtle field-hint">Decides which rules below apply; frozen once a facility exists.</p>
+                    }
+                  </div>
+                  <div class="form-group">
+                    <label for="ftIcon">Tile icon</label>
+                    @if (form.controls.iconUrl.value) {
+                      <img class="ft-icon-preview" [src]="form.controls.iconUrl.value" alt="Facility type icon preview" />
+                    }
+                    <div class="ft-icon-actions">
+                      <input #ftIconFile id="ftIcon" type="file" accept="image/*" class="ft-icon-file" (change)="onIconSelected(ftIconFile)" />
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="ftIconFile.click()" [disabled]="uploading()">
+                        {{ uploading() ? 'Uploading…' : (form.controls.iconUrl.value ? 'Replace icon' : 'Upload icon') }}
+                      </button>
+                      @if (form.controls.iconUrl.value) {
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
+                      }
+                    </div>
+                    <p class="cell-subtle field-hint">Optional; shown on the booking grid and the station tiles.</p>
+                  </div>
+                </div>
+              </details>
+
+              @if (formMode() === 'slot') {
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Slot booking rules</h3></summary>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftSlotsWd">Slots per day, weekday <span class="required">*</span>
+                        <app-field-info label="Slots per day" [text]="hint.slotsPerDay" />
+                      </label>
+                      <input id="ftSlotsWd" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="maxSlotsPerDayWeekday"
+                             [attr.aria-invalid]="showError(form.controls.maxSlotsPerDayWeekday)" aria-describedby="ftSlotsWdErr" />
+                      @if (showError(form.controls.maxSlotsPerDayWeekday)) {
+                        <p id="ftSlotsWdErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                      }
+                      <p class="cell-subtle field-hint">0 = no limit.</p>
+                    </div>
+                    <div class="form-group">
+                      <label for="ftSlotsWe">Slots per day, weekend and holiday <span class="required">*</span></label>
+                      <input id="ftSlotsWe" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="maxSlotsPerDayWeekend"
+                             [attr.aria-invalid]="showError(form.controls.maxSlotsPerDayWeekend)" aria-describedby="ftSlotsWeErr" />
+                      @if (showError(form.controls.maxSlotsPerDayWeekend)) {
+                        <p id="ftSlotsWeErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                      }
+                      <p class="cell-subtle field-hint">0 = no limit.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftConsec">Max consecutive slots <span class="required">*</span>
+                        <app-field-info label="Consecutive slots" [text]="hint.consecutive" />
+                      </label>
+                      <input id="ftConsec" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="maxConsecutiveSlots"
+                             [attr.aria-invalid]="showError(form.controls.maxConsecutiveSlots)" aria-describedby="ftConsecErr" />
+                      @if (showError(form.controls.maxConsecutiveSlots)) {
+                        <p id="ftConsecErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                      }
+                      <p class="cell-subtle field-hint">0 = no limit.</p>
+                    </div>
+                    <div class="form-group">
+                      <label for="ftAdvance">Advance booking days
+                        <app-field-info label="Advance booking days" [text]="hint.advance" />
+                      </label>
+                      <input id="ftAdvance" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays" placeholder="General rule"
+                             [attr.aria-invalid]="showError(form.controls.advanceBookingDays)" aria-describedby="ftAdvanceErr" />
+                      @if (showError(form.controls.advanceBookingDays)) {
+                        <p id="ftAdvanceErr" class="field-error" role="alert">Enter a whole number between 0 and 365, or leave blank.</p>
+                      }
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftMinP">Min participants <span class="required">*</span>
+                        <app-field-info label="Participants" [text]="hint.participants" />
+                      </label>
+                      <input id="ftMinP" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="minParticipants"
+                             [attr.aria-invalid]="showError(form.controls.minParticipants)" aria-describedby="ftMinPErr" />
+                      @if (showError(form.controls.minParticipants)) {
+                        <p id="ftMinPErr" class="field-error" role="alert">Enter a whole number between 1 and 500.</p>
+                      }
+                      <p class="cell-subtle field-hint">1 = no rule.</p>
+                    </div>
+                    <div class="form-group">
+                      <label for="ftMaxP">Max participants</label>
+                      <input id="ftMaxP" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="maxParticipants" placeholder="Not tracked"
+                             [attr.aria-invalid]="showError(form.controls.maxParticipants)" aria-describedby="ftMaxPErr" />
+                      @if (showError(form.controls.maxParticipants)) {
+                        <p id="ftMaxPErr" class="field-error" role="alert">Enter a whole number between 1 and 500, or leave blank.</p>
+                      }
+                      <p class="cell-subtle field-hint">What one court holds, e.g. 4.</p>
+                    </div>
+                  </div>
+                  @if (editId()) {
+                    <p class="cell-subtle field-hint">The bookable slots themselves are the type's slot sets - open them from the row's menu after saving.</p>
+                  } @else {
+                    <p class="cell-subtle field-hint">After saving, add the type's slot sets from the row's menu.</p>
+                  }
+                </details>
+              }
+
+              @if (formMode() === 'entry') {
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Entry rules</h3></summary>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftCap">Capacity
+                        <app-field-info label="Capacity" [text]="hint.capacity" />
+                      </label>
+                      <input id="ftCap" type="number" inputmode="numeric" min="1" max="100000" step="1" formControlName="capacity" placeholder="Unlimited"
+                             [attr.aria-invalid]="showError(form.controls.capacity)" aria-describedby="ftCapErr" />
+                      @if (showError(form.controls.capacity)) {
+                        <p id="ftCapErr" class="field-error" role="alert">Enter a whole number between 1 and 100000, or leave blank.</p>
+                      }
+                      <p class="cell-subtle field-hint">Persons inside at one time; blank = unlimited.</p>
+                    </div>
+                  </div>
+                </details>
+              }
+
+              @if (formMode() === 'issue') {
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Issue rules</h3></summary>
+                  <div class="form-row">
+                    <label class="ft-check switch">
+                      <input type="checkbox" role="switch" formControlName="trackUnits" />
+                      <span>Track numbered units</span>
+                      <app-field-info label="Track numbered units" [text]="hint.trackUnits" />
+                    </label>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftIssueMax">Max per patron <span class="required">*</span></label>
+                      <input id="ftIssueMax" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="maxIssuePerPatron"
+                             [attr.aria-invalid]="showError(form.controls.maxIssuePerPatron)" aria-describedby="ftIssueMaxErr" />
+                      @if (showError(form.controls.maxIssuePerPatron)) {
+                        <p id="ftIssueMaxErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
+                      }
+                      <p class="cell-subtle field-hint">{{ form.controls.trackUnits.value ? 'Units' : 'Pieces' }} one patron may hold at a time; 0 = no limit.</p>
+                    </div>
+                  </div>
+                </details>
+              }
+
+              @if (formMode() !== 'slot') {
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Opening hours</h3></summary>
+                  <p class="cell-subtle field-hint" style="margin-bottom: var(--space-sm);">Leave both times of a day type blank for no restriction. <app-field-info label="Opening hours" [text]="hint.hours" /></p>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftOpenWd">Weekday open</label>
+                      <input id="ftOpenWd" type="time" formControlName="openTimeWeekday" />
+                    </div>
+                    <div class="form-group">
+                      <label for="ftCloseWd">Weekday close</label>
+                      <input id="ftCloseWd" type="time" formControlName="closeTimeWeekday" />
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ftOpenWe">Weekend and holiday open</label>
+                      <input id="ftOpenWe" type="time" formControlName="openTimeWeekend" />
+                    </div>
+                    <div class="form-group">
+                      <label for="ftCloseWe">Weekend and holiday close</label>
+                      <input id="ftCloseWe" type="time" formControlName="closeTimeWeekend" />
+                    </div>
+                  </div>
+                </details>
+              }
+
+              <details class="dlg-sec" open>
+                <summary><h3 class="dlg-section">Guest policy</h3></summary>
+                <p class="cell-subtle field-hint" style="margin-bottom: var(--space-sm);">Takes effect while guest control is on in Facility Specification. <app-field-info label="Guest policy" [text]="hint.guests" /></p>
+                <div class="form-row">
+                  <label class="ft-check"><input type="checkbox" formControlName="guestsAllowed" /><span>Visitor guests allowed</span></label>
+                </div>
+                <div class="form-row">
+                  <label class="ft-check"><input type="checkbox" formControlName="memberGuestsAllowed" /><span>Members may join another member's booking or visit</span></label>
+                </div>
+                <div class="form-row">
+                  <label class="ft-check"><input type="checkbox" formControlName="hostMustBePresent" /><span>The host member must be present for guests to be admitted</span></label>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="ftMaxG">Max guests per {{ formMode() === 'entry' ? 'visit' : 'booking' }}</label>
+                    <input id="ftMaxG" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="maxGuestsPerBooking" placeholder="No limit"
+                           [attr.aria-invalid]="showError(form.controls.maxGuestsPerBooking)" aria-describedby="ftMaxGErr" />
+                    @if (showError(form.controls.maxGuestsPerBooking)) {
+                      <p id="ftMaxGErr" class="field-error" role="alert">Enter a whole number between 0 and 100, or leave blank.</p>
+                    }
+                    <p class="cell-subtle field-hint">Blank = no limit; 0 = none at all.</p>
+                  </div>
+                </div>
+              </details>
+            </form>
+          }
+
+          @case ('sets') {
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+              The bookable slots of every {{ dlgType()?.description }} facility.
+              <app-field-info label="Slot sets" [text]="hint.slotSets" />
+            </p>
+            @if (setsLoading()) {
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading slot sets…</p></div>
+            } @else if (sets().length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
+                <p>No slot sets yet. Add one set per day scope - the slots are generated from the first start, the last start and the slot length, then adjusted as needed.</p>
+              </div>
+            } @else {
+              @for (s of sets(); track s.id) {
+                <div class="ft-set">
+                  <div class="ft-set__head">
+                    <div class="ft-set__title">
+                      {{ scopeLabel(s.dayScope) }} · from {{ s.effectiveDate | localDate }}
+                      @if (s.isActive === false) {
+                        <span class="status-chip status-chip--off">Disabled</span>
+                      } @else {
+                        <span class="status-chip status-chip--on">Active</span>
+                      }
+                    </div>
+                    @if (s.description) {
+                      <div class="ft-set__desc">{{ s.description }}</div>
+                    }
+                    <div class="ft-set__meta">
+                      {{ s.firstSlotTime }} - {{ s.lastSlotTime }} · {{ s.slotMinutes }} min slots ·
+                      {{ activeSlotCount(s) }} of {{ slotCount(s) }} slot{{ slotCount(s) === 1 ? '' : 's' }} on
+                      @if (s.frontDeskFrom) { · front desk from {{ s.frontDeskFrom }} }
+                    </div>
+                  </div>
+                  <div class="ft-set__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openSlots(s)">Slots ({{ slotCount(s) }})</button>
+                    <app-overflow-menu *appCan="'edit'" [label]="'More actions for the ' + scopeLabel(s.dayScope) + ' slot set'">
+                      <button type="button" appMenuItem (click)="openSetForm(s)">
+                        <span class="material-icons" aria-hidden="true">edit</span>
+                        Edit
+                      </button>
+                      <button type="button" appMenuItem (click)="toggleSetActive(s)" [disabled]="setTogglingId() === s.id">
+                        <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
+                        {{ s.isActive === false ? 'Enable' : 'Disable' }}
+                      </button>
+                      <button *appCan="'delete'" type="button" appMenuItem (click)="askDeleteSet(s)" [disabled]="setTogglingId() === s.id">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                        Delete
+                      </button>
+                    </app-overflow-menu>
+                  </div>
+                </div>
+              }
+            }
+            @if (!setsLoading()) {
+              <button type="button" class="btn btn--secondary" (click)="openSetForm()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">add</span>
+                <span>Add slot set</span>
+              </button>
+            }
+          }
+
+          @case ('setForm') {
+            <form id="ftSetForm" [formGroup]="setForm" (ngSubmit)="onSaveSet()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsScope">Day scope <span class="required">*</span></label>
+                  <select id="fsScope" formControlName="dayScope" aria-describedby="fsScopeHint">
+                    @for (sc of dayScopes(); track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                  <p id="fsScopeHint" class="cell-subtle field-hint">Public holidays count as weekends.</p>
+                </div>
+                <div class="form-group">
+                  <label for="fsEff">Effective date <span class="required">*</span></label>
+                  <input id="fsEff" type="date" formControlName="effectiveDate"
+                         [attr.aria-invalid]="showError(setForm.controls.effectiveDate)" aria-describedby="fsEffErr" />
+                  @if (showError(setForm.controls.effectiveDate)) {
+                    <p id="fsEffErr" class="field-error" role="alert">Effective date is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fsDesc">Description</label>
+                  <input id="fsDesc" type="text" formControlName="description" placeholder="e.g. Weekend schedule" maxlength="255" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsFirst">First slot starts <span class="required">*</span></label>
+                  <input id="fsFirst" type="time" formControlName="firstSlotTime"
+                         [attr.aria-invalid]="showError(setForm.controls.firstSlotTime)" aria-describedby="fsFirstErr" />
+                  @if (showError(setForm.controls.firstSlotTime)) {
+                    <p id="fsFirstErr" class="field-error" role="alert">First slot time is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="fsLast">Last slot starts <span class="required">*</span></label>
+                  <input id="fsLast" type="time" formControlName="lastSlotTime"
+                         [attr.aria-invalid]="showError(setForm.controls.lastSlotTime)" aria-describedby="fsLastErr" />
+                  @if (showError(setForm.controls.lastSlotTime)) {
+                    <p id="fsLastErr" class="field-error" role="alert">Last slot time is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsMinutes">Slot length (minutes) <span class="required">*</span></label>
+                  <input id="fsMinutes" type="number" inputmode="numeric" formControlName="slotMinutes" [min]="slotMinutesMin()" [max]="slotMinutesMax()" step="1"
+                         [attr.aria-invalid]="showError(setForm.controls.slotMinutes)" aria-describedby="fsMinutesErr" />
+                  @if (showError(setForm.controls.slotMinutes)) {
+                    <p id="fsMinutesErr" class="field-error" role="alert">Slot length must be between {{ slotMinutesMin() }} and {{ slotMinutesMax() }} minutes.</p>
+                  }
+                  <p class="cell-subtle field-hint">Every slot of the set has this length.</p>
+                </div>
+                <div class="form-group">
+                  <label for="fsDesk">Front desk from</label>
+                  <input id="fsDesk" type="time" formControlName="frontDeskFrom" aria-describedby="fsDeskHint" />
+                  <p id="fsDeskHint" class="cell-subtle field-hint">Slots from this time are walk-in only, no advance booking.</p>
+                </div>
+              </div>
+              @if (generateCount(); as n) {
+                <p class="ft-preview">{{ n }} slot{{ n === 1 ? '' : 's' }} of {{ setForm.controls.slotMinutes.value }} minutes, {{ setForm.controls.firstSlotTime.value }} to {{ setForm.controls.lastSlotTime.value }}.</p>
+              }
+              @if (editSetId()) {
+                <div class="form-row" style="margin-top: var(--space-sm);">
+                  <label class="ft-check">
+                    <input type="checkbox" formControlName="regenerate" />
+                    <span>Regenerate the slots from these times (replaces any hand adjustments)</span>
+                  </label>
+                </div>
+              }
+            </form>
+          }
+
+          @case ('slots') {
+            <form id="ftSlots" [formGroup]="slotsForm" (ngSubmit)="onSaveSlots()">
+            @if (slotLines.length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
+                <p>No slots - generate them from this set's times, then untick a break or mark evening slots front-desk-only.</p>
+              </div>
+            } @else {
+              <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">On = the slot exists that day (untick a lunch break). Front desk = no advance booking, walk-ins only.</p>
+              <div class="ft-slot-scroll" formArrayName="slots">
+                <div class="ft-slot-head" aria-hidden="true">
+                  <span>#</span><span>Start</span><span>End</span><span>On</span><span>Front desk</span>
+                </div>
+                @for (g of slotLines.controls; track g.controls.slotNumber.value; let i = $index) {
+                  <div class="ft-slot-row" [formGroupName]="i" [class.ft-slot-row--off]="!g.controls.isActive.value">
+                    <span class="ft-slot-num">{{ g.controls.slotNumber.value }}</span>
+                    <input type="time" formControlName="startTime" [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' start'" />
+                    <input type="time" formControlName="endTime" [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' end'" />
+                    <label class="ft-slot-check">
+                      <input type="checkbox" formControlName="isActive" [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' exists'" />
+                    </label>
+                    <label class="ft-slot-check">
+                      <input type="checkbox" formControlName="isFrontDesk" [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' front desk only'" />
+                    </label>
+                  </div>
+                }
+              </div>
+            }
+            <button type="button" class="btn btn--secondary" (click)="regenerateSlots()" [disabled]="generating()">
+              <span class="material-icons" aria-hidden="true">schedule</span>
+              <span>{{ generating() ? 'Generating…' : (slotLines.length ? 'Regenerate' : 'Generate') + ' slots (' + slotSet()?.firstSlotTime + ' to ' + slotSet()?.lastSlotTime + ', every ' + slotSet()?.slotMinutes + ' min)' }}</span>
+            </button>
+            </form>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="ftForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('sets') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+          @case ('setForm') {
+            <button type="button" class="btn btn--secondary" (click)="backToSets()" [disabled]="setSaving()">Back to list</button>
+            <button type="submit" form="ftSetForm" class="btn btn--primary" [disabled]="setSaving()">
+              {{ setSaving() ? 'Saving…' : (editSetId() ? 'Save' : (generateCount() ? 'Save and generate ' + generateCount() + ' slots' : 'Save')) }}
+            </button>
+          }
+          @case ('slots') {
+            <button type="button" class="btn btn--secondary" (click)="backToSets()" [disabled]="slotsSaving()">Back to list</button>
+            <button type="submit" form="ftSlots" class="btn btn--primary" [disabled]="slotsSaving()">
+              {{ slotsSaving() ? 'Saving…' : 'Save ' + slotLines.length + ' slot' + (slotLines.length === 1 ? '' : 's') }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

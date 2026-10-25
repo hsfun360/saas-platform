@@ -257,6 +257,12 @@ const routes: Routes = [
       { path: 'golf/tee-time-sheet', loadComponent: () => import('./app/golf-tee-time-sheet/golf-tee-time-sheet').then((m) => m.GolfTeeTimeSheetComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/front-desk', redirectTo: 'golf/tee-time-sheet', pathMatch: 'full' },
       { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'GOLF' } },
+      // Facility Management slice 1 (2026-10-25): Specification, Facility Types
+      // (+ slot sets), Facilities and the standalone Facility Closures menu.
+      { path: 'facility/settings', loadComponent: () => import('./app/facility-settings/facility-settings').then((m) => m.FacilitySettingsComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/facility-types', loadComponent: () => import('./app/facility-types/facility-types').then((m) => m.FacilityTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/facilities', loadComponent: () => import('./app/facilities/facilities').then((m) => m.FacilitiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/closures', loadComponent: () => import('./app/facility-closures/facility-closures').then((m) => m.FacilityClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 
