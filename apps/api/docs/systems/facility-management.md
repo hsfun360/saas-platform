@@ -1,6 +1,6 @@
 # Facility Management
 
-> Status: **DESIGN DRAFT 2026-10-24 - awaiting the user's table-by-table approval.** Stub at `src/modules/facility`, gateway seam `/api/facility` reserved.
+> Status: **SLICE 1 BUILT 2026-10-25** (structures approved 2026-10-25; models, routes and the four screens are in the tree, awaiting the dev smoke). Gateway seam `/api/facility` is live for slice 1.
 > Tier: **Product (core system)**.
 > Slice 1 (Specification, Facility Type, Facility) is specified in full below; slices 2-5 are outlined and get their own structures when their turn comes.
 
@@ -207,12 +207,14 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 
 #### Slice 1 screens and API
 
-- `/facility/settings` - **Facility Specification**: settings-card groups *Booking window*, *Guest control* (switch + the four allow flags), *Cancellation and no-show* (switch + notice hours), *Sessions* (array editor, PUT-replaced); sticky save bar; route-leave guard.
-- `/facility/facility-types` - **Facility Types** listing (code, description, usage mode chip, counts of units) + drawer; the drawer's fields show and hide by usage mode; slot-mode types get a *Slot sets* section with a generate-preview-save flow (the golf-courses tee-times pattern, ONE dialog instance).
-- `/facility/facilities` - **Facilities** listing grouped by type (chips filter) + drawer; row kebab *Closures* opens the closure-plan editor (header + generated days, the golf-closures pattern).
-- `/facility/closures` - **Facility Closures** calendar listing across types (read + edit entry point), same as `/golf/closures`.
-- API under `/api/facility` (every route `verifyToken` + `requireModule('FACILITY')`, per screen `requireMenuAction`, `validate()` with a `*.schemas.js` beside the controller): `GET /meta` (vocabularies), `GET|PUT /settings`, `PUT /settings/sessions`, `GET|POST|PUT|DELETE /facility-types(/:id)`, `GET|POST|PUT|DELETE /facility-types/:id/slot-sets(/:setId)` + `POST .../slot-sets/preview`, `POST /facility-types/icon`, `GET|POST|PUT|DELETE /facilities(/:id)`, `POST /facilities/picture`, `GET|POST|PUT|DELETE /closure-plans(/:id)` + `POST /closure-plans/preview`.
-- Menus are DB rows the user adds under the Facility module (`FACILITY`); the dev seed's "Facilities Setup" `/facilities` and "Booking Rule Setup" `/booking-rules` placeholders under the Core module are superseded by the routes above.
+- `/facility/settings` - **Facility Specification** (`apps/web/src/app/facility-settings`): settings-card groups *Booking Window*, *Sessions* (array editor), *Guest Control* (switch + the four allow flags), *Cancellation and No-show* (switch + notice hours); field-info popovers, sticky save bar, route-leave guard; ONE `PUT /settings` carries the scalars and the sessions.
+- `/facility/facility-types` - **Facility Types** (`facility-types`): listing with a usage-mode filter row and search (code, description, mode chip, unit and slot-set counts, rule summary, type icon) + ONE drawer with four views - the type form (sections show and hide by usage mode; the mode select is disabled once units exist; icon upload), the slot-set list, the slot-set form (the Save button states the slot count it will generate; edit offers *Regenerate*) and the slot editor (regenerate from the header via the server's preview, untick a break, flag front-desk-only).
+- `/facility/facilities` - **Facilities** (`facilities`): listing with a type filter row and search (picture or mode glyph, type chip, location, Indoor / Floodlit chips, capacity) + drawer (type fixed on edit; capacity only for entry types; picture upload); the row kebab's *Closures* jumps to the Closures screen with the unit preselected.
+- `/facility/closures` - **Facility Closures** (`facility-closures`): every plan across types and units, newest period first; ONE drawer with the plan form (type select, unit multi-select - none ticked = the whole type, several = one plan each) and the generated-day editor (the golf Course Closure shape); arriving with `?facilityTypeId=&facilityId=` opens the create form preselected.
+- API under `/api/facility` (every route `verifyToken` + `requireModule('FACILITY')`, per-screen menu gates, `validate()` with a `*.schemas.js` beside each controller; reads of types pass on the Facilities and Closures grants, reads of units on the Closures grant): `GET /meta` (usage modes, day scopes, limits), `GET|PUT /settings` (sessions inside the body), `GET|POST|PATCH|DELETE /facility-types(/:id)`, `POST /facility-types/icon`, `GET /facility-types/:id/slot-sets`, `POST .../slot-sets/preview` (the header's generated slots, unsaved), `POST .../slot-sets` (header + generated slots in one transaction), `PATCH .../slot-sets/:setId` (header, `isActive`, `regenerate`), `PUT .../slot-sets/:setId/slots`, `DELETE .../slot-sets/:setId`, `GET|POST|PATCH|DELETE /facilities(/:id)` (`?facilityTypeId=` filter), `POST /facilities/picture`, `GET|POST|PATCH|DELETE /closure-plans(/:planId)`, `POST /closure-plans/:planId/generate-days`, `PUT /closure-plans/:planId/days`.
+- Slot generation is the pure `slotSet.service.js` (`generateSlots`, unit-tested): first start in steps of the slot length while the start is on or before the last start, the end must not pass midnight, at most 200 slots, front-desk-only from `frontDeskFrom`.
+- Deletion guards: a type is refused while units exist (slot sets and closure plans cascade); a unit is refused while a closure plan names it; a unit never moves to another type; the usage mode is refused once units exist (and once slot sets exist unless the new mode is `slot`).
+- Menus are DB rows the user adds under the Facility module (`FACILITY`) with routes `/facility/settings`, `/facility/facility-types`, `/facility/facilities`, `/facility/closures`; the dev seed's "Facilities Setup" `/facilities` and "Booking Rule Setup" `/booking-rules` placeholders under the Core module are superseded.
 - Numbering: none in slice 1 (the `facility-*` series arrive with the documents in slices 2 and 3).
 
 ### Slice 2 - slot Booking with guest control and billing (OUTLINE)
@@ -257,8 +259,8 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 
 ## Public API (gateway seam: `/api/facility`)
 
-- Today: `GET /health` returns `{ service: 'facility', status: 'stub' }`; everything else answers `501` behind `verifyToken` + `requireModule('FACILITY')`.
-- Slice 1 routes are listed under *Slice 1 screens and API*; each later slice adds its routes beside its tables.
+- `GET /health` returns `{ service: 'facility', status: 'ok' }`; the slice-1 routes are listed under *Slice 1 screens and API*; anything else answers `501` behind `verifyToken` + `requireModule('FACILITY')` so a caller can tell "wrong URL" from "planned but not implemented".
+- Each later slice adds its routes beside its tables.
 - Every route that reads a request part mounts `validate()` with a `*.schemas.js` file beside its controller, and every screen's sub-router mounts `requireMenuAction('<screen route>')` on top of the module gate.
 
 ## Depends on
@@ -282,4 +284,4 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 
 ## Migration status
 
-- [ ] Slice 1 models · [ ] Slice 1 routes / controllers / screens · [ ] Slice 2 · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, dev smoke pending) · [ ] Slice 2 · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy

@@ -431,6 +431,33 @@ UnitCourseClosurePlan.belongsTo(UnitCourse, { foreignKey: 'unitCourseId', as: 'U
 UnitCourseClosurePlan.hasMany(UnitCourseClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
 UnitCourseClosureDay.belongsTo(UnitCourseClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
 
+// ---- Facility Management slice 1 (structures approved 2026-10-25) ----
+// Specification singleton + Sessions (companyId value refs, no associations);
+// FacilityType -> slot sets -> slots (cascade); FacilityType -> Facility
+// (RESTRICT while units exist); closure plan -> days (cascade), plan ->
+// type (cascade) and plan -> unit (RESTRICT: deleting a unit with plans would
+// silently widen them to the whole type). companyId stays a value ref.
+const FacilitySetting = require('../modules/facility/facilitySetting.model');
+const FacilitySession = require('../modules/facility/facilitySession.model');
+const FacilityType = require('../modules/facility/facilityType.model');
+const FacilityTypeSlotSet = require('../modules/facility/facilityTypeSlotSet.model');
+const FacilityTypeSlot = require('../modules/facility/facilityTypeSlot.model');
+const Facility = require('../modules/facility/facility.model');
+const FacilityClosurePlan = require('../modules/facility/facilityClosurePlan.model');
+const FacilityClosureDay = require('../modules/facility/facilityClosureDay.model');
+FacilityType.hasMany(FacilityTypeSlotSet, { foreignKey: 'facilityTypeId', as: 'SlotSets', onDelete: 'CASCADE' });
+FacilityTypeSlotSet.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+FacilityTypeSlotSet.hasMany(FacilityTypeSlot, { foreignKey: 'slotSetId', as: 'Slots', onDelete: 'CASCADE' });
+FacilityTypeSlot.belongsTo(FacilityTypeSlotSet, { foreignKey: 'slotSetId', as: 'SlotSet' });
+FacilityType.hasMany(Facility, { foreignKey: 'facilityTypeId', as: 'Facilities', onDelete: 'RESTRICT' });
+Facility.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+FacilityType.hasMany(FacilityClosurePlan, { foreignKey: 'facilityTypeId', as: 'ClosurePlans', onDelete: 'CASCADE' });
+FacilityClosurePlan.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+Facility.hasMany(FacilityClosurePlan, { foreignKey: 'facilityId', as: 'ClosurePlans', onDelete: 'RESTRICT' });
+FacilityClosurePlan.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+FacilityClosurePlan.hasMany(FacilityClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
+FacilityClosureDay.belongsTo(FacilityClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
+
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
 // 9b. Subscriber-owned authoritative catalog (effective-dated rates).
@@ -507,6 +534,14 @@ module.exports = {
     GolfTransactionTypeEligibility,
     UnitCourseClosurePlan,
     UnitCourseClosureDay,
+    FacilitySetting,
+    FacilitySession,
+    FacilityType,
+    FacilityTypeSlotSet,
+    FacilityTypeSlot,
+    Facility,
+    FacilityClosurePlan,
+    FacilityClosureDay,
     GolfNoShowCharge,
     GolfGroupPlayDay,
     GolfGroupFlight,
