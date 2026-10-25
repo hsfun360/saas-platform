@@ -73,7 +73,10 @@ async function bookingFacts(booking, { transaction } = {}) {
         ? await BookingParticipant.findAll({ where: { bookingSlotId: { [Op.in]: slots.map((s) => s.id) } }, order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']], transaction })
         : [];
     const live = slots.filter((s) => s.status !== 'cancelled');
-    const rosterSlot = live[0] || slots[0] || null;
+    // Display facts (time range, units) come from the LIVE slots; a fully
+    // cancelled booking keeps showing what it was.
+    const shown = live.length ? live : slots;
+    const rosterSlot = shown[0] || null;
     const roster = rosterSlot ? participants.filter((p) => p.bookingSlotId === rosterSlot.id) : [];
     return {
         type,
@@ -86,8 +89,9 @@ async function bookingFacts(booking, { transaction } = {}) {
         liveSlots: live,
         participants,
         roster,
-        firstStart: live.length ? hhmm(live[0].startTime) : (slots.length ? hhmm(slots[0].startTime) : null),
-        lastEnd: live.length ? hhmm(live[live.length - 1].endTime) : null,
+        shownSlots: shown,
+        firstStart: shown.length ? hhmm(shown[0].startTime) : null,
+        lastEnd: shown.length ? hhmm(shown[shown.length - 1].endTime) : null,
     };
 }
 
@@ -116,7 +120,8 @@ function escapeHtml(s) {
 function slotsTableHtml(facts) {
     const td = 'border: 1px solid #e2e8f0; padding: 6px 10px; font-size: 14px;';
     const th = `${td} background-color: #f8fafc; text-align: left;`;
-    const rows = facts.slots.filter((s) => s.row.status !== 'cancelled').map((s) => `<tr>`
+    const shownIds = new Set(facts.shownSlots.map((s) => s.id));
+    const rows = facts.slots.filter((s) => shownIds.has(s.row.id)).map((s) => `<tr>`
         + `<td style='${td}'>${escapeHtml(s.facilityCode)}${s.facilityName ? ' - ' + escapeHtml(s.facilityName) : ''}</td>`
         + `<td style='${td}'>${hhmm(s.row.startTime)} - ${hhmm(s.row.endTime)}</td>`
         + `</tr>`).join('');
@@ -142,13 +147,14 @@ function participantsTableHtml(roster, labels = new Map()) {
 
 // The template variables shared by every booking email.
 function emailData(booking, facts, labels, extra = {}) {
-    const date = facts.liveSlots.length ? String(facts.liveSlots[0].bookingDate) : (facts.slots.length ? String(facts.slots[0].row.bookingDate) : '');
+    const date = facts.shownSlots.length ? String(facts.shownSlots[0].bookingDate) : '';
+    const shownIds = new Set(facts.shownSlots.map((s) => s.id));
     return {
         bookingNo: booking.bookingNo,
         bookingDateText: date ? bookingDateText(date) : '',
         timeRange: facts.firstStart ? `${facts.firstStart} - ${facts.lastEnd || ''}` : '',
         facilityType: facts.type ? `${facts.type.code} - ${facts.type.description}` : '',
-        facilities: [...new Set(facts.slots.filter((s) => s.row.status !== 'cancelled').map((s) => s.facilityCode))].join(', '),
+        facilities: [...new Set(facts.slots.filter((s) => shownIds.has(s.row.id)).map((s) => s.facilityCode))].join(', '),
         bookerName: facts.booker ? facts.booker.name : '',
         slotsTable: slotsTableHtml(facts),
         participantsTable: participantsTableHtml(facts.roster, labels),

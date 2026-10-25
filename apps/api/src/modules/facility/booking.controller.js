@@ -56,8 +56,9 @@ function participantDto(p) {
 }
 
 function bookingDto(booking, facts, extras = {}) {
-    const live = facts.liveSlots;
-    const date = live.length ? String(live[0].bookingDate) : (facts.slots.length ? String(facts.slots[0].row.bookingDate) : null);
+    const shown = facts.shownSlots;
+    const shownIds = new Set(shown.map((s) => s.id));
+    const date = shown.length ? String(shown[0].bookingDate) : null;
     return {
         id: booking.id,
         bookingNo: booking.bookingNo,
@@ -66,7 +67,7 @@ function bookingDto(booking, facts, extras = {}) {
         bookingDate: date,
         startTime: facts.firstStart,
         endTime: facts.lastEnd,
-        facilities: [...new Set(facts.slots.filter((s) => s.row.status !== 'cancelled').map((s) => s.facilityCode))],
+        facilities: [...new Set(facts.slots.filter((s) => shownIds.has(s.row.id)).map((s) => s.facilityCode))],
         booker: facts.booker ? patrons.dto(facts.booker, facts.bookerProfile) : null,
         contactMobile: booking.contactMobile,
         contactEmail: booking.contactEmail,
