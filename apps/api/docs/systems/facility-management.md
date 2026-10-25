@@ -217,11 +217,20 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 - Menus are DB rows the user adds under the Facility module (`FACILITY`) with routes `/facility/settings`, `/facility/facility-types`, `/facility/facilities`, `/facility/closures`; the dev seed's "Facilities Setup" `/facilities` and "Booking Rule Setup" `/booking-rules` placeholders under the Core module are superseded.
 - Numbering: none in slice 1 (the `facility-*` series arrive with the documents in slices 2 and 3).
 
-### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, approved 2026-10-25; 2a BUILT 2026-10-25, 2b and 2c pending)
+### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, approved 2026-10-25; 2a and 2b BUILT 2026-10-25, 2c pending)
 
-**Status:** 2a (Patron / OtherPatron models, Participant Types, Transaction Types with rate cards and cells, Payment Types, the facility numbering series, guest exception rules and membership-type overrides on the Specification, the default-fee pickers and approval switch on Facility Types, the Membership monthly allowance and GuestVisit ledger with its gateway) is built and awaiting the dev smoke; the Patron pair has models only until 2b books.
-Slice 2 is built in three sub-slices, in this order, all against the structures below: **2a masters** (the identity pair, participant types, the billing catalogs, numbering, the guest and override rules, the two Membership additions), **2b booking** (the grid, the rules, slot locks), **2c billing** (the bill engine on a booking).
-Decisions proposed here and open for your change: the participant category table is named *Participant Type* (golf says Player Type); a bill belongs to the whole BOOKING, payable by the booker, not one per slot or per participant; a transaction type carries a *fee basis* (per slot, per participant, per booking) so a court fee and a per-head guest fee price differently; a member's guest visits are recorded in Membership's ledger when the booking is confirmed, voided when it is cancelled, and kept when the guests fail to show.
+**Status:** 2a (Patron / OtherPatron models, Participant Types, Transaction Types with rate cards and cells, Payment Types, the facility numbering series, guest exception rules and membership-type overrides on the Specification, the default-fee pickers and approval switch on Facility Types, the Membership monthly allowance and GuestVisit ledger with its gateway) is built and smoked on dev (2026-10-25); 2b (Booking / BookingSlot / BookingParticipant / SlotLock, the availability engine, the nine rules, the Facility Bookings screen) is built and awaiting the dev smoke.
+
+**2b as built (2026-10-25):**
+
+- The roster is keyed ONCE per booking and written on every slot of it; a guest visit is recorded once per guest line, on the first slot's participant row, so a two-slot booking with one guest is ONE visit on the host's allowance (voided and re-recorded when the roster is edited).
+- The desk is the booking channel today: front-desk-only slots are offered to it (reported as `front-desk` on the grid; the member portal will skip them), and the booker's window binds the desk too (a visitor takes the general rule).
+- Guest resolution: a matching exception row decides on its own; with none, the type's policy AND the general day-type flags both have to allow (the type can only tighten the club rule).
+- Claiming re-sends the WHOLE selection (an existing group is replaced), so the consecutive rule and the cap speak at every click; the claim expires after `bookingLockMinutes` and the screen counts it down.
+- Approval codes are `facility-type` (the type requires approval) and/or the requires-approval participant type codes; the Workflow purpose is `facility-booking` (entity `FacilityBooking`, the bell opens `/facility/bookings`); the handlers in `wiring/workflowHandlers.js` book or cancel the held booking.
+- Emails: catalog templates `facility.booking.confirmed` / `pending` / `rejected` / `cancelled`, ONE email to the contact address, the booker's member email and every member participant's email.
+- API built: `GET /bookings/meta`, `GET /bookings/context?memberNo&facilityTypeId&date`, `GET /bookings/availability?facilityTypeId&date`, `POST /bookings/locks` (claim or re-claim a group), `DELETE /bookings/locks/:groupId`, `GET /bookings?date&facilityTypeId`, `GET /bookings/search?q`, `POST /bookings`, `GET /bookings/:id`, `GET /bookings/:id/cancel-preview`, `POST /bookings/:id/cancel`, `PUT /bookings/:id/participants`, `GET /patrons?q`, `POST /patrons` (visitor); all behind the `/facility/bookings` menu grant.
+- The pure rules live in `bookingRules.service.js` (unit-tested); the DB-backed loaders and the grid builder in `bookingAvailability.service.js`.
 
 #### `facility.Patron` + `facility.OtherPatron` - the person identity
 
@@ -581,4 +590,4 @@ Golf is wired to the same ledger in a later golf slice; nothing in golf changes 
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, dev smoke pending) · [ ] Slice 2b booking · [ ] Slice 2c billing · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, dev smoke pending) · [ ] Slice 2c billing · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
