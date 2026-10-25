@@ -140,6 +140,26 @@ const FacilityType = sequelize.define('FacilityType', {
         allowNull: false,
         defaultValue: true,
     },
+    // ---- slice 2 (structures approved 2026-10-25) ----
+    // The facility-fee transaction type auto-charged once per slot when a
+    // bill opens (value ref to facility.TransactionType; NULL = no auto
+    // charge). Must be a facility-fee of this type or of any type.
+    feeTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // The guest-fee transaction type auto-charged once per guest participant.
+    guestFeeTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // Every booking of this type routes through the facility-booking
+    // approval chain (slice 2b).
+    requiresApproval: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

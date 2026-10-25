@@ -17,7 +17,8 @@ router.get('/health', (req, res) => res.json({ service: 'facility', status: 'ok'
 router.use(verifyToken);
 router.use(requireModule('FACILITY'));
 
-const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures'];
+const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
+    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -47,6 +48,22 @@ router.use('/facilities', (req, res, next) => (
 
 // --- Facility Closures - its own menu, grantable without the setup grants. ---
 router.use('/closure-plans', requireMenuAction('/facility/closures'), require('./closures.routes'));
+
+// --- Slice 2a catalogs (structures approved 2026-10-25) ---
+router.use('/participant-types', requireMenuAction('/facility/participant-types'), require('./participantTypes.routes'));
+router.use('/transaction-types', requireMenuAction('/facility/transaction-types'), require('./transactionTypes.routes'));
+router.use('/payment-types', requireMenuAction('/facility/payment-types'), require('./paymentTypes.routes'));
+
+// --- Numbering Control (facility-owned series: booking / registration / bill) ---
+const { makeNumberingRouter } = require('../../platform/numberingController');
+router.use(
+    '/numbering-schemes',
+    requireMenuAction('/facility/numbering'),
+    makeNumberingRouter({
+        model: require('./numberingScheme.model'),
+        purposes: require('../../platform/numberingGateway').purposesFor('facility'),
+    }),
+);
 
 // Not-yet-built areas of the service still 501 rather than 404, so a caller
 // can tell "wrong URL" from "planned but not implemented".

@@ -93,8 +93,13 @@ function validateType(body, current) {
         if (!n.ok) return { error: message };
         out[field] = n.value;
     }
-    for (const flag of ['trackUnits', 'guestsAllowed', 'memberGuestsAllowed', 'hostMustBePresent']) {
+    for (const flag of ['trackUnits', 'guestsAllowed', 'memberGuestsAllowed', 'hostMustBePresent', 'requiresApproval']) {
         if (typeof body[flag] === 'boolean') out[flag] = body[flag];
+    }
+    // Slice 2 default fees: value refs checked against the catalog in the
+    // create / update paths (validateDefaultFees); '' clears.
+    for (const field of ['feeTransactionTypeId', 'guestFeeTransactionTypeId']) {
+        if (field in body) out[field] = typeof body[field] === 'string' && body[field].trim() ? body[field].trim() : null;
     }
     for (const field of ['openTimeWeekday', 'closeTimeWeekday', 'openTimeWeekend', 'closeTimeWeekend']) {
         if (!(field in body)) continue;
@@ -125,6 +130,27 @@ function validateType(body, current) {
     if (mode === 'slot') Object.assign(out, { openTimeWeekday: null, closeTimeWeekday: null, openTimeWeekend: null, closeTimeWeekend: null });
 
     return { values: out };
+}
+
+// The default fee pickers (slice 2): each must be an active transaction type
+// of the company with the matching charge type, belonging to THIS facility
+// type or to any type. Returns an error string or null.
+async function validateDefaultFees(companyId, values, selfId) {
+    const TransactionType = require('./transactionType.model');
+    const checks = [
+        ['feeTransactionTypeId', 'facility-fee', 'Facility fee default'],
+        ['guestFeeTransactionTypeId', 'guest-fee', 'Guest fee default'],
+    ];
+    for (const [field, chargeType, label] of checks) {
+        const id = values[field];
+        if (!id) continue;
+        const tt = await TransactionType.findOne({ where: { id, companyId } });
+        if (!tt) return `${label}: pick a transaction type of the active company.`;
+        if (tt.chargeType !== chargeType) return `${label}: '${tt.transactionType}' is not a ${chargeType === 'guest-fee' ? 'guest fee' : 'facility fee'}.`;
+        if (tt.isActive === false) return `${label}: '${tt.transactionType}' is disabled.`;
+        if (tt.facilityTypeId && selfId && tt.facilityTypeId !== selfId) return `${label}: '${tt.transactionType}' belongs to another facility type.`;
+    }
+    return null;
 }
 
 async function countsByType(companyId) {
@@ -188,6 +214,8 @@ exports.create = async (req, res) => {
 
         const clash = await FacilityType.findOne({ where: { companyId, code: v.values.code } });
         if (clash) return res.status(409).json({ message: `Facility type '${v.values.code}' already exists.` });
+        const feeErr = await validateDefaultFees(companyId, v.values, null);
+        if (feeErr) return res.status(400).json({ message: feeErr });
 
         const stamps = await stampsFor(req);
         const row = await FacilityType.create({ companyId, ...v.values, ...stamps });
@@ -219,6 +247,9 @@ exports.update = async (req, res) => {
             const sets = await FacilityTypeSlotSet.count({ where: { facilityTypeId: row.id } });
             if (sets && v.values.usageMode !== 'slot') return res.status(409).json({ message: `Delete the ${sets} slot set${sets === 1 ? '' : 's'} of ${row.code} before changing its usage mode.` });
         }
+
+        const feeErr = await validateDefaultFees(companyId, v.values, row.id);
+        if (feeErr) return res.status(400).json({ message: feeErr });
 
         Object.assign(row, v.values, { updatedBy: getUserContext(req).userId });
         await row.save();

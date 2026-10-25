@@ -46,6 +46,12 @@ const MembershipType = sequelize.define('MembershipType', {
     // NULL = no limit, 0 = cannot bring guests. Enforced at golf booking
     // save via membershipGateway.getGolfMemberStanding.
     guestQuota: { type: DataTypes.INTEGER, allowNull: true },
+    // Monthly guest allowance (structure approved 2026-10-25): the club-wide
+    // guests a member of this type may bring per CALENDAR MONTH across every
+    // module (facility first, golf later), counted in membership.GuestVisit
+    // through membershipGateway. NULL = no limit, 0 = none. Distinct from the
+    // golf per-booking guestQuota above.
+    monthlyGuestAllowance: { type: DataTypes.INTEGER, allowNull: true },
     votingRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     transferRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 

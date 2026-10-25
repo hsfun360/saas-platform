@@ -1,13 +1,19 @@
 // Facility Specification (/facility/settings). The per-company settings
-// singleton + the Facility Session bands. GET returns the effective document
-// (defaults when never saved); PUT upserts the singleton and replaces the
-// sessions atomically. Pattern of golf/golfSetting.controller.js.
+// singleton + the Facility Session bands + (slice 2) the membership-type
+// advance-booking overrides and the guest-control exception rules. GET
+// returns the effective document (defaults when never saved); PUT upserts
+// the singleton and replaces the row sets atomically. Pattern of
+// golf/golfSetting.controller.js.
 
 const FacilitySetting = require('./facilitySetting.model');
 const FacilitySession = require('./facilitySession.model');
+const FacilityType = require('./facilityType.model');
+const AdvanceBookingOverride = require('./advanceBookingOverride.model');
+const GuestControlRule = require('./guestControlRule.model');
 const { sequelize } = require('../../platform/db');
 const { getUserContext } = require('../../platform/serviceContext');
-const { LIMITS } = require('./facility.constants');
+const { listMembershipTypes } = require('../../platform/membershipGateway');
+const { LIMITS, RULE_DAY_SCOPE_KEYS } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, parseRequiredInt } = require('./facilityShared');
 
 const DEFAULTS = {
@@ -15,6 +21,7 @@ const DEFAULTS = {
     advanceBookingHours: 0,
     allowSameDayBooking: false,
     bookingLockMinutes: 5,
+    allowMembershipTypeOverride: false,
     guestControlEnabled: false,
     allowGuestWeekday: true,
     allowMemberGuestWeekday: true,
@@ -31,6 +38,7 @@ function settingDto(row) {
         advanceBookingHours: row.advanceBookingHours,
         allowSameDayBooking: row.allowSameDayBooking === true,
         bookingLockMinutes: row.bookingLockMinutes,
+        allowMembershipTypeOverride: row.allowMembershipTypeOverride === true,
         guestControlEnabled: row.guestControlEnabled === true,
         allowGuestWeekday: row.allowGuestWeekday === true,
         allowMemberGuestWeekday: row.allowMemberGuestWeekday === true,
@@ -51,11 +59,26 @@ exports.get = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const [row, sessions] = await Promise.all([
+        const [row, sessions, overrides, guestRules, membershipTypes, facilityTypes] = await Promise.all([
             FacilitySetting.findOne({ where: { companyId } }),
             FacilitySession.findAll({ where: { companyId }, order: [['sequence', 'ASC'], ['startTime', 'ASC']] }),
+            AdvanceBookingOverride.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            GuestControlRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            listMembershipTypes(companyId, { activeOnly: false }),
+            FacilityType.findAll({ where: { companyId }, attributes: ['id', 'code', 'description', 'usageMode', 'isActive'], order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
         ]);
-        res.status(200).json({ ...settingDto(row), sessions: sessions.map(sessionDto) });
+        res.status(200).json({
+            ...settingDto(row),
+            sessions: sessions.map(sessionDto),
+            overrides: overrides.map((o) => ({ membershipTypeId: o.membershipTypeId, advanceBookingDays: o.advanceBookingDays })),
+            guestControlRules: guestRules.map((r) => ({
+                facilityTypeId: r.facilityTypeId || null, dayScope: r.dayScope, startTime: timeDto(r.startTime), endTime: timeDto(r.endTime),
+                allowGuest: r.allowGuest === true, allowMemberGuest: r.allowMemberGuest === true,
+            })),
+            // Pickers (served here so the screen needs no Membership grant).
+            membershipTypes,
+            facilityTypes,
+        });
     } catch (error) {
         console.error('Error loading facility settings:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -83,15 +106,76 @@ function parseSessions(raw) {
     }
     sessions.sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
     for (let i = 1; i < sessions.length; i += 1) {
-        if (sessions[i].startTime < sessions[i - 1].endTime) {
-            return { error: `Sessions '${sessions[i - 1].name}' and '${sessions[i].name}' overlap.` };
-        }
+        if (sessions[i].startTime < sessions[i - 1].endTime) return { error: `Sessions '${sessions[i - 1].name}' and '${sessions[i].name}' overlap.` };
     }
     sessions.forEach((s, i) => { s.sequence = i + 1; });
     return { sessions };
 }
 
-// PUT /api/facility/settings - the whole document (scalars + sessions).
+// Membership-type override lines: each type once, owned by the company.
+async function parseOverrides(raw, companyId) {
+    const lines = Array.isArray(raw) ? raw : [];
+    if (lines.length > LIMITS.maxOverrides) return { error: 'Too many override lines.' };
+    const ids = lines.map((o) => (o && typeof o.membershipTypeId === 'string' ? o.membershipTypeId : ''));
+    if (ids.some((id) => !id)) return { error: 'Every override line needs a membership type.' };
+    if (new Set(ids).size !== ids.length) return { error: 'A membership type can only have one override line.' };
+    const known = new Map((await listMembershipTypes(companyId, { activeOnly: false })).map((t) => [t.id, t]));
+    const overrides = [];
+    for (const line of lines) {
+        const type = known.get(line.membershipTypeId);
+        if (!type) return { error: 'An override line is not one of this company\'s membership types.' };
+        const days = parseRequiredInt(line.advanceBookingDays, 0, 365);
+        if (!days.ok) return { error: `Override days for '${type.category}' must be a whole number between 0 and 365.` };
+        overrides.push({ membershipTypeId: line.membershipTypeId, advanceBookingDays: days.value });
+    }
+    return { overrides };
+}
+
+// Guest-control exception rows: a known facility type (or every type), a
+// day scope, an optional time band, the two allow flags; no two rows may
+// cover the same type + scope for the whole day, bands must not overlap.
+function parseGuestRules(raw, knownTypeIds) {
+    const lines = Array.isArray(raw) ? raw : [];
+    if (lines.length > LIMITS.maxGuestRules) return { error: 'Too many guest-control rules.' };
+    const rules = [];
+    for (const line of lines) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid guest-control rule line.' };
+        const facilityTypeId = line.facilityTypeId ? String(line.facilityTypeId) : null;
+        if (facilityTypeId && !knownTypeIds.has(facilityTypeId)) return { error: 'A guest-control rule names a facility type that is not this company\'s.' };
+        const dayScope = String(line.dayScope || '');
+        if (!RULE_DAY_SCOPE_KEYS.includes(dayScope)) return { error: 'Each guest-control rule needs a day scope (all, weekday, weekend or a specific day).' };
+        const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
+        const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
+        if (hasStart !== hasEnd) return { error: 'A guest-control rule time band needs both From and To times (or neither for the whole day).' };
+        let startTime = null;
+        let endTime = null;
+        if (hasStart) {
+            const s = normalizeTime(line.startTime);
+            const e = normalizeTime(line.endTime);
+            if (!s.ok || !e.ok || !s.value || !e.value) return { error: 'Guest-control rule times must be valid times of day.' };
+            if (s.value >= e.value) return { error: 'A guest-control rule\'s From time must be before its To time.' };
+            startTime = s.value;
+            endTime = e.value;
+        }
+        rules.push({ facilityTypeId, dayScope, startTime, endTime, allowGuest: line.allowGuest === true, allowMemberGuest: line.allowMemberGuest === true });
+    }
+    const byKey = new Map();
+    for (const r of rules) {
+        const key = `${r.facilityTypeId || '*'}|${r.dayScope}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(r);
+    }
+    for (const group of byKey.values()) {
+        if (group.filter((r) => !r.startTime).length > 1) return { error: 'Two guest-control rules cover the same facility type and day scope for the whole day.' };
+        const bands = group.filter((r) => r.startTime).sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
+        for (let i = 1; i < bands.length; i += 1) {
+            if (bands[i].startTime < bands[i - 1].endTime) return { error: 'Two guest-control rules for the same facility type and day scope have overlapping time bands.' };
+        }
+    }
+    return { rules };
+}
+
+// PUT /api/facility/settings - the whole document (scalars + the row sets).
 exports.save = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -109,13 +193,18 @@ exports.save = async (req, res) => {
             if (!n.ok) return res.status(400).json({ message });
             values[field] = n.value;
         }
-        for (const flag of ['allowSameDayBooking', 'guestControlEnabled', 'allowGuestWeekday', 'allowMemberGuestWeekday',
+        for (const flag of ['allowSameDayBooking', 'allowMembershipTypeOverride', 'guestControlEnabled', 'allowGuestWeekday', 'allowMemberGuestWeekday',
             'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled']) {
             values[flag] = req.body[flag] === true;
         }
 
-        const parsed = parseSessions(req.body.sessions);
-        if (parsed.error) return res.status(400).json({ message: parsed.error });
+        const parsedSessions = parseSessions(req.body.sessions);
+        if (parsedSessions.error) return res.status(400).json({ message: parsedSessions.error });
+        const parsedOverrides = await parseOverrides(req.body.overrides, companyId);
+        if (parsedOverrides.error) return res.status(400).json({ message: parsedOverrides.error });
+        const knownTypeIds = new Set((await FacilityType.findAll({ where: { companyId }, attributes: ['id'] })).map((t) => t.id));
+        const parsedRules = parseGuestRules(req.body.guestControlRules, knownTypeIds);
+        if (parsedRules.error) return res.status(400).json({ message: parsedRules.error });
 
         const stamps = await stampsFor(req);
         const callerId = getUserContext(req).userId;
@@ -128,8 +217,16 @@ exports.save = async (req, res) => {
                 await FacilitySetting.create({ companyId, ...values, ...stamps }, { transaction });
             }
             await FacilitySession.destroy({ where: { companyId }, transaction });
-            if (parsed.sessions.length) {
-                await FacilitySession.bulkCreate(parsed.sessions.map((s) => ({ ...s, companyId, ...stamps })), { transaction });
+            if (parsedSessions.sessions.length) {
+                await FacilitySession.bulkCreate(parsedSessions.sessions.map((s) => ({ ...s, companyId, ...stamps })), { transaction });
+            }
+            await AdvanceBookingOverride.destroy({ where: { companyId }, transaction });
+            if (parsedOverrides.overrides.length) {
+                await AdvanceBookingOverride.bulkCreate(parsedOverrides.overrides.map((o) => ({ ...o, companyId, ...stamps })), { transaction });
+            }
+            await GuestControlRule.destroy({ where: { companyId }, transaction });
+            if (parsedRules.rules.length) {
+                await GuestControlRule.bulkCreate(parsedRules.rules.map((r) => ({ ...r, companyId, ...stamps })), { transaction });
             }
         });
 

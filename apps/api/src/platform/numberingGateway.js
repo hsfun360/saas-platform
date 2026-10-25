@@ -16,6 +16,7 @@ const { getUserContext } = require('./serviceContext');
 function modelForPurpose(purpose) {
     if (String(purpose).startsWith('ar-')) return require('../modules/ar/numberingScheme.model');
     if (String(purpose).startsWith('golf-')) return require('../modules/golf/numberingScheme.model');
+    if (String(purpose).startsWith('facility-')) return require('../modules/facility/numberingScheme.model');
     return require('../modules/membership/numberingScheme.model');
 }
 
@@ -99,6 +100,7 @@ function purposesFor(moduleKey) {
         case 'membership': return constants.MEMBERSHIP_NUMBERING_PURPOSES;
         case 'ar': return constants.AR_NUMBERING_PURPOSES;
         case 'golf': return constants.GOLF_NUMBERING_PURPOSES;
+        case 'facility': return constants.FACILITY_NUMBERING_PURPOSES;
         default: throw new Error(`numberingGateway.purposesFor: unknown module '${moduleKey}'.`);
     }
 }

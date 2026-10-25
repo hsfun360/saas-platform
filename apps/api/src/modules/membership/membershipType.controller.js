@@ -88,6 +88,7 @@ function toTypeDto(t, canModify = true) {
         childAgeTo: t.childAgeTo,
         playTimes: t.playTimes,
         guestQuota: t.guestQuota,
+        monthlyGuestAllowance: t.monthlyGuestAllowance,
         noOfNominee: t.noOfNominee,
         nomineeCategoryId: t.nomineeCategoryId,
         defaultMembershipStatusId: t.defaultMembershipStatusId,
@@ -224,9 +225,10 @@ function normalizeTypeBody(body) {
     let playTimes = numOrNull(body.playTimes);
     let noOfNominee = numOrNull(body.noOfNominee);
     const guestQuota = numOrNull(body.guestQuota);
+    const monthlyGuestAllowance = numOrNull(body.monthlyGuestAllowance);
     const creditLimit = numOrNull(body.creditLimit);
 
-    for (const [label, val] of [['Child age from', childAgeFrom], ['Child age to', childAgeTo], ['Play times', playTimes], ['No. of nominee', noOfNominee], ['Guest quota', guestQuota]]) {
+    for (const [label, val] of [['Child age from', childAgeFrom], ['Child age to', childAgeTo], ['Play times', playTimes], ['No. of nominee', noOfNominee], ['Guest quota', guestQuota], ['Monthly guest allowance', monthlyGuestAllowance]]) {
         if (val !== null && (!Number.isInteger(val) || val < 0)) return { error: `${label} must be a whole number of at least 0.` };
     }
     if (creditLimit !== null && (!Number.isFinite(creditLimit) || creditLimit < 0)) return { error: 'Credit limit must be a non-negative number.' };
@@ -264,7 +266,7 @@ function normalizeTypeBody(body) {
             isGolfAllow, dependentGolfingAllow, votingRight, transferRight,
             isTermMembership, termMonths,
             conversionTargetIds,
-            childAgeFrom, childAgeTo, playTimes, guestQuota,
+            childAgeFrom, childAgeTo, playTimes, guestQuota, monthlyGuestAllowance,
             noOfNominee, nomineeCategoryId,
             defaultMembershipStatusId, defaultMembershipFeeId, arDebtorType, creditLimit,
         },

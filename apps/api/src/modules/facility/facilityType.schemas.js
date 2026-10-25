@@ -42,6 +42,10 @@ const body = {
     memberGuestsAllowed: bool,
     maxGuestsPerBooking: numberish,
     hostMustBePresent: bool,
+    // slice 2: default fees + approval
+    feeTransactionTypeId: str(64),
+    guestFeeTransactionTypeId: str(64),
+    requiresApproval: bool,
 };
 
 const idParam = { params: z.object({ id }) };

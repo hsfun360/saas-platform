@@ -37,6 +37,13 @@ const GOLF_NUMBERING_PURPOSES = [
     // Group booking refund requests to Finance (slice 4).
     { key: 'golf-refund', label: 'Refund Request No.' },
 ];
+// Facility-owned series (structures approved 2026-10-25), ordered by the
+// booking lifecycle: book -> register -> bill.
+const FACILITY_NUMBERING_PURPOSES = [
+    { key: 'facility-booking', label: 'Booking No.' },
+    { key: 'facility-registration', label: 'Registration No.' },
+    { key: 'facility-bill', label: 'Bill No.' },
+];
 // Ordered to mirror the AR transaction CLASS list (invoice, DN, CN, interest,
 // deposit, receipt, refund) so the two vocabularies read in step.
 const AR_NUMBERING_PURPOSES = [
@@ -51,7 +58,7 @@ const AR_NUMBERING_PURPOSES = [
     { key: 'ar-other-debtor', label: 'Other Debtor Code' },
 ];
 // Combined view (gateway validation, legacy meta).
-const NUMBERING_PURPOSES = [...MEMBERSHIP_NUMBERING_PURPOSES, ...GOLF_NUMBERING_PURPOSES, ...AR_NUMBERING_PURPOSES];
+const NUMBERING_PURPOSES = [...MEMBERSHIP_NUMBERING_PURPOSES, ...GOLF_NUMBERING_PURPOSES, ...FACILITY_NUMBERING_PURPOSES, ...AR_NUMBERING_PURPOSES];
 
 // Placeholders allowed in a scheme's `format`. Documented for the screen's help.
 //   {PREFIX} - the scheme's prefix string
@@ -77,6 +84,7 @@ module.exports = {
     NUMBERING_PURPOSES,
     MEMBERSHIP_NUMBERING_PURPOSES,
     GOLF_NUMBERING_PURPOSES,
+    FACILITY_NUMBERING_PURPOSES,
     AR_NUMBERING_PURPOSES,
     FORMAT_TOKENS,
     NUMBERING_MODE_KEYS,

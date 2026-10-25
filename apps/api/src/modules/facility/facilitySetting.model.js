@@ -91,6 +91,14 @@ const FacilitySetting = sequelize.define('FacilitySetting', {
         allowNull: false,
         defaultValue: 24,
     },
+    // Slice 2: when ON, facility.AdvanceBookingOverride rows replace the
+    // general / type days for their membership types (privileged earlier
+    // booking).
+    allowMembershipTypeOverride: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

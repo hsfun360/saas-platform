@@ -1,8 +1,8 @@
 // Request schemas for the Facility Specification route (the Zod boundary
 // seam, platform/validate.js). The controller keeps every business check
-// (integer ranges, the session band rules); these schemas bound SHAPE and
-// SIZE and strip unknown keys, so every key save reads is listed here - an
-// unlisted key would be silently dropped.
+// (integer ranges, the session band rules, the membership-type ownership of
+// an override line, the guest-rule scoping rules); these schemas bound SHAPE
+// and SIZE and strip unknown keys, so every key save reads is listed here.
 
 const { z } = require('../../platform/validate');
 
@@ -12,6 +12,10 @@ const numberish = z.union([z.number(), z.string().max(32)]).nullable().optional(
 const bool = z.boolean().optional();
 
 const sessionLine = z.object({ name: str(100), startTime: str(8), endTime: str(8) });
+// Advance-booking override per membership type (slice 2).
+const overrideLine = z.object({ membershipTypeId: str(64), advanceBookingDays: numberish });
+// Guest-control exception (slice 2).
+const guestRuleLine = z.object({ facilityTypeId: str(64), dayScope: str(20), startTime: str(8), endTime: str(8), allowGuest: bool, allowMemberGuest: bool });
 
 const saveBody = z.object({
     // Booking window
@@ -19,12 +23,15 @@ const saveBody = z.object({
     advanceBookingHours: numberish,
     allowSameDayBooking: bool,
     bookingLockMinutes: numberish,
+    allowMembershipTypeOverride: bool,
+    overrides: z.array(overrideLine).max(200).nullable().optional(),
     // Guest control
     guestControlEnabled: bool,
     allowGuestWeekday: bool,
     allowMemberGuestWeekday: bool,
     allowGuestWeekend: bool,
     allowMemberGuestWeekend: bool,
+    guestControlRules: z.array(guestRuleLine).max(400).nullable().optional(),
     // Cancellation and no-show
     noShowControlEnabled: bool,
     cancellationNoticeHours: numberish,

@@ -27,6 +27,7 @@ const typeBody = z.object({
     childAgeTo: numberish,
     playTimes: numberish,
     guestQuota: numberish,
+    monthlyGuestAllowance: numberish,
     noOfNominee: numberish,
     creditLimit: numberish,
     nomineeCategoryId: str(64),

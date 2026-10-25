@@ -246,6 +246,8 @@ const ArTransactionType = require('../modules/ar/transactionType.model'); // AR-
 // Membership / Member CRM (SRS 2.3): the contract and its people. Intra-service.
 const Membership = require('../modules/membership/membership.model');
 const Member = require('../modules/membership/member.model');
+// Guest-usage ledger (structure approved 2026-10-25): memberId value ref, written only through membershipGateway by the producer modules; no associations.
+const GuestVisit = require('../modules/membership/guestVisit.model');
 const Address = require('../modules/membership/address.model');
 // Sales Management (SRS 2.2): agency companies and their/independent agents.
 const SalesAgency = require('../modules/membership/salesAgency.model');
@@ -457,6 +459,25 @@ Facility.hasMany(FacilityClosurePlan, { foreignKey: 'facilityId', as: 'ClosurePl
 FacilityClosurePlan.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
 FacilityClosurePlan.hasMany(FacilityClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
 FacilityClosureDay.belongsTo(FacilityClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
+// Facility slice 2a masters (structures approved 2026-10-25): the identity
+// pair (polymorphic value refs, no FKs), participant types, the billing
+// catalogs (type -> rate cards -> cells cascade), payment types, numbering,
+// and the guest / override rule rows (companyId and membershipTypeId value
+// refs). Required here so sync creates the tables.
+const FacilityPatron = require('../modules/facility/patron.model');
+const FacilityOtherPatron = require('../modules/facility/otherPatron.model');
+const FacilityParticipantType = require('../modules/facility/participantType.model');
+const FacilityTransactionType = require('../modules/facility/transactionType.model');
+const FacilityTransactionTypeRate = require('../modules/facility/transactionTypeRate.model');
+const FacilityTransactionTypeRateCell = require('../modules/facility/transactionTypeRateCell.model');
+const FacilityPaymentType = require('../modules/facility/paymentType.model');
+const FacilityNumberingScheme = require('../modules/facility/numberingScheme.model');
+const FacilityGuestControlRule = require('../modules/facility/guestControlRule.model');
+const FacilityAdvanceBookingOverride = require('../modules/facility/advanceBookingOverride.model');
+FacilityTransactionType.hasMany(FacilityTransactionTypeRate, { foreignKey: 'transactionTypeId', as: 'Rates', onDelete: 'CASCADE' });
+FacilityTransactionTypeRate.belongsTo(FacilityTransactionType, { foreignKey: 'transactionTypeId', as: 'TransactionType' });
+FacilityTransactionTypeRate.hasMany(FacilityTransactionTypeRateCell, { foreignKey: 'rateId', as: 'Cells', onDelete: 'CASCADE' });
+FacilityTransactionTypeRateCell.belongsTo(FacilityTransactionTypeRate, { foreignKey: 'rateId', as: 'Rate' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -542,6 +563,17 @@ module.exports = {
     Facility,
     FacilityClosurePlan,
     FacilityClosureDay,
+    FacilityPatron,
+    FacilityOtherPatron,
+    FacilityParticipantType,
+    FacilityTransactionType,
+    FacilityTransactionTypeRate,
+    FacilityTransactionTypeRateCell,
+    FacilityPaymentType,
+    FacilityNumberingScheme,
+    FacilityGuestControlRule,
+    FacilityAdvanceBookingOverride,
+    GuestVisit,
     GolfNoShowCharge,
     GolfGroupPlayDay,
     GolfGroupFlight,

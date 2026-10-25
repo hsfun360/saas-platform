@@ -217,8 +217,9 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 - Menus are DB rows the user adds under the Facility module (`FACILITY`) with routes `/facility/settings`, `/facility/facility-types`, `/facility/facilities`, `/facility/closures`; the dev seed's "Facilities Setup" `/facilities` and "Booking Rule Setup" `/booking-rules` placeholders under the Core module are superseded.
 - Numbering: none in slice 1 (the `facility-*` series arrive with the documents in slices 2 and 3).
 
-### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, for approval)
+### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, approved 2026-10-25; 2a BUILT 2026-10-25, 2b and 2c pending)
 
+**Status:** 2a (Patron / OtherPatron models, Participant Types, Transaction Types with rate cards and cells, Payment Types, the facility numbering series, guest exception rules and membership-type overrides on the Specification, the default-fee pickers and approval switch on Facility Types, the Membership monthly allowance and GuestVisit ledger with its gateway) is built and awaiting the dev smoke; the Patron pair has models only until 2b books.
 Slice 2 is built in three sub-slices, in this order, all against the structures below: **2a masters** (the identity pair, participant types, the billing catalogs, numbering, the guest and override rules, the two Membership additions), **2b booking** (the grid, the rules, slot locks), **2c billing** (the bill engine on a booking).
 Decisions proposed here and open for your change: the participant category table is named *Participant Type* (golf says Player Type); a bill belongs to the whole BOOKING, payable by the booker, not one per slot or per participant; a transaction type carries a *fee basis* (per slot, per participant, per booking) so a court fee and a per-head guest fee price differently; a member's guest visits are recorded in Membership's ledger when the booking is confirmed, voided when it is cancelled, and kept when the guests fail to show.
 
@@ -580,4 +581,4 @@ Golf is wired to the same ledger in a later golf slice; nothing in golf changes 
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, dev smoke pending) · [ ] Slice 2 · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, dev smoke pending) · [ ] Slice 2b booking · [ ] Slice 2c billing · [ ] Slice 3 · [ ] Slice 4 · [ ] Slice 5 · [ ] Events · [ ] Own DB · [ ] Own deploy

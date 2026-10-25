@@ -390,7 +390,31 @@ async function receiveAffiliatedVisit(req, visitId, body) {
     return visits.arrive(req, visitId, body);
 }
 
+// ---- Guest allowance ledger (structure approved 2026-10-25) ----
+// The monthly club-wide guest allowance lives on the member's membership
+// type; the usage is Membership's own membership.GuestVisit ledger, written
+// ONLY through these three calls by the producer modules (facility first,
+// golf later) inside their own transactions.
+// WHEN SPLIT: GET  {internalServiceUrl('membership')}/internal/guest-allowance?memberId&date
+//             POST {internalServiceUrl('membership')}/internal/guest-visits
+//             POST {internalServiceUrl('membership')}/internal/guest-visits/void
+async function getGuestAllowanceStanding(companyId, memberId, date, opts = {}) {
+    if (!companyId || !memberId) return null;
+    return require('../modules/membership/guestVisit.service').getStanding(companyId, memberId, date, opts);
+}
+
+async function recordGuestVisit(companyId, visit, opts = {}) {
+    return require('../modules/membership/guestVisit.service').record(companyId, visit, opts);
+}
+
+async function voidGuestVisit(companyId, sourceModule, sourceRef, opts = {}) {
+    return require('../modules/membership/guestVisit.service').voidVisit(companyId, sourceModule, sourceRef, opts);
+}
+
 module.exports = {
+    getGuestAllowanceStanding,
+    recordGuestVisit,
+    voidGuestVisit,
     lookupPartyDisplay,
     searchPartyIds,
     getChargeTarget,
