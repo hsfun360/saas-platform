@@ -1,0 +1,475 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">event_available</span>
+      <div>
+        <h1>{{ 'Facility Bookings' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Book courts and halls by time slot: pick the day, click a run of slots on a facility, key the booker and the participants, confirm.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (meta(); as m) {
+    @if (m.facilityTypes.length === 0) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon" aria-hidden="true">sports_tennis</span>
+        <p>No slot-booked facility type is set up yet. Add a Facility Type with the Time slot booking mode, give it a slot set and some facilities, then come back to book.</p>
+      </div>
+    } @else {
+      <!-- FILTERS: the type and the day -->
+      <div class="fb-filters">
+        <div class="form-group fb-filters__type">
+          <label for="fbType">Facility type</label>
+          <app-combobox inputId="fbType" [options]="typeOptions()" [value]="typeId()" (valueChange)="setType($event)" [allowEmpty]="false" ariaLabel="Facility type" />
+        </div>
+        <div class="form-group fb-filters__date">
+          <label for="fbDate">Date</label>
+          <div class="fb-date-row">
+            <button type="button" class="btn btn--secondary fb-date-nav" (click)="shiftDate(-1)" aria-label="Previous day"><span class="material-icons" aria-hidden="true">chevron_left</span></button>
+            <input id="fbDate" type="date" #dateInput [value]="date()" (change)="setDate(dateInput.value)" />
+            <button type="button" class="btn btn--secondary fb-date-nav" (click)="shiftDate(1)" aria-label="Next day"><span class="material-icons" aria-hidden="true">chevron_right</span></button>
+            <button type="button" class="btn btn--link btn--sm" (click)="today()" [disabled]="isToday()">Today</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- THE DAY GRID -->
+      @if (gridLoading() && !grid()) {
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the day grid…</p></div>
+      } @else if (grid(); as g) {
+        <div class="fb-grid-head">
+          <span>
+            <strong>{{ g.date | localDate:'weekday' }}</strong>
+            <span class="fb-tag">{{ g.dayType === 'weekend' ? 'Weekend' : 'Weekday' }}</span>
+            @if (g.slotSet) {
+              <span class="cell-subtle">{{ g.slotSet.slotMinutes }}-minute slots{{ g.slotSet.description ? ' · ' + g.slotSet.description : '' }}</span>
+            }
+          </span>
+          <span class="fb-legend" aria-hidden="true">
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--open"></span>Available</span>
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--front-desk"></span>Front desk</span>
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--booked"></span>Booked</span>
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--locked"></span>Being booked</span>
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--closed"></span>Closed</span>
+          </span>
+        </div>
+        @if (g.columns.length === 0) {
+          <div class="empty-state">
+            <span class="material-icons empty-icon" aria-hidden="true">meeting_room</span>
+            <p>{{ g.facilityType.code }} has no active facilities. Add them under Facilities to open the grid.</p>
+          </div>
+        } @else if (!g.slotSet || g.slots.length === 0) {
+          <div class="empty-state">
+            <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
+            <p>{{ g.facilityType.code }} has no slot set in force on {{ g.date | localDate }} ({{ g.dayType }}). Add one under Facility Types.</p>
+          </div>
+        } @else {
+          <div class="fb-grid-wrap" role="group" [attr.aria-label]="g.facilityType.code + ' slots on ' + (g.date | localDate)">
+            <div class="fb-grid" [style.grid-template-columns]="gridColumnsStyle()">
+              <div class="fb-grid__corner" aria-hidden="true">Time</div>
+              @for (col of g.columns; track col.id) {
+                <div class="fb-grid__col">
+                  <span class="fb-grid__code">{{ col.code }}</span>
+                  <span class="fb-grid__name">{{ col.name }}</span>
+                </div>
+              }
+              @for (slot of g.slots; track slot.slotNumber; let r = $index) {
+                <div class="fb-grid__time">
+                  <span>{{ slot.startTime }}</span>
+                  <small>{{ slot.endTime }}</small>
+                </div>
+                @for (col of g.columns; track col.id) {
+                  @if (cellAt(col, r); as cell) {
+                    <button type="button"
+                            class="fb-cell"
+                            [class]="'fb-cell fb-cell--' + cell.state"
+                            [class.fb-cell--selected]="isSelected(col, cell)"
+                            [disabled]="cellDisabled(col, cell)"
+                            [attr.aria-label]="cellLabel(col, cell)"
+                            [attr.aria-pressed]="cell.state === 'booked' ? null : isSelected(col, cell)"
+                            (click)="cellClick(col, cell)">
+                      @switch (cell.state) {
+                        @case ('booked') {
+                          <span class="fb-cell__text">{{ cell.bookerName || cell.bookingNo }}</span>
+                          @if (cell.bookingStatus === 'pending-approval') { <span class="fb-cell__sub">pending</span> }
+                          @else if (cell.slotStatus === 'checked-in') { <span class="fb-cell__sub">checked in</span> }
+                        }
+                        @case ('locked') { <span class="material-icons" aria-hidden="true">lock_clock</span> }
+                        @case ('closed') { <span class="fb-cell__sub">closed</span> }
+                        @case ('past') { <span class="fb-cell__sub">started</span> }
+                        @case ('mine') { <span class="material-icons" aria-hidden="true">check</span> }
+                        @default {
+                          @if (isSelected(col, cell)) { <span class="material-icons" aria-hidden="true">check</span> }
+                          @else if (cell.state === 'front-desk') { <span class="fb-cell__sub">desk</span> }
+                        }
+                      }
+                    </button>
+                  } @else {
+                    <div class="fb-cell fb-cell--none" aria-hidden="true"></div>
+                  }
+                }
+              }
+            </div>
+          </div>
+        }
+      }
+
+      <!-- THE DAY'S BOOKINGS + SEARCH -->
+      <div class="fb-list-head">
+        <h2 class="section-heading">Bookings</h2>
+        <span class="cell-subtle">{{ searchResults() ? shownBookings().length + ' matching across all dates' : liveCount() + ' live on ' + (date() | localDate) + (bookings().length - liveCount() ? ', ' + (bookings().length - liveCount()) + ' cancelled' : '') }}</span>
+      </div>
+      <div class="saas-search">
+        <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+        <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+               placeholder="Search any date by booking number, booker name or member number…" aria-label="Search bookings" />
+        @if (search()) {
+          <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        }
+      </div>
+
+      @if ((listLoading() && !searchResults()) || searching()) {
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading bookings…</p></div>
+      } @else if (shownBookings().length === 0) {
+        <div class="empty-state">
+          <span class="material-icons empty-icon" aria-hidden="true">{{ searchResults() ? 'search_off' : 'event_available' }}</span>
+          @if (searchResults()) {
+            <p>No bookings match "{{ search() }}"</p>
+            <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+          } @else {
+            <p>No bookings on {{ date() | localDate }} for {{ currentType()?.code }}. Click a run of free slots on the grid, then Book.</p>
+          }
+        </div>
+      } @else {
+        <div class="data-list">
+          @for (b of shownBookings(); track b.id) {
+            <div class="data-card" [attr.data-return-id]="b.id">
+              <div class="data-row data-row--with-badge">
+                <div class="data-row__main">
+                  <div class="data-card__title">{{ b.bookingNo }} · {{ b.facilities.join(', ') }} {{ b.startTime }}{{ b.endTime ? ' - ' + b.endTime : '' }}</div>
+                  <div class="data-card__subline">
+                    <span>{{ b.booker?.name }}</span>
+                    @if (b.booker?.memberNo) { <span class="data-card__reg">({{ b.booker?.memberNo }})</span> }
+                    @else { <span class="data-card__reg">(visitor)</span> }
+                    @if (searchResults()) { <span class="data-card__reg">· {{ b.facilityType?.code }} · {{ b.bookingDate | localDate }}</span> }
+                  </div>
+                  <dl class="data-card__meta">
+                    <div class="meta"><dt>Slots</dt><dd>{{ b.slots.length }}</dd></div>
+                    <div class="meta"><dt>Participants</dt><dd>{{ rosterSummary(b) }}</dd></div>
+                    @if (b.contactMobile) { <div class="meta"><dt>Mobile</dt><dd>{{ b.contactMobile }}</dd></div> }
+                    @if (b.status === 'cancelled' && b.isLateCancel) { <div class="meta"><dt>Cancel</dt><dd>Late cancellation</dd></div> }
+                  </dl>
+                </div>
+                <div class="data-card__badge data-row__badge">
+                  <span class="status-chip" [class]="'status-chip ' + statusClass(b.status)">{{ statusLabel(b.status) }}</span>
+                </div>
+                <div class="data-row__actions">
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="openDetail(b.id)">
+                    <span class="material-icons" aria-hidden="true">visibility</span>
+                    View
+                  </button>
+                  @if (b.status !== 'cancelled' && b.canModify !== false) {
+                    <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + b.bookingNo">
+                      <button type="button" appMenuItem (click)="askCancel(b)" [disabled]="cancellingId() === b.id">
+                        <span class="material-icons" aria-hidden="true">event_busy</span>
+                        Cancel booking
+                      </button>
+                    </app-overflow-menu>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  } @else if (!errorMessage()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading…</p></div>
+  }
+
+  <!-- SELECTION BAR: the claimed run with its countdown, and Book -->
+  @if (claim(); as c) {
+    <div class="fb-select-bar" role="status" aria-live="polite" *appCan="'create'">
+      <span class="material-icons" aria-hidden="true">lock_clock</span>
+      <span class="fb-select-bar__text">
+        <strong>{{ selectionSummary() }}</strong>
+        <span class="cell-subtle">held for {{ countdown() }} · click more slots on {{ c.facility.code }} to extend, click again to drop</span>
+      </span>
+      <button type="button" class="btn btn--link" (click)="clearSelection()" [disabled]="claiming()">Clear</button>
+      <button type="button" class="btn btn--primary" (click)="openBook()" [disabled]="claiming()">
+        Book {{ c.slots.length }} slot{{ c.slots.length === 1 ? '' : 's' }}
+      </button>
+    </div>
+  }
+
+  <!-- ============ The ONE drawer: book / detail / participants ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
+                discardTitle="Discard this booking?"
+                discardMessage="You have unsaved booking details. Leaving now will discard them and release the slots."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          <!-- ---- BOOK: booker, roster, contact, the rule checks ---- -->
+          @case ('book') {
+            @if (claim(); as c) {
+              <form id="fbBook" [formGroup]="form" (ngSubmit)="confirmBooking()">
+                <div class="fb-lock-banner" role="status" aria-live="polite">
+                  <span class="material-icons" aria-hidden="true">lock_clock</span>
+                  <span>{{ c.facility.code }} - {{ c.facility.name }} · {{ c.bookingDate | localDate:'weekday' }} · {{ c.slots[0].startTime }} - {{ c.slots[c.slots.length - 1].endTime }} · held, confirm within <strong>{{ countdown() }}</strong></span>
+                </div>
+
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Booker</h3></summary>
+                  <fieldset class="fb-kind">
+                    <legend class="fb-kind__legend">Booked by</legend>
+                    <label class="fb-kind__opt"><input type="radio" name="bookerKind" value="member" [checked]="bookerKind() === 'member'" (change)="setBookerKind('member')" /> Member</label>
+                    <label class="fb-kind__opt"><input type="radio" name="bookerKind" value="visitor" [checked]="bookerKind() === 'visitor'" (change)="setBookerKind('visitor')" /> Visitor</label>
+                  </fieldset>
+                  @if (bookerKind() === 'member') {
+                    <div class="fb-member-row">
+                      <div class="form-group">
+                        <label for="fbMemberNo">Member number</label>
+                        <input id="fbMemberNo" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" placeholder="e.g. A0018"
+                               (input)="memberChanged()" (keydown.enter)="$event.preventDefault(); checkMember()" />
+                      </div>
+                      <button type="button" class="btn btn--secondary" (click)="checkMember()" [disabled]="contextLoading() || !form.controls.memberNo.value.trim()">
+                        <span class="material-icons" aria-hidden="true">person_search</span>
+                        {{ contextLoading() ? 'Checking…' : 'Check' }}
+                      </button>
+                    </div>
+                    @if (context(); as ctx) {
+                      <div class="fb-member-card" [class.fb-member-card--warn]="ctx.warning" [class.fb-member-card--barred]="ctx.barred">
+                        <strong>{{ ctx.member.name }}</strong>
+                        <span>{{ ctx.member.memberNo }}{{ ctx.member.membershipTypeCategory ? ' · ' + ctx.member.membershipTypeCategory : '' }}{{ ctx.member.statusLabel ? ' · ' + ctx.member.statusLabel : '' }}</span>
+                        <span class="cell-subtle">Window {{ ctx.window.dateFrom | localDate }} to {{ ctx.window.dateTo | localDate }}
+                          @if (ctx.guestAllowance && ctx.guestAllowance.allowance != null) { · guests this month {{ ctx.guestAllowance.used }} of {{ ctx.guestAllowance.allowance }} }
+                          @if (ctx.heldSlots) { · {{ ctx.heldSlots }} {{ c.facilityType.code }} slot{{ ctx.heldSlots === 1 ? '' : 's' }} already that day }
+                        </span>
+                      </div>
+                    }
+                  } @else {
+                    <div class="form-grid">
+                      <div class="form-group">
+                        <label for="fbVisitorName">Name</label>
+                        <input id="fbVisitorName" type="text" formControlName="visitorName" maxlength="255" autocomplete="off" />
+                      </div>
+                      <div class="form-group">
+                        <label for="fbVisitorId">IC / passport</label>
+                        <input id="fbVisitorId" type="text" formControlName="visitorIdentityNo" maxlength="50" autocomplete="off" placeholder="Optional - finds a returning visitor" />
+                      </div>
+                      <div class="form-group">
+                        <label for="fbVisitorMobile">Mobile</label>
+                        <app-phone-input inputId="fbVisitorMobile" formControlName="visitorMobile" placeholder="Optional"></app-phone-input>
+                      </div>
+                      <div class="form-group">
+                        <label for="fbVisitorEmail">Email</label>
+                        <input id="fbVisitorEmail" type="email" inputmode="email" formControlName="visitorEmail" maxlength="255" autocomplete="off" placeholder="Optional - for the confirmation" />
+                      </div>
+                    </div>
+                  }
+                </details>
+
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Participants</h3></summary>
+                  <ng-container *ngTemplateOutlet="rosterEditor"></ng-container>
+                </details>
+
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Contact and remarks</h3></summary>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="fbMobile">Contact mobile</label>
+                      <app-phone-input inputId="fbMobile" formControlName="contactMobile" placeholder="Optional"></app-phone-input>
+                    </div>
+                    <div class="form-group">
+                      <label for="fbEmail">Contact email</label>
+                      <input id="fbEmail" type="email" inputmode="email" formControlName="contactEmail" maxlength="255" autocomplete="off" placeholder="For the confirmation email" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="fbRemarks">Remarks</label>
+                    <textarea id="fbRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+                  </div>
+                </details>
+
+                <!-- Show expected results: the rules the server will apply. -->
+                @if (checks().length) {
+                  <ul class="fb-checks" aria-label="Booking checks">
+                    @for (chk of checks(); track $index) {
+                      <li class="fb-check" [class]="'fb-check fb-check--' + chk.level">
+                        <span class="material-icons" aria-hidden="true">{{ chk.level === 'ok' ? 'check_circle' : chk.level === 'fail' ? 'cancel' : chk.level === 'warn' ? 'warning' : 'info' }}</span>
+                        <span>{{ chk.text }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </form>
+            }
+          }
+
+          <!-- ---- DETAIL: the booking, its slots and roster ---- -->
+          @case ('detail') {
+            @if (detailLoading()) {
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading booking…</p></div>
+            } @else if (detail(); as d) {
+              <div class="fb-detail">
+                <div class="fb-detail__head">
+                  <span class="status-chip" [class]="'status-chip ' + statusClass(d.status)">{{ statusLabel(d.status) }}</span>
+                  @if (d.isLateCancel) { <span class="status-chip status-chip--danger">Late cancellation</span> }
+                  <span class="cell-subtle">Booked {{ d.createdAt | localDate:'datetime' }} at the {{ d.channel === 'portal' ? 'member portal' : 'front desk' }}</span>
+                </div>
+                <dl class="fb-detail__facts">
+                  <div><dt>Facility type</dt><dd>{{ d.facilityType?.code }} - {{ d.facilityType?.description }}</dd></div>
+                  <div><dt>Date</dt><dd>{{ d.bookingDate | localDate:'weekday' }}</dd></div>
+                  <div><dt>Time</dt><dd>{{ d.startTime }} - {{ d.endTime }}</dd></div>
+                  <div><dt>Booked by</dt><dd>{{ d.booker?.name }} {{ d.booker?.memberNo ? '(' + d.booker?.memberNo + ')' : '(visitor)' }}</dd></div>
+                  @if (d.contactMobile) { <div><dt>Mobile</dt><dd>{{ d.contactMobile }}</dd></div> }
+                  @if (d.contactEmail) { <div><dt>Email</dt><dd>{{ d.contactEmail }}</dd></div> }
+                  @if (d.remarks) { <div><dt>Remarks</dt><dd>{{ d.remarks }}</dd></div> }
+                  @if (d.status === 'cancelled') { <div><dt>Cancelled</dt><dd>{{ d.cancelledAt | localDate:'datetime' }}{{ d.cancelReason ? ' - ' + d.cancelReason : '' }}</dd></div> }
+                </dl>
+
+                <h3 class="dlg-section">Slots</h3>
+                <ul class="fb-detail__list">
+                  @for (s of d.slots; track s.id) {
+                    <li [class.fb-detail__line--off]="s.status === 'cancelled'">
+                      <strong>{{ s.facilityCode }}</strong> {{ s.facilityName }} · {{ s.startTime }} - {{ s.endTime }}
+                      <span class="fb-tag">{{ s.status }}</span>
+                    </li>
+                  }
+                </ul>
+
+                <h3 class="dlg-section">Participants</h3>
+                @if (d.participants.length === 0) {
+                  <p class="cell-subtle">No participants keyed.</p>
+                } @else {
+                  <ul class="fb-detail__list">
+                    @for (p of d.participants; track p.id) {
+                      <li>
+                        <span class="fb-detail__no">{{ p.sortOrder }}</span>
+                        <strong>{{ p.name }}</strong>{{ p.memberNo ? ' (' + p.memberNo + ')' : '' }}
+                        <span class="fb-tag">{{ typeLabel(p.participantType) }}</span>
+                        @if (p.isHost) { <span class="fb-tag">Host</span> }
+                        @if (p.guestVisitId) { <span class="fb-tag">Guest visit recorded</span> }
+                      </li>
+                    }
+                  </ul>
+                }
+                @if (d.status === 'cancelled') {
+                  <p class="cell-subtle">The slots were released and any guest visits voided when this booking was cancelled.</p>
+                } @else if (d.cancelVerdict?.controlled) {
+                  <p class="cell-subtle">No-show control is on: cancelling inside the {{ d.cancelVerdict?.noticeHours }}-hour notice is recorded as a late cancellation.</p>
+                }
+              </div>
+            }
+          }
+
+          <!-- ---- PARTICIPANTS: edit the roster of a live booking ---- -->
+          @case ('participants') {
+            <form id="fbRoster" [formGroup]="form" (ngSubmit)="saveParticipants()">
+              <ng-container *ngTemplateOutlet="rosterEditor"></ng-container>
+              <p class="cell-subtle field-hint">The roster applies to every slot of the booking. Guest visits are re-recorded on the host's monthly allowance to match.</p>
+            </form>
+          }
+        }
+      </div>
+
+      <!-- The roster editor shared by Book and Participants (inside the one form). -->
+      <ng-template #rosterEditor>
+        <div class="array-editor" [formGroup]="form">
+          <div formArrayName="roster">
+            @if (rosterLines.length) {
+              <div class="fb-line fb-line--head" aria-hidden="true">
+                <span></span><span>Type</span><span>Member No / Guest name</span><span></span>
+              </div>
+            }
+            @for (g of rosterLines.controls; track g; let i = $index) {
+              <div class="fb-line" [formGroupName]="i">
+                <span class="fb-line__no">{{ i + 1 }}</span>
+                <select formControlName="participantType" (change)="lineChanged()" [attr.aria-label]="'Participant ' + (i + 1) + ' type'">
+                  @for (t of participantTypes(); track t.key) {
+                    <option [value]="t.key">{{ t.label }}</option>
+                  }
+                </select>
+                @if (needsName(g.controls.participantType.value)) {
+                  <input type="text" formControlName="name" maxlength="255" placeholder="Guest name" autocomplete="off" (input)="lineChanged()"
+                         [attr.aria-label]="'Participant ' + (i + 1) + ' guest name'" />
+                } @else {
+                  <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No" autocomplete="off" (input)="lineChanged()"
+                         [attr.aria-label]="'Participant ' + (i + 1) + ' member number'" />
+                }
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Remove participant ' + (i + 1)">
+                  <span class="material-icons" aria-hidden="true">close</span>
+                </button>
+              </div>
+            }
+          </div>
+          @if (rosterLines.length === 0) {
+            <p class="cell-subtle">No participants yet{{ currentType()?.minParticipants ? ' - ' + currentType()?.code + ' needs at least ' + currentType()?.minParticipants + ' per slot' : '' }}.</p>
+          }
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addLine()" [disabled]="rosterLines.length >= (meta()?.limits?.maxParticipantsPerBooking || 50)">
+            <span class="material-icons" aria-hidden="true">add</span>
+            Add participant
+          </button>
+          @if (bookerKind() === 'visitor' || dlgMode() === 'participants') {
+            <div class="form-group form-group--medium fb-host">
+              <label for="fbHost">Host member for guests</label>
+              <input id="fbHost" type="text" formControlName="hostMemberNo" maxlength="50" autocomplete="off" placeholder="Member number whose guest allowance the guests draw on" (input)="lineChanged()" />
+            </div>
+          }
+        </div>
+      </ng-template>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('book') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="fbBook" class="btn btn--primary" [disabled]="saving() || hasFailingCheck()">
+              {{ saving() ? 'Confirming…' : 'Confirm booking' + (claim() ? ' (' + claim()!.slots.length + ' slot' + (claim()!.slots.length === 1 ? '' : 's') + ')' : '') }}
+            </button>
+          }
+          @case ('detail') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+            @if (detail(); as d) {
+              @if (d.status !== 'cancelled' && d.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--danger" (click)="askCancel(d)" [disabled]="cancellingId() === d.id">Cancel booking</button>
+                @if (d.status === 'booked') {
+                  <button *appCan="'edit'" type="button" class="btn btn--primary" (click)="openParticipants()">Edit participants</button>
+                }
+              }
+            }
+          }
+          @case ('participants') {
+            <button type="button" class="btn btn--secondary" (click)="dlgMode.set('detail')" [disabled]="saving()">Back</button>
+            <button type="submit" form="fbRoster" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save ' + rosterLines.length + ' participant' + (rosterLines.length === 1 ? '' : 's') }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>
