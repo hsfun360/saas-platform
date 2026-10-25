@@ -90,6 +90,45 @@
                 <app-field-info label="Same-day booking" [text]="hint.sameDay" />
               </label>
             </div>
+
+            <div class="form-row" style="margin-top: var(--space-md);">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="allowMembershipTypeOverride" />
+                <span>Allow Membership Type to override the advance booking days</span>
+                <app-field-info label="Membership Type override" [text]="hint.typeOverride" />
+              </label>
+            </div>
+            @if (overridesOn()) {
+              <div class="fs-overrides array-editor">
+                @if (overrides.length > 0) {
+                  <div class="fs-ov-row fs-ov-row--head" aria-hidden="true">
+                    <span>Membership Type</span>
+                    <span>Days</span>
+                    <span></span>
+                  </div>
+                }
+                <div formArrayName="overrides">
+                  @for (g of overrides.controls; track g; let i = $index) {
+                    <div class="fs-ov-row" [formGroupName]="i">
+                      <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="- Select -"
+                                    [ariaLabel]="'Override ' + (i + 1) + ' membership type'" placeholder="Type to search…" />
+                      <input type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays"
+                             [attr.aria-label]="'Override ' + (i + 1) + ' advance booking days'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeOverride(i)" [attr.aria-label]="'Remove override ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addOverride()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add override
+                </button>
+                @if (overrides.length === 0) {
+                  <p class="cell-subtle field-hint">No overrides yet - every membership type follows the general or the facility type's days.</p>
+                }
+              </div>
+            }
           </div>
         }
       </div>
@@ -178,6 +217,53 @@
                 </div>
               </div>
               <p class="cell-subtle field-hint">Per-type limits (guests per booking, host must be present) are set on each facility type.</p>
+
+              <div class="fs-overrides array-editor" style="margin-top: var(--space-md);">
+                <label style="font-weight: var(--weight-semibold);">Exceptions
+                  <app-field-info label="Guest rules" [text]="hint.guestRules" />
+                </label>
+                @if (guestRules.length > 0) {
+                  <div class="fs-gc-row fs-gc-row--head" aria-hidden="true">
+                    <span>Facility type</span>
+                    <span>Days</span>
+                    <span>From</span>
+                    <span>To</span>
+                    <span>Guest</span>
+                    <span>Member guest</span>
+                    <span></span>
+                  </div>
+                }
+                <div formArrayName="guestRules">
+                  @for (g of guestRules.controls; track g; let i = $index) {
+                    <div class="fs-gc-row" [formGroupName]="i">
+                      <app-combobox formControlName="facilityTypeId" [options]="facilityTypeOptions()" [allowEmpty]="true" emptyLabel="Every type"
+                                    [ariaLabel]="'Guest rule ' + (i + 1) + ' facility type'" placeholder="Every type" />
+                      <select formControlName="dayScope" [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
+                        <option value="all">All days</option>
+                        <option value="weekday">Weekday</option>
+                        <option value="weekend">Weekend and holiday</option>
+                        @for (d of daysOfWeek; track d.key) {
+                          <option [value]="d.key">{{ d.label }}</option>
+                        }
+                      </select>
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
+                      <input type="checkbox" class="fs-gc-row__check" formControlName="allowGuest" [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow visitor guests'" />
+                      <input type="checkbox" class="fs-gc-row__check" formControlName="allowMemberGuest" [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow members as guests'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)" [attr.aria-label]="'Remove guest rule ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addGuestRule()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add exception
+                </button>
+                @if (guestRules.length === 0) {
+                  <p class="cell-subtle field-hint">No exceptions - the weekday and weekend answers above apply to every type. Add one for a facility type, a day or a time band; the most specific rule wins.</p>
+                }
+              </div>
             } @else {
               <p class="cell-subtle field-hint">Off - guests are not restricted on any facility.</p>
             }

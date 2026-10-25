@@ -263,6 +263,11 @@ const routes: Routes = [
       { path: 'facility/facility-types', loadComponent: () => import('./app/facility-types/facility-types').then((m) => m.FacilityTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/facilities', loadComponent: () => import('./app/facilities/facilities').then((m) => m.FacilitiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/closures', loadComponent: () => import('./app/facility-closures/facility-closures').then((m) => m.FacilityClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      // Facility slice 2a catalogs (structures approved 2026-10-25).
+      { path: 'facility/participant-types', loadComponent: () => import('./app/facility-participant-types/facility-participant-types').then((m) => m.FacilityParticipantTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/transaction-types', loadComponent: () => import('./app/facility-transaction-types/facility-transaction-types').then((m) => m.FacilityTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/payment-types', loadComponent: () => import('./app/facility-payment-types/facility-payment-types').then((m) => m.FacilityPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY', numberingModule: 'facility' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 

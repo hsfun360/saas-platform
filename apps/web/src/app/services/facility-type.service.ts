@@ -52,6 +52,10 @@ export interface FacilityType {
   memberGuestsAllowed: boolean;
   maxGuestsPerBooking: number | null;
   hostMustBePresent: boolean;
+  // slice 2a: default fees (facility.TransactionType ids) + approval
+  feeTransactionTypeId: string | null;
+  guestFeeTransactionTypeId: string | null;
+  requiresApproval: boolean;
   // listing counts
   unitCount: number;
   activeUnitCount: number;

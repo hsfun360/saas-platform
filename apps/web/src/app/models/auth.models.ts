@@ -720,6 +720,7 @@ export interface MembershipType {
   childAgeTo?: number | null;         // personal
   playTimes?: number | null;          // personal
   guestQuota?: number | null;         // golf: guests per booking (null = no limit)
+  monthlyGuestAllowance?: number | null; // club-wide guests per calendar month, all modules (null = no limit)
   noOfNominee?: number | null;        // corporate
   nomineeCategoryId?: string | null;  // corporate → another MembershipType id
   defaultMembershipStatusId?: string | null;

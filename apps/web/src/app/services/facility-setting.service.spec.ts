@@ -29,12 +29,17 @@ describe('FacilitySettingService', () => {
       advanceBookingDays: 10, advanceBookingHours: 2, allowSameDayBooking: true, bookingLockMinutes: 5,
       guestControlEnabled: true, allowGuestWeekday: true, allowMemberGuestWeekday: true, allowGuestWeekend: false, allowMemberGuestWeekend: true,
       noShowControlEnabled: false, cancellationNoticeHours: 24,
+      allowMembershipTypeOverride: true,
+      overrides: [{ membershipTypeId: 'mt1', advanceBookingDays: 14 }],
+      guestControlRules: [{ facilityTypeId: null, dayScope: 'sunday', startTime: null, endTime: null, allowGuest: false, allowMemberGuest: true }],
       sessions: [{ name: 'Morning', startTime: '07:00', endTime: '12:00' }],
     }).subscribe();
     const req = http.expectOne('/api/facility/settings');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.advanceBookingDays).toBe(10);
     expect(req.request.body.sessions[0].name).toBe('Morning');
+    expect(req.request.body.overrides[0].advanceBookingDays).toBe(14);
+    expect(req.request.body.guestControlRules[0].dayScope).toBe('sunday');
     req.flush({ message: 'Facility specification saved.' });
   });
 });

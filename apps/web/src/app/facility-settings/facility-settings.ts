@@ -7,11 +7,21 @@ import { CanDirective } from '../shared/can.directive';
 import { FieldInfoComponent } from '../shared/field-info/field-info';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
-import { FacilitySettingService, FacilitySessionBand } from '../services/facility-setting.service';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+import {
+  FacilityAdvanceBookingOverride,
+  FacilityGuestControlRule,
+  FacilityMembershipTypeOption,
+  FacilitySettingService,
+  FacilitySessionBand,
+  FacilityTypeOption,
+} from '../services/facility-setting.service';
 
-// A Facility Session row inside the one specification form (house standard:
+// The row editors inside the one specification form (house standard:
 // FormArray rows are typed groups; form.dirty alone drives Save).
 type SessionGroup = FormGroup<{ name: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string> }>;
+type OverrideGroup = FormGroup<{ membershipTypeId: FormControl<string>; advanceBookingDays: FormControl<number> }>;
+type GuestRuleGroup = FormGroup<{ facilityTypeId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; allowGuest: FormControl<boolean>; allowMemberGuest: FormControl<boolean> }>;
 
 const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || dflt)));
 
@@ -27,7 +37,7 @@ const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-facility-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, FieldInfoComponent, ConfirmDialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, FieldInfoComponent, ConfirmDialogComponent, ComboboxComponent],
   templateUrl: './facility-settings.html',
   styleUrls: ['./facility-settings.css'],
   host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
@@ -82,7 +92,18 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     guests: 'When off, nothing restricts guests anywhere. When on, these general flags apply to every facility type, each type may tighten them (no guests at the Gym, two guests per badminton booking), and guests count against the member\'s monthly guest allowance from Membership Type.',
     noShow: 'When off, a booking is cancelled at any time without penalty. When on, a cancellation inside the notice window is a late cancellation, and the Control Station\'s no-show review raises the no-show charge and strike set per facility type (the charge and strike rules arrive with the No show slice).',
     sessions: 'The club\'s day parts - e.g. Morning, Afternoon, Evening or Peak. Each facility fee can carry a different price per session (peak / off-peak), and a booking limit can be counted per session. A slot outside every session is unrestricted.',
+    typeOverride: 'Grants selected membership types the privilege to book earlier than the general rule and than any facility type\'s own days. The early-opening hours always apply club-wide.',
+    guestRules: 'Exceptions to the weekday and weekend answers above: for one facility type or every type, a day (weekday, weekend or a specific day like Sunday) and optionally a time band. The most specific rule wins; a facility type\'s own guest policy and its guest cap still apply on top.',
   };
+
+  readonly membershipTypes = signal<FacilityMembershipTypeOption[]>([]);
+  readonly facilityTypes = signal<FacilityTypeOption[]>([]);
+  readonly typeOptions = computed(() => this.membershipTypes().map((t) => ({ value: t.id, label: t.description ? `${t.category} - ${t.description}` : t.category })));
+  readonly facilityTypeOptions = computed(() => this.facilityTypes().map((t) => ({ value: t.id, label: `${t.code} - ${t.description}` })));
+  readonly daysOfWeek = [
+    { key: 'monday', label: 'Monday' }, { key: 'tuesday', label: 'Tuesday' }, { key: 'wednesday', label: 'Wednesday' }, { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' }, { key: 'saturday', label: 'Saturday' }, { key: 'sunday', label: 'Sunday' },
+  ];
 
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -97,6 +118,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     advanceBookingHours: [0, [Validators.required, Validators.min(0), Validators.max(23)]],
     allowSameDayBooking: [false],
     bookingLockMinutes: [5, [Validators.required, Validators.min(1), Validators.max(60)]],
+    allowMembershipTypeOverride: [false],
+    overrides: this.fb.array<OverrideGroup>([]),
+    guestRules: this.fb.array<GuestRuleGroup>([]),
     guestControlEnabled: [false],
     allowGuestWeekday: [true],
     allowMemberGuestWeekday: [true],
@@ -109,6 +133,46 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
 
   get sessions(): FormArray<SessionGroup> {
     return this.form.controls.sessions;
+  }
+  get overrides(): FormArray<OverrideGroup> {
+    return this.form.controls.overrides;
+  }
+  get guestRules(): FormArray<GuestRuleGroup> {
+    return this.form.controls.guestRules;
+  }
+
+  overridesOn(): boolean {
+    return this.form.controls.allowMembershipTypeOverride.value === true;
+  }
+
+  private newOverride(r: FacilityAdvanceBookingOverride): OverrideGroup {
+    return this.fb.nonNullable.group({ membershipTypeId: [r.membershipTypeId], advanceBookingDays: [r.advanceBookingDays] });
+  }
+  private newGuestRule(r: FacilityGuestControlRule): GuestRuleGroup {
+    return this.fb.nonNullable.group({
+      facilityTypeId: [r.facilityTypeId || ''], dayScope: [r.dayScope], startTime: [r.startTime || ''], endTime: [r.endTime || ''],
+      allowGuest: [r.allowGuest], allowMemberGuest: [r.allowMemberGuest],
+    });
+  }
+  addOverride(): void {
+    this.overrides.push(this.newOverride({ membershipTypeId: '', advanceBookingDays: this.form.controls.advanceBookingDays.value }));
+    this.overrides.markAsDirty();
+  }
+  removeOverride(index: number): void {
+    this.overrides.removeAt(index);
+    this.overrides.markAsDirty();
+  }
+  addGuestRule(): void {
+    this.guestRules.push(this.newGuestRule({ facilityTypeId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowMemberGuest: true }));
+    this.guestRules.markAsDirty();
+  }
+  removeGuestRule(index: number): void {
+    this.guestRules.removeAt(index);
+    this.guestRules.markAsDirty();
+  }
+  typeLabel(id: string): string {
+    const t = this.membershipTypes().find((x) => x.id === id);
+    return t ? t.category : id;
   }
 
   readonly sessionCount = computed(() => this.sessionsLength());
@@ -161,6 +225,7 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
           advanceBookingHours: doc.advanceBookingHours,
           allowSameDayBooking: doc.allowSameDayBooking === true,
           bookingLockMinutes: doc.bookingLockMinutes,
+          allowMembershipTypeOverride: doc.allowMembershipTypeOverride === true,
           guestControlEnabled: doc.guestControlEnabled === true,
           allowGuestWeekday: doc.allowGuestWeekday !== false,
           allowMemberGuestWeekday: doc.allowMemberGuestWeekday !== false,
@@ -172,6 +237,12 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
         this.sessions.clear();
         for (const s of doc.sessions || []) this.sessions.push(this.newSession(s));
         this.sessionsLength.set(this.sessions.length);
+        this.overrides.clear();
+        for (const o of doc.overrides || []) this.overrides.push(this.newOverride(o));
+        this.guestRules.clear();
+        for (const r of doc.guestControlRules || []) this.guestRules.push(this.newGuestRule(r));
+        this.membershipTypes.set(doc.membershipTypes || []);
+        this.facilityTypes.set(doc.facilityTypes || []);
         this.form.markAsPristine();
         this.loading.set(false);
       },
@@ -244,6 +315,33 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
       }
     }
 
+    const overrides: FacilityAdvanceBookingOverride[] = this.overrides.controls.map((g) => {
+      const o = g.getRawValue();
+      return { membershipTypeId: o.membershipTypeId, advanceBookingDays: clampInt(o.advanceBookingDays, 0, 365, 0) };
+    });
+    if (overrides.some((o) => !o.membershipTypeId)) {
+      this.errorMessage.set('Every override line needs a membership type.');
+      return;
+    }
+    if (new Set(overrides.map((o) => o.membershipTypeId)).size !== overrides.length) {
+      this.errorMessage.set('A membership type can only have one override line.');
+      return;
+    }
+    const guestRules: FacilityGuestControlRule[] = this.guestRules.controls.map((g) => {
+      const r = g.getRawValue();
+      return { facilityTypeId: r.facilityTypeId || null, dayScope: r.dayScope, startTime: r.startTime || null, endTime: r.endTime || null, allowGuest: r.allowGuest, allowMemberGuest: r.allowMemberGuest };
+    });
+    for (const r of guestRules) {
+      if (!!r.startTime !== !!r.endTime) {
+        this.errorMessage.set('A guest rule needs both From and To times - or neither for the whole day.');
+        return;
+      }
+      if (r.startTime && r.endTime && r.startTime >= r.endTime) {
+        this.errorMessage.set('A guest rule\'s From time must be before its To time.');
+        return;
+      }
+    }
+
     const v = this.form.getRawValue();
     this.saving.set(true);
     this.service.save({
@@ -251,6 +349,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
       advanceBookingHours: clampInt(v.advanceBookingHours, 0, 23, 0),
       allowSameDayBooking: v.allowSameDayBooking === true,
       bookingLockMinutes: clampInt(v.bookingLockMinutes, 1, 60, 5),
+      allowMembershipTypeOverride: v.allowMembershipTypeOverride === true,
+      overrides,
+      guestControlRules: guestRules,
       guestControlEnabled: v.guestControlEnabled === true,
       allowGuestWeekday: v.allowGuestWeekday === true,
       allowMemberGuestWeekday: v.allowMemberGuestWeekday === true,

@@ -1,0 +1,184 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">payments</span>
+      <div>
+        <h1>{{ 'Payment Types' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The tenders the facility desk settles a bill with - cash, cards, charge to the member\'s account, vouchers.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} payment type{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No payment types yet. Use 'New payment type' to add the first tender - a bill cannot be settled without one.
+      } @else {
+        Loading payment types…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #fpySearchBox type="search" [value]="search()" (input)="search.set(fpySearchBox.value)"
+             placeholder="Search payment types…" aria-label="Search payment types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading payment types…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No payment types match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card" [attr.data-return-id]="t.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main fpy-main">
+              @if (t.iconUrl) {
+                <img class="fpy-thumb" [src]="t.iconUrl" [alt]="t.paymentType + ' icon'" />
+              } @else {
+                <span class="fpy-thumb fpy-thumb--glyph material-icons" aria-hidden="true">payments</span>
+              }
+              <div class="fpy-info">
+                <div class="data-card__title">{{ t.paymentType }}</div>
+                <div class="data-card__subline">
+                  <span class="mt-chip">{{ classLabel(t.paymentClass) }}</span>
+                  @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
+                </div>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + t.paymentType">
+                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New payment type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New payment type</span>
+  </button>
+
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving() || uploading()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this payment type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="fpyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="fpyCode">Payment Type <span class="required">*</span></label>
+            <input id="fpyCode" type="text" formControlName="paymentType" placeholder="e.g. CASH" autocomplete="off" maxlength="50"
+                   style="text-transform: uppercase;"
+                   [attr.aria-invalid]="showError(form.controls.paymentType)" aria-describedby="fpyCodeErr" />
+            @if (showError(form.controls.paymentType)) {
+              <p id="fpyCodeErr" class="field-error" role="alert">
+                @if (form.controls.paymentType.errors?.['required']) { Payment type is required. }
+                @else { Use 50 characters or fewer. }
+              </p>
+            }
+            <p class="cell-subtle field-hint">Stored in capitals; the label on the settlement tile.</p>
+          </div>
+          <div class="form-group">
+            <label for="fpyClass">Payment Class <span class="required">*</span></label>
+            <select id="fpyClass" formControlName="paymentClass"
+                    [attr.aria-invalid]="showError(form.controls.paymentClass)" aria-describedby="fpyClassErr">
+              <option value="">- Select -</option>
+              @for (c of paymentClasses(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+            @if (showError(form.controls.paymentClass)) {
+              <p id="fpyClassErr" class="field-error" role="alert">Select the payment class.</p>
+            }
+            @if (classHint(); as hint) {
+              <p class="cell-subtle field-hint">{{ hint }}</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fpyDesc">Description</label>
+            <input id="fpyDesc" type="text" formControlName="description" placeholder="e.g. Visa card" maxlength="255" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fpyIcon">Icon</label>
+            @if (form.controls.iconUrl.value) {
+              <img class="fpy-icon-preview" [src]="form.controls.iconUrl.value" alt="Payment type icon preview" />
+            }
+            <div class="fpy-icon-actions">
+              <input #fpyIconFile id="fpyIcon" type="file" accept="image/*" class="fpy-icon-file" (change)="onIconSelected(fpyIconFile)" />
+              <button type="button" class="btn btn--secondary btn--sm" (click)="fpyIconFile.click()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : (form.controls.iconUrl.value ? 'Replace icon' : 'Upload icon') }}
+              </button>
+              @if (form.controls.iconUrl.value) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
+              }
+            </div>
+            <p class="cell-subtle field-hint">Shown on the settlement tiles (square images look best, up to 2 MB).</p>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="fpyForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

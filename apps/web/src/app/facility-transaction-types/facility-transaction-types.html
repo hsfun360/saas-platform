@@ -1,0 +1,407 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
+      <div>
+        <h1>{{ 'Transaction Types' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The billing items of Facility Management - court and hall fees, guest fees, locker charges - each with its tax scheme and its prices by participant, day and session.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} transaction type{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No transaction types yet. Use 'New transaction type' to add the first billing item - a facility fee per slot, a guest fee per guest.
+      } @else {
+        Loading transaction types…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #fttSearchBox type="search" [value]="search()" (input)="search.set(fttSearchBox.value)"
+             placeholder="Search transaction types…" aria-label="Search transaction types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading transaction types…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No transaction types match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card" [attr.data-return-id]="t.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main ftt-main">
+              @if (t.iconUrl) {
+                <img class="ftt-thumb" [src]="t.iconUrl" [alt]="t.transactionType + ' icon'" />
+              } @else {
+                <span class="ftt-thumb ftt-thumb--glyph material-icons" aria-hidden="true">receipt_long</span>
+              }
+              <div class="ftt-info">
+                <div class="data-card__title">{{ t.transactionType }}@if (t.description) { - {{ t.description }}}</div>
+                <div class="data-card__subline">
+                  <span class="mt-chip">{{ chargeLabel(t.chargeType) }}</span>
+                  <span class="mt-chip">{{ feeBasisLabel(t.feeBasis) }}</span>
+                  @if (t.facilityTypeId) { <span class="data-card__reg">{{ facilityTypeLabel(t.facilityTypeId) }}</span> } @else { <span class="data-card__reg">Any facility type</span> }
+                  @if (t.participantType) { <span class="data-card__reg">Default for {{ participantLabel(t.participantType) }}</span> }
+                  @if (t.taxSchemeCode) { <span class="data-card__reg">Tax {{ t.taxSchemeCode }}</span> }
+                  <span class="data-card__reg">{{ t.rateCount }} price card{{ t.rateCount === 1 ? '' : 's' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + t.transactionType">
+                    <button type="button" appMenuItem (click)="openRates(t)">
+                      <span class="material-icons" aria-hidden="true">sell</span>
+                      Pricing ({{ t.rateCount }})
+                    </button>
+                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New transaction type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New transaction type</span>
+  </button>
+
+  <!-- ============ The ONE drawer: item form / pricing list / price form ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved transaction type changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          @case ('form') {
+            <form id="fttForm" [formGroup]="form" (ngSubmit)="onSave()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fttCode">Transaction Type <span class="required">*</span></label>
+                  <input id="fttCode" type="text" formControlName="transactionType" placeholder="e.g. BADM" autocomplete="off" maxlength="50"
+                         style="text-transform: uppercase;"
+                         [attr.aria-invalid]="showError(form.controls.transactionType)" aria-describedby="fttCodeErr" />
+                  @if (showError(form.controls.transactionType)) {
+                    <p id="fttCodeErr" class="field-error" role="alert">
+                      @if (form.controls.transactionType.errors?.['required']) { Transaction type is required. }
+                      @else { Use 50 characters or fewer. }
+                    </p>
+                  }
+                  <p class="cell-subtle field-hint">Stored in capitals; the label on the billing tile.</p>
+                </div>
+                <div class="form-group">
+                  <label for="fttCharge">Charge Type <span class="required">*</span>
+                    <app-field-info label="Charge type" [text]="hint.chargeType" />
+                  </label>
+                  <select id="fttCharge" formControlName="chargeType" (change)="onChargeTypeChange()">
+                    @for (c of chargeTypes(); track c.key) {
+                      <option [value]="c.key">{{ c.label }}</option>
+                    }
+                  </select>
+                  @if (chargeFrozen()) {
+                    <p class="cell-subtle field-hint">Frozen - this item already has price cards.</p>
+                  } @else {
+                    <p class="cell-subtle field-hint">{{ isMatrixCharge() ? 'Priced by participant, day and session.' : 'Priced by one flat amount.' }}</p>
+                  }
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fttDesc">Description</label>
+                  <input id="fttDesc" type="text" formControlName="description" placeholder="e.g. Badminton court hire" maxlength="255" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fttBasis">Fee Basis <span class="required">*</span>
+                    <app-field-info label="Fee basis" [text]="hint.feeBasis" />
+                  </label>
+                  <select id="fttBasis" formControlName="feeBasis">
+                    @for (f of feeBases(); track f.key) {
+                      <option [value]="f.key">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="fttFacType">Facility Type
+                    <app-field-info label="Facility type" [text]="hint.facilityType" />
+                  </label>
+                  <select id="fttFacType" formControlName="facilityTypeId">
+                    <option value="">Any facility type</option>
+                    @for (ft of facilityTypes(); track ft.id) {
+                      <option [value]="ft.id">{{ ft.code }} - {{ ft.description }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="form-grid">
+                @if (takesDefault()) {
+                  <div class="form-group">
+                    <label for="fttDefault">Default for participant type
+                      <app-field-info label="Default item" [text]="hint.defaultFor" />
+                    </label>
+                    <select id="fttDefault" formControlName="participantType">
+                      <option value="">Manual item - picked from the tiles</option>
+                      @for (p of participantTypes(); track p.key) {
+                        <option [value]="p.key">{{ p.label }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                <div class="form-group">
+                  <label for="fttTax">Tax Scheme</label>
+                  <app-combobox formControlName="taxSchemeCode" inputId="fttTax" [options]="taxOptions()" [allowEmpty]="true" emptyLabel="No tax" placeholder="Type to search…" />
+                  <p class="cell-subtle field-hint">The one tax source for this item; every bill line snapshots it.</p>
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="ftt-check">
+                  <input type="checkbox" formControlName="allowPriceOverride" />
+                  <span>Cashier may amend the resolved price at billing</span>
+                </label>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fttIcon">Icon</label>
+                  @if (form.controls.iconUrl.value) {
+                    <img class="ftt-icon-preview" [src]="form.controls.iconUrl.value" alt="Transaction type icon preview" />
+                  }
+                  <div class="ftt-icon-actions">
+                    <input #fttIconFile id="fttIcon" type="file" accept="image/*" class="ftt-icon-file" (change)="onIconSelected(fttIconFile)" />
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="fttIconFile.click()" [disabled]="uploading()">
+                      {{ uploading() ? 'Uploading…' : (form.controls.iconUrl.value ? 'Replace icon' : 'Upload icon') }}
+                    </button>
+                    @if (form.controls.iconUrl.value) {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
+                    }
+                  </div>
+                  <p class="cell-subtle field-hint">Shown on the billing tiles (square images look best, up to 2 MB).</p>
+                </div>
+              </div>
+              @if (!editId()) {
+                <p class="cell-subtle field-hint">After saving, add the item's prices from the row's menu (Pricing).</p>
+              }
+            </form>
+          }
+
+          @case ('rates') {
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+              Effective-dated price cards of {{ rateType()?.transactionType }} - the active card with the latest date on or before the booking date applies.
+            </p>
+            @if (ratesLoading()) {
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading prices…</p></div>
+            } @else if (rates().length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">sell</span>
+                <p>No prices yet. Add a card effective from a date{{ rateIsMatrix() ? ' - one row per participant type, with weekend or session rows where the price differs' : '' }}.</p>
+              </div>
+            } @else {
+              @for (r of rates(); track r.id) {
+                <div class="ftt-rate">
+                  <div class="ftt-rate__head">
+                    <div class="ftt-rate__title">
+                      From {{ r.effectiveDate | localDate }}
+                      @if (r.isActive === false) {
+                        <span class="status-chip status-chip--off">Disabled</span>
+                      } @else if (rateInForce(r)) {
+                        <span class="status-chip status-chip--on">In force</span>
+                      } @else {
+                        <span class="status-chip status-chip--info">Future</span>
+                      }
+                    </div>
+                    <div class="ftt-rate__meta">{{ rateSummary(r) }}</div>
+                    @if (rateIsMatrix() && r.cells.length) {
+                      <ul class="ftt-cells">
+                        @for (c of r.cells; track c.id || $index) {
+                          <li>{{ participantLabel(c.participantType) }} · {{ scopeLabel(c.dayScope) }} · {{ sessionLabel(c.sessionId) }}: <strong>{{ c.amount | money }}</strong></li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                  <div class="ftt-rate__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openRateForm(r)">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit
+                    </button>
+                    <app-overflow-menu *appCan="'edit'" [label]="'More actions for the price from ' + r.effectiveDate">
+                      <button type="button" appMenuItem (click)="toggleRateActive(r)" [disabled]="rateTogglingId() === r.id">
+                        <span class="material-icons" aria-hidden="true">{{ r.isActive === false ? 'check_circle' : 'block' }}</span>
+                        {{ r.isActive === false ? 'Enable' : 'Disable' }}
+                      </button>
+                      @if (!rateInForce(r)) {
+                        <button *appCan="'delete'" type="button" appMenuItem (click)="askDeleteRate(r)" [disabled]="rateTogglingId() === r.id">
+                          <span class="material-icons" aria-hidden="true">delete</span>
+                          Delete
+                        </button>
+                      }
+                    </app-overflow-menu>
+                  </div>
+                </div>
+              }
+            }
+            @if (!ratesLoading()) {
+              <button type="button" class="btn btn--secondary" (click)="openRateForm()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">add</span>
+                <span>Add price</span>
+              </button>
+            }
+          }
+
+          @case ('rateForm') {
+            <form id="fttRateForm" [formGroup]="rateForm" (ngSubmit)="onSaveRate()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fttEff">Effective date <span class="required">*</span></label>
+                  <input id="fttEff" type="date" formControlName="effectiveDate"
+                         [attr.aria-invalid]="showError(rateForm.controls.effectiveDate)" aria-describedby="fttEffErr" />
+                  @if (showError(rateForm.controls.effectiveDate)) {
+                    <p id="fttEffErr" class="field-error" role="alert">Effective date is required.</p>
+                  }
+                  <p class="cell-subtle field-hint">In force from this date until a later card takes over.</p>
+                </div>
+                @if (!rateIsMatrix()) {
+                  <div class="form-group">
+                    <label for="fttFlat">Amount <span class="required">*</span></label>
+                    <input id="fttFlat" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="flatAmount" />
+                    <p class="cell-subtle field-hint">Tax-exclusive; the item's tax scheme applies at billing.</p>
+                  </div>
+                }
+              </div>
+            </form>
+            @if (rateIsMatrix()) {
+              <form id="fttCells" [formGroup]="cellsForm" (ngSubmit)="onSaveRate()">
+                <div class="ftt-cells-editor array-editor">
+                  <label style="font-weight: var(--weight-semibold);">Prices
+                    <app-field-info label="Price rows" [text]="hint.cells" />
+                  </label>
+                  @if (cells.length) {
+                    <div class="ftt-cell-head" aria-hidden="true">
+                      <span>Participant</span><span>Days</span><span>Session</span><span>Amount</span><span></span>
+                    </div>
+                  }
+                  <div formArrayName="cells">
+                    @for (g of cells.controls; track g; let i = $index) {
+                      <div class="ftt-cell-row" [formGroupName]="i">
+                        <select formControlName="participantType" [attr.aria-label]="'Price row ' + (i + 1) + ' participant type'">
+                          @for (p of participantTypes(); track p.key) {
+                            <option [value]="p.key">{{ p.label }}</option>
+                          }
+                        </select>
+                        <select formControlName="dayScope" [attr.aria-label]="'Price row ' + (i + 1) + ' day scope'">
+                          @for (s of dayScopes(); track s.key) {
+                            <option [value]="s.key">{{ s.label }}</option>
+                          }
+                        </select>
+                        <select formControlName="sessionId" [attr.aria-label]="'Price row ' + (i + 1) + ' session'">
+                          <option value="">Any session</option>
+                          @for (s of sessions(); track s.id) {
+                            <option [value]="s.id">{{ s.name }} ({{ s.startTime }} - {{ s.endTime }})</option>
+                          }
+                        </select>
+                        <input type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
+                               [attr.aria-label]="'Price row ' + (i + 1) + ' amount'" />
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeCell(i)" [attr.aria-label]="'Remove price row ' + (i + 1)">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  <div class="ftt-cell-actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="addCell()">
+                      <span class="material-icons" aria-hidden="true">add</span>
+                      Add price row
+                    </button>
+                    @if (cells.length === 0) {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="seedCells()">One row per participant type</button>
+                    }
+                  </div>
+                  @if (sessions().length === 0) {
+                    <p class="cell-subtle field-hint">No sessions are defined on Facility Specification yet - every row prices any session.</p>
+                  }
+                </div>
+              </form>
+            }
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="fttForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('rates') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+          @case ('rateForm') {
+            <button type="button" class="btn btn--secondary" (click)="backToRates()" [disabled]="rateSaving()">Back to list</button>
+            <button type="submit" form="fttRateForm" class="btn btn--primary" [disabled]="rateSaving()">
+              {{ rateSaving() ? 'Saving…' : (rateIsMatrix() ? 'Save ' + cells.length + ' price' + (cells.length === 1 ? '' : 's') : 'Save') }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

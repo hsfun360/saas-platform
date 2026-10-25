@@ -81,7 +81,59 @@
   }
 }
 
+/* Override rows: type combobox flexes, days stays compact. */
+.fs-overrides {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-sm);
+}
+.fs-ov-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.fs-ov-row--head,
+.fs-gc-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+}
+
+/* Guest-control exception rows: type combobox flexes; day scope, times and
+   the two allow checkboxes stay compact. Stacks per rule on mobile. */
+.fs-gc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px 110px 110px 60px 110px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.fs-gc-row__check {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  justify-self: center;
+}
+@media (max-width: 767px) {
+  .fs-gc-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .fs-gc-row--head {
+    display: none;
+  }
+  .fs-gc-row__check {
+    justify-self: start;
+  }
+}
+
 /* Grid-row field chrome (the .form-group rules do not reach these rows). */
+.fs-ov-row input:not([type='checkbox']),
+.fs-gc-row input:not([type='checkbox']),
+.fs-gc-row select,
 .fs-sess-row input {
   min-height: 44px;
   padding: var(--space-xs) var(--space-sm);
@@ -93,6 +145,9 @@
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+.fs-ov-row input:not([type='checkbox']):focus,
+.fs-gc-row input:not([type='checkbox']):focus,
+.fs-gc-row select:focus,
 .fs-sess-row input:focus {
   border-color: var(--brand);
   background: var(--surface-card);

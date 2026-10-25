@@ -1,0 +1,49 @@
+/* Facility Payment Types - icon bits only; listing and dialog chrome are
+   global. All colours are theme tokens. */
+.fpy-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  min-width: 0;
+}
+.fpy-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.fpy-thumb--glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--icon-lg);
+  border: none;
+}
+.fpy-info {
+  min-width: 0;
+}
+.fpy-icon-preview {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.fpy-icon-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.fpy-icon-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

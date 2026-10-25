@@ -12,12 +12,14 @@ import {
   FacilityUsageMode,
   FacilityUsageModeOption,
 } from '../services/facility-type.service';
+import { FacilityTransactionType, FacilityTransactionTypeService } from '../services/facility-transaction-type.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FieldInfoComponent } from '../shared/field-info/field-info';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
@@ -67,13 +69,14 @@ const optInt = (v: unknown, lo: number, hi: number): number | null => (v === nul
   selector: 'app-facility-types',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    ConfirmDialogComponent, CanDirective, FieldInfoComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
+    ConfirmDialogComponent, CanDirective, FieldInfoComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
   templateUrl: './facility-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../membership-types/membership-types.css', './facility-types.css'],
 })
 export class FacilityTypesComponent implements OnInit {
   private readonly service = inject(FacilityTypeService);
+  private readonly transactionTypes = inject(FacilityTransactionTypeService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
@@ -81,6 +84,11 @@ export class FacilityTypesComponent implements OnInit {
 
   readonly rows = signal<FacilityType[]>([]);
   readonly meta = signal<FacilityMeta | null>(null);
+  // The billing catalog for the default-fee pickers (slice 2a); a facility
+  // fee of this type or of any type, a guest fee likewise.
+  readonly fees = signal<FacilityTransactionType[]>([]);
+  readonly facilityFeeOptions = computed(() => this.feeOptionsFor('facility-fee'));
+  readonly guestFeeOptions = computed(() => this.feeOptionsFor('guest-fee'));
   readonly usageModes = computed(() => this.meta()?.usageModes || FALLBACK_MODES);
   readonly dayScopes = computed(() => this.meta()?.dayScopes || FALLBACK_SCOPES);
   readonly slotMinutesMin = computed(() => this.meta()?.limits.slotMinutesMin || 15);
@@ -121,6 +129,8 @@ export class FacilityTypesComponent implements OnInit {
     hours: 'Entry and issue types are open between these times; leave both blank for no restriction. Slot types take their hours from the slot set instead.',
     guests: 'These apply only while guest control is switched on in Facility Specification, and only tighten the general flags there. Guests also count against the member\'s monthly allowance.',
     slotSets: 'A slot set defines the bookable slots for a day scope from an effective date: first start, last start and slot length generate the list, which you can then adjust (untick a lunch break, mark evening slots front-desk-only). Add a weekend set when weekends run differently, and a new set with a later effective date when the schedule changes.',
+    fees: 'When a bill opens for a booking of this type, the facility fee is charged once per reserved slot and the guest fee once per guest participant, each priced from its rate card for the slot\'s day, session and participant type. Leave a picker blank for no automatic charge. The items themselves live under Transaction Types.',
+    approval: 'Every booking of this type is held pending approval and routes through the Workflow engine (purpose Facility booking); with no chain configured it approves at once. A participant type can also require approval on its own.',
   };
 
   // --- The ONE drawer dialog ---
@@ -157,7 +167,20 @@ export class FacilityTypesComponent implements OnInit {
     memberGuestsAllowed: [true],
     maxGuestsPerBooking: this.fb.control<number | null>(null, [Validators.min(0), Validators.max(100)]),
     hostMustBePresent: [true],
+    // slice 2a: default fees + approval
+    feeTransactionTypeId: [''],
+    guestFeeTransactionTypeId: [''],
+    requiresApproval: [false],
   });
+
+  // Active items of the charge type that belong to this facility type or to
+  // any type (the API refuses another type's item).
+  private feeOptionsFor(chargeType: string): { value: string; label: string }[] {
+    const typeId = this.editId();
+    return this.fees()
+      .filter((f) => f.chargeType === chargeType && f.isActive !== false && (!f.facilityTypeId || f.facilityTypeId === typeId))
+      .map((f) => ({ value: f.id, label: f.description ? `${f.transactionType} - ${f.description}` : f.transactionType }));
+  }
 
   // --- Slot sets (slot-mode types) ---
   readonly dlgType = signal<FacilityType | null>(null);
@@ -208,6 +231,8 @@ export class FacilityTypesComponent implements OnInit {
 
   ngOnInit(): void {
     this.service.meta().subscribe({ next: (m) => this.meta.set(m), error: () => undefined });
+    // The pickers tolerate a missing Transaction Types grant: they just stay empty.
+    this.transactionTypes.list().subscribe({ next: (rows) => this.fees.set(rows), error: () => undefined });
     this.load();
   }
 
@@ -286,6 +311,9 @@ export class FacilityTypesComponent implements OnInit {
       memberGuestsAllowed: t?.memberGuestsAllowed !== false,
       maxGuestsPerBooking: t?.maxGuestsPerBooking ?? null,
       hostMustBePresent: t?.hostMustBePresent !== false,
+      feeTransactionTypeId: t?.feeTransactionTypeId || '',
+      guestFeeTransactionTypeId: t?.guestFeeTransactionTypeId || '',
+      requiresApproval: t?.requiresApproval === true,
     });
     // The usage mode is frozen once a unit exists under the type.
     if (t && t.unitCount > 0) this.form.controls.usageMode.disable();
@@ -390,6 +418,9 @@ export class FacilityTypesComponent implements OnInit {
       memberGuestsAllowed: v.memberGuestsAllowed === true,
       maxGuestsPerBooking: optInt(v.maxGuestsPerBooking, 0, 100),
       hostMustBePresent: v.hostMustBePresent === true,
+      feeTransactionTypeId: v.feeTransactionTypeId || null,
+      guestFeeTransactionTypeId: v.guestFeeTransactionTypeId || null,
+      requiresApproval: v.requiresApproval === true,
     };
     this.saving.set(true);
     const id = this.editId();

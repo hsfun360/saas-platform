@@ -6,7 +6,7 @@ import { NumberingCopyCandidate, NumberingScheme, NumberingSchemeMeta } from '..
 
 // Which module's numbering table a screen instance maintains (split 2026-08-05:
 // each product owns its schemes; the route provides the module).
-export type NumberingModule = 'membership' | 'golf' | 'ar';
+export type NumberingModule = 'membership' | 'golf' | 'ar' | 'facility';
 
 // Numbering Control - per-company document numbering config, maintained per
 // owning module (/membership/numbering, /golf/numbering, /ar/numbering).

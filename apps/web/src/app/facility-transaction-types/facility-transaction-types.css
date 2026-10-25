@@ -1,0 +1,155 @@
+/* Facility Transaction Types - icon bits, the price-card list and the cell
+   editor; listing and dialog chrome are global. All colours are theme tokens. */
+.ftt-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  min-width: 0;
+}
+.ftt-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ftt-thumb--glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--icon-lg);
+  border: none;
+}
+.ftt-info {
+  min-width: 0;
+}
+
+.ftt-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.ftt-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+.ftt-icon-preview {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.ftt-icon-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.ftt-icon-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Price-card list - one bordered block per card. */
+.ftt-rate {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-card);
+}
+.ftt-rate__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ftt-rate__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  margin-top: var(--space-2xs);
+}
+.ftt-cells {
+  margin: var(--space-xs) 0 0;
+  padding: 0 0 0 var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.ftt-rate__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+/* Cell editor - participant | days | session | amount | remove. */
+.ftt-cells-editor {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-md);
+}
+.ftt-cell-head,
+.ftt-cell-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) 120px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.ftt-cell-head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+}
+@media (max-width: 767px) {
+  .ftt-cell-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .ftt-cell-head {
+    display: none;
+  }
+}
+.ftt-cell-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-xs);
+}
+/* Grid-row field chrome (the .form-group rules do not reach these rows). */
+.ftt-cell-row input,
+.ftt-cell-row select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ftt-cell-row input:focus,
+.ftt-cell-row select:focus {
+  border-color: var(--brand);
+  background: var(--surface-card);
+}

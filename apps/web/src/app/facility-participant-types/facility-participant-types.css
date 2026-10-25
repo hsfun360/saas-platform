@@ -1,0 +1,16 @@
+/* Participant Types - the option row only; listing and dialog chrome are
+   global. All colours are theme tokens. */
+.fpt-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.fpt-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
