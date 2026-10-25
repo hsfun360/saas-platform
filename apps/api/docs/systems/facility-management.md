@@ -217,23 +217,319 @@ A closed slot is unbookable and the station refuses registration / issue inside 
 - Menus are DB rows the user adds under the Facility module (`FACILITY`) with routes `/facility/settings`, `/facility/facility-types`, `/facility/facilities`, `/facility/closures`; the dev seed's "Facilities Setup" `/facilities` and "Booking Rule Setup" `/booking-rules` placeholders under the Core module are superseded.
 - Numbering: none in slice 1 (the `facility-*` series arrive with the documents in slices 2 and 3).
 
-### Slice 2 - slot Booking with guest control and billing (OUTLINE)
+### Slice 2 - slot Booking with guest control and billing (FULL DETAIL, for approval)
 
-- `facility.Patron` / `facility.OtherPatron` - the thin identity (`patronType` member|other, `sourceId`, name / memberNo snapshots, remarks, isActive; unique (companyId, patronType, sourceId)) and the visitor profile (platform person vocabulary: name, identityNo, gender, birthDate, nationalityCode, mobile, email; dedupe by identityNo / mobile).
-  Created lazily at first booking or registration; a visitor who joins is re-pointed to the member keeping the same patronId.
-- `facility.PlayerType` - the participant catalog (member / member-guest / guest system rows + club-defined, `baseIdentity`), the key on every participant line and the rate card, exactly `golf.PlayerType`.
-- `facility.TransactionType` + `facility.TransactionTypeRate` + `facility.TransactionTypeRateCell` - the billing-item catalog (charge types `facility-fee` / `guest-fee` / `issue-fee` / `class-fee` / `no-show` / `miscellaneous` / `package`, tax scheme by code via the tax seam, allowPriceOverride, icon) with effective-dated rate cards whose cells are rows keyed `(playerType, dayScope, sessionId NULL = any)` so peak / off-peak prices per player type fit without fixed columns; flat charge types keep one `flatAmount`.
-- `facility.PaymentType` - the tender catalog, same classes as golf (cash / creditcard / member / debtor / voucher / staff / online / suspend).
-- `facility.NumberingScheme` - `facility-booking`, `facility-bill` series (shared `defineNumberingScheme` shape, `/facility/numbering`).
-- `facility.Booking` (header: bookingNo, patronId booker, contact, remarks, status booked / cancelled, `workflowInstanceId` for approval-required types) + `facility.BookingSlot` (one row per reserved slot: facilityId, bookingDate, startTime, endTime, slotNumber, sessionId snapshot, dayType snapshot, status; unique (facilityId, bookingDate, startTime) among live rows) + `facility.BookingParticipant` (per slot: patronId or guest name, playerType, isHost, guestVisitId once confirmed).
-- `facility.SlotLock` - the claimed slot while a booking is keyed (`bookingLockMinutes`), the golf `FlightLock` pattern.
-- `facility.GuestControlRule` - sparse exceptions per type / day scope / time band, most specific wins, PUT-replaced from the Specification.
-- `facility.AdvanceBookingOverride` - per-membership-type earlier windows, behind `FacilitySetting.allowMembershipTypeOverride`.
-- `facility.Bill` / `BillItem` / `BillPayment` - one bill per booking slot opened at check-in (or at booking for prepaid types), golf's engine copied: package explosion, tax snapshots, member / debtor classes post to AR through `arGateway.postCharge` with credit enforcement.
-- Rules enforced in the booking channel: window, same-day, per-type slots per day (`maxSlotsPerDayWeekday/Weekend`, counted as booker or participant), consecutive cap, participants min / max, guest control (type flags, rules, `maxGuestsPerBooking`, the member's monthly allowance via the membership seam), cancellation notice.
-- **Membership additions (owned by Membership, consumed through `membershipGateway`):** `MembershipType.monthlyGuestAllowance` (INTEGER, NULL = no limit; the club-wide guests per calendar month; the existing `guestQuota` keeps its golf per-booking meaning and label) and `membership.GuestVisit` (memberId host, visitDate, sourceModule facility|golf, sourceRef UUID, guestName, guestCount, status confirmed / voided; indexed (companyId, memberId, visitDate)).
-  Gateway: `getGuestAllowanceStanding(companyId, memberId, date)` -> `{ allowance, used, remaining }` and `recordGuestVisit` / `voidGuestVisit` called inside the producer's transaction; the member's screen shows the month's tally.
-- Screens: `/facility/bookings` (grid: facilities of a type across the day's slots, the tee-sheet pattern; drawer to key participants), `/facility/transaction-types`, `/facility/payment-types`, `/facility/player-types`, `/facility/numbering`; Specification gains *Booking limits* and *Guest rules*.
+Slice 2 is built in three sub-slices, in this order, all against the structures below: **2a masters** (the identity pair, participant types, the billing catalogs, numbering, the guest and override rules, the two Membership additions), **2b booking** (the grid, the rules, slot locks), **2c billing** (the bill engine on a booking).
+Decisions proposed here and open for your change: the participant category table is named *Participant Type* (golf says Player Type); a bill belongs to the whole BOOKING, payable by the booker, not one per slot or per participant; a transaction type carries a *fee basis* (per slot, per participant, per booking) so a court fee and a per-head guest fee price differently; a member's guest visits are recorded in Membership's ledger when the booking is confirmed, voided when it is cancelled, and kept when the guests fail to show.
+
+#### `facility.Patron` + `facility.OtherPatron` - the person identity
+
+`Patron` (model `FacilityPatron`, table `facility."Patron"`, unique `(companyId, patronType, sourceId)`, index `(companyId, name)`) mirrors `golf.Golfer`: one thin row per person who books, participates, registers or is issued an item; every downstream row references `patronId`.
+Created lazily at first booking or registration; a visitor who joins the club is re-pointed (`other` -> `member`) keeping the same `patronId`.
+The profile lives at the source: a member's standing, charge target and guest allowance are asked live through `membershipGateway`, never stored.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `patronType` | STRING(10) | no | | `member` (sourceId = membership `Member.id`) or `other` (sourceId = `OtherPatron.id`). |
+| `sourceId` | UUID | no | | Polymorphic profile ref, validated in the service, no FK. |
+| `name` | STRING | no | | Display and search snapshot, refreshed from the source. |
+| `memberNo` | STRING(50) | yes | | Snapshot, member kind only. |
+| `remarks` | TEXT | yes | | Desk notes (bans, VIP). |
+| `isActive` | BOOLEAN | no | true | |
+
+`OtherPatron` (model `FacilityOtherPatron`, table `facility."OtherPatron"`, indexes on `(companyId, identityNo)`, `(companyId, mobile)`, `(companyId, name)`) mirrors `golf.OtherGolfer`: the facility-owned visitor profile, deduped by identity number or mobile on creation.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `name` | STRING | no | | Full name as keyed at the desk. |
+| `identityNo` | STRING | yes | | IC or passport, the dedupe key (indexed, not unique). |
+| `gender` | STRING | yes | | |
+| `birthDate` | DATEONLY | yes | | |
+| `nationalityCode` | STRING | yes | | Subscriber Nationality code. |
+| `mobile` | STRING | yes | | One combined string (app phone standard). |
+| `email` | STRING | yes | | |
+| `isActive` | BOOLEAN | no | true | |
+
+#### `facility.ParticipantType` - the participant catalog
+
+Model `FacilityParticipantType`, table `facility."ParticipantType"`, unique `(companyId, code)`; the shape of `golf.PlayerType`.
+Three SYSTEM rows per company are seeded lazily with locked codes (`member`, `member-guest`, `guest`); the club adds its own (a JUNIOR or CORPORATE guest priced differently).
+The `code` is the key every participant line and every rate cell carries; `baseIdentity` is how the engine treats the type.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `code` | STRING(20) | no | | Upper case for club types; the three system codes stay lower case. |
+| `description` | STRING | no | | |
+| `baseIdentity` | STRING(20) | no | | `member` / `member-guest` / `guest`. |
+| `requiresApproval` | BOOLEAN | no | false | A booking carrying this type routes through the `facility-booking` approval chain. |
+| `isSystem` | BOOLEAN | no | false | Code locked, never deleted or disabled. |
+| `isActive` | BOOLEAN | no | true | |
+| `sortOrder` | INTEGER | no | 100 | |
+
+#### `facility.TransactionType` + `facility.TransactionTypeRate` + `facility.TransactionTypeRateCell` - the billing-item catalog and its rate cards
+
+`TransactionType` (model `FacilityTransactionType`, table `facility."TransactionType"`, unique `(companyId, transactionType)`) mirrors golf's: the single source of the tax scheme for a billing item.
+Packages (element lines, auto balance line, eligibility) and deposits are NOT built in slice 2; their charge-type keys are reserved so the vocabulary never changes.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `transactionType` | STRING(50) | no | | The code ('BADM', 'GUEST', 'LOCKER'). |
+| `chargeType` | STRING(20) | no | | `facility-fee` / `guest-fee` / `issue-fee` / `class-fee` / `no-show` / `miscellaneous` / `package` / `deposit`. |
+| `feeBasis` | STRING(20) | no | 'per-slot' | `per-slot` (one line per reserved slot: court hire), `per-participant` (one line per matching participant: a guest fee), `per-booking` (one line per booking: a hall deposit later). |
+| `facilityTypeId` | UUID | yes | | The type this fee belongs to; NULL = usable on any type. Intra-service value ref. |
+| `description` | STRING | yes | | |
+| `participantType` | STRING(20) | yes | | Default-charge target: the participant category this fee is auto-charged for (`facility-fee` and `guest-fee` only, at most one active default per type and category); NULL = a manual item. |
+| `taxSchemeCode` | STRING | yes | | Tax scheme by code via the tax seam; NULL = no tax. |
+| `allowPriceOverride` | BOOLEAN | no | false | Cashier may amend the resolved price. |
+| `iconUrl` | STRING | yes | | Billing tile icon. |
+| `isActive` | BOOLEAN | no | true | |
+
+`TransactionTypeRate` (model `FacilityTransactionTypeRate`, table `facility."TransactionTypeRate"`, unique `(transactionTypeId, effectiveDate)`, FK cascades with the type): the effective-dated price card; resolution = the active card with the latest effective date on or before the booking date.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `transactionTypeId` | UUID | no | | FK -> TransactionType. |
+| `effectiveDate` | DATEONLY | no | | |
+| `flatAmount` | DECIMAL(21,2) | yes | | Flat charge types (`no-show` / `miscellaneous` / `issue-fee` / `class-fee`); NULL on matrix types. |
+| `isActive` | BOOLEAN | no | true | |
+
+`TransactionTypeRateCell` (model `FacilityTransactionTypeRateCell`, table `facility."TransactionTypeRateCell"`, unique `(rateId, participantType, dayScope, sessionId)`, FK cascades with the card): the matrix of a `facility-fee` or `guest-fee` card as ROWS, because the axis is participant type x day type x session band and the club's sessions are its own.
+Resolution for a slot: the cell whose `participantType` matches, with an exact `sessionId` outranking NULL and an exact day scope outranking `all`; no cell = no price (the line is refused, never silently zero).
+Cells are PUT-replaced with the card; the editor shows them as a grid (participant types down, day scope x session across).
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `rateId` | UUID | no | | FK -> TransactionTypeRate. |
+| `participantType` | STRING(20) | no | | A ParticipantType code. |
+| `dayScope` | STRING(10) | no | 'all' | `all` / `weekday` / `weekend` (holidays = weekend). |
+| `sessionId` | UUID | yes | | A FacilitySession; NULL = any session. Value ref (a deleted session leaves the cell unmatched). |
+| `amount` | DECIMAL(21,2) | no | | Tax-exclusive. |
+
+No ownership stamps on the cell rows (replaced with the card, like golf's rate cells).
+
+#### `facility.PaymentType` - the tender catalog
+
+Model `FacilityPaymentType`, table `facility."PaymentType"`, unique `(companyId, paymentType)`; golf's shape.
+Classes (facility `paymentType.constants`): `cash` / `creditcard` / `member` / `debtor` / `voucher` / `staff` / `online` / `suspend`; `member` posts to the billed member's own account and `debtor` to a chosen AR Other Debtor through `arGateway.postCharge` with credit enforcement.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `paymentType` | STRING(50) | no | | The code ('CASH', 'VISA'). |
+| `paymentClass` | STRING(20) | no | | One of the classes above. |
+| `description` | STRING | yes | | |
+| `iconUrl` | STRING | yes | | Settlement tile icon. |
+| `isActive` | BOOLEAN | no | true | |
+
+#### `facility.NumberingScheme` - the facility series
+
+The shared `defineNumberingScheme` shape (model `FacilityNumberingScheme`, table `facility."NumberingScheme"`), purposes `facility-booking` (issued at confirm) and `facility-bill` (issued at bill creation); `facility-registration` joins in slice 3.
+Maintained at `/facility/numbering`; the gateway routes `facility-*` purposes here.
+
+#### `facility.GuestControlRule` - guest exceptions
+
+Model `FacilityGuestControlRule`, table `facility."GuestControlRule"`, index `(companyId)`; golf's shape with the facility type in place of the course.
+The general flags live on the Specification and the per-type policy on the Facility Type; these sparse rows exist only where a type, day type or time band needs a different answer (no visitor guests on badminton at weekends before noon).
+Resolution: most specific wins (specific type > every type; a specific weekday > weekday/weekend > all; time band > whole day); no match falls back to the Facility Type policy, then the Specification flags.
+Rows are stored while the master switch is OFF and take effect while it is ON; PUT-replaced from the Specification.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `facilityTypeId` | UUID | yes | | A specific type; NULL = every type. Value ref. |
+| `dayScope` | STRING(10) | no | 'all' | `all` / `weekday` / `weekend` / `monday`..`sunday`. |
+| `startTime` | TIME | yes | | Band, both or neither; a slot's START falls in [start, end). |
+| `endTime` | TIME | yes | | |
+| `allowGuest` | BOOLEAN | no | true | Visitor guests allowed in this scope. |
+| `allowMemberGuest` | BOOLEAN | no | true | Members as guests allowed in this scope. |
+
+#### `facility.AdvanceBookingOverride` - earlier windows per membership type
+
+Model `FacilityAdvanceBookingOverride`, table `facility."AdvanceBookingOverride"`, unique `(companyId, membershipTypeId)`; behind the new `FacilitySetting.allowMembershipTypeOverride` switch (slice 2 column); `membershipTypeId` is a gateway-validated value ref.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `membershipTypeId` | UUID | no | | |
+| `advanceBookingDays` | INTEGER | no | | Replaces the general and the type's days for members of this membership type. |
+
+Resolution of the window for a booking: the membership-type override when the switch is ON and a row exists, else the Facility Type's `advanceBookingDays`, else the Specification's general days; the early-opening hours are always the Specification's.
+
+#### `facility.Booking` + `facility.BookingSlot` + `facility.BookingParticipant` - the booking
+
+`Booking` (model `FacilityBooking`, table `facility."Booking"`, unique `(companyId, bookingNo)`, indexes `(companyId, bookerPatronId)`, `(companyId, status)`): the header, booker info and lifecycle only; the reservation itself is the slot rows, so availability counts physical slot occupancy.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `bookingNo` | STRING(50) | no | | From the `facility-booking` series at confirm. |
+| `facilityTypeId` | UUID | no | | One booking = one facility type (its limits and fees). Intra-service FK. |
+| `bookerPatronId` | UUID | no | | The booking maker's Patron (member or visitor). |
+| `contactMobile` | STRING(30) | yes | | |
+| `contactEmail` | STRING(255) | yes | | Confirmation and cancellation emails. |
+| `remarks` | STRING | yes | | |
+| `status` | STRING(20) | no | 'booked' | `booked` / `pending-approval` / `cancelled` (facility `booking.constants`). |
+| `workflowInstanceId` | UUID | yes | | The approval run when a participant type requires approval (Workflow purpose `facility-booking`; no chain configured = booked at once). |
+| `channel` | STRING(10) | no | 'desk' | `desk` now, `portal` when the member portal books. |
+| `cancelledAt` | DATE | yes | | |
+| `cancelledBy` | UUID | yes | | |
+| `cancelReason` | STRING | yes | | |
+| `isLateCancel` | BOOLEAN | no | false | Cancelled inside the notice window while no-show control is ON; slice 4 prices it. |
+
+`BookingSlot` (model `FacilityBookingSlot`, table `facility."BookingSlot"`, FK cascades with the booking; partial unique `(facilityId, bookingDate, startTime) WHERE status <> 'cancelled'` so a slot is never double-booked; indexes `(companyId, bookingDate)`, `(companyId, facilityTypeId, bookingDate)`): one row per reserved slot.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `bookingId` | UUID | no | | FK -> Booking. |
+| `facilityTypeId` | UUID | no | | Denormalised for the per-type limit counts. |
+| `facilityId` | UUID | no | | The unit. Intra-service FK. |
+| `bookingDate` | DATEONLY | no | | |
+| `startTime` | TIME | no | | From the type's slot set in force on that date. |
+| `endTime` | TIME | no | | |
+| `slotNumber` | INTEGER | no | | The slot's number in its set (display). |
+| `sessionId` | UUID | yes | | The Facility Session the start falls in at booking time (pricing snapshot); NULL = none. |
+| `dayType` | STRING(10) | no | | `weekday` / `weekend` as classified at booking time (holidays = weekend). |
+| `status` | STRING(20) | no | 'booked' | `booked` / `checked-in` / `no-show` / `cancelled` (`checked-in` and `no-show` are set by slices 3 and 4). |
+| `checkedInAt` | DATE | yes | | Slice 3. |
+| `cancelledAt` | DATE | yes | | A single slot dropped from a booking. |
+
+`BookingParticipant` (model `FacilityBookingParticipant`, table `facility."BookingParticipant"`, FK cascades with the slot, index `(bookingSlotId)`, index `(companyId, patronId)`): the people on a slot.
+A member participant is a Patron; a visitor guest may be a Patron (found or created) or a plain name when the desk keys a casual guest.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `bookingSlotId` | UUID | no | | FK -> BookingSlot. |
+| `patronId` | UUID | yes | | NULL for a named casual guest. |
+| `participantType` | STRING(20) | no | | A ParticipantType code. |
+| `name` | STRING | no | | Snapshot. |
+| `memberNo` | STRING(50) | yes | | Snapshot, members only. |
+| `isHost` | BOOLEAN | no | false | The member whose guest allowance the guests draw on (the booker by default). |
+| `guestVisitId` | UUID | yes | | The `membership.GuestVisit` row recorded for a guest line (value ref across the seam). |
+| `sortOrder` | INTEGER | no | 1 | |
+
+#### `facility.SlotLock` - the claim while keying
+
+Model `FacilitySlotLock`, table `facility."SlotLock"`, unique `(companyId, facilityId, bookingDate, startTime)`, index `(groupId)`; golf's `FlightLock` with the slot in place of the flight.
+Clicking slots on the grid claims them for `bookingLockMinutes`; confirm converts the group's locks into BookingSlot rows inside one transaction; expiry and cancel release them.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `groupId` | UUID | no | | The one booking being keyed (several slots share it). |
+| `facilityId` | UUID | no | | |
+| `bookingDate` | DATEONLY | no | | |
+| `startTime` | TIME | no | | |
+| `expiresAt` | DATE | no | | |
+| `lockedBy` | UUID | no | | The user keying. |
+
+No ownership stamps (short-lived, like FlightLock).
+
+#### `facility.Bill` + `facility.BillItem` + `facility.BillPayment` - billing
+
+`Bill` (model `FacilityBill`, table `facility."Bill"`, unique `(companyId, billNo)`, indexes `(companyId, billDate)`, `(bookingId)`): ONE bill per booking, payable by the booker, opened by the desk from the booking (slice 2) or at check-in (slice 3); golf's engine with the per-player and group variants removed.
+Opening a bill auto-charges the Facility Type's default fees: the `facility-fee` default once per slot (`per-slot`) and the `guest-fee` default once per guest participant (`per-participant`), each priced from its rate card for the slot's day type, session and participant type.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `billNo` | STRING(50) | no | | From the `facility-bill` series at creation. |
+| `bookingId` | UUID | no | | The booking billed (one open or settled bill per booking; a voided bill may be re-opened). |
+| `patronId` | UUID | no | | The payer, the booker's Patron. |
+| `billDate` | DATEONLY | no | | |
+| `totalAmount` | DECIMAL(21,2) | no | 0 | Maintained by the engine: items plus exclusive tax. |
+| `taxTotal` | DECIMAL(21,2) | no | 0 | |
+| `status` | STRING(20) | no | 'open' | `open` / `settled` / `voided`. |
+| `remarks` | STRING | yes | | |
+| `settledAt` | DATE | yes | | |
+| `voidedAt` | DATE | yes | | |
+| `voidedBy` | UUID | yes | | |
+| `voidReason` | STRING | yes | | |
+
+`BillItem` (model `FacilityBillItem`, table `facility."BillItem"`, FK cascades with the bill, index `(billId)`):
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `billId` | UUID | no | | |
+| `sortOrder` | INTEGER | no | | |
+| `transactionTypeId` | UUID | no | | |
+| `bookingSlotId` | UUID | yes | | The slot the line belongs to (per-slot and per-participant lines); NULL on booking-level and manual lines. |
+| `bookingParticipantId` | UUID | yes | | The participant a per-participant line is for. |
+| `description` | STRING | no | | Code + description snapshot. |
+| `quantity` | INTEGER | no | 1 | |
+| `unitAmount` | DECIMAL(21,2) | no | 0 | |
+| `amount` | DECIMAL(21,2) | no | 0 | quantity x unitAmount after any permitted override. |
+| `priceOverridden` | BOOLEAN | no | false | |
+| `taxSchemeCode` | STRING | yes | | Tax snapshot, as golf. |
+| `taxAmount` | DECIMAL(21,2) | no | 0 | |
+| `taxBreakdown` | JSONB | yes | | |
+
+`BillPayment` (model `FacilityBillPayment`, table `facility."BillPayment"`, FK cascades with the bill, index `(billId)`): several tenders until the total is met; `member` and `debtor` classes post the amount to AR and snapshot the document here.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `billId` | UUID | no | | |
+| `sortOrder` | INTEGER | no | | |
+| `paymentTypeId` | UUID | no | | |
+| `paymentClass` | STRING(20) | no | | Class snapshot. |
+| `amount` | DECIMAL(21,2) | no | | |
+| `reference` | STRING(100) | yes | | Card approval, voucher number. |
+| `arDocId` | UUID | yes | | AR posting snapshot (account classes). |
+| `arDocNo` | STRING(50) | yes | | |
+| `debtorType` | STRING(20) | yes | | |
+| `debtorSourceId` | UUID | yes | | |
+
+#### Specification and Facility Type columns added in slice 2
+
+- `FacilitySetting.allowMembershipTypeOverride` (BOOLEAN, default false) - the AdvanceBookingOverride switch.
+  The `bookingLimitScope` column named in the slice-1 draft is dropped: the per-type slots-per-day limits already carry the day type, and a per-session limit is not asked for.
+- `FacilityType.feeTransactionTypeId` (UUID, nullable) - the `facility-fee` auto-charged per slot; `FacilityType.guestFeeTransactionTypeId` (UUID, nullable) - the `guest-fee` auto-charged per guest participant; `FacilityType.requiresApproval` (BOOLEAN, default false) - every booking of the type routes through the approval chain.
+
+#### Membership additions (owned by Membership)
+
+- `MembershipType.monthlyGuestAllowance` (INTEGER, nullable; NULL = no limit, 0 = none) - the club-wide guests a member of this type may bring per calendar month, across every module.
+  The existing `guestQuota` keeps its golf per-booking meaning and label; the Membership Types screen shows the new field beside it as "Monthly guest allowance (all facilities)".
+- `membership.GuestVisit` (model `GuestVisit`, table `membership."GuestVisit"`, indexes `(companyId, memberId, visitDate)`, unique `(sourceModule, sourceRef)`): the guest-usage ledger every producer writes through the seam.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `memberId` | UUID | no | | The HOST member whose allowance the visit draws on. |
+| `visitDate` | DATEONLY | no | | The booking or visit date (the month counted). |
+| `sourceModule` | STRING(20) | no | | `facility` / `golf`. |
+| `sourceRef` | UUID | no | | The producer's line (facility: the BookingParticipant id). |
+| `guestName` | STRING | yes | | Display. |
+| `guestCount` | INTEGER | no | 1 | |
+| `status` | STRING(20) | no | 'confirmed' | `confirmed` / `voided`. |
+| `voidedAt` | DATE | yes | | |
+
+Gateway (`platform/membershipGateway.js`): `getGuestAllowanceStanding(companyId, memberId, date)` -> `{ allowance, used, remaining }` for the calendar month of `date` (club-local) counting `confirmed` visits; `recordGuestVisit(companyId, { memberId, visitDate, sourceModule, sourceRef, guestName, guestCount, stamps }, { transaction })`; `voidGuestVisit(companyId, sourceModule, sourceRef, { transaction })`.
+Facility records a visit per guest participant when the booking is confirmed (inside the booking transaction, so an exhausted allowance refuses the booking), voids it when the booking or that participant is cancelled, and leaves it when the guest fails to show.
+Golf is wired to the same ledger in a later golf slice; nothing in golf changes now.
+
+#### Booking rules (binding, enforced in the booking channel; the desk warns where golf's desk warns)
+
+1. **Window**: date D is bookable from 00:00 of (D - effective days) minus the early-opening hours, club-local; effective days resolve override > type > general; same-day booking needs the Specification switch.
+2. **Slots per day**: the booker and every member participant count the slots of the type they hold on that date (booked or checked-in); a booking that would push anyone past `maxSlotsPerDayWeekday/Weekend` is refused with the person named.
+3. **Consecutive**: the slots of one booking on one facility must be adjacent and at most `maxConsecutiveSlots`; a booking may not span two facilities.
+4. **Participants**: between `minParticipants` and `maxParticipants` per slot when tracked.
+5. **Guests**: while guest control is ON - the resolved rule (exception > type policy > general flags) decides whether visitor guests and member-guests are allowed; `maxGuestsPerBooking` caps the visitor guests across the booking; each guest draws on the host member's monthly allowance through the seam; `hostMustBePresent` requires the host as a participant.
+6. **Closures and locks**: a slot inside an active closure day, outside the slot set, front-desk-only (booking channel) or locked by another user is not offered.
+7. **Member standing**: a member whose status `actionControl` is `barred` cannot book; `warning` books with the standing shown.
+8. **Cancellation**: any time while no-show control is OFF; inside the notice window with it ON the cancel is recorded as `isLateCancel` (slice 4 prices it); cancelling voids the guest visits and releases the slots.
+9. **Billing**: the bill opens from the booking (desk) with the default fees priced from the rate cards; a line with no matching rate cell is refused with the cell named; settlement follows golf (several tenders, account classes post to AR with credit enforcement, `suspend` counts toward settlement).
+
+#### Slice 2 screens and API
+
+- `/facility/bookings` - **Facility Bookings**: the day grid of one facility type (facilities across, the day's slots down; closed, front-desk, locked and booked cells distinguished), date and type pickers, click slots to claim, a drawer to key the booker and the participants with the rule checks shown before confirm, a booking detail view (slots, participants, bill, cancel), search by booking number or name.
+- `/facility/transaction-types`, `/facility/payment-types`, `/facility/participant-types`, `/facility/numbering` - the catalogs (golf's screens adapted; the rate-card editor is the participant x day scope x session grid).
+- Facility Specification gains *Guest rules* (the exception editor) and *Membership type overrides*; Facility Types gains the two default-fee pickers and the approval switch; Membership Types gains the monthly guest allowance.
+- API under `/api/facility`: `patrons` (search, create visitor), `participant-types`, `transaction-types` (+ `/:id/rates`, cells inside the card), `payment-types`, `numbering-schemes`, `bookings` (`availability?facilityTypeId&date`, `locks` claim/release, create, get, cancel, `/:id/participants`, `/:id/bill` open), `bills` (`/:id/items`, `/:id/payments`, void); membership adds `GET /api/membership/members/:id/guest-allowance` for the member screen.
 
 ### Slice 3 - Control Station (OUTLINE)
 
