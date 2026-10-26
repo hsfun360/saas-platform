@@ -1,0 +1,218 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">sports</span>
+      <div>
+        <h1>{{ 'Instructors' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The people who lead the club\'s classes - picked on a class, a schedule or a single session.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} instructor{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No instructors yet. Use 'New instructor' to add the first one - every session has an instructor.
+      } @else {
+        Loading the club's instructors…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #fiSearchBox type="search" [value]="search()" (input)="search.set(fiSearchBox.value)"
+             placeholder="Search instructors…" aria-label="Search instructors" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading instructors…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No instructors match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (i of filtered(); track i.id) {
+        <div class="data-card" [attr.data-return-id]="i.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main fi-main">
+              @if (i.photoUrl) {
+                <img class="fi-photo" [src]="i.photoUrl" [alt]="i.name" />
+              } @else {
+                <span class="fi-photo fi-photo--glyph material-icons" aria-hidden="true">person</span>
+              }
+              <div class="fi-info">
+                <div class="data-card__title">{{ i.name }} <span class="data-card__reg">({{ i.code }})</span></div>
+                <div class="data-card__subline">
+                  @if (i.specialities) { <span class="mt-chip">{{ i.specialities }}</span> }
+                  @if (i.email) { <span class="data-card__reg">{{ i.email }}</span> }
+                  @if (i.mobile) { <span class="data-card__reg">{{ i.mobile }}</span> }
+                </div>
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Classes</dt><dd>{{ i.classCount }}</dd></div>
+                  <div class="meta"><dt>Sessions</dt><dd>{{ i.sessionCount }}</dd></div>
+                </dl>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (i.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (i.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(i)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + i.name">
+                    <button type="button" appMenuItem (click)="toggleActive(i)" [disabled]="togglingId() === i.id">
+                      <span class="material-icons" aria-hidden="true">{{ i.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ i.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(i)" [disabled]="togglingId() === i.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New instructor FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New instructor">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New instructor</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog ============ -->
+  @if (dlgOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving() || uploading()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved instructor changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        <form id="fiForm" [formGroup]="form" (ngSubmit)="onSave()">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fiCode">Code <span class="required">*</span></label>
+              <input id="fiCode" type="text" formControlName="code" placeholder="e.g. COACH1" autocomplete="off" maxlength="20"
+                     style="text-transform: uppercase;"
+                     [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="fiCodeErr" />
+              @if (showError(form.controls.code)) {
+                <p id="fiCodeErr" class="field-error" role="alert">
+                  @if (form.controls.code.errors?.['required']) { Code is required. }
+                  @else if (form.controls.code.errors?.['pattern']) { Use letters, digits, underscores and hyphens only. }
+                  @else { Use 20 characters or fewer. }
+                </p>
+              }
+              @if (codeFrozen()) {
+                <p class="cell-subtle field-hint">Frozen - {{ editRow()?.sessionCount }} session{{ editRow()?.sessionCount === 1 ? '' : 's' }} reference this instructor.</p>
+              } @else {
+                <p class="cell-subtle field-hint">Stored in capitals; frozen once a session references the instructor.</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="fiName">Name <span class="required">*</span></label>
+              <input id="fiName" type="text" formControlName="name" placeholder="e.g. Mei Ling" maxlength="255" autocomplete="name"
+                     [attr.aria-invalid]="showError(form.controls.name)" aria-describedby="fiNameErr" />
+              @if (showError(form.controls.name)) {
+                <p id="fiNameErr" class="field-error" role="alert">Name is required (255 characters or fewer).</p>
+              }
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fiMobile">Mobile</label>
+              <app-phone-input formControlName="mobile" inputId="fiMobile" placeholder="Optional"></app-phone-input>
+            </div>
+            <div class="form-group">
+              <label for="fiEmail">Email</label>
+              <input id="fiEmail" type="email" inputmode="email" formControlName="email" placeholder="Optional" maxlength="255" autocomplete="email"
+                     [attr.aria-invalid]="showError(form.controls.email)" aria-describedby="fiEmailErr" />
+              @if (showError(form.controls.email)) {
+                <p id="fiEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+              }
+              <p class="cell-subtle field-hint">Receives the session cancellation and roster emails.</p>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fiSpec">Specialities</label>
+              <input id="fiSpec" type="text" formControlName="specialities" placeholder="e.g. Yoga, Pilates" maxlength="255" />
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fiPhoto">Photo</label>
+              @if (form.controls.photoUrl.value) {
+                <img class="fi-photo-preview" [src]="form.controls.photoUrl.value" alt="Instructor photo preview" />
+              }
+              <div class="fi-photo-actions">
+                <input #fiPhotoFile id="fiPhoto" type="file" accept="image/*" class="fi-photo-file" (change)="onPhotoSelected(fiPhotoFile)" />
+                <button type="button" class="btn btn--secondary btn--sm" (click)="fiPhotoFile.click()" [disabled]="uploading()">
+                  {{ uploading() ? 'Uploading…' : (form.controls.photoUrl.value ? 'Replace photo' : 'Upload photo') }}
+                </button>
+                @if (form.controls.photoUrl.value) {
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removePhoto()" [disabled]="uploading()">Remove</button>
+                }
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="fiRemarks">Remarks</label>
+              <textarea id="fiRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="fiForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

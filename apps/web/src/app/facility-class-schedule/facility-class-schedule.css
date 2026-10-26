@@ -1,0 +1,184 @@
+/* Class Schedule - the week timetable. Screen-specific bits only; the
+   listing, dialog and button primitives are global in styles.css. All
+   colours are theme tokens. */
+
+/* Week bar: the navigation on the left, the count on the right. */
+.cs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.cs-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.cs-bar__week {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* Filters: three pickers and the cancelled toggle. */
+.cs-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: end;
+  margin-bottom: var(--space-lg);
+}
+.cs-filters .form-group {
+  margin-bottom: 0;
+}
+@media (max-width: 1023px) {
+  .cs-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .cs-filters {
+    grid-template-columns: 1fr;
+  }
+}
+.cs-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.cs-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  accent-color: var(--brand);
+}
+
+/* The week: one column per day on desktop, two on tablet, one on mobile. */
+.cs-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-sm);
+  align-items: start;
+}
+@media (max-width: 1023px) {
+  .cs-week {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .cs-week {
+    grid-template-columns: 1fr;
+  }
+}
+.cs-day {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  padding: var(--space-sm);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.cs-day--today {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+.cs-day--past {
+  background: var(--surface-sunken);
+}
+.cs-day__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+.cs-day__date {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.cs-day__empty {
+  margin: var(--space-xs) 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.cs-day__add {
+  align-self: flex-start;
+}
+
+/* One session card - a native button for keyboard use. */
+.cs-session {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--brand);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.cs-session:hover {
+  background: var(--surface-hover);
+}
+.cs-session--held {
+  border-left-color: var(--success-text);
+}
+.cs-session--cancelled {
+  border-left-color: var(--chip-off-text);
+  opacity: 0.7;
+}
+.cs-session__time {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-secondary);
+}
+.cs-session__title {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.cs-session__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* The session drawer's header block. */
+.cs-detail {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  margin-bottom: var(--space-md);
+}
+.cs-detail__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.cs-detail__meta {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  margin-top: var(--space-2xs);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}

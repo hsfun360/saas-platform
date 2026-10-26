@@ -1,0 +1,53 @@
+/* Instructors - screen-specific bits only; the listing, dialog and button
+   primitives are global in styles.css, the .mt-chip pill comes from
+   membership-types.css. All colours are theme tokens. */
+
+/* Card main cell: the photo beside the text block. */
+.fi-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+.fi-info {
+  min-width: 0;
+}
+.fi-photo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.fi-photo--glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--icon-lg);
+  border: none;
+}
+
+/* Photo upload in the drawer (the type-icon shape). */
+.fi-photo-preview {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.fi-photo-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.fi-photo-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

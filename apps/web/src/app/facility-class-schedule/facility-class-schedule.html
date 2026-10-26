@@ -1,0 +1,302 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">calendar_view_week</span>
+      <div>
+        <h1>{{ 'Class Schedule' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The week\'s class sessions by day - move one, swap the instructor, change the seats, cancel it, or add a one-off.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Week bar -->
+  <div class="cs-bar">
+    <div class="cs-bar__nav">
+      <button type="button" class="btn btn--secondary btn--sm" (click)="shiftWeek(-1)" aria-label="Previous week"><span class="material-icons" aria-hidden="true">chevron_left</span></button>
+      <span class="cs-bar__week">{{ weekLabel() }}</span>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="shiftWeek(1)" aria-label="Next week"><span class="material-icons" aria-hidden="true">chevron_right</span></button>
+      @if (!isThisWeek()) {
+        <button type="button" class="btn btn--link btn--sm" (click)="goToday()">This week</button>
+      }
+    </div>
+    <span class="cell-subtle">
+      @if (loading()) { Loading the timetable… }
+      @else { {{ sessionCount() }} session{{ sessionCount() === 1 ? '' : 's' }} this week@if (cancelledCount()) {, {{ cancelledCount() }} cancelled} }
+    </span>
+  </div>
+
+  <!-- Filters -->
+  <div class="cs-filters">
+    <div class="form-group">
+      <label for="csClass">Class</label>
+      <app-combobox inputId="csClass" [options]="classOptions()" [value]="classFilter()" (valueChange)="setFilter('class', $event)" [allowEmpty]="true" emptyLabel="Every class" placeholder="Type to search…" />
+    </div>
+    <div class="form-group">
+      <label for="csInstructor">Instructor</label>
+      <app-combobox inputId="csInstructor" [options]="instructorOptions()" [value]="instructorFilter()" (valueChange)="setFilter('instructor', $event)" [allowEmpty]="true" emptyLabel="Every instructor" placeholder="Type to search…" />
+    </div>
+    <div class="form-group">
+      <label for="csVenue">Venue</label>
+      <app-combobox inputId="csVenue" [options]="venueOptions()" [value]="venueFilter()" (valueChange)="setFilter('venue', $event)" [allowEmpty]="true" emptyLabel="Every venue" placeholder="Type to search…" />
+    </div>
+    <label class="cs-check">
+      <input type="checkbox" [checked]="showCancelled()" (change)="showCancelled.set(!showCancelled())" />
+      <span>Show cancelled</span>
+    </label>
+  </div>
+
+  @if (loading() && !listing()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the timetable…</p></div>
+  } @else {
+    <div class="cs-week">
+      @for (d of days(); track d.date) {
+        <section class="cs-day" [class.cs-day--today]="isToday(d.date)" [class.cs-day--past]="isPastDay(d.date)" [attr.aria-label]="d.date | localDate:'weekday'">
+          <header class="cs-day__head">
+            <span class="cs-day__date">{{ d.date | localDate:'weekday' }}</span>
+            @if (isToday(d.date)) { <span class="status-chip status-chip--info">Today</span> }
+          </header>
+          @if (d.sessions.length === 0) {
+            <p class="cs-day__empty">No sessions</p>
+          } @else {
+            @for (s of d.sessions; track s.id) {
+              <button type="button" class="cs-session" [class.cs-session--held]="s.status === 'held'" [class.cs-session--cancelled]="s.status === 'cancelled'"
+                      (click)="openSession(s)" [attr.aria-label]="(s.class?.code || 'Session') + ' ' + s.startTime + ' to ' + s.endTime + ' at ' + (s.venue?.code || '') + ', ' + s.status">
+                <span class="cs-session__time">{{ s.startTime }} - {{ s.endTime }}</span>
+                <span class="cs-session__title">{{ s.class?.description || s.class?.code }}</span>
+                <span class="cs-session__meta">{{ s.venue?.code }} · {{ s.instructor?.name }} · {{ s.capacity }} seats</span>
+                @if (s.status === 'held') { <span class="status-chip status-chip--on">Held</span> }
+                @else if (s.status === 'cancelled') { <span class="status-chip status-chip--off">Cancelled</span> }
+              </button>
+            }
+          }
+          @if (!isPastDay(d.date)) {
+            <button *appCan="'create'" type="button" class="btn btn--link btn--sm cs-day__add" (click)="openAdd(d.date)">
+              <span class="material-icons" aria-hidden="true">add</span>
+              Add session
+            </button>
+          }
+        </section>
+      }
+    </div>
+  }
+
+  <!-- Add a one-off session FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="Add a one-off session">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>Add session</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved session changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          @case ('session') {
+            @if (current(); as s) {
+              <div class="cs-detail">
+                <div class="cs-detail__title">{{ s.class?.code }} - {{ s.class?.description }}</div>
+                <div class="cs-detail__meta">
+                  {{ s.sessionDate | localDate:'weekday' }}
+                  @if (s.schedule) { · {{ s.schedule.name }} } @else { · one-off session }
+                  @switch (s.status) {
+                    @case ('scheduled') { <span class="status-chip status-chip--info">Scheduled</span> }
+                    @case ('held') { <span class="status-chip status-chip--on">Held</span> }
+                    @default { <span class="status-chip status-chip--off">Cancelled</span> }
+                  }
+                </div>
+                @if (s.facility) {
+                  <div class="cs-detail__meta">Blocks {{ s.facility.code }} on the booking grid while scheduled.</div>
+                }
+                @if (s.status === 'cancelled' && s.cancelReason) {
+                  <div class="cs-detail__meta">Cancelled - {{ s.cancelReason }}</div>
+                }
+              </div>
+              <form id="csForm" [formGroup]="form" (ngSubmit)="saveSession()">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="csStart">Starts <span class="required">*</span></label>
+                    <input id="csStart" type="time" formControlName="startTime"
+                           [attr.aria-invalid]="showError(form.controls.startTime)" aria-describedby="csStartErr" />
+                    @if (showError(form.controls.startTime)) {
+                      <p id="csStartErr" class="field-error" role="alert">The start time is required.</p>
+                    }
+                  </div>
+                  <div class="form-group">
+                    <label for="csEnd">Ends <span class="required">*</span></label>
+                    <input id="csEnd" type="time" formControlName="endTime"
+                           [attr.aria-invalid]="showError(form.controls.endTime)" aria-describedby="csEndErr" />
+                    @if (showError(form.controls.endTime)) {
+                      <p id="csEndErr" class="field-error" role="alert">The end time is required.</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="csVenueF">Venue <span class="required">*</span></label>
+                    <app-combobox formControlName="venueId" inputId="csVenueF" [options]="venueOptions()" [allowEmpty]="false" placeholder="Type to search…" />
+                  </div>
+                  <div class="form-group">
+                    <label for="csInstructorF">Instructor <span class="required">*</span></label>
+                    <app-combobox formControlName="instructorId" inputId="csInstructorF" [options]="instructorOptions()" [allowEmpty]="false" placeholder="Type to search…" />
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="csCap">Seats <span class="required">*</span></label>
+                    <input id="csCap" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="capacity"
+                           [attr.aria-invalid]="showError(form.controls.capacity)" aria-describedby="csCapErr" />
+                    @if (showError(form.controls.capacity)) {
+                      <p id="csCapErr" class="field-error" role="alert">Enter a whole number between 1 and 500.</p>
+                    }
+                    <p class="cell-subtle field-hint">Never more than the venue's capacity.</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="csRemarks">Remarks</label>
+                    <textarea id="csRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+                  </div>
+                </div>
+                @if (s.status === 'scheduled') {
+                  <p class="cell-subtle field-hint">A move is checked against the venue, the court and the instructor. The roster and attendance arrive with the next slice.</p>
+                }
+              </form>
+            }
+          }
+
+          @case ('cancel') {
+            @if (current(); as s) {
+              <p class="cell-subtle" style="margin: 0 0 var(--space-md);">
+                {{ s.class?.code }} · {{ s.sessionDate | localDate:'weekday' }} · {{ s.startTime }} - {{ s.endTime }} · {{ s.venue?.code }}. The session is cancelled with this reason@if (s.facility) { and {{ s.facility.code }} is freed on the booking grid}.
+              </p>
+            }
+            <form id="csCancelForm" [formGroup]="cancelForm" (ngSubmit)="submitCancel()">
+              <div class="form-group">
+                <label for="csReason">Reason <span class="required">*</span></label>
+                <textarea id="csReason" rows="2" formControlName="reason" maxlength="255"
+                          [attr.aria-invalid]="showError(cancelForm.controls.reason)" aria-describedby="csReasonErr"></textarea>
+                @if (showError(cancelForm.controls.reason)) {
+                  <p id="csReasonErr" class="field-error" role="alert">Give the reason.</p>
+                }
+              </div>
+            </form>
+          }
+
+          @case ('add') {
+            <form id="csAddForm" [formGroup]="addForm" (ngSubmit)="submitAdd()">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="caClass">Class <span class="required">*</span></label>
+                  <app-combobox formControlName="classId" inputId="caClass" [options]="classOptions()" [allowEmpty]="false" placeholder="Type to search…" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="caDate">Date <span class="required">*</span></label>
+                  <input id="caDate" type="date" formControlName="sessionDate"
+                         [attr.aria-invalid]="showError(addForm.controls.sessionDate)" aria-describedby="caDateErr" />
+                  @if (showError(addForm.controls.sessionDate)) {
+                    <p id="caDateErr" class="field-error" role="alert">The date is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="caCap">Seats</label>
+                  <input id="caCap" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="capacity" [placeholder]="addClassDefaults().capacity"
+                         [attr.aria-invalid]="showError(addForm.controls.capacity)" aria-describedby="caCapErr" />
+                  @if (showError(addForm.controls.capacity)) {
+                    <p id="caCapErr" class="field-error" role="alert">Enter a whole number between 1 and 500, or leave blank.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="caStart">Starts <span class="required">*</span></label>
+                  <input id="caStart" type="time" formControlName="startTime"
+                         [attr.aria-invalid]="showError(addForm.controls.startTime)" aria-describedby="caStartErr" />
+                  @if (showError(addForm.controls.startTime)) {
+                    <p id="caStartErr" class="field-error" role="alert">The start time is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="caEnd">Ends <span class="required">*</span></label>
+                  <input id="caEnd" type="time" formControlName="endTime"
+                         [attr.aria-invalid]="showError(addForm.controls.endTime)" aria-describedby="caEndErr" />
+                  @if (showError(addForm.controls.endTime)) {
+                    <p id="caEndErr" class="field-error" role="alert">The end time is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="caVenue">Venue</label>
+                  <app-combobox formControlName="venueId" inputId="caVenue" [options]="venueOptions()" [allowEmpty]="true" [emptyLabel]="addClassDefaults().venue" placeholder="Type to search…" />
+                </div>
+                <div class="form-group">
+                  <label for="caInstructor">Instructor</label>
+                  <app-combobox formControlName="instructorId" inputId="caInstructor" [options]="instructorOptions()" [allowEmpty]="true" [emptyLabel]="addClassDefaults().instructor" placeholder="Type to search…" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="caRemarks">Remarks</label>
+                  <textarea id="caRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255" placeholder="e.g. Make-up session"></textarea>
+                </div>
+              </div>
+              <p class="cell-subtle field-hint">The session is checked against the venue, the court and the instructor before it is added.</p>
+            </form>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('session') {
+            @if (current(); as s) {
+              @if (editable(s)) {
+                <button type="button" class="btn btn--danger" (click)="openCancel()" [disabled]="saving()" *appCan="'edit'">Cancel session</button>
+                <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Close</button>
+                <button type="submit" form="csForm" class="btn btn--primary" [disabled]="saving()" *appCan="'edit'">
+                  {{ saving() ? 'Saving…' : 'Save' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+              }
+            }
+          }
+          @case ('cancel') {
+            <button type="button" class="btn btn--secondary" (click)="backToSession()" [disabled]="saving()">Keep session</button>
+            <button type="submit" form="csCancelForm" class="btn btn--danger" [disabled]="saving()">
+              {{ saving() ? 'Cancelling…' : 'Cancel session' }}
+            </button>
+          }
+          @case ('add') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="csAddForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Adding…' : 'Add session' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

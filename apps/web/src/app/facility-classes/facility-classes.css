@@ -1,0 +1,147 @@
+/* Classes - screen-specific bits only; the listing, dialog, section and
+   button primitives are global in styles.css, the .mt-chip pill comes from
+   membership-types.css. All colours are theme tokens. */
+
+/* Enrolment-mode filter row above the search. */
+.fc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* Option / switch rows in the drawer. */
+.fc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.fc-check input[type='checkbox']:not([role='switch']) {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+/* Weekday tick row on the schedule form. */
+.fc-days-label {
+  display: block;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+.fc-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.fc-day {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--font-body);
+}
+.fc-day:has(input:checked) {
+  background: var(--brand-surface);
+  border-color: var(--brand);
+  color: var(--brand-text);
+}
+.fc-day input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  accent-color: var(--brand);
+}
+
+/* Schedule list - one bordered block per schedule. */
+.fc-sched {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-card);
+}
+.fc-sched--off {
+  opacity: 0.7;
+}
+.fc-sched__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.fc-sched__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  margin-top: var(--space-2xs);
+}
+.fc-sched__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+/* Preview: the expected-result line and the date rows. */
+.fc-preview-line {
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  color: var(--info-text);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+}
+.fc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.fc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'date status' 'reason reason';
+  gap: var(--space-2xs) var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  font-size: var(--font-body-2);
+}
+.fc-row--skipped {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+.fc-row--conflict {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+}
+.fc-row__date {
+  grid-area: date;
+  color: var(--text-primary);
+}
+.fc-row__status {
+  grid-area: status;
+}
+.fc-row__reason {
+  grid-area: reason;
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+}
+.fc-row__reason:empty {
+  display: none;
+}

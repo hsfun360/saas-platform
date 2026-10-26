@@ -1,0 +1,524 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">school</span>
+      <div>
+        <h1>{{ 'Classes' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The instructor-led classes the club offers and their schedules - each schedule generates the dated sessions on the timetable.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} class{{ rows().length === 1 ? '' : 'es' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No classes yet. Use 'New class' to add the first one - set up the venues and instructors first.
+      } @else {
+        Loading the club's classes…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="fc-filters" role="group" aria-label="Filter by enrolment mode">
+      <button type="button" class="btn btn--sm" [class.btn--primary]="modeFilter() === ''" [class.btn--secondary]="modeFilter() !== ''" (click)="modeFilter.set('')">All modes</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="modeFilter() === 'session'" [class.btn--secondary]="modeFilter() !== 'session'" (click)="modeFilter.set('session')">Per session</button>
+      <button type="button" class="btn btn--sm" [class.btn--primary]="modeFilter() === 'term'" [class.btn--secondary]="modeFilter() !== 'term'" (click)="modeFilter.set('term')">Per term</button>
+    </div>
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #fcSearchBox type="search" [value]="search()" (input)="search.set(fcSearchBox.value)"
+             placeholder="Search classes…" aria-label="Search classes" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading classes…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No classes match{{ search() ? ' "' + search() + '"' : ' this mode' }}.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); modeFilter.set('')">Clear filters</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (c of filtered(); track c.id) {
+        <div class="data-card" [attr.data-return-id]="c.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ c.code }} - {{ c.description }}</div>
+              <div class="data-card__subline">
+                <span class="mt-chip">{{ modeLabel(c.enrolmentMode) }}</span>
+                @if (c.venue) { <span class="data-card__reg">{{ c.venue.code }}</span> }
+                @if (c.instructor) { <span class="data-card__reg">{{ c.instructor.name }}</span> }
+                <span class="data-card__reg">{{ c.capacity ?? c.venue?.capacity ?? '-' }} seats</span>
+                @if (c.visitorsAllowed) { <span class="mt-chip">Visitors</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Fee</dt><dd>{{ feeSummary(c) }}</dd></div>
+                <div class="meta"><dt>Schedules</dt><dd>{{ c.scheduleCount }}</dd></div>
+                <div class="meta"><dt>Upcoming</dt><dd>{{ c.sessionCount }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (c.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + c.code">
+                    <button type="button" appMenuItem (click)="openSchedules(c)">
+                      <span class="material-icons" aria-hidden="true">date_range</span>
+                      Schedules ({{ c.scheduleCount }})
+                    </button>
+                    <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
+                      <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ c.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(c)" [disabled]="togglingId() === c.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New class FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New class">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New class</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          @case ('form') {
+            <form id="fcForm" [formGroup]="form" (ngSubmit)="onSave()">
+              <details class="dlg-sec" open>
+                <summary><h3 class="dlg-section">Identity</h3></summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="fcCode">Code <span class="required">*</span></label>
+                    <input id="fcCode" type="text" formControlName="code" placeholder="e.g. YOGA_AM" autocomplete="off" maxlength="30"
+                           style="text-transform: uppercase;"
+                           [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="fcCodeErr" />
+                    @if (showError(form.controls.code)) {
+                      <p id="fcCodeErr" class="field-error" role="alert">
+                        @if (form.controls.code.errors?.['required']) { Code is required. }
+                        @else if (form.controls.code.errors?.['pattern']) { Use letters, digits, underscores and hyphens only. }
+                        @else { Use 30 characters or fewer. }
+                      </p>
+                    }
+                  </div>
+                  <div class="form-group form-group--narrow">
+                    <label for="fcSort">Sort Order <span class="required">*</span></label>
+                    <input id="fcSort" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="sortOrder"
+                           [attr.aria-invalid]="showError(form.controls.sortOrder)" aria-describedby="fcSortErr" />
+                    @if (showError(form.controls.sortOrder)) {
+                      <p id="fcSortErr" class="field-error" role="alert">Enter a whole number between 0 and 9999.</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="fcDesc">Description <span class="required">*</span></label>
+                    <input id="fcDesc" type="text" formControlName="description" placeholder="e.g. Morning Yoga" maxlength="255"
+                           [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fcDescErr" />
+                    @if (showError(form.controls.description)) {
+                      <p id="fcDescErr" class="field-error" role="alert">Description is required (255 characters or fewer).</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="fcDetails">Details</label>
+                    <textarea id="fcDetails" rows="3" formControlName="details" maxlength="4000" placeholder="What the class is, what to bring"></textarea>
+                    <p class="cell-subtle field-hint">Shown on the roster and in the enrolment email.</p>
+                  </div>
+                </div>
+              </details>
+
+              <details class="dlg-sec" open>
+                <summary><h3 class="dlg-section">Where and who</h3></summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="fcVenue">Default venue
+                      <app-field-info label="Venue, instructor and capacity" [text]="hint.venue" />
+                    </label>
+                    <app-combobox formControlName="venueId" inputId="fcVenue" [options]="venueOptions()" [allowEmpty]="true" emptyLabel="Chosen per schedule" placeholder="Type to search…" />
+                  </div>
+                  <div class="form-group">
+                    <label for="fcInstructor">Default instructor</label>
+                    <app-combobox formControlName="instructorId" inputId="fcInstructor" [options]="instructorOptions()" [allowEmpty]="true" emptyLabel="Chosen per schedule" placeholder="Type to search…" />
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="fcCap">Seats per session</label>
+                    <input id="fcCap" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="capacity" placeholder="Venue's capacity"
+                           [attr.aria-invalid]="showError(form.controls.capacity)" aria-describedby="fcCapErr" />
+                    @if (showError(form.controls.capacity)) {
+                      <p id="fcCapErr" class="field-error" role="alert">Enter a whole number between 1 and 500, or leave blank.</p>
+                    }
+                    <p class="cell-subtle field-hint">{{ venueCapacityHint() }}</p>
+                  </div>
+                </div>
+              </details>
+
+              <details class="dlg-sec" open>
+                <summary><h3 class="dlg-section">Enrolment and fees</h3></summary>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="fcMode">Enrolment mode <span class="required">*</span>
+                      <app-field-info label="Enrolment mode" [text]="hint.mode" />
+                    </label>
+                    <select id="fcMode" formControlName="enrolmentMode">
+                      <option value="session">Per session</option>
+                      <option value="term">Per term</option>
+                    </select>
+                    @if (modeFrozen()) {
+                      <p class="cell-subtle field-hint">Frozen - the class already has {{ editRow()?.scheduleCount }} schedule{{ editRow()?.scheduleCount === 1 ? '' : 's' }}.</p>
+                    }
+                  </div>
+                  <div class="form-group">
+                    <label for="fcNotice">Cancellation notice (hours)
+                      <app-field-info label="Cancellation notice" [text]="hint.notice" />
+                    </label>
+                    <input id="fcNotice" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="cancellationNoticeHours" placeholder="Specification's"
+                           [attr.aria-invalid]="showError(form.controls.cancellationNoticeHours)" aria-describedby="fcNoticeErr" />
+                    @if (showError(form.controls.cancellationNoticeHours)) {
+                      <p id="fcNoticeErr" class="field-error" role="alert">Enter a whole number between 0 and 720, or leave blank.</p>
+                    }
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="fcFee">Fee item (members)
+                      <app-field-info label="Fee items" [text]="hint.fees" />
+                    </label>
+                    <app-combobox formControlName="feeTransactionTypeId" inputId="fcFee" [options]="feeOptions()" [allowEmpty]="true" emptyLabel="Free class" placeholder="Type to search…" />
+                    <p class="cell-subtle field-hint">A Class Fee transaction type, priced {{ form.controls.enrolmentMode.value === 'term' ? 'per term' : 'per session' }}.</p>
+                  </div>
+                  @if (form.controls.visitorsAllowed.value) {
+                    <div class="form-group">
+                      <label for="fcVisitorFee">Fee item (visitors)</label>
+                      <app-combobox formControlName="visitorFeeTransactionTypeId" inputId="fcVisitorFee" [options]="feeOptions()" [allowEmpty]="true" emptyLabel="Same as members" placeholder="Type to search…" />
+                    </div>
+                  }
+                </div>
+                <div class="form-row">
+                  <label class="fc-check switch">
+                    <input type="checkbox" role="switch" formControlName="visitorsAllowed" />
+                    <span>Visitors may enrol</span>
+                    <app-field-info label="Visitors and walk-ins" [text]="hint.visitors" />
+                  </label>
+                </div>
+                <div class="form-row">
+                  <label class="fc-check"><input type="checkbox" formControlName="walkInAllowed" /><span>Walk-ins at the Control Station on the day</span></label>
+                </div>
+              </details>
+              @if (!editId()) {
+                <p class="cell-subtle field-hint">After saving, add the class's schedules from the row's menu.</p>
+              }
+            </form>
+          }
+
+          @case ('schedules') {
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+              The runs of {{ dlgClass()?.description }}; each generates its dated sessions on the timetable.
+              <app-field-info label="Schedules" [text]="hint.schedule" />
+            </p>
+            @if (schedulesLoading()) {
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading schedules…</p></div>
+            } @else if (schedules().length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">date_range</span>
+                <p>No schedules yet. Add one - the weekdays, the dates and the time generate the sessions, previewed before they are saved.</p>
+              </div>
+            } @else {
+              @for (s of schedules(); track s.id) {
+                <div class="fc-sched" [class.fc-sched--off]="s.status === 'cancelled'">
+                  <div class="fc-sched__head">
+                    <div class="fc-sched__title">
+                      {{ s.name }}
+                      @switch (s.status) {
+                        @case ('active') { <span class="status-chip status-chip--on">Active</span> }
+                        @case ('closed') { <span class="status-chip status-chip--info">Closed</span> }
+                        @default { <span class="status-chip status-chip--off">Cancelled</span> }
+                      }
+                    </div>
+                    <div class="fc-sched__meta">
+                      {{ s.dateFrom | localDate }} to {{ s.dateTo | localDate }} · {{ weekdayText(s) }} · {{ s.startTime }} - {{ s.endTime }}
+                    </div>
+                    <div class="fc-sched__meta">
+                      {{ s.venue?.code || dlgClass()?.venue?.code || '-' }} · {{ s.instructor?.name || dlgClass()?.instructor?.name || '-' }}@if (s.capacity) { · {{ s.capacity }} seats}
+                    </div>
+                    <div class="fc-sched__meta">{{ scheduleSummary(s) }}</div>
+                  </div>
+                  @if (s.status !== 'cancelled') {
+                    <div class="fc-sched__actions">
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openScheduleForm(s)" *appCan="'edit'">Edit</button>
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + s.name">
+                        @if (s.status === 'active') {
+                          <button type="button" appMenuItem (click)="closeSchedule(s)" [disabled]="scheduleBusyId() === s.id">
+                            <span class="material-icons" aria-hidden="true">lock</span>
+                            Close to new enrolments
+                          </button>
+                        }
+                        <button type="button" appMenuItem (click)="openCancelSchedule(s)" [disabled]="scheduleBusyId() === s.id">
+                          <span class="material-icons" aria-hidden="true">event_busy</span>
+                          Cancel schedule
+                        </button>
+                      </app-overflow-menu>
+                    </div>
+                  }
+                </div>
+              }
+            }
+            @if (!schedulesLoading() && dlgClass()?.isActive !== false) {
+              <button type="button" class="btn btn--secondary" (click)="openScheduleForm()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">add</span>
+                <span>Add schedule</span>
+              </button>
+            }
+          }
+
+          @case ('scheduleForm') {
+            <form id="fcSchedForm" [formGroup]="scheduleForm" (ngSubmit)="previewSchedule()">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fsName">Name <span class="required">*</span></label>
+                  <input id="fsName" type="text" formControlName="name" placeholder="e.g. Term 1 2027" maxlength="255"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.name)" aria-describedby="fsNameErr" />
+                  @if (showError(scheduleForm.controls.name)) {
+                    <p id="fsNameErr" class="field-error" role="alert">Name is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsFrom">First day <span class="required">*</span></label>
+                  <input id="fsFrom" type="date" formControlName="dateFrom"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.dateFrom)" aria-describedby="fsFromErr" />
+                  @if (showError(scheduleForm.controls.dateFrom)) {
+                    <p id="fsFromErr" class="field-error" role="alert">The first day is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="fsTo">Last day <span class="required">*</span></label>
+                  <input id="fsTo" type="date" formControlName="dateTo"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.dateTo)" aria-describedby="fsToErr" />
+                  @if (showError(scheduleForm.controls.dateTo)) {
+                    <p id="fsToErr" class="field-error" role="alert">The last day is required.</p>
+                  }
+                  <p class="cell-subtle field-hint">Up to one year.</p>
+                </div>
+              </div>
+              <div class="form-group">
+                <span class="fc-days-label">Runs on</span>
+                <div class="fc-days" role="group" aria-label="Weekdays the class runs on">
+                  @for (d of weekdays; track d.iso) {
+                    <label class="fc-day">
+                      <input type="checkbox" [formControlName]="'d' + d.iso" />
+                      <span>{{ d.label }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsStart">Starts <span class="required">*</span></label>
+                  <input id="fsStart" type="time" formControlName="startTime"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.startTime)" aria-describedby="fsStartErr" />
+                  @if (showError(scheduleForm.controls.startTime)) {
+                    <p id="fsStartErr" class="field-error" role="alert">The start time is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="fsEnd">Ends <span class="required">*</span></label>
+                  <input id="fsEnd" type="time" formControlName="endTime"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.endTime)" aria-describedby="fsEndErr" />
+                  @if (showError(scheduleForm.controls.endTime)) {
+                    <p id="fsEndErr" class="field-error" role="alert">The end time is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsVenue">Venue</label>
+                  <app-combobox formControlName="venueId" inputId="fsVenue" [options]="venueOptions()" [allowEmpty]="true" emptyLabel="Class default" placeholder="Type to search…" />
+                </div>
+                <div class="form-group">
+                  <label for="fsInstructor">Instructor</label>
+                  <app-combobox formControlName="instructorId" inputId="fsInstructor" [options]="instructorOptions()" [allowEmpty]="true" emptyLabel="Class default" placeholder="Type to search…" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="fsCap">Seats per session</label>
+                  <input id="fsCap" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="capacity" placeholder="Class default"
+                         [attr.aria-invalid]="showError(scheduleForm.controls.capacity)" aria-describedby="fsCapErr" />
+                  @if (showError(scheduleForm.controls.capacity)) {
+                    <p id="fsCapErr" class="field-error" role="alert">Enter a whole number between 1 and 500, or leave blank.</p>
+                  }
+                </div>
+                @if (dlgClass()?.enrolmentMode === 'term') {
+                  <div class="form-group">
+                    <label for="fsTermNote">Term note</label>
+                    <input id="fsTermNote" type="text" formControlName="termFeeNote" placeholder="e.g. 10 sessions" maxlength="255" />
+                    <p class="cell-subtle field-hint">Shown with a term enrolment.</p>
+                  </div>
+                }
+              </div>
+              <div class="form-row">
+                <label class="fc-check"><input type="checkbox" formControlName="skipClosures" /><span>Skip days the venue's facility is closed</span></label>
+              </div>
+              <div class="form-row">
+                <label class="fc-check"><input type="checkbox" formControlName="skipPublicHolidays" /><span>Skip public holidays</span></label>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fsRemarks">Remarks</label>
+                  <textarea id="fsRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+                </div>
+              </div>
+              @if (editSchedule()) {
+                <p class="cell-subtle field-hint">Saving re-plans the future sessions without enrolments: those still on the pattern take the new times and places, those off it are cancelled, new dates are added. Past and held sessions stay as they are.</p>
+              }
+            </form>
+          }
+
+          @case ('preview') {
+            @if (preview(); as p) {
+              <p class="fc-preview-line">
+                {{ p.counts.ok }} session{{ p.counts.ok === 1 ? '' : 's' }} will be {{ editSchedule() ? 'kept or added' : 'generated' }}@if (p.counts.skipped) {, {{ p.counts.skipped }} date{{ p.counts.skipped === 1 ? '' : 's' }} skipped}@if (p.counts.conflict) {, {{ p.counts.conflict }} in conflict left out}.
+                @if (p.blocksUnit) { Each session blocks the court on the booking grid. }
+              </p>
+              @if (p.rows.length === 0) {
+                <div class="empty-state">
+                  <span class="material-icons empty-icon" aria-hidden="true">event_busy</span>
+                  <p>No date in the range falls on the ticked weekdays.</p>
+                </div>
+              } @else {
+                <div class="fc-rows">
+                  @for (r of p.rows; track r.date) {
+                    <div class="fc-row" [class.fc-row--skipped]="r.status === 'skipped'" [class.fc-row--conflict]="r.status === 'conflict'">
+                      <span class="fc-row__date">{{ r.date | localDate:'weekday' }}</span>
+                      <span class="fc-row__status">
+                        @switch (r.status) {
+                          @case ('ok') { <span class="status-chip status-chip--on">Session</span> }
+                          @case ('skipped') { <span class="status-chip status-chip--off">Skipped</span> }
+                          @default { <span class="status-chip status-chip--danger">Conflict</span> }
+                        }
+                      </span>
+                      <span class="fc-row__reason">{{ r.reason || (r.isHoliday ? 'Public holiday, kept' : '') }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          }
+
+          @case ('cancelSchedule') {
+            <form id="fcCancelForm" [formGroup]="cancelForm" (ngSubmit)="submitCancelSchedule()">
+              @if (cancelTarget(); as s) {
+                <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+                  {{ s.name }} · {{ s.dateFrom | localDate }} to {{ s.dateTo | localDate }} · {{ s.sessionCounts.scheduled }} scheduled session{{ s.sessionCounts.scheduled === 1 ? '' : 's' }}.
+                </p>
+                <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Every future scheduled session is cancelled with this reason; past and held sessions stay.</p>
+              }
+              <div class="form-group">
+                <label for="fcCancelReason">Reason <span class="required">*</span></label>
+                <textarea id="fcCancelReason" rows="2" formControlName="reason" maxlength="255"
+                          [attr.aria-invalid]="showError(cancelForm.controls.reason)" aria-describedby="fcCancelReasonErr"></textarea>
+                @if (showError(cancelForm.controls.reason)) {
+                  <p id="fcCancelReasonErr" class="field-error" role="alert">Give the reason.</p>
+                }
+              </div>
+            </form>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="fcForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('schedules') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+          @case ('scheduleForm') {
+            <button type="button" class="btn btn--secondary" (click)="backToSchedules()" [disabled]="previewing()">Back to list</button>
+            <button type="submit" form="fcSchedForm" class="btn btn--primary" [disabled]="previewing()">
+              {{ previewing() ? 'Previewing…' : 'Preview sessions' }}
+            </button>
+          }
+          @case ('preview') {
+            <button type="button" class="btn btn--secondary" (click)="backToScheduleForm()" [disabled]="saving()">Back</button>
+            <button type="button" class="btn btn--primary" (click)="saveSchedule()" [disabled]="saving() || !preview()?.counts?.ok">
+              {{ saving() ? 'Saving…' : (editSchedule() ? 'Save and re-plan' : 'Save with ' + (preview()?.counts?.ok || 0) + ' session' + (preview()?.counts?.ok === 1 ? '' : 's')) }}
+            </button>
+          }
+          @case ('cancelSchedule') {
+            <button type="button" class="btn btn--secondary" (click)="backToSchedules()" [disabled]="saving()">Keep schedule</button>
+            <button type="submit" form="fcCancelForm" class="btn btn--danger" [disabled]="saving()">
+              {{ saving() ? 'Cancelling…' : 'Cancel schedule' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

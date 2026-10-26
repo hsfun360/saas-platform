@@ -1,0 +1,214 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">place</span>
+      <div>
+        <h1>{{ 'Venues' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Where classes are held - a court, two pool lanes, a studio or a meeting room; a venue on a slot-booked unit blocks it while a session runs.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} venue{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No venues yet. Use 'New venue' to add the first one - a class is held at a venue.
+      } @else {
+        Loading the club's venues…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #fvSearchBox type="search" [value]="search()" (input)="search.set(fvSearchBox.value)"
+             placeholder="Search venues…" aria-label="Search venues" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading venues…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No venues match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (v of filtered(); track v.id) {
+        <div class="data-card" [attr.data-return-id]="v.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ v.code }} - {{ v.name }}</div>
+              <div class="data-card__subline">
+                @if (v.facility) {
+                  <span class="mt-chip">{{ v.facility.code }} · {{ v.facility.facilityTypeCode }}</span>
+                  @if (v.blocksUnit) { <span class="mt-chip">Blocks the court</span> }
+                } @else {
+                  <span class="mt-chip">Not a facility</span>
+                }
+                <span class="data-card__reg">{{ v.capacity }} seats</span>
+                @if (v.location) { <span class="data-card__reg">{{ v.location }}</span> }
+              </div>
+              @if (v.description) {
+                <div class="data-card__desc">{{ v.description }}</div>
+              }
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Classes</dt><dd>{{ v.classCount }}</dd></div>
+                <div class="meta"><dt>Sessions</dt><dd>{{ v.sessionCount }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (v.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (v.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(v)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + v.code">
+                    <button type="button" appMenuItem (click)="toggleActive(v)" [disabled]="togglingId() === v.id">
+                      <span class="material-icons" aria-hidden="true">{{ v.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ v.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(v)" [disabled]="togglingId() === v.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New venue FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New venue">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New venue</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog ============ -->
+  @if (dlgOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved venue changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        <form id="fvForm" [formGroup]="form" (ngSubmit)="onSave()">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fvCode">Code <span class="required">*</span></label>
+              <input id="fvCode" type="text" formControlName="code" placeholder="e.g. LANES12" autocomplete="off" maxlength="20"
+                     style="text-transform: uppercase;"
+                     [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="fvCodeErr" />
+              @if (showError(form.controls.code)) {
+                <p id="fvCodeErr" class="field-error" role="alert">
+                  @if (form.controls.code.errors?.['required']) { Code is required. }
+                  @else if (form.controls.code.errors?.['pattern']) { Use letters, digits, underscores and hyphens only. }
+                  @else { Use 20 characters or fewer. }
+                </p>
+              }
+              @if (linkFrozen()) {
+                <p class="cell-subtle field-hint">Frozen - {{ editRow()?.sessionCount }} session{{ editRow()?.sessionCount === 1 ? '' : 's' }} reference this venue.</p>
+              } @else {
+                <p class="cell-subtle field-hint">Stored in capitals; frozen once a session references the venue.</p>
+              }
+            </div>
+            <div class="form-group form-group--narrow">
+              <label for="fvCap">Capacity (seats) <span class="required">*</span>
+                <app-field-info label="Capacity" [text]="hint.capacity" />
+              </label>
+              <input id="fvCap" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="capacity"
+                     [attr.aria-invalid]="showError(form.controls.capacity)" aria-describedby="fvCapErr" />
+              @if (showError(form.controls.capacity)) {
+                <p id="fvCapErr" class="field-error" role="alert">Enter a whole number between 1 and 500.</p>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fvName">Name <span class="required">*</span></label>
+              <input id="fvName" type="text" formControlName="name" placeholder="e.g. Pool lanes 1-2" maxlength="255"
+                     [attr.aria-invalid]="showError(form.controls.name)" aria-describedby="fvNameErr" />
+              @if (showError(form.controls.name)) {
+                <p id="fvNameErr" class="field-error" role="alert">Name is required (255 characters or fewer).</p>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fvUnit">Facility unit
+                <app-field-info label="Facility link" [text]="hint.link" />
+              </label>
+              <app-combobox formControlName="facilityId" inputId="fvUnit" [options]="unitOptions()" [allowEmpty]="true" emptyLabel="Not a facility" placeholder="Type to search…" />
+              <p class="cell-subtle field-hint">{{ linkText() }}</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fvLoc">Location</label>
+              <input id="fvLoc" type="text" formControlName="location" placeholder="e.g. Level 2, past the gym" maxlength="255" />
+            </div>
+            <div class="form-group">
+              <label for="fvDesc">Description</label>
+              <input id="fvDesc" type="text" formControlName="description" placeholder="Optional" maxlength="255" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fvRemarks">Remarks</label>
+              <textarea id="fvRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="fvForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>
