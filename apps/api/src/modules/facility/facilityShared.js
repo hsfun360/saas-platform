@@ -64,7 +64,29 @@ function fromMinutes(total) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
+// Refuse from inside a transaction: throws a tagged error the caller maps
+// to a response, so the transaction rolls back instead of committing the
+// rows written before the refusal.
+function txFail(message, status = 400) {
+    const err = new Error(message);
+    err.httpStatus = status;
+    throw err;
+}
+
+// Run a transaction whose refusals come back as { error, status } instead
+// of throwing; other errors still throw.
+async function runTx(sequelize, work) {
+    try {
+        return await sequelize.transaction(work);
+    } catch (e) {
+        if (e && e.httpStatus) return { error: e.message, status: e.httpStatus };
+        throw e;
+    }
+}
+
 module.exports = {
+    txFail,
+    runTx,
     companyIdOf,
     stampsFor,
     TIME_RE,

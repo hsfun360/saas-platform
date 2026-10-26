@@ -28,7 +28,7 @@ const pricing = require('./billPricing.service');
 const participantTypes = require('./participantType.service');
 const availability = require('./bookingAvailability.service');
 const shared = require('./bookingShared');
-const { companyIdOf, stampsFor } = require('./facilityShared');
+const { companyIdOf, stampsFor, txFail, runTx } = require('./facilityShared');
 
 const { Bill, BillItem, BillPayment, round2, cents } = billing;
 
@@ -186,9 +186,9 @@ exports.openBill = async (req, res) => {
         const ctx = await lineContext(companyId, booking, facts);
         const warnings = [];
 
-        const result = await sequelize.transaction(async (transaction) => {
+        const result = await runTx(sequelize, async (transaction) => {
             const issued = await billing.issueBillNo(req, { transaction, manualNo: req.body.billNo });
-            if (issued.error) return { fail: issued.error, status: 400 };
+            if (issued.error) txFail(issued.error);
             const bill = await Bill.create({
                 companyId, billNo: issued.billNo, bookingId: booking.id, patronId: facts.booker.id, billDate: ctx.date, status: 'open', ...stamps,
             }, { transaction });
@@ -205,7 +205,7 @@ exports.openBill = async (req, res) => {
                         req, bill, type: feeType, quantity: 1, stamps, transaction,
                         context: { date: String(s.bookingDate), dayType: s.dayType, sessionId: session ? session.id : null, sessionName: session ? session.name : null, participantType: ctx.participantType, bookingSlotId: s.id },
                     });
-                    if (added.error) return { fail: added.error, status: 400 };
+                    if (added.error) txFail(added.error);
                 }
             }
 
@@ -223,12 +223,12 @@ exports.openBill = async (req, res) => {
                     req, bill, type: guestType, quantity: guestType.feeBasis === 'per-slot' ? facts.liveSlots.length : 1, stamps, transaction,
                     context: { date: String(first.bookingDate), dayType: first.dayType, sessionId: ctx.sessionId, sessionName: ctx.sessionName, participantType: p.participantType, bookingSlotId: first.id, bookingParticipantId: p.id },
                 });
-                if (added.error) return { fail: `${p.name}: ${added.error}`, status: 400 };
+                if (added.error) txFail(`${p.name}: ${added.error}`);
             }
             await billing.recomputeTotals(bill, transaction);
             return { bill };
         });
-        if (result.fail) return res.status(result.status || 400).json({ message: result.fail });
+        if (result.error) return res.status(result.status || 400).json({ message: result.error });
         res.status(201).json(await screenPayload(req, companyId, result.bill, await sourceOf(companyId, result.bill), { warnings, message: `Bill ${result.bill.billNo} opened.` }));
     } catch (error) {
         console.error('Error opening facility bill:', error);
@@ -263,16 +263,16 @@ exports.addItem = async (req, res) => {
         if (quantity < 1 || quantity > 99) return res.status(400).json({ message: 'Quantity must be between 1 and 99.' });
         const ctx = booking ? await lineContext(companyId, booking, source.facts) : await stationLineContext(companyId, source);
         const stamps = await stampsFor(req);
-        const result = await sequelize.transaction(async (transaction) => {
+        const result = await runTx(sequelize, async (transaction) => {
             const added = await billing.addItem({
                 req, bill, type, quantity, stamps, transaction,
                 context: { ...ctx, participantType: type.participantType || ctx.participantType, bookingSlotId: ctx.slot ? ctx.slot.id : null },
             });
-            if (added.error) return { fail: added.error };
+            if (added.error) txFail(added.error);
             await billing.recomputeTotals(bill, transaction);
             return {};
         });
-        if (result.fail) return res.status(400).json({ message: result.fail });
+        if (result.error) return res.status(result.status || 400).json({ message: result.error });
         res.status(200).json({ bill: await billing.billDto(bill) });
     } catch (error) {
         console.error('Error adding facility bill item:', error);

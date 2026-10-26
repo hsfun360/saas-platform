@@ -35,7 +35,7 @@ const patrons = require('./patron.service');
 const approval = require('./bookingApproval.service');
 const shared = require('./bookingShared');
 const billing = require('./billing.service');
-const { companyIdOf, stampsFor, DATE_RE, TIME_RE, toMinutes } = require('./facilityShared');
+const { companyIdOf, stampsFor, DATE_RE, TIME_RE, toMinutes, txFail, runTx } = require('./facilityShared');
 const { BOOKING_STATUSES, SLOT_STATUSES, BOOKING_CHANNELS, BOOKING_LIMITS, ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 
 // ---- DTOs -------------------------------------------------------------------
@@ -785,7 +785,7 @@ exports.saveParticipants = async (req, res) => {
         const callerId = getUserContext(req).userId;
         const slotsLite = facts0.liveSlots.map((s) => ({ startTime: shared.hhmm(s.startTime), endTime: shared.hhmm(s.endTime) }));
 
-        const out = await sequelize.transaction(async (transaction) => {
+        const out = await runTx(sequelize, async (transaction) => {
             await shared.advisoryLock(transaction, companyId, date);
             // Void the current guest visits before the allowance is re-read.
             const oldIds = facts0.participants.map((p) => p.id);
@@ -793,20 +793,20 @@ exports.saveParticipants = async (req, res) => {
             if (oldIds.length) await BookingParticipant.destroy({ where: { id: { [Op.in]: oldIds } }, transaction });
 
             const guests = await checkGuests({ companyId, setting, type, guestRules, dayType, date, slots: slotsLite, lines, host, types, transaction });
-            if (guests.error) return { fail: guests.error };
+            if (guests.error) txFail(guests.error);
             for (const l of guests.guestLines) l.isGuestLine = true;
             const patronError = await attachPatrons(companyId, lines, stamps, transaction);
-            if (patronError) return { fail: patronError };
+            if (patronError) txFail(patronError);
             const people = [];
             for (const l of lines) if (l.standing && l.patronId !== booking.bookerPatronId && !people.some((p) => p.patronId === l.patronId)) people.push({ patronId: l.patronId, name: `${l.name} (${l.memberNo})` });
             const limitError = await checkDailyLimits({ companyId, type, date, dayType, slotCount: facts0.liveSlots.length, people, transaction, excludeBookingId: booking.id });
-            if (limitError) return { fail: limitError };
+            if (limitError) txFail(limitError);
             await writeRoster({ companyId, slotRows: facts0.liveSlots, lines, host, date, stamps, transaction });
             booking.updatedBy = callerId;
             await booking.save({ transaction });
             return { facts: await shared.bookingFacts(booking, { transaction }) };
         });
-        if (out.fail) return res.status(400).json({ message: out.fail });
+        if (out.error) return res.status(out.status || 400).json({ message: out.error });
         res.status(200).json({ message: 'Participants saved.', booking: bookingDto(booking, out.facts) });
     } catch (error) {
         console.error('Error saving facility booking participants:', error);

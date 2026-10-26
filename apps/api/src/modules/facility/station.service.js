@@ -30,7 +30,7 @@ const patrons = require('./patron.service');
 const billing = require('./billing.service');
 const pricing = require('./billPricing.service');
 const shared = require('./bookingShared');
-const { stampsFor, toMinutes } = require('./facilityShared');
+const { stampsFor, toMinutes, txFail, runTx } = require('./facilityShared');
 const { ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 const { STATION_LIMITS } = require('./station.constants');
 
@@ -342,9 +342,9 @@ async function checkIn(req, { bookingSlotId, droppedParticipantIds = [] }) {
     if (state === 'early') return { error: `Check-in for ${hhmm(slot.startTime)} opens ${setting.checkInOpenMinutes ?? 30} minutes before the slot (club time ${now.time}).` };
     if (state === 'closed') return { error: `The ${hhmm(slot.startTime)} slot has ended - it can no longer be checked in.` };
     const stamps = await stampsFor(req);
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await runTx(sequelize, async (transaction) => {
         const no = await issueRegistrationNo(req, { transaction });
-        if (no.error) return { error: no.error };
+        if (no.error) txFail(no.error);
         // Drop the guests who failed to show (every slot of the booking,
         // matched by sort order) and void their visits.
         const dropped = Array.isArray(droppedParticipantIds) ? droppedParticipantIds.map(String) : [];
@@ -404,25 +404,25 @@ async function register(req, body) {
     const session = bookingRules.sessionOf(sessions, `${now.time}:00`);
     const stamps = await stampsFor(req);
     const warnings = [];
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await runTx(sequelize, async (transaction) => {
         const regs = await Registration.findAll({ where: { companyId, facilityTypeId: type.id, registrationDate: date, status: 'in', bookingSlotId: null, ...(unit && unit.capacity != null ? { facilityId: unit.id } : {}) }, transaction, lock: transaction.LOCK.UPDATE });
         const capacity = unit && unit.capacity != null ? unit.capacity : type.capacity;
         const capError = rules.capacityVerdict({ count: rules.liveCount(regs), arriving: 1 + lines.length, capacity, label: unit && unit.capacity != null ? unit.code : type.code });
-        if (capError) return { error: capError };
+        if (capError) txFail(capError);
         const g = await checkDoorGuests({ companyId, setting, type, guestRules, dayType, date, time: now.time, lines, host: standing, types: ptypes, transaction });
-        if (g.error) return { error: g.error };
+        if (g.error) txFail(g.error);
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
         const pErr = await attachGuestPatrons(companyId, lines, stamps, transaction);
-        if (pErr) return { error: pErr };
+        if (pErr) txFail(pErr);
         const no = await issueRegistrationNo(req, { transaction });
-        if (no.error) return { error: no.error };
+        if (no.error) txFail(no.error);
         const registration = await Registration.create({
             companyId, registrationNo: no.no, patronId: patron.id, facilityTypeId: type.id, facilityId: unit ? unit.id : null, bookingSlotId: null,
             registrationDate: date, timeIn: new Date(), dayType, sessionId: session ? session.id : null, status: 'in', remarks: body.remarks ? String(body.remarks).slice(0, 255) : null, ...stamps,
         }, { transaction });
         await writeGuests({ companyId, registration, lines, host: standing, date, stamps, transaction });
         const billed = await openEntryBill({ req, companyId, registration, type, patron, lines, date, dayType, sessionId: session ? session.id : null, sessionName: session ? session.name : null, stamps, warnings, transaction });
-        if (billed.error) return { error: billed.error };
+        if (billed.error) txFail(billed.error);
         if (billed.bill) { registration.billId = billed.bill.id; await registration.save({ transaction }); }
         return { registration };
     });
@@ -461,16 +461,16 @@ async function replaceGuests(req, id, body) {
     if (guests.error) return guests;
     const { lines } = guests;
     const stamps = await stampsFor(req);
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await runTx(sequelize, async (transaction) => {
         const regs = await Registration.findAll({ where: { companyId, facilityTypeId: type.id, registrationDate: r.registrationDate, status: 'in', bookingSlotId: null }, transaction, lock: transaction.LOCK.UPDATE });
         const current = Number(r.guestCount || 0);
         const capError = rules.capacityVerdict({ count: rules.liveCount(regs) - (1 + current), arriving: 1 + lines.length, capacity: type.capacity, label: type.code });
-        if (capError) return { error: capError };
+        if (capError) txFail(capError);
         await voidGuests(companyId, r.id, { transaction });
         const g = await checkDoorGuests({ companyId, setting, type, guestRules, dayType: r.dayType, date: String(r.registrationDate), time: now.time, lines, host: standing, types: ptypes, transaction });
-        if (g.error) return { error: g.error };
+        if (g.error) txFail(g.error);
         const pErr = await attachGuestPatrons(companyId, lines, stamps, transaction);
-        if (pErr) return { error: pErr };
+        if (pErr) txFail(pErr);
         await writeGuests({ companyId, registration: r, lines, host: standing, date: String(r.registrationDate), stamps, transaction });
         return {};
     });
@@ -500,21 +500,21 @@ async function issue(req, body) {
     const nowMin = toMinutes(now.time);
     const stamps = await stampsFor(req);
     const warnings = [];
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await runTx(sequelize, async (transaction) => {
         let unit = null;
         if (trackUnits) {
             const wanted = body.facilityId ? String(body.facilityId) : null;
             const candidates = await Facility.findAll({ where: { companyId, facilityTypeId: type.id, isActive: true, unitStatus: 'available', ...(wanted ? { id: wanted } : {}) }, order: [['sortOrder', 'ASC'], ['code', 'ASC']], transaction, lock: transaction.LOCK.UPDATE });
             unit = candidates.find((u) => !bookingRules.isBlocked(blocks.get(u.id) || [], nowMin, nowMin + 1)) || null;
-            if (!unit) return { error: wanted ? 'That unit is not available.' : `No ${type.code} unit is available right now.` };
+            if (!unit) txFail(wanted ? 'That unit is not available.' : `No ${type.code} unit is available right now.`);
         } else {
             unit = units[0] || null;
-            if (unit && bookingRules.isBlocked(blocks.get(unit.id) || [], nowMin, nowMin + 1)) return { error: `${type.code} is closed right now.` };
+            if (unit && bookingRules.isBlocked(blocks.get(unit.id) || [], nowMin, nowMin + 1)) txFail(`${type.code} is closed right now.`);
         }
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
         const live = await IssueRecord.findAll({ where: { companyId, facilityTypeId: type.id, status: 'issued', patronId: patron.id }, transaction });
         const limitError = rules.issueLimitVerdict({ held: rules.heldByPatron(live, patron.id), taking: quantity, limit: Number(type.maxIssuePerPatron || 0), name: standing.name, unitWord: trackUnits ? `${type.code} units` : `${type.code} pieces` });
-        if (limitError) return { error: limitError };
+        if (limitError) txFail(limitError);
         const dueBack = localToDate(rules.dueBackLocal({ issueDate: date, dueDays: type.issueDueDays || 0, hours }), timezone);
         const record = await IssueRecord.create({
             companyId, patronId: patron.id, facilityTypeId: type.id, facilityId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
@@ -531,10 +531,10 @@ async function issue(req, body) {
             if (!feeType) warnings.push(`${type.code}'s issue fee item is missing or disabled - no fee was charged.`);
             else {
                 const issued = await billing.issueBillNo(req, { transaction });
-                if (issued.error) return { error: issued.error };
+                if (issued.error) txFail(issued.error);
                 const bill = await billing.Bill.create({ companyId, billNo: issued.billNo, issueRecordId: record.id, patronId: patron.id, billDate: date, status: 'open', ...stamps }, { transaction });
                 const added = await billing.addItem({ req, bill, type: feeType, quantity, stamps, transaction, context: { date, dayType, sessionId: null, sessionName: null, participantType: 'member' } });
-                if (added.error) return { error: added.error };
+                if (added.error) txFail(added.error);
                 await billing.recomputeTotals(bill, transaction);
                 record.feeBillId = bill.id;
                 await record.save({ transaction });
