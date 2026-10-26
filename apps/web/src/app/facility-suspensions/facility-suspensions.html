@@ -61,7 +61,7 @@
               <div class="data-card__title">{{ s.patronName }} <span class="data-card__reg">{{ s.memberNo ? '(' + s.memberNo + ')' : '' }}</span></div>
               <div class="data-card__subline">
                 <span>{{ s.fromDate | localDate }} to {{ s.toDate | localDate }}</span>
-                <span class="data-card__reg">· {{ s.facilityTypeCode || 'every facility type' }}</span>
+                <span class="data-card__reg">{{ s.facilityTypeCode || 'every facility type' }}</span>
               </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Reason</dt><dd>{{ s.reason }}</dd></div>

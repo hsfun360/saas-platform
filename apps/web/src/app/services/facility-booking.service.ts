@@ -67,6 +67,8 @@ export interface FacilityBookingContext {
   window: { dateFrom: string; dateTo: string; effectiveDays: number; hours: number };
   guestAllowance: { allowance: number | null; used: number; remaining: number | null } | null;
   heldSlots: number;
+  // Slice 4: an active booking suspension on the booking date (null when none).
+  suspension?: { toDate: string; reason: string | null } | null;
 }
 
 export interface FacilityGridSlot {

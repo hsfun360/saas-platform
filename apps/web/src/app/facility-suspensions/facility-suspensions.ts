@@ -6,7 +6,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
-import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate, localDateOnly } from '../shared/local-date.pipe';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { FacilityNoShowService, FacilitySuspension } from '../services/facility-noshow.service';
 
@@ -130,7 +130,7 @@ export class FacilitySuspensionsComponent implements OnInit {
     this.service.createSuspension({ memberNo: v.memberNo.trim(), fromDate: v.fromDate, toDate: v.toDate, reason: v.reason.trim(), facilityTypeId: v.facilityTypeId || null }).subscribe({
       next: (res) => {
         this.saving.set(false);
-        this.successMessage.set(res.message);
+        this.successMessage.set(`${res.suspension.patronName} suspended from booking until ${formatLocalDate(res.suspension.toDate)}.`);
         this.form.markAsPristine();
         this.closeDialog();
         this.status.set('active');

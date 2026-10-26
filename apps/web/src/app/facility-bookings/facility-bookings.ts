@@ -220,6 +220,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
       else {
         if (ctx.barred) out.push({ level: 'fail', text: `Member ${ctx.member.memberNo} (${ctx.member.statusLabel || 'status'}) is barred from booking.` });
         else if (ctx.warning) out.push({ level: 'warn', text: ctx.warning });
+        if (ctx.suspension) out.push({ level: 'fail', text: `${ctx.member.name} is suspended from booking until ${formatLocalDate(ctx.suspension.toDate)}${ctx.suspension.reason ? ' - ' + ctx.suspension.reason : ''}.` });
         const date = claim.bookingDate;
         if (date < ctx.window.dateFrom) out.push({ level: 'fail', text: meta?.setting.allowSameDayBooking ? `${formatLocalDate(date)} is in the past.` : 'Same-day booking is off - today is front-desk registration only.' });
         else if (date > ctx.window.dateTo) out.push({ level: 'fail', text: `${formatLocalDate(date)} is outside the member's window (bookable up to ${formatLocalDate(ctx.window.dateTo)}, ${ctx.window.effectiveDays} days ahead).` });
@@ -744,9 +745,10 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
           else lines.push(`A late cancellation charge of ${(p.charge.totalAmount || 0).toFixed(2)} (${p.charge.description}${(p.charge.quantity || 1) > 1 ? ' x ' + p.charge.quantity : ''}) is raised to the booker${p.bookerIsMember ? "'s account" : ' - a visitor, so it stays pending for the desk'}.`);
         }
         if (p.refused) {
+          const charge = p.charge && !p.charge.unpriced ? `the late cancellation charge of ${(p.charge.totalAmount || 0).toFixed(2)} (${p.charge.description})` : 'the late cancellation charge';
           this.confirmAction.set({
             title: 'Cancellation refused inside the notice',
-            message: `${lines.join(' ')} The club refuses cancellations inside the notice; the desk may cancel with the charge waived and a reason.`,
+            message: `Booking ${b.bookingNo} (${b.facilities.join(', ')} ${when}) is inside the ${p.noticeHours}-hour notice and the club refuses cancellations inside it. The desk may still cancel it with ${charge} waived and a reason.`,
             confirmLabel: 'Cancel and waive the charge',
             cancelLabel: 'Keep booking',
             run: () => { this.confirmAction.set(null); this.openCancelWaive(b, p); },

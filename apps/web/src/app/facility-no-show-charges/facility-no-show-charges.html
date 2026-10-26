@@ -75,7 +75,7 @@
               <div class="data-card__subline">
                 <span>{{ c.bookerName }}</span>
                 @if (c.bookerMemberNo) { <span class="data-card__reg">({{ c.bookerMemberNo }})</span> } @else { <span class="data-card__reg">(visitor)</span> }
-                <span class="data-card__reg">· {{ c.slotSummary }}</span>
+                <span class="data-card__reg">{{ c.slotSummary }}</span>
                 @if (c.strikeCounted) { <span class="status-chip status-chip--danger">Strike</span> }
               </div>
               <dl class="data-card__meta">
