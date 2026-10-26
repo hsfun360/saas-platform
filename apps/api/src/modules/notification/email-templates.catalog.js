@@ -1161,4 +1161,100 @@ module.exports = [
             <p>You may still use the facilities at the control station; booking resumes the day after the suspension ends. Please contact the club's office if you have any questions.</p>
         `),
     },
+    // ---- Facility classes (slice 5c) ----
+    {
+        key: 'facility.class.enrolled',
+        name: 'Class enrolment',
+        description: 'Sent to the patron (member or visitor with an email address) when a seat in a class session or term is enrolled.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'patronName', description: "The patron's name." },
+            { name: 'classCode', description: 'The class code, e.g. BADM_COACH.' },
+            { name: 'className', description: 'The class description.' },
+            { name: 'whenText', description: "The session date and time, or the term's name and period." },
+            { name: 'venueName', description: 'The venue, e.g. COURT1 - Court 1 (may be empty).' },
+            { name: 'isTerm', description: 'true for a term enrolment.' },
+            { name: 'feeAmount', description: "The fee, e.g. '30.00' (empty when free)." },
+            { name: 'billNo', description: 'The facility bill number (empty when free).' },
+            { name: 'isPaid', description: 'true when the bill is settled.' },
+            { name: 'isFree', description: 'true when the class carries no fee.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { patronName: 'Ahmad Faizal', classCode: 'BADM_COACH', className: 'Badminton coaching', whenText: '28 Oct 2026 18:00 - 19:00', venueName: 'COURT1 - Court 1', isTerm: false, feeAmount: '30.00', billNo: 'FBL-00003', isPaid: false, isFree: false, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Enrolled: {{classCode}} - {{whenText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Class enrolment</h2>
+            <p>Dear {{patronName}},</p>
+            <p>You are enrolled in <strong>{{classCode}} - {{className}}</strong> at <strong>{{companyName}}</strong>.</p>
+            <p>
+                <strong>{{#if isTerm}}Term{{else}}Session{{/if}}:</strong> {{whenText}}{{#if venueName}}<br>
+                <strong>Venue:</strong> {{venueName}}{{/if}}
+            </p>
+            {{#if isFree}}
+            <p>No fee applies to this class.</p>
+            {{else}}
+            <p><strong>Fee:</strong> {{feeAmount}} (bill {{billNo}}){{#if isPaid}} - paid, thank you.{{else}} - please settle it at the desk before the session.{{/if}}</p>
+            {{/if}}
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">To cancel your seat, contact the club's office; the club's cancellation notice applies.</p>
+        `),
+    },
+    {
+        key: 'facility.class.session.cancelled',
+        name: 'Class session cancelled',
+        description: 'Sent to every enrolled patron with an email address, and to the instructor, when the club cancels a class session.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'patronName', description: "The recipient's name (the patron's, or the instructor's)." },
+            { name: 'classCode', description: 'The class code.' },
+            { name: 'className', description: 'The class description.' },
+            { name: 'whenText', description: 'The session date and time.' },
+            { name: 'venueName', description: 'The venue (may be empty).' },
+            { name: 'reason', description: 'The reason keyed at cancellation.' },
+            { name: 'isInstructor', description: 'true for the instructor copy.' },
+            { name: 'feeNote', description: "What happened to the recipient's fee (empty when none), or the seat count for the instructor." },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { patronName: 'Ahmad Faizal', classCode: 'BADM_COACH', className: 'Badminton coaching', whenText: '28 Oct 2026 18:00 - 19:00', venueName: 'COURT1 - Court 1', reason: 'Instructor unavailable', isInstructor: false, feeNote: 'The open bill for this seat has been voided - nothing is owed.', companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Cancelled: {{classCode}} - {{whenText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Class session cancelled</h2>
+            <p>Dear {{patronName}},</p>
+            <p>The <strong>{{classCode}} - {{className}}</strong> session at <strong>{{companyName}}</strong> on <strong>{{whenText}}</strong>{{#if venueName}} ({{venueName}}){{/if}} has been <strong>cancelled</strong>.</p>
+            <p><strong>Reason:</strong> {{reason}}</p>
+            {{#if feeNote}}<p>{{feeNote}}</p>{{/if}}
+            {{#unless isInstructor}}<p style="font-size: 12px; color: #666; margin-top: 16px;">We apologise for the inconvenience. Please contact the club's office if you have any questions.</p>{{/unless}}
+        `),
+    },
+    {
+        key: 'facility.class.waitlist.offered',
+        name: 'Class seat offered from the waitlist',
+        description: 'Sent to the patron on the waitlist when a seat frees and is held for them until the offer expires.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'patronName', description: "The patron's name." },
+            { name: 'classCode', description: 'The class code.' },
+            { name: 'className', description: 'The class description.' },
+            { name: 'whenText', description: "The session date and time, or the term's name and period." },
+            { name: 'venueName', description: 'The venue (may be empty).' },
+            { name: 'isTerm', description: 'true for a term.' },
+            { name: 'expiresText', description: 'When the offer lapses, e.g. 27 Oct 2026, 10:00 UTC.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { patronName: 'Ahmad Faizal', classCode: 'BADM_COACH', className: 'Badminton coaching', whenText: '28 Oct 2026 18:00 - 19:00', venueName: 'COURT1 - Court 1', isTerm: false, expiresText: '27 Oct 2026, 10:00 UTC', companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'A seat is yours: {{classCode}} - {{whenText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">A seat has opened up</h2>
+            <p>Dear {{patronName}},</p>
+            <p>A seat in <strong>{{classCode}} - {{className}}</strong> at <strong>{{companyName}}</strong> is now held for you.</p>
+            <p>
+                <strong>{{#if isTerm}}Term{{else}}Session{{/if}}:</strong> {{whenText}}{{#if venueName}}<br>
+                <strong>Venue:</strong> {{venueName}}{{/if}}<br>
+                <strong>Held until:</strong> {{expiresText}}
+            </p>
+            <p>Please confirm with the club's office before then; after that the seat passes to the next person on the waitlist.</p>
+        `),
+    },
 ];
