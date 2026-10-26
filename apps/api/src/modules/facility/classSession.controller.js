@@ -21,6 +21,8 @@ const rules = require('./bookingRules.service');
 const svc = require('./classSchedule.service');
 const { pickers } = require('./class.controller');
 const enrolment = require('./classEnrolment.service');
+const lifecycle = require('./classLifecycle.service');
+const { sequelize } = require('../../platform/db');
 const { bookingDateText } = require('./bookingShared');
 
 const SESSION_INCLUDE = [
@@ -203,8 +205,9 @@ exports.update = async (req, res) => {
     }
 };
 
-// POST /api/facility/class-sessions/:id/cancel - with a reason; the roster
-// emails arrive with slice 5c.
+// POST /api/facility/class-sessions/:id/cancel - with a reason; every seat
+// and the queue cascade (slice 5c: open bills voided, settled ones listed
+// for Finance, the seats and the instructor emailed after commit).
 exports.cancel = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -216,10 +219,20 @@ exports.cancel = async (req, res) => {
         const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
         if (!reason) return res.status(400).json({ message: 'Give the reason for cancelling the session.' });
         const callerId = getUserContext(req).userId;
-        Object.assign(row, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId });
-        await row.save();
+        let cascade;
+        await sequelize.transaction(async (transaction) => {
+            Object.assign(row, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId });
+            await row.save({ transaction });
+            cascade = await lifecycle.cancelSessionCascade(row, { reason, callerId, transaction });
+        });
+        lifecycle.notifySessionCancelled(row, reason, cascade.recipients).catch((e) => console.error('Error emailing a cancelled class session:', e));
         const full = await loadFull(row.id);
-        res.status(200).json({ message: `Session on ${bookingDateText(String(row.sessionDate))} cancelled.`, session: sessionDto(full, true) });
+        const parts = [];
+        if (cascade.seats) parts.push(`${cascade.seats} seat${cascade.seats === 1 ? '' : 's'} released`);
+        if (cascade.voided) parts.push(`${cascade.voided} open bill${cascade.voided === 1 ? '' : 's'} voided`);
+        if (cascade.finance) parts.push(`${cascade.finance} settled bill${cascade.finance === 1 ? '' : 's'} for Finance to refund`);
+        if (cascade.withdrawn) parts.push(`${cascade.withdrawn} waiting withdrawn`);
+        res.status(200).json({ message: `Session on ${bookingDateText(String(row.sessionDate))} cancelled${parts.length ? ' - ' + parts.join(', ') : ''}.`, session: sessionDto(full, true), cascade });
     } catch (error) {
         console.error('Error cancelling class session:', error);
         res.status(500).json({ message: 'Internal server error' });

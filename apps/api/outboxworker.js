@@ -159,6 +159,8 @@ if (MODE === 'drain') {
     setInterval(() => scanVisits(), 60 * 60 * 1000);
     // Facility Control Station (2026-10-26): registrations still in after the
     // type's close time sign out on the tick (club-local clock).
+    // Facility classes (slice 5c): expired waitlist offers lapse and the next in the queue is offered.
+    setInterval(() => require('./src/modules/facility/classLifecycle.service').lapseOffers().then((n) => { if (n) console.log(`[FACILITY WAITLIST] ${n} offer(s) lapsed`); }).catch((err) => console.error('[FACILITY WAITLIST] lapse scan failed:', err)), 15 * 60 * 1000);
     setInterval(() => require('./src/modules/facility/station.service').scanAutoSignOut().catch((err) => console.error('[FACILITY STATION] auto sign-out failed:', err)), 15 * 60 * 1000);
     // Facility booking suspensions (2026-10-26): past rows expire on the tick
     // (club dates differ per company, so every listing read re-checks too).

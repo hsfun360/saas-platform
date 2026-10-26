@@ -21,6 +21,9 @@ const { LIMITS } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, rangeDays, parseOptionalInt } = require('./facilityShared');
 const rules = require('./bookingRules.service');
 const svc = require('./classSchedule.service');
+const lifecycle = require('./classLifecycle.service');
+const FacilityClassEnrolment = require('./classEnrolment.model');
+const FacilityClassWaitlist = require('./classWaitlist.model');
 
 const SCHEDULE_INCLUDE = [
     { model: FacilityVenue, as: 'Venue', attributes: ['id', 'code', 'name'], required: false },
@@ -250,7 +253,8 @@ exports.update = async (req, res) => {
         const callerId = getUserContext(req).userId;
         const stamps = await stampsFor(req);
         const facts = { startTime: header.merged.startTime, endTime: header.merged.endTime, venueId: resolved.facts.venueId, facilityId: resolved.facts.facilityId, instructorId: resolved.facts.instructorId, capacity: resolved.facts.capacity };
-        const summary = { updated: 0, created: 0, cancelled: 0, restored: 0 };
+        const summary = { updated: 0, created: 0, cancelled: 0, restored: 0, seats: 0, voided: 0, finance: 0 };
+        const notify = [];
         await sequelize.transaction(async (transaction) => {
             Object.assign(schedule, header.values, { updatedBy: callerId });
             await schedule.save({ transaction });
@@ -267,6 +271,9 @@ exports.update = async (req, res) => {
                     Object.assign(s, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: 'Schedule changed', updatedBy: callerId });
                     await s.save({ transaction });
                     summary.cancelled += 1;
+                    const c = await lifecycle.cancelSessionCascade(s, { reason: 'Schedule changed', callerId, transaction });
+                    summary.seats += c.seats; summary.voided += c.voided; summary.finance += c.finance;
+                    if (c.recipients.length) notify.push({ session: s, recipients: c.recipients });
                 }
             }
             const fresh = [...okDates].filter((d) => d >= today && !byDate.has(d));
@@ -275,6 +282,7 @@ exports.update = async (req, res) => {
                 summary.created = fresh.length;
             }
         });
+        for (const x of notify) lifecycle.notifySessionCancelled(x.session, 'Schedule changed', x.recipients).catch((e) => console.error('Error emailing a cancelled class session:', e));
         const full = await loadSchedule(schedule.id);
         const sc = await sessionCounts([schedule.id]);
         const parts = [];
@@ -282,6 +290,9 @@ exports.update = async (req, res) => {
         if (summary.created) parts.push(`${summary.created} added`);
         if (summary.restored) parts.push(`${summary.restored} restored`);
         if (summary.cancelled) parts.push(`${summary.cancelled} cancelled`);
+        if (summary.seats) parts.push(`${summary.seats} seat${summary.seats === 1 ? '' : 's'} released`);
+        if (summary.voided) parts.push(`${summary.voided} open bill${summary.voided === 1 ? '' : 's'} voided`);
+        if (summary.finance) parts.push(`${summary.finance} settled bill${summary.finance === 1 ? '' : 's'} for Finance`);
         if (counts.conflict) parts.push(`${counts.conflict} in conflict left out`);
         res.status(200).json({ message: `Schedule updated${parts.length ? ' - ' + parts.join(', ') : ''}.`, schedule: scheduleDto(full, sc.get(schedule.id)), summary, counts });
     } catch (error) {
@@ -322,17 +333,34 @@ exports.cancel = async (req, res) => {
         const today = rules.clubNow(await companyTimezoneById(companyId)).date;
         const callerId = getUserContext(req).userId;
         let n = 0;
+        const totals = { seats: 0, voided: 0, finance: 0, withdrawn: 0 };
+        const notify = [];
         await sequelize.transaction(async (transaction) => {
             Object.assign(schedule, { status: 'cancelled', updatedBy: callerId });
             await schedule.save({ transaction });
-            [n] = await FacilityClassSession.update(
-                { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId },
-                { where: { scheduleId: schedule.id, status: 'scheduled', sessionDate: { [Op.gte]: today } }, transaction },
-            );
+            const future = await FacilityClassSession.findAll({ where: { scheduleId: schedule.id, status: 'scheduled', sessionDate: { [Op.gte]: today } }, order: [['sessionDate', 'ASC']], transaction });
+            for (const s of future) {
+                Object.assign(s, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId });
+                await s.save({ transaction });
+                n += 1;
+                const c = await lifecycle.cancelSessionCascade(s, { reason, callerId, transaction });
+                totals.seats += c.seats; totals.voided += c.voided; totals.finance += c.finance; totals.withdrawn += c.withdrawn;
+                if (c.recipients.length) notify.push({ session: s, recipients: c.recipients });
+            }
+            // The term's own enrolments and queue end with the schedule (slice 5c).
+            await FacilityClassEnrolment.update({ status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: `Schedule cancelled - ${reason}`, updatedBy: callerId }, { where: { scheduleId: schedule.id, status: { [Op.ne]: 'cancelled' } }, transaction });
+            const [w] = await FacilityClassWaitlist.update({ status: 'withdrawn', remarks: `Schedule cancelled - ${reason}`, updatedBy: callerId }, { where: { scheduleId: schedule.id, status: { [Op.in]: ['waiting', 'offered'] } }, transaction });
+            totals.withdrawn += w;
         });
+        for (const x of notify) lifecycle.notifySessionCancelled(x.session, reason, x.recipients).catch((e) => console.error('Error emailing a cancelled class session:', e));
         const full = await loadSchedule(schedule.id);
         const sc = await sessionCounts([schedule.id]);
-        res.status(200).json({ message: `${schedule.name} cancelled - ${n} future session${n === 1 ? '' : 's'} cancelled.`, schedule: scheduleDto(full, sc.get(schedule.id)) });
+        const parts = [`${n} future session${n === 1 ? '' : 's'} cancelled`];
+        if (totals.seats) parts.push(`${totals.seats} seat${totals.seats === 1 ? '' : 's'} released`);
+        if (totals.voided) parts.push(`${totals.voided} open bill${totals.voided === 1 ? '' : 's'} voided`);
+        if (totals.finance) parts.push(`${totals.finance} settled bill${totals.finance === 1 ? '' : 's'} for Finance`);
+        if (totals.withdrawn) parts.push(`${totals.withdrawn} waiting withdrawn`);
+        res.status(200).json({ message: `${schedule.name} cancelled - ${parts.join(', ')}.`, schedule: scheduleDto(full, sc.get(schedule.id)), cascade: totals });
     } catch (error) {
         console.error('Error cancelling class schedule:', error);
         res.status(500).json({ message: 'Internal server error' });

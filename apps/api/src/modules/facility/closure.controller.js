@@ -17,6 +17,36 @@ const { getUserContext } = require('../../platform/serviceContext');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const { DAY_SCOPE_KEYS, LIMITS } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, rangeDays } = require('./facilityShared');
+const FacilityClassSession = require('./classSession.model');
+const FacilityClass = require('./class.model');
+const { overlaps } = require('./classScheduleRules.service');
+const lifecycle = require('./classLifecycle.service');
+const { bookingDateText } = require('./bookingShared');
+
+// Slice 5c: the scheduled class sessions on the plan's unit(s) that a set of
+// closure days would cover - the preview warns, the save cancels them.
+function toMin(t) { const [h, m] = String(t).split(':'); return Number(h) * 60 + Number(m); }
+async function collidingSessions(plan, days, { transaction } = {}) {
+    const active = days.filter((d) => d.isActive !== false);
+    if (!active.length) return [];
+    const units = plan.facilityId ? [plan.facilityId] : (await Facility.findAll({ where: { facilityTypeId: plan.facilityTypeId }, attributes: ['id'], transaction })).map((f) => f.id);
+    if (!units.length) return [];
+    const byDate = new Map(active.map((d) => [String(d.closureDate), d]));
+    const sessions = await FacilityClassSession.findAll({
+        where: { companyId: plan.companyId, facilityId: { [Op.in]: units }, status: 'scheduled', sessionDate: { [Op.in]: [...byDate.keys()] } },
+        order: [['sessionDate', 'ASC'], ['startTime', 'ASC']], transaction,
+    });
+    const hit = sessions.filter((s) => {
+        const d = byDate.get(String(s.sessionDate));
+        if (!d.startTime || !d.endTime) return true;
+        return overlaps(toMin(s.startTime), toMin(s.endTime), toMin(d.startTime), toMin(d.endTime));
+    });
+    if (!hit.length) return [];
+    const classes = await FacilityClass.findAll({ where: { id: { [Op.in]: [...new Set(hit.map((s) => s.classId))] } }, attributes: ['id', 'code'], transaction });
+    const codeById = new Map(classes.map((c) => [c.id, c.code]));
+    return hit.map((s) => ({ sessionId: s.id, sessionDate: String(s.sessionDate), startTime: timeDto(s.startTime), endTime: timeDto(s.endTime), classCode: codeById.get(s.classId) || '', row: s }));
+}
+function sessionWarning(s) { return `${s.classCode} ${bookingDateText(s.sessionDate)} ${s.startTime} - ${s.endTime}`; }
 
 const MAX_RANGE_DAYS = LIMITS.maxClosureRangeDays;
 
@@ -206,7 +236,8 @@ exports.generateDays = async (req, res) => {
         const days = classified
             .filter((d) => plan.dayScope === 'all' || d.dayType === plan.dayScope)
             .map((d) => ({ closureDate: d.date, dayType: d.dayType, isHoliday: d.isHoliday, startTime: timeDto(plan.startTime), endTime: timeDto(plan.endTime), isActive: true }));
-        res.status(200).json({ days, totalInPeriod: classified.length });
+        const colliding = await collidingSessions(plan, days);
+        res.status(200).json({ days, totalInPeriod: classified.length, classSessions: colliding.map(({ row, ...c }) => c) });
     } catch (error) {
         console.error('Error generating facility closure days:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -238,14 +269,30 @@ exports.saveDays = async (req, res) => {
             rows.push({ closurePlanId: plan.id, closureDate, startTime: start.value, endTime: end.value, isActive: d.isActive !== false });
         }
 
+        // Slice 5c: a closure over a scheduled class session of a linked venue
+        // cancels the session (the preview warned); its seats cascade.
+        const callerId = getUserContext(req).userId;
+        const reason = `Facility closed - ${plan.description || 'closure'}`;
+        const notify = [];
+        let cancelled = 0;
         await sequelize.transaction(async (t) => {
             await FacilityClosureDay.destroy({ where: { closurePlanId: plan.id }, transaction: t });
             if (rows.length) await FacilityClosureDay.bulkCreate(rows, { transaction: t });
-            plan.updatedBy = getUserContext(req).userId;
+            plan.updatedBy = callerId;
             await plan.save({ transaction: t });
+            if (plan.isActive !== false) {
+                for (const c of await collidingSessions(plan, rows, { transaction: t })) {
+                    Object.assign(c.row, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId });
+                    await c.row.save({ transaction: t });
+                    cancelled += 1;
+                    const cas = await lifecycle.cancelSessionCascade(c.row, { reason, callerId, transaction: t });
+                    if (cas.recipients.length) notify.push({ session: c.row, recipients: cas.recipients });
+                }
+            }
         });
+        for (const x of notify) lifecycle.notifySessionCancelled(x.session, reason, x.recipients).catch((e) => console.error('Error emailing a cancelled class session:', e));
         const days = await FacilityClosureDay.findAll({ where: { closurePlanId: plan.id }, order: [['closureDate', 'ASC']] });
-        res.status(200).json({ message: `${days.length} closure day${days.length === 1 ? '' : 's'} saved.`, days: days.map(dayDto) });
+        res.status(200).json({ message: `${days.length} closure day${days.length === 1 ? '' : 's'} saved${cancelled ? ` - ${cancelled} class session${cancelled === 1 ? '' : 's'} cancelled` : ''}.`, days: days.map(dayDto), classSessionsCancelled: cancelled });
     } catch (error) {
         console.error('Error saving facility closure days:', error);
         res.status(500).json({ message: 'Internal server error' });
