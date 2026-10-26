@@ -722,6 +722,21 @@ async function initializeDB() {
             console.log('Database schema synced successfully.');
         }
 
+        // facility.Bill.bookingId nullable (2026-10-26, deliberately OUTSIDE
+        // the fingerprint gate): the model allows null since slice 3 (a bill
+        // may hang off a registration, an issue or a class enrolment), but the
+        // alter-sync left the dev column NOT NULL, so the first bill without a
+        // booking failed. Idempotent: skipped once the column is nullable; a
+        // fresh DB creates it nullable from the model.
+        const [[billCol]] = await sequelize.query(
+            `SELECT is_nullable FROM information_schema.columns
+             WHERE table_schema = 'facility' AND table_name = 'Bill' AND column_name = 'bookingId'`,
+        ).catch(() => [[null]]);
+        if (billCol && billCol.is_nullable === 'NO') {
+            await sequelize.query('ALTER TABLE facility."Bill" ALTER COLUMN "bookingId" DROP NOT NULL');
+            console.log('facility.Bill.bookingId made nullable (bills on registrations, issues and class enrolments).');
+        }
+
         // Stranded-approval healer (2026-09-01, deliberately OUTSIDE the
         // fingerprint gate). Before the workflowGateway fix of the same date,
         // an approval chain whose every step was skipped completed 'approved'
