@@ -105,6 +105,30 @@ describe('Facility class services', () => {
     expect(cancel.request.body).toEqual({ reason: 'Instructor away' });
   });
 
+  it('enrols a seat, reads the roster, marks attendance and holds the session', () => {
+    classes.enrol({ classId: 'c1', sessionId: 'x1', memberNo: 'A1' }).subscribe();
+    const enrol = http.expectOne('/api/facility/class-enrolments');
+    expect(enrol.request.method).toBe('POST');
+    expect(enrol.request.body).toEqual({ classId: 'c1', sessionId: 'x1', memberNo: 'A1' });
+    enrol.flush({ message: 'enrolled', enrolmentId: 'e1', billId: null, warnings: [], standingWarning: null });
+
+    classes.roster('x1').subscribe();
+    expect(http.expectOne('/api/facility/class-sessions/x1/roster').request.method).toBe('GET');
+
+    classes.markAttendance('x1', [{ attendanceId: 'a1', status: 'attended' }]).subscribe();
+    const marks = http.expectOne('/api/facility/class-sessions/x1/attendance');
+    expect(marks.request.method).toBe('PUT');
+    expect(marks.request.body.marks[0].status).toBe('attended');
+
+    classes.hold('x1', false).subscribe();
+    const preview = http.expectOne('/api/facility/class-sessions/x1/hold');
+    expect(preview.request.body).toEqual({ confirm: false });
+    preview.flush({ preview: { unmarked: [], attended: 0, excused: 0, noShow: 0 } });
+
+    classes.hold('x1', true).subscribe();
+    expect(http.expectOne('/api/facility/class-sessions/x1/hold').request.body).toEqual({ confirm: true });
+  });
+
   it('reads the timetable by range and filters, adds, moves and cancels a session', () => {
     classes.sessionsBetween('2026-11-02', '2026-11-08', { instructorId: 'i1', classId: null }).subscribe();
     const list = http.expectOne((r) => r.url === '/api/facility/class-sessions');

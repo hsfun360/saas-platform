@@ -1,0 +1,118 @@
+@if (loading() && !roster()) {
+  <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the roster…</p></div>
+} @else if (roster(); as r) {
+  <div class="cr-head">
+    <div class="cr-head__seats">
+      <strong>{{ r.seats.taken }}</strong> of {{ r.seats.capacity }} seats taken
+      @switch (r.session.status) {
+        @case ('scheduled') { <span class="status-chip status-chip--info">Scheduled</span> }
+        @case ('held') { <span class="status-chip status-chip--on">Held</span> }
+        @default { <span class="status-chip status-chip--off">Cancelled</span> }
+      }
+    </div>
+    <span class="cr-head__bar" aria-hidden="true"><span class="cr-head__fill" [style.width.%]="r.seats.capacity ? (r.seats.taken / r.seats.capacity) * 100 : 0"></span></span>
+    @if (isTerm() && r.session.schedule) {
+      <p class="cell-subtle cr-head__note">Per term - a seat covers every remaining session of {{ r.session.schedule.name }}.</p>
+    }
+  </div>
+
+  @if (editable()) {
+    <div class="cr-actions">
+      @if (canEnrol()) {
+        <button type="button" class="btn btn--primary btn--sm" (click)="openEnrol()" [disabled]="enrolOpen()">
+          <span class="material-icons" aria-hidden="true">person_add</span>
+          {{ channel() === 'station' ? 'Walk-in' : 'Enrol' }}
+        </button>
+      } @else if (r.seats.left === 0) {
+        <span class="cell-subtle">Full - the waitlist arrives with the next slice.</span>
+      } @else if (channel() === 'station') {
+        <span class="cell-subtle">No walk-ins on this class - enrol from the Class Schedule.</span>
+      }
+      <button type="button" class="btn btn--secondary btn--sm" (click)="askHold()" [disabled]="holding() || !rows().length">
+        <span class="material-icons" aria-hidden="true">task_alt</span>
+        {{ holding() ? 'Checking…' : 'Hold session' }}
+      </button>
+    </div>
+  }
+
+  @if (enrolOpen()) {
+    <form class="cr-enrol" [formGroup]="form" (ngSubmit)="submitEnrol()">
+      <fieldset class="cr-kind">
+        <legend class="cr-kind__legend">Enrol</legend>
+        <label class="cr-kind__opt"><input type="radio" formControlName="kind" value="member" /><span>Member</span></label>
+        @if (r.session.class?.visitorsAllowed) {
+          <label class="cr-kind__opt"><input type="radio" formControlName="kind" value="visitor" /><span>Visitor</span></label>
+        }
+      </fieldset>
+      @if (form.controls.kind.value === 'member') {
+        <div class="form-group">
+          <label for="crMemberNo">Member number <span class="required">*</span></label>
+          <input id="crMemberNo" type="text" formControlName="memberNo" placeholder="e.g. A0018" autocomplete="off" maxlength="50" />
+        </div>
+      } @else {
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="crName">Visitor's name <span class="required">*</span></label>
+            <input id="crName" type="text" formControlName="name" maxlength="255" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="crMobile">Mobile</label>
+            <input id="crMobile" type="tel" inputmode="tel" formControlName="mobile" maxlength="30" placeholder="Optional" />
+          </div>
+        </div>
+      }
+      <div class="form-group">
+        <label for="crRemarks">Remarks</label>
+        <input id="crRemarks" type="text" formControlName="remarks" maxlength="255" placeholder="Optional" />
+      </div>
+      <p class="cell-subtle field-hint">
+        @if (r.session.class?.enrolmentMode === 'term') { The term fee is billed on the seat's own bill, open until the desk settles it. }
+        @else { The session fee is billed on the seat's own bill, open until the desk settles it; a free class opens none. }
+      </p>
+      <div class="cr-enrol__actions">
+        <button type="button" class="btn btn--secondary btn--sm" (click)="closeEnrol()" [disabled]="enrolling()">Cancel</button>
+        <button type="submit" class="btn btn--primary btn--sm" [disabled]="enrolling()">{{ enrolling() ? 'Enrolling…' : 'Enrol' }}</button>
+      </div>
+    </form>
+  }
+
+  @if (rows().length === 0) {
+    <p class="cell-subtle cr-empty">No seats taken yet.</p>
+  } @else {
+    <div class="cr-rows">
+      @for (row of rows(); track row.attendanceId) {
+        <div class="cr-row" [class.cr-row--busy]="busyId() === row.attendanceId">
+          <div class="cr-row__who">
+            <span class="cr-row__name">{{ row.patron.name }}</span>
+            <span class="cr-row__meta">
+              {{ row.patron.memberNo || 'visitor' }}
+              @if (row.enrolment?.channel === 'station') { · walk-in }
+              @if (row.enrolment?.mode === 'term') { · term }
+            </span>
+            @if (row.bill) {
+              <button type="button" class="cr-row__bill" [class.cr-row__bill--unpaid]="row.unpaid" (click)="openBill(row)" [attr.aria-label]="'Bill ' + row.bill.billNo + ', ' + row.bill.status">
+                <span class="material-icons" aria-hidden="true">receipt_long</span>
+                {{ row.unpaid ? 'UNPAID' : row.bill.status }} · {{ row.bill.billNo }} · {{ row.bill.totalAmount.toFixed(2) }}
+              </button>
+            } @else if (row.enrolment && row.enrolment.feeAmount === 0) {
+              <span class="cr-row__meta">free</span>
+            }
+          </div>
+          <div class="cr-row__marks" role="group" [attr.aria-label]="'Attendance of ' + row.patron.name">
+            @if (editable()) {
+              <button type="button" class="cr-mark" [class.cr-mark--on]="row.status === 'attended'" (click)="mark(row, 'attended')" [disabled]="busyId() === row.attendanceId" aria-label="Attended" title="Attended"><span class="material-icons" aria-hidden="true">check_circle</span></button>
+              <button type="button" class="cr-mark" [class.cr-mark--off]="row.status === 'no-show'" (click)="mark(row, 'no-show')" [disabled]="busyId() === row.attendanceId" aria-label="No show" title="No show"><span class="material-icons" aria-hidden="true">person_off</span></button>
+              <button type="button" class="cr-mark" [class.cr-mark--info]="row.status === 'excused'" (click)="mark(row, 'excused')" [disabled]="busyId() === row.attendanceId" aria-label="Excused" title="Excused"><span class="material-icons" aria-hidden="true">event_busy</span></button>
+            } @else {
+              <span class="status-chip" [class.status-chip--on]="row.status === 'attended'" [class.status-chip--danger]="row.status === 'no-show'" [class.status-chip--info]="row.status === 'excused'" [class.status-chip--off]="row.status === 'enrolled'">{{ markLabel(row.status) }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+}
+
+@if (confirmAction(); as c) {
+  <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+}

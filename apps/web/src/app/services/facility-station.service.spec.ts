@@ -63,6 +63,12 @@ describe('FacilityStationService', () => {
     expect(ns.request.body).toEqual({ slotIds: ['s9'] });
     ns.flush({ message: 'marked', marked: 1 });
 
+    service.enrolWalkIn({ classId: 'c1', sessionId: 'x1', memberNo: 'A1' }).subscribe();
+    const walk = http.expectOne('/api/facility/station/class-enrolments');
+    expect(walk.request.method).toBe('POST');
+    expect(walk.request.body.sessionId).toBe('x1');
+    walk.flush({ message: 'enrolled' });
+
     service.endOfDay('t2', '2026-11-02').subscribe();
     const eod = http.expectOne('/api/facility/station/end-of-day');
     expect(eod.request.body).toEqual({ facilityTypeId: 't2', date: '2026-11-02' });

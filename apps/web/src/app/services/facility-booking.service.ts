@@ -296,8 +296,8 @@ export interface FacilityBillScreen {
   bill: FacilityBillDoc;
   booking: {
     id: string;
-    // 'booking' | 'registration' | 'issue' - what the bill hangs off (slice 3).
-    kind?: 'booking' | 'registration' | 'issue';
+    // 'booking' | 'registration' | 'issue' | 'enrolment' - what the bill hangs off (slices 3 and 5).
+    kind?: 'booking' | 'registration' | 'issue' | 'enrolment';
     bookingNo: string | null;
     status: string;
     bookingDate: string | null;

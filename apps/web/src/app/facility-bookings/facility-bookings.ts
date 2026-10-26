@@ -884,6 +884,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     const kind = bs.booking.kind || 'booking';
     if (kind === 'registration') return `entry ${bs.booking.bookingNo || ''}`;
     if (kind === 'issue') return `${bs.booking.facilityType?.code || ''} issue`;
+    if (kind === 'enrolment') return `class ${bs.booking.facilityType?.code || ''}${bs.booking.bookingNo ? ' ' + bs.booking.bookingNo : ''}`.trim();
     return `booking ${bs.booking.bookingNo || ''}`;
   }
 

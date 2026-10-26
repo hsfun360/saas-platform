@@ -27,6 +27,13 @@
     </div>
   }
 
+  @if (listing() && !classesEnabled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon">ℹ️</span>
+      <span>Classes are switched off in Facility Specification - the timetable is read-only until the switch is on.</span>
+    </div>
+  }
+
   <!-- Week bar -->
   <div class="cs-bar">
     <div class="cs-bar__nav">
@@ -81,13 +88,13 @@
                       (click)="openSession(s)" [attr.aria-label]="(s.class?.code || 'Session') + ' ' + s.startTime + ' to ' + s.endTime + ' at ' + (s.venue?.code || '') + ', ' + s.status">
                 <span class="cs-session__time">{{ s.startTime }} - {{ s.endTime }}</span>
                 <span class="cs-session__title">{{ s.class?.description || s.class?.code }}</span>
-                <span class="cs-session__meta">{{ s.venue?.code }} · {{ s.instructor?.name }} · {{ s.capacity }} seats</span>
+                <span class="cs-session__meta">{{ s.venue?.code }} · {{ s.instructor?.name }} · {{ s.seatsTaken ?? 0 }} of {{ s.capacity }} seats</span>
                 @if (s.status === 'held') { <span class="status-chip status-chip--on">Held</span> }
                 @else if (s.status === 'cancelled') { <span class="status-chip status-chip--off">Cancelled</span> }
               </button>
             }
           }
-          @if (!isPastDay(d.date)) {
+          @if (!isPastDay(d.date) && classesEnabled()) {
             <button *appCan="'create'" type="button" class="btn btn--link btn--sm cs-day__add" (click)="openAdd(d.date)">
               <span class="material-icons" aria-hidden="true">add</span>
               Add session
@@ -99,10 +106,12 @@
   }
 
   <!-- Add a one-off session FAB -->
+  @if (classesEnabled()) {
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="Add a one-off session">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>Add session</span>
   </button>
+  }
 
   <!-- ============ The ONE drawer dialog ============ -->
   @if (dlgMode(); as mode) {
@@ -112,6 +121,22 @@
                 (close)="closeDialog()">
       <div class="saas-form saas-form--dialog">
         @switch (mode) {
+
+          @case ('roster') {
+            @if (current(); as s) {
+              <div class="cs-detail">
+                <div class="cs-detail__title">{{ s.class?.code }} - {{ s.class?.description }}</div>
+                <div class="cs-detail__meta">
+                  {{ s.sessionDate | localDate:'weekday' }} · {{ s.startTime }} - {{ s.endTime }} · {{ s.venue?.code }} · {{ s.instructor?.name }}
+                  @if (s.schedule) { · {{ s.schedule.name }} } @else { · one-off session }
+                </div>
+                @if (s.status === 'cancelled' && s.cancelReason) {
+                  <div class="cs-detail__meta">Cancelled - {{ s.cancelReason }}</div>
+                }
+              </div>
+              <app-class-roster [sessionId]="s.id" channel="desk" [canEdit]="editable(s) && classesEnabled()" (message)="rosterMessage($event)" (error)="rosterError($event)" (changed)="rosterChanged()" />
+            }
+          }
 
           @case ('session') {
             @if (current(); as s) {
@@ -270,16 +295,24 @@
 
       <ng-container dialogFooter>
         @switch (mode) {
+          @case ('roster') {
+            @if (current(); as s) {
+              @if (editable(s) && classesEnabled()) {
+                <button type="button" class="btn btn--secondary" (click)="openEdit()" *appCan="'edit'">Edit details</button>
+              }
+              <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+            }
+          }
           @case ('session') {
             @if (current(); as s) {
               @if (editable(s)) {
                 <button type="button" class="btn btn--danger" (click)="openCancel()" [disabled]="saving()" *appCan="'edit'">Cancel session</button>
-                <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Close</button>
+                <button type="button" class="btn btn--secondary" (click)="backToRoster()" [disabled]="saving()">Back</button>
                 <button type="submit" form="csForm" class="btn btn--primary" [disabled]="saving()" *appCan="'edit'">
                   {{ saving() ? 'Saving…' : 'Save' }}
                 </button>
               } @else {
-                <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+                <button type="button" class="btn btn--secondary" (click)="backToRoster()">Back</button>
               }
             }
           }

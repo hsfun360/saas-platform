@@ -14,6 +14,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { ClassRosterComponent } from '../shared/class-roster/class-roster';
 import { LocalDatePipe, formatLocalDate, localDateOnly } from '../shared/local-date.pipe';
 
 const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || dflt)));
@@ -32,7 +33,7 @@ function mondayOf(iso: string): string {
   return addDays(iso, dow === 0 ? -6 : 1 - dow);
 }
 
-type DlgMode = 'session' | 'cancel' | 'add' | null;
+type DlgMode = 'roster' | 'session' | 'cancel' | 'add' | null;
 
 interface DayGroup {
   date: string;
@@ -42,14 +43,15 @@ interface DayGroup {
 // Facility Management → Class Schedule (/facility/class-schedule; slice 5a,
 // structures approved 2026-10-26). The timetable: one week of sessions per
 // day, filtered by class, instructor or venue; a session opens its drawer
-// (move it, swap the instructor, change the seats, cancel it with a reason),
-// and a one-off session is added from the FAB. The roster, attendance and
-// Hold arrive with slice 5b. ONE drawer dialog with three views.
+// (its ROSTER first: the seats with their bills, the attendance marks, Hold
+// session and Enrol - slice 5b; then Edit details to move it, swap the
+// instructor, change the seats, or cancel it with a reason), and a one-off
+// session is added from the FAB. ONE drawer dialog with four views.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-facility-class-schedule',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, ComboboxComponent, LocalDatePipe],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, ComboboxComponent, ClassRosterComponent, LocalDatePipe],
   templateUrl: './facility-class-schedule.html',
   styleUrls: ['../membership-types/membership-types.css', './facility-class-schedule.css'],
 })
@@ -68,6 +70,8 @@ export class FacilityClassScheduleComponent implements OnInit {
   readonly showCancelled = signal(false);
 
   readonly weekEnd = computed(() => addDays(this.weekStart(), 6));
+  // Slice 5b: the Specification's master switch (false hides the actions).
+  readonly classesEnabled = computed(() => this.listing()?.classesEnabled !== false);
   readonly today = computed(() => this.listing()?.clubNow.date || localDateOnly());
   readonly isThisWeek = computed(() => this.weekStart() === mondayOf(this.today()));
   readonly weekLabel = computed(() => `${formatLocalDate(this.weekStart(), 'dayMonth')} to ${formatLocalDate(this.weekEnd())}`);
@@ -120,7 +124,8 @@ export class FacilityClassScheduleComponent implements OnInit {
   readonly dialogTitle = computed(() => {
     const s = this.current();
     switch (this.dlgMode()) {
-      case 'session': return s ? `${s.class?.code || 'Session'} · ${formatLocalDate(s.sessionDate, 'dayMonth')} ${s.startTime}` : 'Session';
+      case 'roster': return s ? `${s.class?.description || s.class?.code || 'Session'} · ${formatLocalDate(s.sessionDate, 'dayMonth')} ${s.startTime}` : 'Roster';
+      case 'session': return s ? `Edit ${s.class?.code || 'session'} · ${formatLocalDate(s.sessionDate, 'dayMonth')} ${s.startTime}` : 'Session';
       case 'cancel': return s ? `Cancel ${s.class?.code || 'session'} on ${formatLocalDate(s.sessionDate, 'dayMonth')}` : 'Cancel session';
       case 'add': return 'Add a one-off session';
       default: return '';
@@ -191,15 +196,44 @@ export class FacilityClassScheduleComponent implements OnInit {
     return s.status === 'scheduled' && s.canModify !== false;
   }
 
-  // --- Session drawer ---
+  // --- Session drawer: the roster first, the edit form behind it ---
 
   openSession(s: FacilityClassSession): void {
     this.clearMessages();
     this.current.set(s);
+    this.dlgMode.set('roster');
+  }
+
+  openEdit(): void {
+    const s = this.current();
+    if (!s) return;
     this.form.reset({ startTime: s.startTime, endTime: s.endTime, venueId: s.venueId, instructorId: s.instructorId, capacity: s.capacity, remarks: s.remarks || '' });
     if (this.editable(s)) this.form.enable();
     else this.form.disable();
     this.dlgMode.set('session');
+  }
+
+  backToRoster(): void {
+    this.form.markAsPristine();
+    this.cancelForm.markAsPristine();
+    this.dlgMode.set('roster');
+  }
+
+  // The roster changed a seat or held the session: refresh the week quietly.
+  rosterChanged(): void {
+    this.service.sessionsBetween(this.weekStart(), this.weekEnd(), {
+      classId: this.classFilter() || null, instructorId: this.instructorFilter() || null, venueId: this.venueFilter() || null,
+    }).subscribe({ next: (res) => { this.listing.set(res); const c = this.current(); if (c) this.current.set(res.sessions.find((x) => x.id === c.id) || c); }, error: () => undefined });
+  }
+
+  rosterMessage(text: string): void {
+    this.clearMessages();
+    this.successMessage.set(text);
+  }
+
+  rosterError(text: string): void {
+    this.clearMessages();
+    this.errorMessage.set(text);
   }
 
   closeDialog(): void {
@@ -248,7 +282,7 @@ export class FacilityClassScheduleComponent implements OnInit {
 
   backToSession(): void {
     this.cancelForm.markAsPristine();
-    this.dlgMode.set('session');
+    this.dlgMode.set('roster');
   }
 
   submitCancel(): void {

@@ -1,0 +1,196 @@
+/* The class roster (slice 5b) - embedded in a drawer by the Class Schedule
+   and the Control Station. All colours are theme tokens. */
+
+.cr-head {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  margin-bottom: var(--space-md);
+}
+.cr-head__seats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+.cr-head__bar {
+  display: block;
+  height: 6px;
+  margin-top: var(--space-xs);
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.cr-head__fill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+.cr-head__note {
+  margin: var(--space-xs) 0 0;
+}
+
+.cr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* The enrol form sits on an array-editor-like sunken card. */
+.cr-enrol {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  margin-bottom: var(--space-md);
+}
+.cr-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-sm);
+  padding: 0;
+  border: none;
+}
+.cr-kind__legend {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  padding: 0;
+  margin-bottom: var(--space-xs);
+}
+.cr-kind__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--font-body);
+}
+.cr-kind__opt input {
+  accent-color: var(--brand);
+}
+.cr-enrol__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.cr-empty {
+  margin: 0;
+}
+
+/* One seat: who (name, number, bill) on the left, the three marks on the right. */
+.cr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.cr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.cr-row--busy {
+  opacity: 0.6;
+}
+.cr-row__who {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.cr-row__name {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.cr-row__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.cr-row__bill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.cr-row__bill .material-icons {
+  font-size: var(--icon-xs);
+}
+.cr-row__bill--unpaid {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+.cr-row__marks {
+  display: flex;
+  gap: var(--space-2xs);
+}
+.cr-mark {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.cr-mark:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.cr-mark:disabled {
+  cursor: not-allowed;
+}
+.cr-mark .material-icons {
+  font-size: var(--icon-md);
+}
+.cr-mark--on {
+  background: var(--success-surface);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+.cr-mark--off {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+.cr-mark--info {
+  background: var(--info-surface);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+@media (max-width: 767px) {
+  .cr-row {
+    grid-template-columns: 1fr;
+  }
+  .cr-row__marks {
+    justify-content: flex-end;
+  }
+}

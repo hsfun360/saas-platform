@@ -132,6 +132,23 @@ export interface StationType {
   issues?: StationIssue[];
 }
 
+// Slice 5b: one of the day's class sessions on the station's Classes view.
+export interface StationClassSession {
+  id: string;
+  classId: string;
+  class: { id: string; code: string; description: string; enrolmentMode: 'session' | 'term'; walkInAllowed: boolean; visitorsAllowed: boolean } | null;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  venue: { id: string; code: string; name: string } | null;
+  instructor: { id: string; code: string; name: string } | null;
+  capacity: number;
+  seatsTaken: number;
+  status: 'scheduled' | 'held' | 'cancelled';
+  heldAt: string | null;
+  remarks: string | null;
+}
+
 export interface StationDay {
   date: string;
   dayType: 'weekday' | 'weekend';
@@ -140,6 +157,9 @@ export interface StationDay {
   noShowControlled?: boolean;
   noShowGraceMinutes?: number | null;
   types: StationType[];
+  // Slice 5b: the day's class sessions while classes are switched on.
+  classesEnabled?: boolean;
+  classSessions?: StationClassSession[];
 }
 
 export interface StationGuestLine {
@@ -210,5 +230,10 @@ export class FacilityStationService {
 
   endOfDay(facilityTypeId: string | null, date: string): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/end-of-day`, { facilityTypeId, date });
+  }
+
+  // Slice 5b: a walk-in seat in one of today's class sessions.
+  enrolWalkIn(payload: { classId: string; sessionId: string; memberNo?: string | null; visitor?: { name: string } | null }): Observable<StationActionResult & { enrolmentId?: string; billId?: string | null }> {
+    return this.http.post<StationActionResult & { enrolmentId?: string; billId?: string | null }>(`${this.base}/class-enrolments`, payload);
   }
 }

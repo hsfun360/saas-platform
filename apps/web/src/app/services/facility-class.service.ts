@@ -67,6 +67,7 @@ export type FacilityClassPayload = Partial<Pick<FacilityClass, 'code' | 'descrip
 
 export interface FacilityClassListing {
   classes: FacilityClass[];
+  classesEnabled?: boolean;
   venues: ClassVenueOption[];
   instructors: ClassInstructorOption[];
   feeItems: ClassFeeItemOption[];
@@ -153,6 +154,8 @@ export interface FacilityClassSession {
   instructorId: string;
   instructor: { id: string; code: string; name: string } | null;
   capacity: number;
+  // Slice 5b: the live attendance rows (null on payloads that do not count).
+  seatsTaken?: number | null;
   status: SessionStatus;
   heldAt: string | null;
   cancelledAt: string | null;
@@ -165,6 +168,7 @@ export interface SessionListing {
   from: string;
   to: string;
   clubNow: { date: string; time: string };
+  classesEnabled?: boolean;
   sessions: FacilityClassSession[];
   classes: { id: string; code: string; description: string; enrolmentMode: EnrolmentMode; isActive: boolean; venueId: string | null; instructorId: string | null; capacity: number | null }[];
   venues: ClassVenueOption[];
@@ -181,6 +185,69 @@ export interface SessionPayload {
   instructorId?: string | null;
   capacity?: number | null;
   remarks?: string | null;
+}
+
+// Slice 5b: a seat on a session's roster.
+export type AttendanceStatus = 'enrolled' | 'attended' | 'no-show' | 'excused' | 'cancelled';
+export type EnrolmentStatus = 'enrolled' | 'completed' | 'cancelled';
+
+export interface RosterRow {
+  attendanceId: string;
+  enrolmentId: string;
+  status: AttendanceStatus;
+  markedAt: string | null;
+  remarks: string | null;
+  patron: { id: string; name: string; memberNo: string | null; patronType: 'member' | 'other' };
+  enrolment: { id: string; status: EnrolmentStatus; channel: string; mode: EnrolmentMode; feeAmount: number; enrolledAt: string } | null;
+  bill: { id: string; billNo: string; status: string; totalAmount: number } | null;
+  unpaid: boolean;
+}
+
+export interface SessionRoster {
+  session: {
+    id: string;
+    classId: string;
+    class: { id: string; code: string; description: string; enrolmentMode: EnrolmentMode; walkInAllowed: boolean; visitorsAllowed: boolean } | null;
+    scheduleId: string | null;
+    schedule: { id: string; name: string; status: ScheduleStatus } | null;
+    sessionDate: string;
+    startTime: string;
+    endTime: string;
+    venue: { id: string; code: string; name: string } | null;
+    instructor: { id: string; code: string; name: string } | null;
+    capacity: number;
+    status: SessionStatus;
+    heldAt: string | null;
+    cancelReason: string | null;
+    remarks: string | null;
+  };
+  seats: { taken: number; capacity: number; left: number };
+  rows: RosterRow[];
+  unmarked: number;
+}
+
+export interface EnrolPayload {
+  classId: string;
+  sessionId?: string | null;
+  scheduleId?: string | null;
+  memberNo?: string | null;
+  visitor?: { name: string; identityNo?: string | null; mobile?: string | null; email?: string | null } | null;
+  remarks?: string | null;
+}
+
+export interface EnrolResult {
+  message: string;
+  enrolmentId: string;
+  billId: string | null;
+  warnings: string[];
+  standingWarning: string | null;
+}
+
+export interface HoldPreview {
+  unmarked: { attendanceId: string; name: string; memberNo: string | null }[];
+  attended: number;
+  excused: number;
+  noShow: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -253,5 +320,24 @@ export class FacilityClassService {
 
   cancelSession(id: string, reason: string): Observable<{ message: string; session: FacilityClassSession }> {
     return this.http.post<{ message: string; session: FacilityClassSession }>(`${this.sessions}/${id}/cancel`, { reason });
+  }
+
+  // --- Slice 5b: enrolment, the roster, attendance, Hold ---
+
+  enrol(payload: EnrolPayload): Observable<EnrolResult> {
+    return this.http.post<EnrolResult>(`${environment.apiUrl}/facility/class-enrolments`, payload);
+  }
+
+  roster(sessionId: string): Observable<SessionRoster> {
+    return this.http.get<SessionRoster>(`${this.sessions}/${sessionId}/roster`);
+  }
+
+  markAttendance(sessionId: string, marks: { attendanceId: string; status: AttendanceStatus }[]): Observable<{ message: string; marked: number }> {
+    return this.http.put<{ message: string; marked: number }>(`${this.sessions}/${sessionId}/attendance`, { marks });
+  }
+
+  // Without confirm: the preview of what Hold would mark; with it: the hold.
+  hold(sessionId: string, confirm: boolean): Observable<{ message?: string; preview: HoldPreview }> {
+    return this.http.post<{ message?: string; preview: HoldPreview }>(`${this.sessions}/${sessionId}/hold`, { confirm });
   }
 }

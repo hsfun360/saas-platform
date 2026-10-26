@@ -8,9 +8,11 @@ import { CanDirective } from '../shared/can.directive';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { ClassRosterComponent } from '../shared/class-roster/class-roster';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import {
   FacilityStationService,
+  StationClassSession,
   StationDay,
   StationGuestLine,
   StationIssue,
@@ -43,7 +45,7 @@ type GuestGroup = FormGroup<{
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
-    DialogComponent, ComboboxComponent, ConfirmDialogComponent, LocalDatePipe,
+    DialogComponent, ComboboxComponent, ConfirmDialogComponent, ClassRosterComponent, LocalDatePipe,
   ],
   templateUrl: './facility-station.html',
   styleUrls: ['./facility-station.css'],
@@ -65,6 +67,11 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   readonly typeId = signal('');
   readonly types = computed(() => this.day()?.types || []);
   readonly current = computed<StationType | null>(() => this.types().find((t) => t.id === this.typeId()) || null);
+  // Slice 5b: the Classes view - the day's sessions with their seats.
+  readonly classesView = computed(() => this.typeId() === 'classes');
+  readonly classesEnabled = computed(() => this.day()?.classesEnabled === true);
+  readonly classSessions = computed<StationClassSession[]>(() => this.day()?.classSessions || []);
+  readonly rosterSession = signal<StationClassSession | null>(null);
   readonly busyId = signal<string | null>(null);
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -90,7 +97,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   readonly entryUnitOptions = computed<ComboOption[]>(() => (this.current()?.units || []).filter((u) => u.isActive).map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })));
 
   // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' ----
-  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | null>(null);
+  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | null>(null);
   readonly saving = signal(false);
   readonly checkInSlot = signal<StationSlot | null>(null);
   readonly arrived = signal<Set<string>>(new Set());
@@ -117,6 +124,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       case 'guests': { const r = this.guestTarget(); return r ? `Guests - ${r.registrationNo}` : 'Guests'; }
       case 'issue': return t?.trackUnits ? `Issue a ${t?.code} unit` : `Issue ${t?.code}`;
       case 'return': { const i = this.returnTarget(); return i ? `Return ${i.facility?.code || t?.code}${i.quantity > 1 ? ' x ' + i.quantity : ''}` : 'Return'; }
+      case 'roster': { const s = this.rosterSession(); return s ? `${s.class?.description || s.class?.code || 'Session'} · ${s.startTime}` : 'Roster'; }
       default: return '';
     }
   });
@@ -138,6 +146,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       next: (d) => {
         this.day.set(d);
         this.loading.set(false);
+        if (this.typeId() === 'classes' && d.classesEnabled === true) return;
         if (!d.types.some((t) => t.id === this.typeId())) {
           let remembered = '';
           try { remembered = localStorage.getItem(FacilityStationComponent.TYPE_KEY) || ''; } catch { remembered = ''; }
@@ -433,6 +442,28 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   openBill(billId: string | null, bookingId: string | null): void {
     if (billId) this.router.navigate(['/facility/bookings'], { queryParams: { billId } });
     else if (bookingId) this.router.navigate(['/facility/bookings'], { queryParams: { openBillFor: bookingId } });
+  }
+
+  // ---- slice 5b: the Classes view ----
+
+  openRoster(s: StationClassSession): void {
+    this.clearMessages();
+    this.rosterSession.set(s);
+    this.dlgMode.set('roster');
+  }
+
+  rosterMessage(text: string): void {
+    this.clearMessages();
+    this.successMessage.set(text);
+  }
+
+  rosterError(text: string): void {
+    this.clearMessages();
+    this.errorMessage.set(text);
+  }
+
+  rosterChanged(): void {
+    this.load(true);
   }
 
   // ---- dialog plumbing ----
