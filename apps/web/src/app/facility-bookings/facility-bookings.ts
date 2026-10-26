@@ -145,7 +145,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   readonly settleForm = this.fb.group({ lines: this.payLines });
   readonly payVersion = signal(0);
   readonly billOpen = computed(() => this.billScreen()?.bill.status === 'open');
-  readonly tenderOptions = computed<ComboOption[]>(() => (this.billScreen()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType} - ${t.description}` })));
+  readonly tenderOptions = computed<ComboOption[]>(() => (this.billScreen()?.tenders || []).map((t) => ({ value: t.id, label: t.description ? `${t.paymentType} - ${t.description}` : t.paymentType })));
   readonly otherDebtorOptions = computed<ComboOption[]>(() => (this.billScreen()?.otherDebtors || []).map((d) => ({ value: d.id, label: `${d.code ? d.code + ' - ' : ''}${d.name}` })));
   readonly remaining = computed(() => {
     this.payVersion();

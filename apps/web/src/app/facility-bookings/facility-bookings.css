@@ -612,12 +612,17 @@
 .fb-item span:nth-child(4) {
   text-align: right;
 }
+/* Phone: the description takes its own row, the figures and the remove
+   button share the next one; the tax column is dropped (the totals show it). */
 @media (max-width: 767px) {
   .fb-item {
-    grid-template-columns: minmax(0, 1fr) 56px 90px auto;
+    grid-template-columns: 64px 100px minmax(0, 1fr) auto;
+  }
+  .fb-item__desc {
+    grid-column: 1 / -1;
   }
   .fb-item span:nth-child(4),
-  .fb-item--head span:nth-child(4) {
+  .fb-item--head {
     display: none;
   }
 }
@@ -676,9 +681,14 @@
   grid-column: 1 / -1;
   margin: 0;
 }
+/* Phone: the tender picker takes its own row; amount, reference (or the
+   Other Debtor picker) and the remove button share the next one. */
 @media (max-width: 767px) {
   .fb-pay-line {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .fb-pay-line > app-combobox:first-child {
+    grid-column: 1 / -1;
   }
 }
 .fb-payment-row {
