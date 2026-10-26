@@ -10,7 +10,7 @@ import { MembershipStatusOption } from '../models/auth.models';
 // booker and the roster -> confirm. Every rule is re-validated server-side at
 // save; the screen mirrors them from the context and the type facts.
 
-export type FacilityCellState = 'open' | 'front-desk' | 'closed' | 'past' | 'locked' | 'mine' | 'booked';
+export type FacilityCellState = 'open' | 'front-desk' | 'closed' | 'past' | 'locked' | 'mine' | 'booked' | 'class';
 
 export interface FacilityBookingTypeFacts {
   id: string;
@@ -90,6 +90,8 @@ export interface FacilityGridCell {
   bookerName: string | null;
   lockGroupId: string | null;
   lockExpiresAt: string | null;
+  // Slice 5: the class whose session reserves the cell ('class' state).
+  classLabel?: string | null;
 }
 
 export interface FacilityGridColumn {

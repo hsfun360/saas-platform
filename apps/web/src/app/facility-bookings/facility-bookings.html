@@ -68,6 +68,7 @@
             <span class="fb-legend__item"><span class="fb-swatch fb-swatch--booked"></span>Booked</span>
             <span class="fb-legend__item"><span class="fb-swatch fb-swatch--locked"></span>Being booked</span>
             <span class="fb-legend__item"><span class="fb-swatch fb-swatch--closed"></span>Closed</span>
+            <span class="fb-legend__item"><span class="fb-swatch fb-swatch--class"></span>Class</span>
           </span>
         </div>
         @if (g.columns.length === 0) {
@@ -113,6 +114,10 @@
                         }
                         @case ('locked') { <span class="material-icons" aria-hidden="true">lock_clock</span> }
                         @case ('closed') { <span class="fb-cell__sub">closed</span> }
+                        @case ('class') {
+                          <span class="fb-cell__text">{{ cell.classLabel || 'Class' }}</span>
+                          <span class="fb-cell__sub">class</span>
+                        }
                         @case ('past') { <span class="fb-cell__sub">started</span> }
                         @case ('mine') { <span class="material-icons" aria-hidden="true">check</span> }
                         @default {

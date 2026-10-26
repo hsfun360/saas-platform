@@ -385,6 +385,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     switch (cell.state) {
       case 'booked': return `${base} - booked by ${cell.bookerName || cell.bookingNo || 'a member'}, open the booking`;
       case 'closed': return `${base} - closed`;
+      case 'class': return `${base} - reserved for ${cell.classLabel || 'a class'}`;
       case 'past': return `${base} - already started`;
       case 'locked': return `${base} - being booked at another desk`;
       case 'front-desk': return `${base} - front-desk slot${this.isSelected(col, cell) ? ', selected' : ''}`;

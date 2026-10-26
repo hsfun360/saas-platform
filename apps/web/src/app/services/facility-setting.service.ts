@@ -72,6 +72,10 @@ export interface FacilitySettingDoc {
   strikeCount: number;
   strikeWindowDays: number;
   strikeSuspensionDays: number;
+  // slice 5: Classes
+  classesEnabled: boolean;
+  classCancellationNoticeHours: number;
+  classWaitlistOfferHours: number;
   saved: boolean;
   sessions: FacilitySessionBand[];
   overrides: FacilityAdvanceBookingOverride[];

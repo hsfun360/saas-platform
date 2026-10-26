@@ -398,6 +398,55 @@
         }
       </div>
 
+      <!-- ============ Classes (slice 5) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('classes')"
+                [attr.aria-expanded]="isExpanded('classes')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Classes</span>
+            <span class="settings-header__sub">Instructor-led classes at the club's venues, enrolled per session or per term.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('classes')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('classes')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="classesEnabled" />
+                <span>Enable classes</span>
+                <app-field-info label="Classes" [text]="hint.classes" />
+              </label>
+            </div>
+            @if (classesOn()) {
+              <div class="fs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="fsClassNotice">Class cancellation notice (hours) <span class="required">*</span>
+                    <app-field-info label="Class cancellation notice" [text]="hint.classNotice" />
+                  </label>
+                  <input id="fsClassNotice" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="classCancellationNoticeHours"
+                         [attr.aria-invalid]="showError(form.controls.classCancellationNoticeHours)" aria-describedby="fsClassNoticeErr" />
+                  @if (showError(form.controls.classCancellationNoticeHours)) {
+                    <p id="fsClassNoticeErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
+                  }
+                  <p class="cell-subtle field-hint">Inside the notice the seat's fee stands; 0 = no notice rule.</p>
+                </div>
+                <div class="form-group">
+                  <label for="fsClassOffer">Waitlist offer held for (hours) <span class="required">*</span>
+                    <app-field-info label="Waitlist offer" [text]="hint.classOffer" />
+                  </label>
+                  <input id="fsClassOffer" type="number" inputmode="numeric" min="1" max="168" step="1" formControlName="classWaitlistOfferHours"
+                         [attr.aria-invalid]="showError(form.controls.classWaitlistOfferHours)" aria-describedby="fsClassOfferErr" />
+                  @if (showError(form.controls.classWaitlistOfferHours)) {
+                    <p id="fsClassOfferErr" class="field-error" role="alert">Enter a whole number between 1 and 168.</p>
+                  }
+                  <p class="cell-subtle field-hint">An offered seat lapses to the next in the queue after this.</p>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <!-- Sticky save bar (settings-chrome standard): only while dirty. -->
       @if (form.dirty) {
         <div class="save-bar" *appCan="'edit'">

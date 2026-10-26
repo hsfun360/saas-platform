@@ -97,6 +97,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     lock: 'A selected slot is held this long while the booking is keyed - a countdown shows on the booking screen.',
     guests: 'When off, nothing restricts guests anywhere. When on, these general flags apply to every facility type, each type may tighten them (no guests at the Gym, two guests per badminton booking), and guests count against the member\'s monthly guest allowance from Membership Type.',
     noShow: 'When off, a booking is cancelled at any time without penalty. When on, a cancellation inside the notice window is a late cancellation, and the Control Station\'s no-show review raises the no-show charge and strike set per facility type (the charge and strike rules arrive with the No show slice).',
+    classes: 'When on, the Venues, Instructors, Classes and Class Schedule screens take actions, the Control Station shows the day\'s classes and a session on a court blocks its booking cells. When off, those screens show a notice and already scheduled sessions stay as data.',
+    classNotice: 'A seat cancelled closer than this to the session start is a late cancellation: the fee stands. Outside the notice an unsettled bill is voided. A class may set its own notice. 0 = no notice rule.',
+    classOffer: 'When a seat frees on a full session or term, the first in the queue is offered it by email and the seat is held this long; then it lapses and the next is offered.',
     sessions: 'The club\'s day parts - e.g. Morning, Afternoon, Evening or Peak. Each facility fee can carry a different price per session (peak / off-peak), and a booking limit can be counted per session. A slot outside every session is unrestricted.',
     typeOverride: 'Grants selected membership types the privilege to book earlier than the general rule and than any facility type\'s own days. The early-opening hours always apply club-wide.',
     guestRules: 'Exceptions to the weekday and weekend answers above: for one facility type or every type, a day (weekday, weekend or a specific day like Sunday) and optionally a time band. The most specific rule wins; a facility type\'s own guest policy and its guest cap still apply on top.',
@@ -117,7 +120,7 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
   readonly errorMessage = signal('');
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, sessions: true, guests: true, noshow: true, station: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, sessions: true, guests: true, noshow: true, station: true, classes: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -143,6 +146,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     strikeCount: [3, [Validators.required, Validators.min(1), Validators.max(20)]],
     strikeWindowDays: [90, [Validators.required, Validators.min(1), Validators.max(365)]],
     strikeSuspensionDays: [30, [Validators.required, Validators.min(1), Validators.max(365)]],
+    classesEnabled: [false],
+    classCancellationNoticeHours: [24, [Validators.required, Validators.min(0), Validators.max(720)]],
+    classWaitlistOfferHours: [24, [Validators.required, Validators.min(1), Validators.max(168)]],
     sessions: this.fb.array<SessionGroup>([]),
   });
 
@@ -219,6 +225,10 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     return this.form.controls.noShowControlEnabled.value === true;
   }
 
+  classesOn(): boolean {
+    return this.form.controls.classesEnabled.value === true;
+  }
+
   // Live preview of the window rule with the current numbers (hidden while a
   // number is out of range - the field errors speak then).
   windowPreview(): string {
@@ -257,6 +267,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
           strikeCount: doc.strikeCount ?? 3,
           strikeWindowDays: doc.strikeWindowDays ?? 90,
           strikeSuspensionDays: doc.strikeSuspensionDays ?? 30,
+          classesEnabled: doc.classesEnabled === true,
+          classCancellationNoticeHours: doc.classCancellationNoticeHours ?? 24,
+          classWaitlistOfferHours: doc.classWaitlistOfferHours ?? 24,
         });
         this.noShowTypeOptions.set((doc.noShowTypes || []).map((t) => ({ value: t.id, label: `${t.transactionType} - ${t.description}` })));
         this.sessions.clear();
@@ -393,6 +406,9 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
       strikeCount: clampInt(v.strikeCount, 1, 20, 3),
       strikeWindowDays: clampInt(v.strikeWindowDays, 1, 365, 90),
       strikeSuspensionDays: clampInt(v.strikeSuspensionDays, 1, 365, 30),
+      classesEnabled: v.classesEnabled === true,
+      classCancellationNoticeHours: clampInt(v.classCancellationNoticeHours, 0, 720, 24),
+      classWaitlistOfferHours: clampInt(v.classWaitlistOfferHours, 1, 168, 24),
       sessions: sessions.map((s) => ({ name: s.name.trim(), startTime: s.startTime, endTime: s.endTime })),
     }).subscribe({
       next: (res) => {
