@@ -533,6 +533,39 @@ const FacilityNoShowCharge = require('../modules/facility/noShowCharge.model');
 const FacilityPatronSuspension = require('../modules/facility/patronSuspension.model');
 FacilityBooking.hasMany(FacilityNoShowCharge, { foreignKey: 'bookingId', as: 'NoShowCharges', onDelete: 'RESTRICT' });
 FacilityNoShowCharge.belongsTo(FacilityBooking, { foreignKey: 'bookingId', as: 'Booking' });
+// Facility slice 5 Classes (structures approved 2026-10-26): a Venue may
+// link to ONE unit (RESTRICT - the venue is retired, not the unit); a Class
+// -> schedules and sessions (cascade); a schedule -> its generated sessions
+// (SET NULL: a one-off keeps no schedule); the venue and the instructor of a
+// class, a schedule and a session are RESTRICT references; the session's
+// facilityId is the venue's unit snapshot (SET NULL).
+const FacilityVenue = require('../modules/facility/venue.model');
+const FacilityInstructor = require('../modules/facility/instructor.model');
+const FacilityClass = require('../modules/facility/class.model');
+const FacilityClassSchedule = require('../modules/facility/classSchedule.model');
+const FacilityClassSession = require('../modules/facility/classSession.model');
+Facility.hasMany(FacilityVenue, { foreignKey: 'facilityId', as: 'Venues', onDelete: 'RESTRICT' });
+FacilityVenue.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+FacilityVenue.hasMany(FacilityClass, { foreignKey: 'venueId', as: 'Classes', onDelete: 'RESTRICT' });
+FacilityClass.belongsTo(FacilityVenue, { foreignKey: 'venueId', as: 'Venue' });
+FacilityInstructor.hasMany(FacilityClass, { foreignKey: 'instructorId', as: 'Classes', onDelete: 'RESTRICT' });
+FacilityClass.belongsTo(FacilityInstructor, { foreignKey: 'instructorId', as: 'Instructor' });
+FacilityClass.hasMany(FacilityClassSchedule, { foreignKey: 'classId', as: 'Schedules', onDelete: 'CASCADE' });
+FacilityClassSchedule.belongsTo(FacilityClass, { foreignKey: 'classId', as: 'Class' });
+FacilityVenue.hasMany(FacilityClassSchedule, { foreignKey: 'venueId', as: 'Schedules', onDelete: 'RESTRICT' });
+FacilityClassSchedule.belongsTo(FacilityVenue, { foreignKey: 'venueId', as: 'Venue' });
+FacilityInstructor.hasMany(FacilityClassSchedule, { foreignKey: 'instructorId', as: 'Schedules', onDelete: 'RESTRICT' });
+FacilityClassSchedule.belongsTo(FacilityInstructor, { foreignKey: 'instructorId', as: 'Instructor' });
+FacilityClass.hasMany(FacilityClassSession, { foreignKey: 'classId', as: 'Sessions', onDelete: 'CASCADE' });
+FacilityClassSession.belongsTo(FacilityClass, { foreignKey: 'classId', as: 'Class' });
+FacilityClassSchedule.hasMany(FacilityClassSession, { foreignKey: 'scheduleId', as: 'Sessions', onDelete: 'SET NULL' });
+FacilityClassSession.belongsTo(FacilityClassSchedule, { foreignKey: 'scheduleId', as: 'Schedule' });
+FacilityVenue.hasMany(FacilityClassSession, { foreignKey: 'venueId', as: 'Sessions', onDelete: 'RESTRICT' });
+FacilityClassSession.belongsTo(FacilityVenue, { foreignKey: 'venueId', as: 'Venue' });
+FacilityInstructor.hasMany(FacilityClassSession, { foreignKey: 'instructorId', as: 'Sessions', onDelete: 'RESTRICT' });
+FacilityClassSession.belongsTo(FacilityInstructor, { foreignKey: 'instructorId', as: 'Instructor' });
+Facility.hasMany(FacilityClassSession, { foreignKey: 'facilityId', as: 'ClassSessions', onDelete: 'SET NULL' });
+FacilityClassSession.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).

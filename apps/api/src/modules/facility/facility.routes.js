@@ -18,7 +18,8 @@ router.use(verifyToken);
 router.use(requireModule('FACILITY'));
 
 const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
-    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station', '/facility/no-show-charges', '/facility/suspensions'];
+    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station', '/facility/no-show-charges', '/facility/suspensions',
+    '/facility/venues', '/facility/instructors', '/facility/classes', '/facility/class-schedule'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -69,6 +70,19 @@ router.use('/station', requireMenuAction('/facility/station'), require('./statio
 const noShowRoutes = require('./noShow.routes');
 router.use('/no-show-charges', requireMenuAction('/facility/no-show-charges'), noShowRoutes.chargesRouter);
 router.use('/suspensions', requireMenuAction('/facility/suspensions'), noShowRoutes.suspensionsRouter);
+
+// --- Slice 5 Classes (structures approved 2026-10-26): the venue and
+// instructor masters (read by the Classes and Class Schedule pickers), the
+// classes with their schedules, and the timetable's sessions - each its
+// own menu. ---
+const CLASS_MENUS = ['/facility/classes', '/facility/class-schedule'];
+const readsOn = (menus, writeMenu) => (req, res, next) => (
+    req.method === 'GET' ? requireAnyMenuAction(menus)(req, res, next) : requireMenuAction(writeMenu)(req, res, next)
+);
+router.use('/venues', readsOn(['/facility/venues', ...CLASS_MENUS], '/facility/venues'), require('./venues.routes'));
+router.use('/instructors', readsOn(['/facility/instructors', ...CLASS_MENUS], '/facility/instructors'), require('./instructors.routes'));
+router.use('/classes', readsOn(CLASS_MENUS, '/facility/classes'), require('./classes.routes'));
+router.use('/class-sessions', readsOn([...CLASS_MENUS, '/facility/bookings', '/facility/station'], '/facility/class-schedule'), require('./classSessions.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

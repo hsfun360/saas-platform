@@ -97,6 +97,27 @@ const PAYMENT_CLASSES = [
 const PAYMENT_CLASS_KEYS = PAYMENT_CLASSES.map((c) => c.key);
 const ACCOUNT_PAYMENT_CLASSES = ['member', 'debtor'];
 
+// ---- slice 5 Classes (structures approved 2026-10-26) ----
+
+// How a patron enrols in a class: one seat in one session, or one seat in
+// every session of a schedule (a term).
+const ENROLMENT_MODES = [
+    { key: 'session', label: 'Per session', hint: 'A seat in one session; the fee item is priced per session.' },
+    { key: 'term', label: 'Per term', hint: 'A seat in every session of a schedule; the fee item is priced per term.' },
+];
+const ENROLMENT_MODE_KEYS = ENROLMENT_MODES.map((m) => m.key);
+
+const SCHEDULE_STATUSES = [
+    { key: 'active', label: 'Active' },
+    { key: 'closed', label: 'Closed' },
+    { key: 'cancelled', label: 'Cancelled' },
+];
+const SESSION_STATUSES = [
+    { key: 'scheduled', label: 'Scheduled' },
+    { key: 'held', label: 'Held' },
+    { key: 'cancelled', label: 'Cancelled' },
+];
+
 // Ceilings shared by the controllers and the slot service.
 const LIMITS = {
     maxSlotsPerSet: 200,
@@ -107,6 +128,8 @@ const LIMITS = {
     maxRateCells: 400,
     maxGuestRules: 200,
     maxOverrides: 100,
+    maxScheduleRangeDays: 366,
+    maxVenueCapacity: 500,
 };
 
 module.exports = {
@@ -116,4 +139,5 @@ module.exports = {
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, DEFAULT_TYPED_CHARGE_TYPE_KEYS, RESERVED_CHARGE_TYPE_KEYS,
     FEE_BASES, FEE_BASIS_KEYS,
     PAYMENT_CLASSES, PAYMENT_CLASS_KEYS, ACCOUNT_PAYMENT_CLASSES,
+    ENROLMENT_MODES, ENROLMENT_MODE_KEYS, SCHEDULE_STATUSES, SESSION_STATUSES,
 };

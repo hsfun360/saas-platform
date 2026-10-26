@@ -29,6 +29,7 @@ const Facility = require('./facility.model');
 const FacilityType = require('./facilityType.model');
 const Patron = require('./patron.model');
 const availability = require('./bookingAvailability.service');
+const classSchedule = require('./classSchedule.service');
 const rules = require('./bookingRules.service');
 const participantTypes = require('./participantType.service');
 const patrons = require('./patron.service');
@@ -324,12 +325,13 @@ exports.availability = async (req, res) => {
         const now = rules.clubNow(timezone);
         const slotSet = await availability.resolveSlotSet(type.id, dayType, date);
         const unitIds = units.map((u) => u.id);
-        const [blocks, occ, locks] = await Promise.all([
+        const [blocks, occ, locks, classes] = await Promise.all([
             availability.closureBlocks(companyId, type.id, unitIds, date),
             availability.occupancy(companyId, type.id, date),
             availability.activeLocks(companyId, date),
+            classSchedule.classBlocks(companyId, unitIds, date),
         ]);
-        const grid = availability.buildGrid({ units, slotSet, blocks, occ, locks, callerId, now, date });
+        const grid = availability.buildGrid({ units, slotSet, blocks, occ, locks, callerId, now, date, classes });
         const generalWindow = rules.bookingWindow({
             now, effectiveDays: rules.effectiveAdvanceDays({ setting, type, overrideDays: null }), hours: Number(setting.advanceBookingHours || 0), allowSameDay: setting.allowSameDayBooking === true,
         });
@@ -385,17 +387,22 @@ exports.claimLocks = async (req, res) => {
             await shared.advisoryLock(transaction, companyId, date);
             await shared.sweepExpiredLocks(companyId, date, transaction);
             if (requestedGroup) await SlotLock.destroy({ where: { companyId, groupId: requestedGroup, lockedBy: callerId }, transaction });
-            const [blocks, occ, locks] = await Promise.all([
+            const [blocks, occ, locks, classes] = await Promise.all([
                 availability.closureBlocks(companyId, type.id, [unit.id], date, { transaction }),
                 availability.occupancy(companyId, type.id, date, { transaction }),
                 availability.activeLocks(companyId, date, { transaction }),
+                classSchedule.classBlocks(companyId, [unit.id], date, { transaction }),
             ]);
-            const grid = availability.buildGrid({ units: [unit], slotSet, blocks, occ, locks, callerId, now, date });
+            const grid = availability.buildGrid({ units: [unit], slotSet, blocks, occ, locks, callerId, now, date, classes });
             const cells = grid.columns[0].cells;
             for (const s of picked) {
                 const cell = cells.find((c) => c.startTime === s.startTime);
                 if (!cell || !['open', 'front-desk'].includes(cell.state)) {
-                    return { taken: true, message: cell && cell.state === 'closed' ? `${unit.code} is closed at ${s.startTime}.` : `${unit.code} at ${s.startTime} was just taken - refresh the grid.` };
+                    const message = !cell ? `${unit.code} at ${s.startTime} was just taken - refresh the grid.`
+                        : cell.state === 'closed' ? `${unit.code} is closed at ${s.startTime}.`
+                            : cell.state === 'class' ? `${unit.code} is reserved for ${cell.classLabel} at ${s.startTime}.`
+                                : `${unit.code} at ${s.startTime} was just taken - refresh the grid.`;
+                    return { taken: true, message };
                 }
             }
             const groupId = requestedGroup || crypto.randomUUID();
@@ -522,12 +529,15 @@ exports.create = async (req, res) => {
             if (live !== lockRows.length) return { fail: 'Your slot claim has expired - pick the slots again.', status: 409 };
 
             // Rule 6 - closures and occupancy, re-read under the lock.
-            const [blocks, occ] = await Promise.all([
+            const [blocks, occ, classes] = await Promise.all([
                 availability.closureBlocks(companyId, type.id, [unit.id], date, { transaction }),
                 availability.occupancy(companyId, type.id, date, { transaction }),
+                classSchedule.classBlocks(companyId, [unit.id], date, { transaction }),
             ]);
             for (const s of picked) {
                 if (occ.has(availability.cellKey(unit.id, s.startTime))) return { fail: `${unit.code} at ${s.startTime} was just booked - pick the slots again.`, status: 409 };
+                const cls = classSchedule.classBlockAt(classes.get(unit.id), toMinutes(s.startTime), toMinutes(s.endTime));
+                if (cls) return { fail: `${unit.code} is reserved for ${cls.label} at ${s.startTime} on ${date}.`, status: 409 };
                 if (rules.isBlocked(blocks.get(unit.id) || [], toMinutes(s.startTime), toMinutes(s.endTime))) {
                     return { fail: `${unit.code} is closed at ${s.startTime} on ${date}.`, status: 400 };
                 }

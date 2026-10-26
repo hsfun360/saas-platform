@@ -156,6 +156,27 @@ const FacilitySetting = sequelize.define('FacilitySetting', {
         allowNull: false,
         defaultValue: 30,
     },
+    // ---- slice 5 (structures approved 2026-10-26) ----
+    // The master switch for the class screens, the station's Classes view
+    // and the grid's class cells.
+    classesEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    // A seat cancelled closer than this to the session start is a late
+    // cancellation and keeps its fee; 0 = no notice rule.
+    classCancellationNoticeHours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 24,
+    },
+    // How long an offered seat is held for the first in the waitlist queue.
+    classWaitlistOfferHours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 24,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

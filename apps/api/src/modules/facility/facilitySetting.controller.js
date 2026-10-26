@@ -38,6 +38,9 @@ const DEFAULTS = {
     strikeCount: 3,
     strikeWindowDays: 90,
     strikeSuspensionDays: 30,
+    classesEnabled: false,
+    classCancellationNoticeHours: 24,
+    classWaitlistOfferHours: 24,
 };
 
 function settingDto(row) {
@@ -64,6 +67,9 @@ function settingDto(row) {
         strikeCount: row.strikeCount ?? 3,
         strikeWindowDays: row.strikeWindowDays ?? 90,
         strikeSuspensionDays: row.strikeSuspensionDays ?? 30,
+        classesEnabled: row.classesEnabled === true,
+        classCancellationNoticeHours: row.classCancellationNoticeHours ?? 24,
+        classWaitlistOfferHours: row.classWaitlistOfferHours ?? 24,
         saved: true,
     };
 }
@@ -212,6 +218,8 @@ exports.save = async (req, res) => {
             ['strikeCount', 1, 20, 'Strike count must be a whole number between 1 and 20.'],
             ['strikeWindowDays', 1, 365, 'Strike window must be a whole number of days between 1 and 365.'],
             ['strikeSuspensionDays', 1, 365, 'Strike suspension must be a whole number of days between 1 and 365.'],
+            ['classCancellationNoticeHours', 0, 720, 'Class cancellation notice must be a whole number of hours between 0 and 720.'],
+            ['classWaitlistOfferHours', 1, 168, 'Waitlist offer hours must be a whole number between 1 and 168.'],
         ];
         const values = {};
         for (const [field, min, max, message] of ints) {
@@ -220,7 +228,7 @@ exports.save = async (req, res) => {
             values[field] = n.value;
         }
         for (const flag of ['allowSameDayBooking', 'allowMembershipTypeOverride', 'guestControlEnabled', 'allowGuestWeekday', 'allowMemberGuestWeekday',
-            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose']) {
+            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose', 'classesEnabled']) {
             values[flag] = req.body[flag] === true;
         }
         // Slice 4: the late-cancel action, the charge basis and the no-show item.

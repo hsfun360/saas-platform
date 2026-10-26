@@ -46,6 +46,10 @@ const saveBody = z.object({
     // Control Station (slice 3)
     checkInOpenMinutes: numberish,
     autoSignOutAtClose: bool,
+    // Classes (slice 5)
+    classesEnabled: bool,
+    classCancellationNoticeHours: numberish,
+    classWaitlistOfferHours: numberish,
     // Sessions (PUT-replaced)
     sessions: z.array(sessionLine).max(50).nullable().optional(),
 });

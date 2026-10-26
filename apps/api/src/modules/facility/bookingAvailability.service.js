@@ -25,6 +25,7 @@ const Patron = require('./patron.model');
 const rules = require('./bookingRules.service');
 const { ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 const { toMinutes } = require('./facilityShared');
+const { classBlockAt } = require('./classScheduleRules.service');
 const { DEFAULTS } = require('./facilitySetting.controller');
 
 // One cell key: a facility at a start time.
@@ -186,17 +187,22 @@ async function heldSlotsByPatron(companyId, facilityTypeId, date, patronIds, { t
 // caller's own locks ('mine') from other desks' ('locked'); front-desk-only
 // slots are reported as 'front-desk' (the desk may still book them; the
 // member portal will not). A slot already started on today's date is 'past'.
-function buildGrid({ units, slotSet, blocks, occ, locks, callerId, now, date }) {
+// Slice 5: a scheduled class session whose venue links to the unit renders
+// the overlapping cells as 'class' (`classes` = Map(facilityId -> blocks)).
+function buildGrid({ units, slotSet, blocks, occ, locks, callerId, now, date, classes = new Map() }) {
     const slots = slotSet ? slotSet.slots : [];
     const columns = units.map((u) => {
         const unitBlocks = blocks.get(u.id) || [];
+        const unitClasses = classes.get(u.id) || [];
         const cells = slots.map((s) => {
             const key = cellKey(u.id, s.startTime);
             const taken = occ.get(key);
             const lock = locks.get(key);
+            const cls = classBlockAt(unitClasses, toMinutes(s.startTime), toMinutes(s.endTime));
             let state = 'open';
             if (taken) state = 'booked';
             else if (lock) state = lock.lockedBy === callerId ? 'mine' : 'locked';
+            else if (cls) state = 'class';
             else if (rules.isBlocked(unitBlocks, toMinutes(s.startTime), toMinutes(s.endTime))) state = 'closed';
             else if (rules.isPast(now, date, s.startTime)) state = 'past';
             else if (s.isFrontDesk) state = 'front-desk';
@@ -212,6 +218,7 @@ function buildGrid({ units, slotSet, blocks, occ, locks, callerId, now, date }) 
                 bookerName: taken ? taken.bookerName : null,
                 lockGroupId: lock && lock.lockedBy === callerId ? lock.groupId : null,
                 lockExpiresAt: lock ? lock.expiresAt : null,
+                classLabel: cls ? cls.label : null,
             };
         });
         return { id: u.id, code: u.code, name: u.name, location: u.location, isIndoor: u.isIndoor === true, isFloodlit: u.isFloodlit === true, cells };

@@ -11,7 +11,7 @@ const FacilityType = require('./facilityType.model');
 const FacilityTypeSlotSet = require('./facilityTypeSlotSet.model');
 const Facility = require('./facility.model');
 const { getUserContext } = require('../../platform/serviceContext');
-const { USAGE_MODES, USAGE_MODE_KEYS, DAY_SCOPES, LIMITS } = require('./facility.constants');
+const { USAGE_MODES, USAGE_MODE_KEYS, DAY_SCOPES, LIMITS, ENROLMENT_MODES, SCHEDULE_STATUSES, SESSION_STATUSES } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, parseOptionalInt, parseRequiredInt } = require('./facilityShared');
 
 // Public image uploads go to the per-environment bucket named by ASSETS_BUCKET
@@ -183,7 +183,7 @@ async function countsByType(companyId) {
 
 // GET /api/facility/meta - vocabularies for every slice-1 screen.
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ usageModes: USAGE_MODES, dayScopes: DAY_SCOPES, limits: LIMITS });
+    res.status(200).json({ usageModes: USAGE_MODES, dayScopes: DAY_SCOPES, limits: LIMITS, enrolmentModes: ENROLMENT_MODES, scheduleStatuses: SCHEDULE_STATUSES, sessionStatuses: SESSION_STATUSES });
 };
 
 // GET /api/facility/facility-types
