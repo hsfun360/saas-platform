@@ -405,7 +405,7 @@
           @case ('bill') {
             @if (billScreen(); as bs) {
               <div class="fb-bill-head">
-                <span><strong>{{ bs.booking.booker?.name }}</strong>{{ bs.booking.booker?.memberNo ? ' (' + bs.booking.booker?.memberNo + ')' : '' }} · {{ bs.bill.billDate | localDate }} · {{ bs.booking.facilities.join(', ') }} {{ bs.booking.startTime }}{{ bs.booking.endTime ? ' - ' + bs.booking.endTime : '' }}</span>
+                <span><strong>{{ bs.booking.booker?.name }}</strong>{{ bs.booking.booker?.memberNo ? ' (' + bs.booking.booker?.memberNo + ')' : '' }} · {{ (bs.booking.kind === 'enrolment' && bs.booking.bookingDate ? bs.booking.bookingDate : bs.bill.billDate) | localDate }} · {{ bs.booking.facilities.join(', ') }} {{ bs.booking.startTime }}{{ bs.booking.endTime ? ' - ' + bs.booking.endTime : '' }}</span>
                 <span class="status-chip" [class]="'status-chip ' + billStatusClass(bs.bill.status)">{{ bs.bill.status }}</span>
               </div>
               @for (w of billWarnings(); track $index) {

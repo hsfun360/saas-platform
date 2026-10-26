@@ -1108,12 +1108,14 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(key: string): string {
+    if (key === 'no-show') return 'No show';
     return this.meta()?.statuses.find((s) => s.key === key)?.label || key;
   }
 
   statusClass(key: string): string {
     if (key === 'booked') return 'status-chip--on';
     if (key === 'pending-approval') return 'status-chip--info';
+    if (key === 'no-show') return 'status-chip--danger';
     return 'status-chip--off';
   }
 
