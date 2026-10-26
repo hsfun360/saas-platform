@@ -20,6 +20,7 @@ const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, rangeDays, pars
 const rules = require('./bookingRules.service');
 const svc = require('./classSchedule.service');
 const { pickers } = require('./class.controller');
+const { bookingDateText } = require('./bookingShared');
 
 const SESSION_INCLUDE = [
     { model: FacilityClass, as: 'Class', attributes: ['id', 'code', 'description', 'enrolmentMode', 'walkInAllowed', 'visitorsAllowed'] },
@@ -143,7 +144,7 @@ exports.create = async (req, res) => {
             if (!schedule) return res.status(400).json({ message: 'That schedule does not belong to the class.' });
             if (schedule.status === 'cancelled') return res.status(409).json({ message: 'That schedule is cancelled.' });
             const clash = await FacilityClassSession.findOne({ where: { scheduleId: schedule.id, sessionDate: v.merged.sessionDate } });
-            if (clash) return res.status(409).json({ message: `${schedule.name} already has a session on ${v.merged.sessionDate} - edit that one.` });
+            if (clash) return res.status(409).json({ message: `${schedule.name} already has a session on ${bookingDateText(v.merged.sessionDate)} - edit that one.` });
         }
         const venue = await svc.loadVenue(companyId, v.merged.venueId || (schedule && schedule.venueId) || cls.venueId);
         if (!venue) return res.status(400).json({ message: 'Pick a venue - the class has no default venue.' });
@@ -153,14 +154,14 @@ exports.create = async (req, res) => {
         const instructor = await FacilityInstructor.findOne({ where: { id: facts.instructorId, companyId } });
         if (!instructor || instructor.isActive === false) return res.status(400).json({ message: 'Pick an active instructor of the active company.' });
         const conflict = await svc.sessionConflict(companyId, { venue, instructorId: facts.instructorId, date: v.merged.sessionDate, startTime: v.merged.startTime, endTime: v.merged.endTime });
-        if (conflict) return res.status(409).json({ message: `${v.merged.sessionDate} ${timeDto(v.merged.startTime)} - ${conflict}.` });
+        if (conflict) return res.status(409).json({ message: `${bookingDateText(v.merged.sessionDate)} ${timeDto(v.merged.startTime)} - ${conflict}.` });
         const stamps = await stampsFor(req);
         const row = await FacilityClassSession.create({
             companyId, classId: cls.id, scheduleId: schedule ? schedule.id : null, sessionDate: v.merged.sessionDate, startTime: v.merged.startTime, endTime: v.merged.endTime,
             venueId: venue.id, facilityId: venue.Facility ? venue.Facility.id : null, instructorId: facts.instructorId, capacity: facts.capacity, status: 'scheduled', remarks: v.merged.remarks || null, ...stamps,
         });
         const full = await loadFull(row.id);
-        res.status(201).json({ message: `Session added on ${v.merged.sessionDate}.`, session: sessionDto(full, true) });
+        res.status(201).json({ message: `Session added on ${bookingDateText(v.merged.sessionDate)}.`, session: sessionDto(full, true) });
     } catch (error) {
         console.error('Error creating class session:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -214,7 +215,7 @@ exports.cancel = async (req, res) => {
         Object.assign(row, { status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId });
         await row.save();
         const full = await loadFull(row.id);
-        res.status(200).json({ message: `Session on ${String(row.sessionDate)} cancelled.`, session: sessionDto(full, true) });
+        res.status(200).json({ message: `Session on ${bookingDateText(String(row.sessionDate))} cancelled.`, session: sessionDto(full, true) });
     } catch (error) {
         console.error('Error cancelling class session:', error);
         res.status(500).json({ message: 'Internal server error' });
