@@ -159,15 +159,17 @@ exports.list = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const [rows, counts, picks] = await Promise.all([
+        const [rows, counts, picks, { setting }] = await Promise.all([
             FacilityClass.findAll({ where: { companyId }, include: CLASS_INCLUDE, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
             countsByClass(companyId),
             pickers(companyId),
+            require('./bookingAvailability.service').loadRules(companyId),
         ]);
         const flags = await annotateCanModify(req, rows);
         const feeById = new Map(picks.feeItems.map((f) => [f.id, f]));
         res.status(200).json({
             classes: rows.map((r, i) => classDto(r, { counts: counts.get(r.id), feeById })).map((d, i) => ({ ...d, canModify: flags[i] })),
+            classesEnabled: setting.classesEnabled === true,
             ...picks,
         });
     } catch (error) {

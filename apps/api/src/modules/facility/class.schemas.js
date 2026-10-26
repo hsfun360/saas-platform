@@ -61,6 +61,17 @@ const sessionBody = {
 
 const reasonBody = { reason: str(255) };
 
+// An enrolment: a member by number or a visitor profile, into a session or a term.
+const enrolBody = {
+    classId: str(64),
+    sessionId: str(64),
+    scheduleId: str(64),
+    memberNo: str(50),
+    visitor: z.object({ name: str(255), identityNo: str(50), mobile: str(30), email: str(255) }).nullable().optional(),
+    remarks: str(255),
+};
+const markLine = z.object({ attendanceId: z.string().max(64), status: z.string().max(10) });
+
 const idParam = { params: z.object({ id }) };
 const scheduleParam = { params: z.object({ id, scheduleId: id }) };
 
@@ -78,4 +89,8 @@ module.exports = {
     sessionCreate: { body: z.object(sessionBody) },
     sessionUpdate: { ...idParam, body: z.object(sessionBody) },
     sessionCancel: { ...idParam, body: z.object(reasonBody) },
+    enrol: { body: z.object(enrolBody) },
+    roster: idParam,
+    attendance: { ...idParam, body: z.object({ marks: z.array(markLine).min(1).max(500) }) },
+    hold: { ...idParam, body: z.object({ confirm: bool }) },
 };

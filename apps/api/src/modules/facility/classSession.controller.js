@@ -20,6 +20,7 @@ const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, rangeDays, pars
 const rules = require('./bookingRules.service');
 const svc = require('./classSchedule.service');
 const { pickers } = require('./class.controller');
+const enrolment = require('./classEnrolment.service');
 const { bookingDateText } = require('./bookingShared');
 
 const SESSION_INCLUDE = [
@@ -30,7 +31,7 @@ const SESSION_INCLUDE = [
     { model: FacilityClassSchedule, as: 'Schedule', attributes: ['id', 'name', 'status'], required: false },
 ];
 
-function sessionDto(row, canModify) {
+function sessionDto(row, canModify, seatsTaken = null) {
     const p = row.get ? row.get({ plain: true }) : row;
     const pick = (o, keys) => (o ? Object.fromEntries(keys.map((k) => [k, o[k]])) : null);
     return {
@@ -49,6 +50,7 @@ function sessionDto(row, canModify) {
         instructorId: p.instructorId,
         instructor: pick(p.Instructor, ['id', 'code', 'name']),
         capacity: p.capacity,
+        seatsTaken,
         status: p.status,
         heldAt: p.heldAt,
         cancelledAt: p.cancelledAt,
@@ -73,17 +75,19 @@ exports.list = async (req, res) => {
         if (rangeDays(from, to) > 62) return res.status(400).json({ message: 'The timetable shows up to two months at a time.' });
         const where = { companyId, sessionDate: { [Op.between]: [from, to] } };
         for (const f of ['classId', 'instructorId', 'venueId']) if (req.query[f]) where[f] = String(req.query[f]);
-        const [rows, picks, timezone] = await Promise.all([
+        const [rows, picks, timezone, { setting }] = await Promise.all([
             FacilityClassSession.findAll({ where, include: SESSION_INCLUDE, order: [['sessionDate', 'ASC'], ['startTime', 'ASC'], ['createdAt', 'ASC']] }),
             pickers(companyId),
             companyTimezoneById(companyId),
+            require('./bookingAvailability.service').loadRules(companyId),
         ]);
-        const flags = await annotateCanModify(req, rows);
+        const [flags, seats] = await Promise.all([annotateCanModify(req, rows), enrolment.seatsBySession(rows.map((r) => r.id))]);
         const classes = await FacilityClass.findAll({ where: { companyId }, attributes: ['id', 'code', 'description', 'enrolmentMode', 'isActive', 'venueId', 'instructorId', 'capacity'], order: [['sortOrder', 'ASC'], ['code', 'ASC']] });
         res.status(200).json({
             from, to,
             clubNow: rules.clubNow(timezone),
-            sessions: rows.map((r, i) => sessionDto(r, flags[i])),
+            classesEnabled: setting.classesEnabled === true,
+            sessions: rows.map((r, i) => sessionDto(r, flags[i], seats.get(r.id) || 0)),
             classes: classes.map((c) => ({ id: c.id, code: c.code, description: c.description, enrolmentMode: c.enrolmentMode, isActive: c.isActive !== false, venueId: c.venueId, instructorId: c.instructorId, capacity: c.capacity })),
             venues: picks.venues,
             instructors: picks.instructors,

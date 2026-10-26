@@ -117,6 +117,18 @@ const SESSION_STATUSES = [
     { key: 'held', label: 'Held' },
     { key: 'cancelled', label: 'Cancelled' },
 ];
+const ENROLMENT_STATUSES = [
+    { key: 'enrolled', label: 'Enrolled' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'cancelled', label: 'Cancelled' },
+];
+const ATTENDANCE_STATUSES = [
+    { key: 'enrolled', label: 'Enrolled' },
+    { key: 'attended', label: 'Attended' },
+    { key: 'no-show', label: 'No show' },
+    { key: 'excused', label: 'Excused' },
+    { key: 'cancelled', label: 'Cancelled' },
+];
 
 // Ceilings shared by the controllers and the slot service.
 const LIMITS = {
@@ -139,5 +151,5 @@ module.exports = {
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, DEFAULT_TYPED_CHARGE_TYPE_KEYS, RESERVED_CHARGE_TYPE_KEYS,
     FEE_BASES, FEE_BASIS_KEYS,
     PAYMENT_CLASSES, PAYMENT_CLASS_KEYS, ACCOUNT_PAYMENT_CLASSES,
-    ENROLMENT_MODES, ENROLMENT_MODE_KEYS, SCHEDULE_STATUSES, SESSION_STATUSES,
+    ENROLMENT_MODES, ENROLMENT_MODE_KEYS, SCHEDULE_STATUSES, SESSION_STATUSES, ENROLMENT_STATUSES, ATTENDANCE_STATUSES,
 };

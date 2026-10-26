@@ -39,6 +39,11 @@ const Bill = sequelize.define('FacilityBill', {
         type: DataTypes.UUID,
         allowNull: true,
     },
+    // Slice 5: a class enrolment's fee bill (the fourth source).
+    classEnrolmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     // The payer, the booker's Patron.
     patronId: {
         type: DataTypes.UUID,
@@ -98,6 +103,7 @@ const Bill = sequelize.define('FacilityBill', {
         { name: 'IX_FacilityBill_Booking', fields: ['bookingId'] },
         { name: 'IX_FacilityBill_Registration', fields: ['registrationId'] },
         { name: 'IX_FacilityBill_Issue', fields: ['issueRecordId'] },
+        { name: 'IX_FacilityBill_Enrolment', fields: ['classEnrolmentId'] },
     ],
 });
 

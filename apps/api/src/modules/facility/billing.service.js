@@ -258,6 +258,7 @@ async function billDto(bill, { transaction } = {}) {
         id: bill.id,
         billNo: bill.billNo,
         bookingId: bill.bookingId,
+        classEnrolmentId: bill.classEnrolmentId || null,
         patronId: bill.patronId,
         billDate: String(bill.billDate),
         status: bill.status,

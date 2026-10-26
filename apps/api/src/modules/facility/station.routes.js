@@ -18,5 +18,7 @@ router.post('/issues/:id/return', validate(s.returnIssue), controller.returnIssu
 router.post('/units/:id/clear', validate(s.id), controller.clearUnit);
 router.post('/end-of-day', validate(s.endOfDay), controller.endOfDay);
 router.post('/no-shows', validate(s.markNoShows), controller.markNoShows);
+// Slice 5b: a walk-in enrolment into one of today's class sessions.
+router.post('/class-enrolments', validate(require('./class.schemas').enrol), controller.enrolWalkIn);
 
 module.exports = router;

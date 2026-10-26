@@ -83,6 +83,11 @@ router.use('/venues', readsOn(['/facility/venues', ...CLASS_MENUS], '/facility/v
 router.use('/instructors', readsOn(['/facility/instructors', ...CLASS_MENUS], '/facility/instructors'), require('./instructors.routes'));
 router.use('/classes', readsOn(CLASS_MENUS, '/facility/classes'), require('./classes.routes'));
 router.use('/class-sessions', readsOn([...CLASS_MENUS, '/facility/bookings', '/facility/station'], '/facility/class-schedule'), require('./classSessions.routes'));
+// Slice 5b: an enrolment from the Class Schedule (the station's walk-in has
+// its own route under /station).
+const enrolRouter = express.Router();
+enrolRouter.post('/', validate(require('./class.schemas').enrol), require('./classEnrolment.controller').enrol);
+router.use('/class-enrolments', requireMenuAction('/facility/class-schedule'), enrolRouter);
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

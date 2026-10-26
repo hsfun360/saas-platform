@@ -127,6 +127,16 @@ exports.markNoShows = async (req, res) => {
     }
 };
 
+// POST /api/facility/station/class-enrolments - a walk-in seat (slice 5b).
+exports.enrolWalkIn = async (req, res) => {
+    try {
+        send(res, await station.enrolWalkIn(req, req.body), 201);
+    } catch (error) {
+        console.error('Error enrolling a walk-in into a class:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/facility/station/end-of-day { facilityTypeId?, date }
 exports.endOfDay = async (req, res) => {
     try {

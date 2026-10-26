@@ -566,6 +566,23 @@ FacilityInstructor.hasMany(FacilityClassSession, { foreignKey: 'instructorId', a
 FacilityClassSession.belongsTo(FacilityInstructor, { foreignKey: 'instructorId', as: 'Instructor' });
 Facility.hasMany(FacilityClassSession, { foreignKey: 'facilityId', as: 'ClassSessions', onDelete: 'SET NULL' });
 FacilityClassSession.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+// Facility slice 5b: an enrolment cascades with its class, holds its session
+// or schedule (RESTRICT) and owns its attendance rows (cascade, also with
+// the session); the fee bill references the enrolment (RESTRICT).
+const FacilityClassEnrolment = require('../modules/facility/classEnrolment.model');
+const FacilityClassAttendance = require('../modules/facility/classAttendance.model');
+FacilityClass.hasMany(FacilityClassEnrolment, { foreignKey: 'classId', as: 'Enrolments', onDelete: 'CASCADE' });
+FacilityClassEnrolment.belongsTo(FacilityClass, { foreignKey: 'classId', as: 'Class' });
+FacilityClassSession.hasMany(FacilityClassEnrolment, { foreignKey: 'sessionId', as: 'Enrolments', onDelete: 'RESTRICT' });
+FacilityClassEnrolment.belongsTo(FacilityClassSession, { foreignKey: 'sessionId', as: 'Session' });
+FacilityClassSchedule.hasMany(FacilityClassEnrolment, { foreignKey: 'scheduleId', as: 'Enrolments', onDelete: 'RESTRICT' });
+FacilityClassEnrolment.belongsTo(FacilityClassSchedule, { foreignKey: 'scheduleId', as: 'Schedule' });
+FacilityClassEnrolment.hasMany(FacilityClassAttendance, { foreignKey: 'enrolmentId', as: 'Attendance', onDelete: 'CASCADE' });
+FacilityClassAttendance.belongsTo(FacilityClassEnrolment, { foreignKey: 'enrolmentId', as: 'Enrolment' });
+FacilityClassSession.hasMany(FacilityClassAttendance, { foreignKey: 'sessionId', as: 'Attendance', onDelete: 'CASCADE' });
+FacilityClassAttendance.belongsTo(FacilityClassSession, { foreignKey: 'sessionId', as: 'Session' });
+FacilityClassEnrolment.hasMany(FacilityBill, { foreignKey: 'classEnrolmentId', as: 'Bills', onDelete: 'RESTRICT' });
+FacilityBill.belongsTo(FacilityClassEnrolment, { foreignKey: 'classEnrolmentId', as: 'ClassEnrolment' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).

@@ -213,7 +213,40 @@ async function dayPicture(companyId, date, callerId) {
             issues: typeIssues.map((i) => issueDto(i, { patron: patronById.get(i.patronId), unit: i.facilityId ? unitById.get(i.facilityId) : null, bill: billByIssue.get(i.id) || null }, nowDate)),
         };
     });
-    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, noShowControlled: !!cfg, noShowGraceMinutes: cfg ? cfg.graceMinutes : null, types: out, callerId };
+    const classesEnabled = setting.classesEnabled === true;
+    const classSessions = classesEnabled ? await classSessionsOn(companyId, date) : [];
+    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, noShowControlled: !!cfg, noShowGraceMinutes: cfg ? cfg.graceMinutes : null, types: out, classesEnabled, classSessions, callerId };
+}
+
+// ---- slice 5b: the day's class sessions (the station's Classes view) ----------------
+
+async function classSessionsOn(companyId, date) {
+    const FacilityClassSession = require('./classSession.model');
+    const FacilityClass = require('./class.model');
+    const FacilityVenue = require('./venue.model');
+    const FacilityInstructor = require('./instructor.model');
+    const enrolment = require('./classEnrolment.service');
+    const rows = await FacilityClassSession.findAll({
+        where: { companyId, sessionDate: date, status: { [Op.ne]: 'cancelled' } },
+        include: [
+            { model: FacilityClass, as: 'Class', attributes: ['id', 'code', 'description', 'enrolmentMode', 'walkInAllowed', 'visitorsAllowed'] },
+            { model: FacilityVenue, as: 'Venue', attributes: ['id', 'code', 'name'] },
+            { model: FacilityInstructor, as: 'Instructor', attributes: ['id', 'code', 'name'] },
+        ],
+        order: [['startTime', 'ASC']],
+    });
+    const seats = await enrolment.seatsBySession(rows.map((r) => r.id));
+    return rows.map((s) => ({
+        id: s.id, classId: s.classId, class: s.Class ? s.Class.get({ plain: true }) : null,
+        sessionDate: String(s.sessionDate), startTime: hhmm(s.startTime), endTime: hhmm(s.endTime),
+        venue: s.Venue ? s.Venue.get({ plain: true }) : null, instructor: s.Instructor ? s.Instructor.get({ plain: true }) : null,
+        capacity: s.capacity, seatsTaken: seats.get(s.id) || 0, status: s.status, heldAt: s.heldAt, remarks: s.remarks,
+    }));
+}
+
+// A walk-in enrolment at the desk (channel 'station'; the class must allow walk-ins).
+async function enrolWalkIn(req, body) {
+    return require('./classEnrolment.service').enrol(req, body, { channel: 'station' });
 }
 
 // ---- slice 4 rules 2 + 3: mark booked slots as no-show ----------------------------
@@ -725,4 +758,5 @@ async function scanAutoSignOut() {
 module.exports = {
     localToDate, clock, registrationDto, issueDto, unitDto, dayPicture,
     checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut, markNoShows,
+    classSessionsOn, enrolWalkIn,
 };

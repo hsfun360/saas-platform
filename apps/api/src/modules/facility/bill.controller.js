@@ -28,7 +28,7 @@ const pricing = require('./billPricing.service');
 const participantTypes = require('./participantType.service');
 const availability = require('./bookingAvailability.service');
 const shared = require('./bookingShared');
-const { companyIdOf, stampsFor, txFail, runTx } = require('./facilityShared');
+const { companyIdOf, stampsFor, txFail, runTx, timeDto } = require('./facilityShared');
 
 const { Bill, BillItem, BillPayment, round2, cents } = billing;
 
@@ -104,6 +104,38 @@ async function sourceOf(companyId, bill) {
                 date: String(bill.billDate), startTime: null, endTime: null,
                 facilityType: iType ? { id: iType.id, code: iType.code, description: iType.description } : null,
                 facilities: unit ? [unit.code] : [],
+                booker: patron ? { id: patron.id, patronType: patron.patronType, name: patron.name, memberNo: patron.memberNo } : null,
+                slots: 0,
+                participants: [],
+            },
+        };
+    }
+    // Slice 5b: a class enrolment's fee bill - the class stands in the
+    // facility-type place of the header, the venue in the facilities list.
+    if (bill.classEnrolmentId) {
+        const FacilityClassEnrolment = require('./classEnrolment.model');
+        const FacilityClass = require('./class.model');
+        const FacilityClassSession = require('./classSession.model');
+        const FacilityClassSchedule = require('./classSchedule.model');
+        const FacilityVenue = require('./venue.model');
+        const enrolment = await FacilityClassEnrolment.findOne({ where: { companyId, id: bill.classEnrolmentId } });
+        if (!enrolment) return null;
+        const [cls, session, schedule] = await Promise.all([
+            FacilityClass.findOne({ where: { id: enrolment.classId }, attributes: ['id', 'code', 'description', 'enrolmentMode'] }),
+            enrolment.sessionId ? FacilityClassSession.findOne({ where: { id: enrolment.sessionId } }) : null,
+            enrolment.scheduleId ? FacilityClassSchedule.findOne({ where: { id: enrolment.scheduleId }, attributes: ['id', 'name', 'dateFrom', 'dateTo', 'venueId'] }) : null,
+        ]);
+        const venueId = session ? session.venueId : (schedule ? schedule.venueId : null);
+        const venue = venueId ? await FacilityVenue.findOne({ where: { id: venueId }, attributes: ['id', 'code', 'name'] }) : null;
+        return {
+            kind: 'enrolment', booking: null, enrolment, label: `class ${cls ? cls.code : ''}${schedule ? ' ' + schedule.name : ''}`.trim(), facilityTypeId: null,
+            context: { date: String(bill.billDate), dayType: 'weekday', sessionId: null },
+            header: {
+                id: enrolment.id, kind: 'enrolment', no: schedule ? schedule.name : null, status: enrolment.status,
+                date: session ? String(session.sessionDate) : (schedule ? String(schedule.dateFrom) : String(bill.billDate)),
+                startTime: session ? timeDto(session.startTime) : null, endTime: session ? timeDto(session.endTime) : null,
+                facilityType: cls ? { id: cls.id, code: cls.code, description: cls.description } : null,
+                facilities: venue ? [venue.code] : [],
                 booker: patron ? { id: patron.id, patronType: patron.patronType, name: patron.name, memberNo: patron.memberNo } : null,
                 slots: 0,
                 participants: [],
