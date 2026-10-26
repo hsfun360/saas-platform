@@ -30,6 +30,9 @@ const bookingRules = require('./bookingRules.service');
 const { companyTimezoneById } = require('../../platform/calendarGateway');
 const shared = require('./bookingShared');
 const rules = require('./classEnrolmentRules.service');
+const waitlistRules = require('./classWaitlistRules.service');
+const FacilityClassWaitlist = require('./classWaitlist.model');
+const emails = require('./classEmails.service');
 const { stampsFor, timeDto, txFail, runTx } = require('./facilityShared');
 
 const { bookingDateText } = shared;
@@ -59,9 +62,25 @@ async function billsFor(companyId, enrolmentIds, { transaction } = {}) {
 
 // ---- rules 5 + 6: enrol -----------------------------------------------------------------
 
+// The patron of an enrolment or a waitlist entry: a member by number (the
+// standing), or a visitor profile (when the class allows visitors).
+async function resolvePatron(companyId, cls, body) {
+    if (body.visitor && typeof body.visitor === 'object' && !body.memberNo) {
+        if (cls.visitorsAllowed !== true) return { error: `${cls.code} takes members only.` };
+        const name = String(body.visitor.name || '').trim();
+        if (!name) return { error: 'Key in the visitor\'s name.' };
+        return { standing: null, visitor: { name, identityNo: body.visitor.identityNo || null, mobile: body.visitor.mobile || null, email: body.visitor.email || null } };
+    }
+    const m = await memberStanding(companyId, body.memberNo);
+    if (m.error) return m;
+    return { standing: m.standing, visitor: null };
+}
+
 // `body` = { classId, sessionId | scheduleId, memberNo | visitor { name,
-// identityNo, mobile, email }, remarks }; `channel` desk | station.
-async function enrol(req, body, { channel = 'desk' } = {}) {
+// identityNo, mobile, email }, remarks }; `channel` desk | station. A
+// waitlist confirm passes the existing `patronId` and its `waitlistId`
+// (slice 5c): that row's held seat is the one being taken.
+async function enrol(req, body, { channel = 'desk', patronId = null, waitlistId = null } = {}) {
     const companyId = getUserContext(req).companyId;
     const { setting } = await availability.loadRules(companyId);
     if (setting.classesEnabled !== true) return { error: 'Classes are switched off in Facility Specification.' };
@@ -95,18 +114,24 @@ async function enrol(req, body, { channel = 'desk' } = {}) {
         targetSessions = [session];
     }
 
-    // The patron: a member by number, or a visitor profile.
+    // The patron: a member by number, a visitor profile, or (a waitlist
+    // confirm) the existing patron row.
     let standing = null;
     let visitor = null;
-    if (body.visitor && typeof body.visitor === 'object' && !body.memberNo) {
-        if (cls.visitorsAllowed !== true) return { error: `${cls.code} takes members only.` };
-        const name = String(body.visitor.name || '').trim();
-        if (!name) return { error: 'Key in the visitor\'s name.' };
-        visitor = { name, identityNo: body.visitor.identityNo || null, mobile: body.visitor.mobile || null, email: body.visitor.email || null };
+    let existing = null;
+    if (patronId) {
+        existing = await Patron.findOne({ where: { companyId, id: patronId } });
+        if (!existing) return { error: 'The patron no longer exists.', status: 409 };
+        if (existing.patronType === 'member' && existing.memberNo) {
+            const m = await memberStanding(companyId, existing.memberNo);
+            if (m.error) return m;
+            standing = m.standing;
+        }
     } else {
-        const m = await memberStanding(companyId, body.memberNo);
-        if (m.error) return m;
-        standing = m.standing;
+        const p = await resolvePatron(companyId, cls, body);
+        if (p.error) return p;
+        standing = p.standing;
+        visitor = p.visitor;
     }
 
     const feeItemId = rules.feeItemIdFor(cls, standing ? 'member' : 'other');
@@ -121,7 +146,8 @@ async function enrol(req, body, { channel = 'desk' } = {}) {
     const result = await runTx(sequelize, async (transaction) => {
         // The patron row first (needed by the duplicate check).
         let patron;
-        if (standing) patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
+        if (existing) patron = existing;
+        else if (standing) patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
         else {
             const r = await patrons.ensureOtherPatron(companyId, visitor, stamps, { transaction });
             if (r.error) txFail(r.error);
@@ -131,13 +157,21 @@ async function enrol(req, body, { channel = 'desk' } = {}) {
         const dup = await FacilityClassEnrolment.findOne({ where: dupWhere, transaction });
         if (dup) txFail(`${patron.name} is already enrolled in ${schedule ? schedule.name : sessionLabel(cls, session)}.`, 409);
 
-        // Capacity under the session rows' lock: every target session needs a seat.
+        // Capacity under the session rows' lock: every target session needs a
+        // seat; a seat offered from the waitlist is held (slice 5c) - counted
+        // as taken unless it is the offer being confirmed.
         const locked = await FacilityClassSession.findAll({ where: { id: { [Op.in]: targetSessions.map((s) => s.id) } }, transaction, lock: transaction.LOCK.UPDATE });
         const liveRows = await FacilityClassAttendance.findAll({ where: { sessionId: { [Op.in]: locked.map((s) => s.id) }, status: { [Op.in]: rules.LIVE_ATTENDANCE } }, attributes: ['sessionId', 'status'], transaction });
+        const scheduleIds = [...new Set(locked.map((s) => s.scheduleId).filter(Boolean))];
+        const offers = await FacilityClassWaitlist.findAll({
+            where: { status: 'offered', [Op.or]: [{ sessionId: { [Op.in]: locked.map((s) => s.id) } }, ...(scheduleIds.length ? [{ scheduleId: { [Op.in]: scheduleIds } }] : [])] },
+            attributes: ['id', 'status', 'sessionId', 'scheduleId'], transaction,
+        });
         for (const s of locked) {
             const taken = rules.seatsTaken(liveRows.filter((r) => r.sessionId === s.id));
-            const verdict = rules.capacityVerdict({ taken, arriving: 1, capacity: s.capacity, label: sessionLabel(cls, s) });
-            if (verdict) txFail(verdict, 409);
+            const held = waitlistRules.heldSeats(offers.filter((w) => w.sessionId === s.id || (w.scheduleId && w.scheduleId === s.scheduleId)), { excludeId: waitlistId });
+            const verdict = rules.capacityVerdict({ taken: taken + held, arriving: 1, capacity: s.capacity, label: sessionLabel(cls, s) });
+            if (verdict) txFail(held ? `${verdict} (${held} seat${held === 1 ? '' : 's'} held for the waitlist)` : verdict, 409);
         }
 
         // The enrolment, its attendance rows, then the bill (keyed by the enrolment).
@@ -166,6 +200,9 @@ async function enrol(req, body, { channel = 'desk' } = {}) {
     });
     if (result.error) return result;
     const { enrolment, bill, patron } = result;
+    // The enrolment email (slice 5c), after commit; never fails the enrolment.
+    emails.queueEnrolled({ companyId, patron, cls, session, schedule, venue: venueById.get((session || targetSessions[0]).venueId) || null, bill })
+        .catch((e) => console.error('Error queueing the class enrolment email:', e));
     const what = schedule ? `${schedule.name} (${targetSessions.length} session${targetSessions.length === 1 ? '' : 's'})` : `${bookingDateText(String(session.sessionDate))} ${timeDto(session.startTime)} at ${venueById.get(session.venueId)?.code || 'the venue'}`;
     return {
         message: `${patron.name} enrolled in ${cls.code} - ${what}${bill ? ` - bill ${bill.billNo} ${Number(bill.totalAmount).toFixed(2)} open` : ' - free'}.`,
@@ -302,4 +339,4 @@ async function seatsBySession(sessionIds, { transaction } = {}) {
     return map;
 }
 
-module.exports = { enrol, roster, markAttendance, hold, seatsBySession, billsFor, Patron };
+module.exports = { enrol, resolvePatron, roster, markAttendance, hold, seatsBySession, billsFor, Patron };

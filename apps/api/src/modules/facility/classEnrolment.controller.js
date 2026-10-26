@@ -5,6 +5,7 @@
 // the attendance marks and the Hold with its preview.
 
 const enrolment = require('./classEnrolment.service');
+const lifecycle = require('./classLifecycle.service');
 const { companyIdOf } = require('./facilityShared');
 
 function send(res, out, okStatus = 200) {
@@ -29,7 +30,14 @@ exports.roster = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        send(res, await enrolment.roster(companyId, req.params.id));
+        const out = await enrolment.roster(companyId, req.params.id);
+        if (!out.error) {
+            // Slice 5c: the queue, and the seats held by open offers.
+            out.waitlist = await lifecycle.queueFor(companyId, out.session);
+            const held = out.waitlist.filter((w) => w.status === 'offered').length;
+            out.seats = { ...out.seats, held, left: Math.max(0, out.seats.left - held) };
+        }
+        send(res, out);
     } catch (error) {
         console.error('Error loading a class roster:', error);
         res.status(500).json({ message: 'Internal server error' });

@@ -93,4 +93,9 @@ module.exports = {
     roster: idParam,
     attendance: { ...idParam, body: z.object({ marks: z.array(markLine).min(1).max(500) }) },
     hold: { ...idParam, body: z.object({ confirm: bool }) },
+    // Slice 5c: the patron's cancellation and the waitlist.
+    cancelPreview: idParam,
+    cancelEnrolment: { ...idParam, body: z.object(reasonBody) },
+    waitlistJoin: { body: z.object(enrolBody) },
+    waitlistAction: { ...idParam, body: z.object(reasonBody) },
 };

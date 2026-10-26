@@ -88,6 +88,9 @@ router.use('/class-sessions', readsOn([...CLASS_MENUS, '/facility/bookings', '/f
 const enrolRouter = express.Router();
 enrolRouter.post('/', validate(require('./class.schemas').enrol), require('./classEnrolment.controller').enrol);
 router.use('/class-enrolments', requireMenuAction('/facility/class-schedule'), enrolRouter);
+// Slice 5c: the patron's cancellation (with its preview) and the waitlist -
+// the Class Schedule's roster and the Control Station's Classes view share them.
+router.use('/class-lifecycle', requireAnyMenuAction(['/facility/class-schedule', '/facility/station']), require('./classLifecycle.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
