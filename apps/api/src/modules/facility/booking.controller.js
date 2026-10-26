@@ -280,9 +280,14 @@ exports.context = async (req, res) => {
         const window = await availability.windowFor(companyId, { setting, type, membershipTypeId: standing.membershipTypeId, timezone });
         const allowance = await getGuestAllowanceStanding(companyId, standing.memberId, DATE_RE.test(date) ? date : window.now.date);
         let heldSlots = 0;
-        if (type && DATE_RE.test(date)) {
+        let suspension = null;
+        if (DATE_RE.test(date)) {
             const patron = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: standing.memberId }, attributes: ['id'] });
-            if (patron) heldSlots = (await availability.heldSlotsByPatron(companyId, type.id, date, [patron.id])).get(patron.id) || 0;
+            if (patron && type) heldSlots = (await availability.heldSlotsByPatron(companyId, type.id, date, [patron.id])).get(patron.id) || 0;
+            // Slice 4 rule 7: an active suspension on the booking date refuses
+            // the booking - surfaced at Check, before the roster is keyed.
+            const susp = patron ? await noShow.activeSuspension(companyId, patron.id, date, { facilityTypeId: type ? type.id : null }) : null;
+            if (susp) suspension = { toDate: String(susp.toDate), reason: susp.reason || null };
         }
         res.status(200).json({
             member: {
@@ -295,6 +300,7 @@ exports.context = async (req, res) => {
             window: { dateFrom: window.dateFrom, dateTo: window.dateTo, effectiveDays: window.effectiveDays, hours: window.hours },
             guestAllowance: allowance,
             heldSlots,
+            suspension,
         });
     } catch (error) {
         console.error('Error loading facility booking context:', error);
@@ -476,7 +482,7 @@ exports.create = async (req, res) => {
         if (bookerStanding) {
             const bp = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: bookerStanding.memberId }, attributes: ['id'] });
             const susp = bp ? await noShow.activeSuspension(companyId, bp.id, date, { facilityTypeId: type.id }) : null;
-            if (susp) return res.status(400).json({ message: `${bookerStanding.name} (${bookerStanding.memberNo}) is suspended from booking until ${String(susp.toDate)}.` });
+            if (susp) return res.status(400).json({ message: `${bookerStanding.name} (${bookerStanding.memberNo}) is suspended from booking until ${shared.bookingDateText(String(susp.toDate))}.` });
         }
 
         // Rule 1 - the booker's window (visitors get the general rule).
@@ -492,7 +498,7 @@ exports.create = async (req, res) => {
             if (!l.standing) continue;
             const lp = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: l.standing.memberId }, attributes: ['id'] });
             const susp = lp ? await noShow.activeSuspension(companyId, lp.id, date, { facilityTypeId: type.id }) : null;
-            if (susp) return res.status(400).json({ message: `Participant ${l.sortOrder}: ${l.name} (${l.memberNo}) is suspended from booking until ${String(susp.toDate)}.` });
+            if (susp) return res.status(400).json({ message: `Participant ${l.sortOrder}: ${l.name} (${l.memberNo}) is suspended from booking until ${shared.bookingDateText(String(susp.toDate))}.` });
         }
         if (Number(type.minParticipants || 0) > 0 || type.maxParticipants != null) {
             const countError = rules.checkParticipantCount(lines.length, type);

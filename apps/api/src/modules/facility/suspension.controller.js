@@ -6,6 +6,7 @@ const { getUserContext, annotateCanModify, canModifyRecord } = require('../../pl
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const { companyTimezoneById } = require('../../platform/calendarGateway');
 const noShow = require('./noShow.service');
+const { bookingDateText } = require('./bookingShared');
 const patrons = require('./patron.service');
 const bookingRules = require('./bookingRules.service');
 const FacilityType = require('./facilityType.model');
@@ -63,10 +64,10 @@ exports.create = async (req, res) => {
         const stamps = await stampsFor(req);
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps);
         const existing = await PatronSuspension.findOne({ where: { companyId, patronId: patron.id, status: 'active' } });
-        if (existing) return res.status(409).json({ message: `${standing.name} is already suspended until ${String(existing.toDate)} - lift it first.` });
+        if (existing) return res.status(409).json({ message: `${standing.name} is already suspended until ${bookingDateText(String(existing.toDate))} - lift it first.` });
         const row = await PatronSuspension.create({ companyId, patronId: patron.id, patronName: standing.name, memberNo: standing.memberNo, facilityTypeId, reason, fromDate, toDate, strikeChargeIds: [], status: 'active', ...stamps });
         await noShow.queueSuspensionEmail(row);
-        res.status(201).json({ message: `${standing.name} suspended from booking until ${toDate}.`, suspension: noShow.suspensionDto(row) });
+        res.status(201).json({ message: `${standing.name} suspended from booking until ${bookingDateText(toDate)}.`, suspension: noShow.suspensionDto(row) });
     } catch (error) {
         console.error('Error creating facility suspension:', error);
         res.status(500).json({ message: 'Internal server error' });
