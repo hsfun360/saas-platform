@@ -1,0 +1,492 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">badge</span>
+      <div>
+        <h1>{{ 'Control Station' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The desk\'s day: check in booked slots, register entries against the capacity, issue and return units, close the day.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- THE DAY: club clock, date, totals -->
+  <div class="st-day">
+    <div class="st-day__clock">
+      @if (day(); as d) {
+        <span class="st-day__time">{{ d.clubNow.time }}</span>
+        <span class="cell-subtle">club time · {{ d.date | localDate:'weekday' }} · {{ d.dayType }}</span>
+      }
+    </div>
+    <div class="st-day__date">
+      <input type="date" #dateInput [value]="date()" (change)="setDate(dateInput.value)" aria-label="Station date" />
+      <button type="button" class="btn btn--link btn--sm" (click)="today()" [disabled]="isToday()">Today</button>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="load()" [disabled]="loading()" aria-label="Refresh">
+        <span class="material-icons" aria-hidden="true">refresh</span>
+      </button>
+    </div>
+    <div class="st-day__totals">
+      <span><strong>{{ insideCount() }}</strong> inside</span>
+      @if (overdueCount()) { <span class="st-overdue"><strong>{{ overdueCount() }}</strong> overdue</span> }
+    </div>
+  </div>
+
+  @if (loading() && !day()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the day…</p></div>
+  } @else if (types().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">meeting_room</span>
+      <p>No active facility type yet. Set the types up under Facility Types and the station fills itself.</p>
+    </div>
+  } @else {
+    <!-- TYPE STRIP -->
+    <div class="st-strip" role="tablist" aria-label="Facility types">
+      @for (t of types(); track t.id) {
+        <button type="button" role="tab" class="st-chip" [class.st-chip--active]="t.id === typeId()" [attr.aria-selected]="t.id === typeId()" (click)="setType(t.id)">
+          <span class="material-icons" aria-hidden="true">{{ t.usageMode === 'slot' ? 'event_available' : t.usageMode === 'entry' ? 'login' : 'vpn_key' }}</span>
+          <span class="st-chip__code">{{ t.code }}</span>
+          <span class="st-chip__meta">
+            @if (t.usageMode === 'slot') { {{ (t.slots || []).length }} slot{{ (t.slots || []).length === 1 ? '' : 's' }} }
+            @else if (t.usageMode === 'entry') { {{ t.liveCount }}{{ t.capacity != null ? ' / ' + t.capacity : '' }} in }
+            @else { {{ t.outCount }} out }
+          </span>
+        </button>
+      }
+    </div>
+
+    @if (current(); as t) {
+      <div class="st-type-head">
+        <span><strong>{{ t.code }}</strong> · {{ t.description }} · {{ modeLabel(t.usageMode) }}</span>
+        <span class="cell-subtle">
+          @if (t.hours) { Open {{ t.hours.open || '00:00' }} to {{ t.hours.close || '24:00' }}{{ t.isOpenNow ? '' : ' · closed now' }} }
+          @else { Open all day }
+        </span>
+      </div>
+
+      <!-- ============ CHECK-IN (slot types) ============ -->
+      @if (t.usageMode === 'slot') {
+        @if ((t.slots || []).length === 0) {
+          <div class="empty-state">
+            <span class="material-icons empty-icon" aria-hidden="true">event_available</span>
+            <p>No booked slot on {{ t.code }} for {{ date() | localDate }}.</p>
+          </div>
+        } @else {
+          <div class="data-list">
+            @for (s of t.slots; track s.slotId) {
+              <div class="data-card" [class.st-slot--open]="s.checkInState === 'open'" [class.st-slot--done]="s.checkInState === 'checked-in'">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ s.startTime }} - {{ s.endTime }} · {{ s.facility?.code }} <span class="data-card__reg">{{ s.bookingNo }}</span></div>
+                    <div class="data-card__subline">
+                      <span>{{ s.booker?.name }}</span>
+                      @if (s.booker?.memberNo) { <span class="data-card__reg">({{ s.booker?.memberNo }})</span> }
+                      @if (s.bill) { <span class="status-chip" [class.status-chip--on]="s.bill.status === 'settled'" [class.status-chip--info]="s.bill.status === 'open'">Bill {{ s.bill.billNo }} · {{ s.bill.status }}</span> }
+                    </div>
+                    <dl class="data-card__meta">
+                      <div class="meta"><dt>Participants</dt><dd>@for (p of s.participants; track p.id; let last = $last) {{{ p.name }}{{ last ? '' : ', ' }}}@if (!s.participants.length) { none keyed }</dd></div>
+                      @if (s.registration) { <div class="meta"><dt>Checked in</dt><dd>{{ s.registration.timeIn | localDate:'datetime' }} · {{ s.registration.registrationNo }}</dd></div> }
+                    </dl>
+                  </div>
+                  <div class="data-card__badge data-row__badge">
+                    <span class="status-chip" [class.status-chip--on]="s.checkInState === 'checked-in'" [class.status-chip--info]="s.checkInState === 'open'" [class.status-chip--off]="s.checkInState === 'early' || s.checkInState === 'closed'">{{ stateLabel(s.checkInState) }}</span>
+                  </div>
+                  <div class="data-row__actions">
+                    @if (s.checkInState === 'open') {
+                      <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="openCheckIn(s)">
+                        <span class="material-icons" aria-hidden="true">how_to_reg</span>
+                        Check in
+                      </button>
+                    } @else {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(s.bill?.id || null, s.bookingId)">
+                        <span class="material-icons" aria-hidden="true">receipt_long</span>
+                        {{ s.bill ? 'Bill' : 'Open bill' }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- ============ ENTRY (entry types) ============ -->
+      @if (t.usageMode === 'entry') {
+        <div class="st-capacity" [class.st-capacity--full]="t.capacity != null && (t.liveCount || 0) >= t.capacity">
+          <span class="st-capacity__count"><strong>{{ t.liveCount }}</strong>{{ t.capacity != null ? ' of ' + t.capacity : '' }} inside</span>
+          @if (t.capacity != null) {
+            <span class="st-capacity__bar" aria-hidden="true"><span class="st-capacity__fill" [style.width.%]="t.capacity ? ((t.liveCount || 0) / t.capacity) * 100 : 0"></span></span>
+          }
+          <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openRegister()" [disabled]="!t.isOpenNow && isToday()">
+            <span class="material-icons" aria-hidden="true">login</span>
+            Register
+          </button>
+        </div>
+        @if (entriesIn().length === 0 && entriesOut().length === 0) {
+          <div class="empty-state">
+            <span class="material-icons empty-icon" aria-hidden="true">login</span>
+            <p>Nobody registered on {{ t.code }} for {{ date() | localDate }} yet.</p>
+          </div>
+        } @else {
+          <div class="data-list">
+            @for (r of entriesIn(); track r.id) {
+              <div class="data-card">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__subline">
+                      <span class="data-card__reg">{{ r.registrationNo }} · in {{ r.timeIn | localDate:'datetime' }}{{ r.facility ? ' · ' + r.facility.code : '' }}</span>
+                      @if (r.bill) { <span class="status-chip" [class.status-chip--on]="r.bill.status === 'settled'" [class.status-chip--info]="r.bill.status === 'open'">Bill {{ r.bill.billNo }} · {{ r.bill.status }}</span> }
+                    </div>
+                    @if (r.guests.length) {
+                      <dl class="data-card__meta"><div class="meta"><dt>Guests</dt><dd>@for (g of r.guests; track g.id; let last = $last) {{{ g.name }}{{ last ? '' : ', ' }}}</dd></div></dl>
+                    }
+                  </div>
+                  <div class="data-card__badge data-row__badge"><span class="status-chip status-chip--on">In</span></div>
+                  <div class="data-row__actions">
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="signOut(r)" [disabled]="busyId() === r.id">
+                      <span class="material-icons" aria-hidden="true">logout</span>
+                      Sign out
+                    </button>
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openGuests(r)" [attr.aria-label]="'Guests of ' + r.registrationNo">
+                      <span class="material-icons" aria-hidden="true">group_add</span>
+                      Guests
+                    </button>
+                    @if (r.bill) {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(r.bill.id, null)" [attr.aria-label]="'Bill ' + r.bill.billNo">
+                        <span class="material-icons" aria-hidden="true">receipt_long</span>
+                        Bill
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+            @for (r of entriesOut(); track r.id) {
+              <div class="data-card st-card--out">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__subline"><span class="data-card__reg">{{ r.registrationNo }} · {{ r.timeIn | localDate:'datetime' }} to {{ r.timeOut | localDate:'datetime' }}{{ r.guestCount ? ' · ' + r.guestCount + ' guest' + (r.guestCount === 1 ? '' : 's') : '' }}</span></div>
+                  </div>
+                  <div class="data-card__badge data-row__badge"><span class="status-chip status-chip--off">Out</span></div>
+                  <div class="data-row__actions">
+                    @if (r.bill) {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(r.bill.id, null)">
+                        <span class="material-icons" aria-hidden="true">receipt_long</span>
+                        Bill
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- ============ ISSUE (issue types) ============ -->
+      @if (t.usageMode === 'issue') {
+        @if (t.trackUnits) {
+          <div class="st-board-head">
+            <span class="cell-subtle">Tap an available unit to issue it, an issued unit to take it back, a parked unit to clear it.</span>
+            <span class="st-legend" aria-hidden="true">
+              <span class="st-legend__item"><span class="st-unit-swatch st-unit-swatch--available"></span>Available</span>
+              <span class="st-legend__item"><span class="st-unit-swatch st-unit-swatch--issued"></span>Issued</span>
+              <span class="st-legend__item"><span class="st-unit-swatch st-unit-swatch--out-of-service"></span>Out of service</span>
+            </span>
+          </div>
+          @if (t.units.length === 0) {
+            <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">vpn_key</span><p>{{ t.code }} has no units yet. Add them under Facilities.</p></div>
+          } @else {
+            <div class="st-board" role="group" [attr.aria-label]="t.code + ' units'">
+              @for (u of t.units; track u.id) {
+                <button type="button" class="st-unit" [class]="'st-unit st-unit--' + u.unitStatus" [disabled]="!u.isActive" (click)="unitClicked(u)"
+                        [attr.aria-label]="u.code + ' - ' + (u.isActive ? u.unitStatus : 'inactive')" [title]="u.name">
+                  <span class="st-unit__code">{{ u.code }}</span>
+                  <span class="st-unit__state">{{ u.isActive ? (u.unitStatus === 'out-of-service' ? 'parked' : u.unitStatus) : 'inactive' }}</span>
+                </button>
+              }
+            </div>
+          }
+        } @else {
+          <div class="st-capacity">
+            <span class="st-capacity__count"><strong>{{ t.outCount }}</strong> {{ t.code }} out</span>
+            <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openIssue()" [disabled]="!t.isOpenNow && isToday()">
+              <span class="material-icons" aria-hidden="true">vpn_key</span>
+              Issue
+            </button>
+          </div>
+        }
+
+        <h2 class="section-heading st-section">Out now</h2>
+        @if (issuesOut().length === 0) {
+          <p class="cell-subtle">Nothing out on {{ t.code }}.</p>
+        } @else {
+          <div class="data-list">
+            @for (i of issuesOut(); track i.id) {
+              <div class="data-card" [class.st-card--overdue]="i.overdue">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ i.facility?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__subline">
+                      <span class="data-card__reg">issued {{ i.issuedAt | localDate:'datetime' }} · due {{ i.dueBack | localDate:'datetime' }}</span>
+                      @if (i.bill) { <span class="status-chip" [class.status-chip--on]="i.bill.status === 'settled'" [class.status-chip--info]="i.bill.status === 'open'">Bill {{ i.bill.billNo }} · {{ i.bill.status }}</span> }
+                    </div>
+                  </div>
+                  <div class="data-card__badge data-row__badge">
+                    <span class="status-chip" [class.status-chip--danger]="i.overdue" [class.status-chip--info]="!i.overdue">{{ i.overdue ? 'Overdue' : 'Issued' }}</span>
+                  </div>
+                  <div class="data-row__actions">
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openReturn(i)">
+                      <span class="material-icons" aria-hidden="true">assignment_return</span>
+                      Return
+                    </button>
+                    @if (i.bill) {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(i.bill.id, null)">
+                        <span class="material-icons" aria-hidden="true">receipt_long</span>
+                        Bill
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+        @if (issuesDone().length) {
+          <h2 class="section-heading st-section">Returned today</h2>
+          <div class="data-list">
+            @for (i of issuesDone(); track i.id) {
+              <div class="data-card st-card--out">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ i.facility?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }}</div>
+                    <div class="data-card__subline"><span class="data-card__reg">returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }}{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
+                  </div>
+                  <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- ============ END OF DAY ============ -->
+      @if (t.usageMode !== 'slot') {
+        <div class="st-eod">
+          <span class="cell-subtle">End of day: sign out everyone still in on {{ t.code }} and list the overdue issues.</span>
+          <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="askEndOfDay()" [disabled]="t.usageMode === 'entry' && !(t.liveCount || 0)">
+            <span class="material-icons" aria-hidden="true">nightlight</span>
+            End of day
+          </button>
+        </div>
+      }
+    }
+  }
+
+  <!-- ============ The ONE drawer ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
+                discardTitle="Discard?" discardMessage="You have unkeyed details. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          <!-- CHECK-IN: confirm who arrived -->
+          @case ('checkin') {
+            @if (checkInSlot(); as s) {
+              <p class="st-lead"><strong>{{ s.booker?.name }}</strong>{{ s.booker?.memberNo ? ' (' + s.booker?.memberNo + ')' : '' }} · {{ s.facility?.code }} {{ s.startTime }} - {{ s.endTime }} · booking {{ s.bookingNo }}</p>
+              @if (s.participants.length === 0) {
+                <p class="cell-subtle">No participants were keyed on this booking - the booker checks in alone.</p>
+              } @else {
+                <p class="cell-subtle">Untick a guest who did not arrive - the guest is dropped from the booking and the visit on the host's allowance is returned.</p>
+                <div class="array-editor">
+                  @for (p of s.participants; track p.id) {
+                    <label class="st-arrived">
+                      <input type="checkbox" [checked]="arrived().has(p.id)" [disabled]="p.isHost" (change)="toggleArrived(p.id)" />
+                      <span><strong>{{ p.name }}</strong>{{ p.memberNo ? ' (' + p.memberNo + ')' : '' }} <span class="data-card__reg">· {{ p.participantType }}{{ p.isHost ? ' · host' : '' }}</span></span>
+                    </label>
+                  }
+                </div>
+              }
+            }
+          }
+
+          <!-- REGISTER: a member at the door with guests -->
+          @case ('register') {
+            <form id="stRegister" [formGroup]="form" (ngSubmit)="submitRegister()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="stMember">Member number <span class="required">*</span></label>
+                  <input id="stMember" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" placeholder="e.g. A0018"
+                         [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="stMemberErr" />
+                  @if (showError(form.controls.memberNo)) { <p id="stMemberErr" class="field-error" role="alert">Key in the member number.</p> }
+                </div>
+                @if (entryUnitOptions().length > 1) {
+                  <div class="form-group">
+                    <label for="stUnit">Facility</label>
+                    <app-combobox formControlName="facilityId" inputId="stUnit" [options]="entryUnitOptions()" [allowEmpty]="true" emptyLabel="Any (the type's capacity)" placeholder="Type to search…" />
+                  </div>
+                }
+              </div>
+              <ng-container *ngTemplateOutlet="guestEditor"></ng-container>
+              <div class="form-group">
+                <label for="stRemarks">Remarks</label>
+                <textarea id="stRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+              </div>
+              @if (current(); as t) {
+                <p class="cell-subtle field-hint">{{ t.capacity != null ? (t.liveCount || 0) + ' of ' + t.capacity + ' inside now. ' : '' }}{{ t.entryRequiresBooking ? 'Entry needs a booking today. ' : '' }}The entry fee and the guest fees bill at registration when the type names them.</p>
+              }
+            </form>
+          }
+
+          <!-- GUESTS: edit the guests of a live entry -->
+          @case ('guests') {
+            <form id="stGuests" [formGroup]="form" (ngSubmit)="submitGuests()">
+              <ng-container *ngTemplateOutlet="guestEditor"></ng-container>
+              <p class="cell-subtle field-hint">The visits on the host's monthly allowance are re-recorded to match.</p>
+            </form>
+          }
+
+          <!-- ISSUE: a unit or a quantity to a member -->
+          @case ('issue') {
+            <form id="stIssue" [formGroup]="form" (ngSubmit)="submitIssue()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="stIssueMember">Member number <span class="required">*</span></label>
+                  <input id="stIssueMember" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" placeholder="e.g. A0018"
+                         [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="stIssueMemberErr" />
+                  @if (showError(form.controls.memberNo)) { <p id="stIssueMemberErr" class="field-error" role="alert">Key in the member number.</p> }
+                </div>
+                @if (current()?.trackUnits) {
+                  <div class="form-group">
+                    <label for="stIssueUnit">Unit</label>
+                    <app-combobox formControlName="facilityId" inputId="stIssueUnit" [options]="unitOptions()" [allowEmpty]="true" emptyLabel="Next available" placeholder="Type to search…" />
+                  </div>
+                } @else {
+                  <div class="form-group">
+                    <label for="stQty">Quantity <span class="required">*</span></label>
+                    <input id="stQty" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="quantity" />
+                  </div>
+                }
+              </div>
+              <div class="form-group">
+                <label for="stIssueRemarks">Remarks</label>
+                <textarea id="stIssueRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+              </div>
+              @if (current(); as t) {
+                <p class="cell-subtle field-hint">Due back {{ t.issueDueDays ? 'in ' + t.issueDueDays + ' day' + (t.issueDueDays === 1 ? '' : 's') : 'today' }} at the close time{{ t.maxIssuePerPatron ? ' · at most ' + t.maxIssuePerPatron + ' per member' : '' }}.</p>
+              }
+            </form>
+          }
+
+          <!-- RETURN: the condition -->
+          @case ('return') {
+            <form id="stReturn" [formGroup]="form" (ngSubmit)="submitReturn()">
+              @if (returnTarget(); as i) {
+                <p class="st-lead"><strong>{{ i.patron?.name }}</strong> · {{ i.facility?.code || current()?.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · issued {{ i.issuedAt | localDate:'datetime' }}</p>
+              }
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="stCondition">Condition <span class="required">*</span></label>
+                  <select id="stCondition" formControlName="condition" (change)="conditionChanged()">
+                    @for (c of meta()?.returnConditions || []; track c.key) { <option [value]="c.key">{{ c.label }}</option> }
+                  </select>
+                  <p class="cell-subtle field-hint">{{ current()?.trackUnits ? 'Damaged or lost parks the unit out of service until it is cleared.' : 'Lost pieces are the difference between issued and returned.' }}</p>
+                </div>
+                @if (!current()?.trackUnits && form.controls.condition.value !== 'lost') {
+                  <div class="form-group">
+                    <label for="stBack">Pieces returned</label>
+                    <input id="stBack" type="number" inputmode="numeric" min="0" [max]="returnTarget()?.quantity || 1" step="1" formControlName="returnedQuantity" />
+                  </div>
+                }
+              </div>
+              <div class="form-group">
+                <label for="stReturnRemarks">Remarks</label>
+                <textarea id="stReturnRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255" placeholder="Damage noted at return"></textarea>
+              </div>
+            </form>
+          }
+        }
+      </div>
+
+      <!-- The guest line editor shared by Register and Guests (inside the one form). -->
+      <ng-template #guestEditor>
+        <div class="array-editor" [formGroup]="form">
+          <div formArrayName="guests">
+            @if (guestLines.length) {
+              <div class="st-guest st-guest--head" aria-hidden="true"><span></span><span>Type</span><span>Member No / Guest name</span><span></span></div>
+            }
+            @for (g of guestLines.controls; track g; let i = $index) {
+              <div class="st-guest" [formGroupName]="i">
+                <span class="st-guest__no">{{ i + 1 }}</span>
+                <select formControlName="participantType" (change)="guestChanged()" [attr.aria-label]="'Guest ' + (i + 1) + ' type'">
+                  @for (t of guestTypes(); track t.key) { <option [value]="t.key">{{ t.label }}</option> }
+                </select>
+                @if (needsName(g.controls.participantType.value)) {
+                  <input type="text" formControlName="name" maxlength="255" placeholder="Guest name" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' name'" />
+                } @else {
+                  <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' member number'" />
+                }
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeGuest(i)" [attr.aria-label]="'Remove guest ' + (i + 1)">
+                  <span class="material-icons" aria-hidden="true">close</span>
+                </button>
+              </div>
+            }
+          </div>
+          @if (guestLines.length === 0) { <p class="cell-subtle">No guests.</p> }
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addGuest()" [disabled]="guestLines.length >= (meta()?.limits?.maxGuestsPerRegistration || 50)">
+            <span class="material-icons" aria-hidden="true">add</span>
+            Add guest
+          </button>
+        </div>
+      </ng-template>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('checkin') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="button" class="btn btn--primary" (click)="confirmCheckIn()" [disabled]="saving()">{{ saving() ? 'Checking in…' : 'Check in' }}</button>
+          }
+          @case ('register') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="stRegister" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Registering…' : 'Register' + (guestLines.length ? ' + ' + guestLines.length + ' guest' + (guestLines.length === 1 ? '' : 's') : '') }}</button>
+          }
+          @case ('guests') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="stGuests" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save ' + guestLines.length + ' guest' + (guestLines.length === 1 ? '' : 's') }}</button>
+          }
+          @case ('issue') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="stIssue" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Issuing…' : 'Issue' }}</button>
+          }
+          @case ('return') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="stReturn" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Recording…' : 'Record return' }}</button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

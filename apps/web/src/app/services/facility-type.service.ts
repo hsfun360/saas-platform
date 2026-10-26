@@ -56,6 +56,10 @@ export interface FacilityType {
   feeTransactionTypeId: string | null;
   guestFeeTransactionTypeId: string | null;
   requiresApproval: boolean;
+  // slice 3: issue fee, due days, entry gate
+  issueFeeTransactionTypeId: string | null;
+  issueDueDays: number;
+  entryRequiresBooking: boolean;
   // listing counts
   unitCount: number;
   activeUnitCount: number;

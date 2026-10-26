@@ -1,5 +1,6 @@
 import { Component, Injector, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -83,6 +84,8 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private static readonly LIST_PATH = '/facility/bookings';
   private static readonly TYPE_KEY = 'facility-bookings.typeId';
 
@@ -185,7 +188,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     if (mode === 'book') return `New booking - ${this.selectionSummary()}`;
     if (mode === 'participants') return d ? `Participants - ${d.bookingNo}` : 'Participants';
     const bs = this.billScreen();
-    if (mode === 'bill') return bs ? `Bill ${bs.bill.billNo} - booking ${bs.booking.bookingNo}` : 'Bill';
+    if (mode === 'bill') return bs ? `Bill ${bs.bill.billNo} - ${this.billSourceLabel()}` : 'Bill';
     if (mode === 'settle') return bs ? `Settle bill ${bs.bill.billNo}` : 'Settle';
     return d ? `Booking ${d.bookingNo}` : 'Booking';
   });
@@ -268,6 +271,16 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
         if (first) {
           this.typeId.set(first.id);
           this.loadDay();
+        }
+        // Deep links from the Control Station: open a bill by id, or the bill
+        // of a booking, in this screen's one bill drawer.
+        const qp = this.route.snapshot.queryParamMap;
+        const billId = qp.get('billId');
+        const openBillFor = qp.get('openBillFor');
+        if (billId || openBillFor) {
+          this.router.navigate([], { queryParams: {}, replaceUrl: true });
+          if (billId) this.showBill(billId);
+          else if (openBillFor) this.openBill(openBillFor);
         }
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load the booking setup.'),
@@ -782,6 +795,34 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Show an existing bill by id (a station bill on an entry or an issue, or a booking's).
+  showBill(billId: string): void {
+    this.clearMessages();
+    this.billBusy.set(true);
+    this.service.getBill(billId).subscribe({
+      next: (res) => {
+        this.billBusy.set(false);
+        this.billScreen.set(res);
+        this.billWarnings.set([]);
+        this.dlgMode.set('bill');
+      },
+      error: (err) => {
+        this.billBusy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the bill.');
+      },
+    });
+  }
+
+  // What the bill hangs off, for the drawer title.
+  billSourceLabel(): string {
+    const bs = this.billScreen();
+    if (!bs) return '';
+    const kind = bs.booking.kind || 'booking';
+    if (kind === 'registration') return `entry ${bs.booking.bookingNo || ''}`;
+    if (kind === 'issue') return `${bs.booking.facilityType?.code || ''} issue`;
+    return `booking ${bs.booking.bookingNo || ''}`;
+  }
+
   private applyBill(bill: FacilityBillDoc): void {
     const bs = this.billScreen();
     if (bs) this.billScreen.set({ ...bs, bill });
@@ -952,6 +993,8 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   backToDetail(): void {
     const bs = this.billScreen();
     const d = this.detail();
+    // A station bill (entry or issue) has no booking detail to return to.
+    if (bs && bs.booking.kind && bs.booking.kind !== 'booking') { this.closeDialog(); return; }
     const id = d?.id || bs?.booking.id;
     if (!id) { this.dlgMode.set(null); return; }
     this.openDetail(id);

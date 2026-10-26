@@ -86,6 +86,8 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
 
   // Long behavioural explanations live in <app-field-info> popovers.
   readonly hint = {
+    checkIn: 'The Control Station checks a booked slot in from this many minutes before its start until the slot ends; a slot never checked in is the no-show review\'s (No show slice).',
+    autoSignOut: 'At each type\'s close time the worker signs out every registration still in, so the register never carries yesterday\'s names; off = the desk signs everyone out by hand under End of day.',
     window: 'The general rule for every facility type. A type can shorten or lengthen its own window under Facility Types; the early-opening hours always apply club-wide.',
     sameDay: 'When off, bookings start from tomorrow up to the advance window - today\'s slots are taken by registering at the Control Station.',
     lock: 'A selected slot is held this long while the booking is keyed - a countdown shows on the booking screen.',
@@ -111,7 +113,7 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
   readonly errorMessage = signal('');
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, sessions: true, guests: true, noshow: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, sessions: true, guests: true, noshow: true, station: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -128,6 +130,8 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     allowMemberGuestWeekend: [true],
     noShowControlEnabled: [false],
     cancellationNoticeHours: [24, [Validators.required, Validators.min(0), Validators.max(720)]],
+    checkInOpenMinutes: [30, [Validators.required, Validators.min(0), Validators.max(240)]],
+    autoSignOutAtClose: [true],
     sessions: this.fb.array<SessionGroup>([]),
   });
 
@@ -233,6 +237,8 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
           allowMemberGuestWeekend: doc.allowMemberGuestWeekend !== false,
           noShowControlEnabled: doc.noShowControlEnabled === true,
           cancellationNoticeHours: doc.cancellationNoticeHours ?? 24,
+          checkInOpenMinutes: doc.checkInOpenMinutes ?? 30,
+          autoSignOutAtClose: doc.autoSignOutAtClose !== false,
         });
         this.sessions.clear();
         for (const s of doc.sessions || []) this.sessions.push(this.newSession(s));
@@ -359,6 +365,8 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
       allowMemberGuestWeekend: v.allowMemberGuestWeekend === true,
       noShowControlEnabled: v.noShowControlEnabled === true,
       cancellationNoticeHours: clampInt(v.cancellationNoticeHours, 0, 720, 24),
+      checkInOpenMinutes: clampInt(v.checkInOpenMinutes, 0, 240, 30),
+      autoSignOutAtClose: v.autoSignOutAtClose === true,
       sessions: sessions.map((s) => ({ name: s.name.trim(), startTime: s.startTime, endTime: s.endTime })),
     }).subscribe({
       next: (res) => {

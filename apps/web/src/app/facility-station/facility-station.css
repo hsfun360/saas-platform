@@ -1,0 +1,349 @@
+/* Control Station - screen-specific bits only: the day bar, the type strip,
+   the capacity bar, the unit board, the guest rows and the drawer leads. The
+   listing chrome (.data-*, .status-chip), .array-editor, .form-grid and the
+   dialog are global. Colours are tokens. */
+
+/* ---- the day bar ---- */
+.st-day {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+.st-day__clock {
+  display: flex;
+  flex-direction: column;
+}
+.st-day__time {
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.st-day__date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.st-day__date input[type='date'] {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+}
+.st-day__totals {
+  display: flex;
+  gap: var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.st-overdue {
+  color: var(--danger-text);
+}
+@media (max-width: 767px) {
+  .st-day {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- the type strip (scrolls sideways, every chip a 44px target) ---- */
+.st-strip {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding-bottom: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+.st-strip::-webkit-scrollbar {
+  display: none;
+}
+.st-chip {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--font-body-2);
+  cursor: pointer;
+}
+.st-chip .material-icons {
+  font-size: var(--icon-sm);
+  color: var(--text-muted);
+}
+.st-chip__code {
+  font-weight: var(--weight-semibold);
+}
+.st-chip__meta {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+.st-chip--active {
+  background: var(--brand-surface);
+  border-color: var(--brand);
+  color: var(--brand-text);
+}
+.st-chip--active .material-icons,
+.st-chip--active .st-chip__meta {
+  color: var(--brand-text);
+}
+
+.st-type-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+
+/* ---- slot cards by state ---- */
+.st-slot--open {
+  border-color: var(--brand);
+}
+.st-slot--done,
+.st-card--out {
+  opacity: 0.75;
+}
+.st-card--overdue {
+  border-color: var(--danger-border);
+}
+
+/* ---- the capacity bar + action ---- */
+.st-capacity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.st-capacity--full {
+  border-color: var(--danger-border);
+}
+.st-capacity__count {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.st-capacity__bar {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.st-capacity__fill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transition: width 0.3s;
+}
+.st-capacity--full .st-capacity__fill {
+  background: var(--danger-text);
+}
+@media (max-width: 767px) {
+  .st-capacity {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .st-capacity__bar {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---- the unit board ---- */
+.st-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-body-2);
+}
+.st-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.st-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.st-unit-swatch {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+}
+.st-unit-swatch--issued {
+  background: var(--success-surface);
+  border-color: var(--success-border);
+}
+.st-unit-swatch--out-of-service {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+}
+.st-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.st-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  min-height: 64px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+}
+.st-unit:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.st-unit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.st-unit__code {
+  font-weight: var(--weight-semibold);
+  font-size: var(--font-body-2);
+}
+.st-unit__state {
+  font-size: var(--font-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.st-unit--issued {
+  background: var(--success-surface);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+.st-unit--issued .st-unit__state {
+  color: var(--success-text);
+}
+.st-unit--out-of-service {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+.st-unit--out-of-service .st-unit__state {
+  color: var(--danger-text);
+}
+
+.st-section {
+  margin-top: var(--space-lg);
+}
+
+/* ---- end of day ---- */
+.st-eod {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  font-size: var(--font-body-2);
+}
+
+/* ---- drawer bits ---- */
+.st-lead {
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.st-arrived {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.st-arrived input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+/* Guest rows (grid-row field chrome). */
+.st-guest {
+  display: grid;
+  grid-template-columns: 28px 200px minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.st-guest--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.st-guest__no {
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-align: right;
+}
+.st-guest input,
+.st-guest select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.st-guest input:focus,
+.st-guest select:focus {
+  border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
+  background: var(--surface-card);
+}
+@media (max-width: 767px) {
+  .st-guest {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+  .st-guest select {
+    grid-column: 2 / 4;
+  }
+  .st-guest--head {
+    display: none;
+  }
+}

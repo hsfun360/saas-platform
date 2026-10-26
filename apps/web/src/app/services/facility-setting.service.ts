@@ -61,6 +61,9 @@ export interface FacilitySettingDoc {
   allowMemberGuestWeekend: boolean;
   noShowControlEnabled: boolean;
   cancellationNoticeHours: number;
+  // slice 3: Control Station
+  checkInOpenMinutes: number;
+  autoSignOutAtClose: boolean;
   saved: boolean;
   sessions: FacilitySessionBand[];
   overrides: FacilityAdvanceBookingOverride[];

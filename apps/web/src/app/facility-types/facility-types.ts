@@ -89,6 +89,7 @@ export class FacilityTypesComponent implements OnInit {
   readonly fees = signal<FacilityTransactionType[]>([]);
   readonly facilityFeeOptions = computed(() => this.feeOptionsFor('facility-fee'));
   readonly guestFeeOptions = computed(() => this.feeOptionsFor('guest-fee'));
+  readonly issueFeeOptions = computed(() => this.feeOptionsFor('issue-fee'));
   readonly usageModes = computed(() => this.meta()?.usageModes || FALLBACK_MODES);
   readonly dayScopes = computed(() => this.meta()?.dayScopes || FALLBACK_SCOPES);
   readonly slotMinutesMin = computed(() => this.meta()?.limits.slotMinutesMin || 15);
@@ -157,6 +158,9 @@ export class FacilityTypesComponent implements OnInit {
     // issue mode
     trackUnits: [true],
     maxIssuePerPatron: [1, [Validators.required, Validators.min(0), Validators.max(100)]],
+    issueDueDays: [0, [Validators.required, Validators.min(0), Validators.max(365)]],
+    issueFeeTransactionTypeId: [''],
+    entryRequiresBooking: [false],
     // opening hours
     openTimeWeekday: [''],
     closeTimeWeekday: [''],
@@ -303,6 +307,9 @@ export class FacilityTypesComponent implements OnInit {
       capacity: t?.capacity ?? null,
       trackUnits: t?.trackUnits !== false,
       maxIssuePerPatron: t?.maxIssuePerPatron ?? 1,
+      issueDueDays: t?.issueDueDays ?? 0,
+      issueFeeTransactionTypeId: t?.issueFeeTransactionTypeId || '',
+      entryRequiresBooking: t?.entryRequiresBooking === true,
       openTimeWeekday: t?.openTimeWeekday || '',
       closeTimeWeekday: t?.closeTimeWeekday || '',
       openTimeWeekend: t?.openTimeWeekend || '',
@@ -410,6 +417,9 @@ export class FacilityTypesComponent implements OnInit {
       capacity: optInt(v.capacity, 1, 100000),
       trackUnits: v.trackUnits === true,
       maxIssuePerPatron: clampInt(v.maxIssuePerPatron, 0, 100, 1),
+      issueDueDays: clampInt(v.issueDueDays, 0, 365, 0),
+      issueFeeTransactionTypeId: v.issueFeeTransactionTypeId || null,
+      entryRequiresBooking: v.entryRequiresBooking === true,
       openTimeWeekday: v.openTimeWeekday || null,
       closeTimeWeekday: v.closeTimeWeekday || null,
       openTimeWeekend: v.openTimeWeekend || null,

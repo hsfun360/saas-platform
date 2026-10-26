@@ -28,7 +28,7 @@ describe('FacilitySettingService', () => {
     service.save({
       advanceBookingDays: 10, advanceBookingHours: 2, allowSameDayBooking: true, bookingLockMinutes: 5,
       guestControlEnabled: true, allowGuestWeekday: true, allowMemberGuestWeekday: true, allowGuestWeekend: false, allowMemberGuestWeekend: true,
-      noShowControlEnabled: false, cancellationNoticeHours: 24,
+      noShowControlEnabled: false, cancellationNoticeHours: 24, checkInOpenMinutes: 30, autoSignOutAtClose: true,
       allowMembershipTypeOverride: true,
       overrides: [{ membershipTypeId: 'mt1', advanceBookingDays: 14 }],
       guestControlRules: [{ facilityTypeId: null, dayScope: 'sunday', startTime: null, endTime: null, allowGuest: false, allowMemberGuest: true }],

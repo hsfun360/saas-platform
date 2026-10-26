@@ -310,6 +310,42 @@
         }
       </div>
 
+      <!-- ============ Control Station (slice 3) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('station')"
+                [attr.aria-expanded]="isExpanded('station')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Control Station</span>
+            <span class="settings-header__sub">When a booked slot can be checked in, and the end-of-day sign-out.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('station')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('station')) {
+          <div class="settings-body">
+            <div class="fs-grid">
+              <div class="form-group">
+                <label for="fsCheckIn">Check-in opens (minutes before the slot) <span class="required">*</span>
+                  <app-field-info label="Check-in window" [text]="hint.checkIn" />
+                </label>
+                <input id="fsCheckIn" type="number" inputmode="numeric" min="0" max="240" step="1" formControlName="checkInOpenMinutes"
+                       [attr.aria-invalid]="showError(form.controls.checkInOpenMinutes)" aria-describedby="fsCheckInErr" />
+                @if (showError(form.controls.checkInOpenMinutes)) {
+                  <p id="fsCheckInErr" class="field-error" role="alert">Enter a whole number between 0 and 240.</p>
+                }
+                <p class="cell-subtle field-hint">Check-in stays open until the slot ends.</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="autoSignOutAtClose" />
+                <span>Sign everyone out at the type's close time</span>
+                <app-field-info label="End-of-day sign-out" [text]="hint.autoSignOut" />
+              </label>
+            </div>
+          </div>
+        }
+      </div>
+
       <!-- Sticky save bar (settings-chrome standard): only while dirty. -->
       @if (form.dirty) {
         <div class="save-bar" *appCan="'edit'">
