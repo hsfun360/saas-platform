@@ -188,7 +188,7 @@ export class ClassRosterComponent {
         this.confirmAction.set({
           title: p.mode === 'term' ? `Withdraw ${p.enrolment.patronName} from the term?` : `Cancel ${p.enrolment.patronName}'s seat?`,
           message: this.cancelMessage(p),
-          confirmLabel: p.mode === 'term' ? 'Withdraw from term' : p.late ? 'Cancel late, fee stands' : p.outcome === 'void' ? `Cancel and void ${p.bill?.billNo}` : 'Cancel seat',
+          confirmLabel: p.mode === 'term' ? 'Withdraw from term' : p.late ? 'Cancel late, fee stands' : p.outcome === 'void' ? 'Cancel and void bill' : 'Cancel seat',
           cancelLabel: 'Keep the seat',
           danger: true,
           run: () => {
@@ -223,8 +223,8 @@ export class ClassRosterComponent {
     }
     const when = p.session ? `${formatLocalDate(p.session.sessionDate, 'dayMonth')} ${p.session.startTime}` : 'the session';
     if (p.late) return `${when} starts inside the ${p.noticeHours}-hour notice, so this is a LATE cancellation: the seat is released but the fee stands (${bill}). A freed seat goes to the waitlist.`;
-    const outcome = p.outcome === 'void' ? `${bill} is voided - nothing is owed.`
-      : p.outcome === 'finance' ? `${bill} was settled - Finance refunds it; the bill stays as paid here.`
+    const outcome = p.outcome === 'void' ? `Bill ${p.bill?.billNo} (${p.bill?.totalAmount.toFixed(2)}, open) is voided - nothing is owed.`
+      : p.outcome === 'finance' ? `Bill ${p.bill?.billNo} (${p.bill?.totalAmount.toFixed(2)}) was settled - Finance refunds it; the bill stays as paid here.`
         : 'No fee was billed.';
     return `${when} is outside the ${p.noticeHours}-hour notice, so the seat cancels in time. ${outcome} A freed seat goes to the waitlist.`;
   }
