@@ -35,6 +35,7 @@ const patrons = require('./patron.service');
 const approval = require('./bookingApproval.service');
 const shared = require('./bookingShared');
 const billing = require('./billing.service');
+const noShow = require('./noShow.service');
 const { companyIdOf, stampsFor, DATE_RE, TIME_RE, toMinutes, txFail, runTx } = require('./facilityShared');
 const { BOOKING_STATUSES, SLOT_STATUSES, BOOKING_CHANNELS, BOOKING_LIMITS, ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 
@@ -471,6 +472,13 @@ exports.create = async (req, res) => {
             bookerStanding = r.standing;
         }
 
+        // Slice 4 rule 7 - a suspended member may not book (booker or participant).
+        if (bookerStanding) {
+            const bp = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: bookerStanding.memberId }, attributes: ['id'] });
+            const susp = bp ? await noShow.activeSuspension(companyId, bp.id, date, { facilityTypeId: type.id }) : null;
+            if (susp) return res.status(400).json({ message: `${bookerStanding.name} (${bookerStanding.memberNo}) is suspended from booking until ${String(susp.toDate)}.` });
+        }
+
         // Rule 1 - the booker's window (visitors get the general rule).
         const window = await availability.windowFor(companyId, { setting, type, membershipTypeId: bookerStanding ? bookerStanding.membershipTypeId : null, timezone });
         const windowError = rules.windowVerdict(window, date);
@@ -480,6 +488,12 @@ exports.create = async (req, res) => {
         const roster = await resolveRoster(companyId, req.body.participants, types);
         if (roster.error) return res.status(roster.status || 400).json({ message: roster.error });
         const { lines } = roster;
+        for (const l of lines) {
+            if (!l.standing) continue;
+            const lp = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: l.standing.memberId }, attributes: ['id'] });
+            const susp = lp ? await noShow.activeSuspension(companyId, lp.id, date, { facilityTypeId: type.id }) : null;
+            if (susp) return res.status(400).json({ message: `Participant ${l.sortOrder}: ${l.name} (${l.memberNo}) is suspended from booking until ${String(susp.toDate)}.` });
+        }
         if (Number(type.minParticipants || 0) > 0 || type.maxParticipants != null) {
             const countError = rules.checkParticipantCount(lines.length, type);
             if (countError) return res.status(400).json({ message: countError });
@@ -692,7 +706,20 @@ exports.cancelPreview = async (req, res) => {
         const verdict = facts.liveSlots.length
             ? rules.cancelVerdict({ setting, now: rules.clubNow(timezone), bookingDate: String(facts.liveSlots[0].bookingDate), startTime: facts.firstStart })
             : { controlled: false, late: false, noticeHours: 0, minutesLeft: 0 };
-        res.status(200).json({ ...verdict, pending: booking.status === 'pending-approval', slots: facts.liveSlots.length, guestVisits: facts.participants.filter((p) => p.guestVisitId).length });
+        const out = { ...verdict, pending: booking.status === 'pending-approval', slots: facts.liveSlots.length, guestVisits: facts.participants.filter((p) => p.guestVisitId).length };
+        // Slice 4: what a late cancel costs, or that it is refused.
+        if (verdict.late && booking.status === 'booked') {
+            const cfg = await noShow.config(companyId);
+            const type = facts.type;
+            if (cfg && type && type.noShowChargeEnabled !== false) {
+                out.action = cfg.lateAction;
+                out.refused = cfg.lateAction === 'refuse';
+                const priced = await noShow.quote(req, cfg, { facilityTypeId: type.id, bookingDate: String(facts.liveSlots[0].bookingDate), slots: facts.liveSlots.length, participants: facts.roster.length });
+                out.charge = priced.unpriced ? { unpriced: true, reason: priced.reason, quantity: priced.quantity } : { description: priced.description, quantity: priced.quantity, unitAmount: priced.unitAmount, amount: priced.amount, taxAmount: priced.taxAmount, totalAmount: priced.totalAmount };
+                out.bookerIsMember = !!(facts.booker && facts.booker.patronType === 'member');
+            }
+        }
+        res.status(200).json(out);
     } catch (error) {
         console.error('Error previewing facility booking cancel:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -716,6 +743,25 @@ exports.cancel = async (req, res) => {
         const verdict = date && !wasPending
             ? rules.cancelVerdict({ setting, now: rules.clubNow(timezone), bookingDate: date, startTime: facts0.firstStart })
             : { late: false };
+        // Slice 4 rule 1: inside the notice the charge is raised (or the cancel
+        // refused); the desk may waive with a reason.
+        let lateCharge = null;
+        if (verdict.late && booking.status === 'booked') {
+            const cfg = await noShow.config(companyId);
+            const bType = facts0.type;
+            if (cfg && bType && bType.noShowChargeEnabled !== false) {
+                const waive = req.body.waiveCharge === true;
+                const waiveReason = waive && req.body.waiveReason ? String(req.body.waiveReason).trim().slice(0, 255) : '';
+                if (waive && !waiveReason) return res.status(400).json({ message: 'Give a reason for waiving the late cancellation charge.' });
+                if (cfg.lateAction === 'refuse' && !waive) {
+                    const { deadline } = noShow.lateness(cfg, date, facts0.firstStart, timezone);
+                    return res.status(400).json({ message: `Cancellation is refused inside the ${cfg.noticeHours}-hour notice${deadline ? ` (the deadline was ${deadline.date} ${deadline.time})` : ''} - cancel with a waived charge if the club allows it.` });
+                }
+                const priced = await noShow.quote(req, cfg, { facilityTypeId: bType.id, bookingDate: date, slots: facts0.liveSlots.length, participants: facts0.roster.length });
+                lateCharge = { cfg, priced, waive: waive ? { reason: waiveReason } : null };
+            }
+        }
+        const stamps = await stampsFor(req);
 
         const out = await sequelize.transaction(async (transaction) => {
             if (date) await shared.advisoryLock(transaction, companyId, date);
@@ -729,19 +775,32 @@ exports.cancel = async (req, res) => {
             row.workflowInstanceId = null;
             row.updatedBy = callerId;
             await row.save({ transaction });
+            let charge = null;
+            if (lateCharge) {
+                charge = await noShow.raise({ req, booking: row, facts: facts0, chargeReason: 'late-cancel', priced: lateCharge.priced, waive: lateCharge.waive, strike: false, stamps, transaction });
+            }
             await approval.releaseSlots(row, { transaction });
             if (wasPending) await workflowGateway.cancelForEntity(approval.ENTITY_TYPE, row.id, transaction);
             const facts = await shared.bookingFacts(row, { transaction });
             await shared.queueBookingEmail({
                 companyId, templateKey: 'facility.booking.cancelled',
                 recipients: await shared.recipientsOf(companyId, row, facts),
-                data: shared.emailData(row, facts, approval.labelsOf(types), { cancelReason: reason || '' }), transaction,
+                data: shared.emailData(row, facts, approval.labelsOf(types), { cancelReason: reason || '', lateCharge: charge && charge.status === 'pending' ? Number(charge.totalAmount).toFixed(2) : '' }), transaction,
             });
-            return { row, facts };
+            return { row, facts, charge };
         });
         if (out.fail) return res.status(400).json({ message: out.fail });
+        // Post the late-cancel charge AFTER commit (never inside it).
+        let chargeNote = '';
+        if (out.charge) {
+            if (out.charge.status === 'waived') chargeNote = ' The late cancellation charge was waived.';
+            else {
+                const posted = await noShow.postPending(req, out.charge);
+                chargeNote = posted.status === 'posted' ? ` Late cancellation charge ${Number(posted.totalAmount).toFixed(2)} posted to the account (${posted.arDocNo}).` : ` Late cancellation charge raised but not posted: ${posted.remarks}`;
+            }
+        }
         res.status(200).json({
-            message: verdict.late ? `Booking ${out.row.bookingNo} cancelled - inside the ${verdict.noticeHours}-hour notice, recorded as a late cancellation.` : `Booking ${out.row.bookingNo} cancelled.`,
+            message: (verdict.late ? `Booking ${out.row.bookingNo} cancelled - inside the ${verdict.noticeHours}-hour notice, recorded as a late cancellation.` : `Booking ${out.row.bookingNo} cancelled.`) + chargeNote,
             booking: bookingDto(out.row, out.facts),
         });
     } catch (error) {

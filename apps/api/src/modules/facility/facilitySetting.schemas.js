@@ -35,6 +35,14 @@ const saveBody = z.object({
     // Cancellation and no-show
     noShowControlEnabled: bool,
     cancellationNoticeHours: numberish,
+    // No show (slice 4)
+    lateCancellationAction: str(10),
+    noShowTransactionTypeId: str(64),
+    noShowChargeBasis: str(12),
+    noShowGraceMinutes: numberish,
+    strikeCount: numberish,
+    strikeWindowDays: numberish,
+    strikeSuspensionDays: numberish,
     // Control Station (slice 3)
     checkInOpenMinutes: numberish,
     autoSignOutAtClose: bool,

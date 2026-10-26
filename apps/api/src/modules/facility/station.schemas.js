@@ -41,4 +41,5 @@ module.exports = {
     },
     returnIssue: { ...idParam, body: z.object({ condition: z.string().max(10), returnedQuantity: numberish, remarks: str(255) }) },
     endOfDay: { body: z.object({ facilityTypeId: str(64), date: str(10) }) },
+    markNoShows: { body: z.object({ slotIds: z.array(z.string().max(64)).min(1).max(200) }) },
 };

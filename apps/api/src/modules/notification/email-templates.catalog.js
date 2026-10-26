@@ -1092,4 +1092,73 @@ module.exports = [
             <p style="font-size: 12px; color: #666; margin-top: 16px;">If this is unexpected, please contact the club's front desk.</p>
         `),
     },
+    // ---- Facility no-show (structures approved 2026-10-26, slice 4) ----
+    {
+        key: 'facility.noshow.charged',
+        name: 'Facility no-show / late cancellation charge',
+        description: 'Sent to the booker when a facility no-show or late-cancellation charge is posted to their account (never for pending or waived charges).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'bookingNo', description: 'The booking number the charge relates to.' },
+            { name: 'bookingDateText', description: "The booking date, e.g. '27 Sept 2026'." },
+            { name: 'reasonLabel', description: "'No show' or 'Late cancellation'." },
+            { name: 'isLateCancel', description: 'True for a late cancellation (drives the wording).' },
+            { name: 'slotSummary', description: "The slots, e.g. 'BC2 18:00 - 20:00 (2 slots)'." },
+            { name: 'description', description: 'The charge item, e.g. NOSHOW - No-show charge.' },
+            { name: 'quantity', description: 'The quantity charged (1 per booking, the slots, or the participants).' },
+            { name: 'unitAmount', description: "The price each, e.g. '50.00'." },
+            { name: 'taxAmount', description: "The tax, e.g. '3.00' (empty when none)." },
+            { name: 'totalAmount', description: "The amount posted, e.g. '53.00'." },
+            { name: 'arDocNo', description: 'The invoice number on the account.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookerName: 'Ahmad Faizal', bookingNo: 'FB-00012', bookingDateText: '27 Sept 2026', reasonLabel: 'No show', isLateCancel: false,
+            slotSummary: 'BC2 18:00 - 20:00 (2 slots)', description: 'NOSHOW - No-show charge', quantity: 1, unitAmount: '50.00', taxAmount: '3.00', totalAmount: '53.00',
+            arDocNo: 'INV-000123', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: '{{reasonLabel}} charge {{totalAmount}} - booking {{bookingNo}} ({{bookingDateText}})',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">{{#if isLateCancel}}Late cancellation charge{{else}}No-show charge{{/if}}</h2>
+            <p>Dear {{bookerName}},</p>
+            {{#if isLateCancel}}
+            <p>Booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> for <strong>{{bookingDateText}}</strong> was cancelled inside the club's cancellation notice period, so the late cancellation charge applies to the booker.</p>
+            {{else}}
+            <p>Booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> ({{slotSummary}}) on <strong>{{bookingDateText}}</strong> was not checked in, so the club's no-show charge applies to the booker.</p>
+            {{/if}}
+            <p>
+                <strong>Item:</strong> {{description}}<br>
+                <strong>Quantity:</strong> {{quantity}} x {{unitAmount}}{{#if taxAmount}}<br>
+                <strong>Tax:</strong> {{taxAmount}}{{/if}}<br>
+                <strong>Charged to your account:</strong> {{totalAmount}} ({{arDocNo}})
+            </p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Please contact the club's office if you believe this charge is in error.</p>
+        `),
+    },
+    {
+        key: 'facility.suspension.started',
+        name: 'Facility booking suspension',
+        description: 'Sent to the member when a booking suspension starts (automatic after repeated no-shows, or keyed by the office).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'memberName', description: "The member's name." },
+            { name: 'reason', description: 'The reason recorded on the suspension.' },
+            { name: 'fromDateText', description: "The first day, e.g. '27 Sept 2026'." },
+            { name: 'toDateText', description: "The last day, e.g. '26 Oct 2026'." },
+            { name: 'strikes', description: 'The number of no-shows behind an automatic suspension (0 for a manual one).' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { memberName: 'Ahmad Faizal', reason: 'Automatic - 3 no-shows in 90 days', fromDateText: '27 Sept 2026', toDateText: '26 Oct 2026', strikes: 3, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Facility booking suspended until {{toDateText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Facility booking suspended</h2>
+            <p>Dear {{memberName}},</p>
+            <p>Your facility booking at <strong>{{companyName}}</strong> is suspended from <strong>{{fromDateText}}</strong> to <strong>{{toDateText}}</strong> inclusive.</p>
+            <p><strong>Reason:</strong> {{reason}}</p>
+            <p>You may still use the facilities at the control station; booking resumes the day after the suspension ends. Please contact the club's office if you have any questions.</p>
+        `),
+    },
 ];

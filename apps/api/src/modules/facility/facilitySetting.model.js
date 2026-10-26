@@ -114,6 +114,48 @@ const FacilitySetting = sequelize.define('FacilitySetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // ---- slice 4 (structures approved 2026-10-26) ----
+    // 'charge' raises the late-cancel charge and lets the cancel through;
+    // 'refuse' refuses a cancel inside the notice (the desk may waive).
+    lateCancellationAction: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'charge',
+    },
+    // The no-show item priced; NULL = the active no-show item scoped to the
+    // facility type, else the general one, else raised unpriced.
+    noShowTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // 'booking' | 'slot' | 'participant'.
+    noShowChargeBasis: {
+        type: DataTypes.STRING(12),
+        allowNull: false,
+        defaultValue: 'booking',
+    },
+    // A booked slot may be marked no-show once start + grace has passed.
+    noShowGraceMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 15,
+    },
+    // N counted no-shows in M days suspend booking for S days.
+    strikeCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 3,
+    },
+    strikeWindowDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 90,
+    },
+    strikeSuspensionDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

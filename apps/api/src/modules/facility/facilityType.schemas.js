@@ -34,6 +34,8 @@ const body = {
     maxIssuePerPatron: numberish,
     issueDueDays: numberish,
     entryRequiresBooking: bool,
+    noShowChargeEnabled: bool,
+    noShowStrikeEnabled: bool,
     // opening hours
     openTimeWeekday: str(8),
     closeTimeWeekday: str(8),

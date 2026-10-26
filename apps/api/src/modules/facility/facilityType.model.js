@@ -180,6 +180,18 @@ const FacilityType = sequelize.define('FacilityType', {
         allowNull: false,
         defaultValue: false,
     },
+    // ---- slice 4 (structures approved 2026-10-26): both effective only
+    // while the Specification's master switch is ON ----
+    noShowChargeEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    noShowStrikeEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

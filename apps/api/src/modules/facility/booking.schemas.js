@@ -49,6 +49,6 @@ module.exports = {
         }),
     },
     id: idParam,
-    cancel: { ...idParam, body: z.object({ reason: str(255) }) },
+    cancel: { ...idParam, body: z.object({ reason: str(255), waiveCharge: z.boolean().optional(), waiveReason: str(255) }) },
     participants: { ...idParam, body: z.object({ participants: z.array(participantLine).max(50), hostMemberNo: str(50) }) },
 };

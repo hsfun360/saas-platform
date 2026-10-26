@@ -117,6 +117,16 @@ exports.clearUnit = async (req, res) => {
     }
 };
 
+// POST /api/facility/station/no-shows { slotIds }
+exports.markNoShows = async (req, res) => {
+    try {
+        send(res, await station.markNoShows(req, req.body));
+    } catch (error) {
+        console.error('Error marking facility no-shows:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/facility/station/end-of-day { facilityTypeId?, date }
 exports.endOfDay = async (req, res) => {
     try {

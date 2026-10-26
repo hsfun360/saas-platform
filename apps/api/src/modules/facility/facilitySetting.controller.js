@@ -31,6 +31,13 @@ const DEFAULTS = {
     cancellationNoticeHours: 24,
     checkInOpenMinutes: 30,
     autoSignOutAtClose: true,
+    lateCancellationAction: 'charge',
+    noShowTransactionTypeId: null,
+    noShowChargeBasis: 'booking',
+    noShowGraceMinutes: 15,
+    strikeCount: 3,
+    strikeWindowDays: 90,
+    strikeSuspensionDays: 30,
 };
 
 function settingDto(row) {
@@ -50,6 +57,13 @@ function settingDto(row) {
         cancellationNoticeHours: row.cancellationNoticeHours,
         checkInOpenMinutes: row.checkInOpenMinutes ?? 30,
         autoSignOutAtClose: row.autoSignOutAtClose !== false,
+        lateCancellationAction: row.lateCancellationAction === 'refuse' ? 'refuse' : 'charge',
+        noShowTransactionTypeId: row.noShowTransactionTypeId || null,
+        noShowChargeBasis: row.noShowChargeBasis || 'booking',
+        noShowGraceMinutes: row.noShowGraceMinutes ?? 15,
+        strikeCount: row.strikeCount ?? 3,
+        strikeWindowDays: row.strikeWindowDays ?? 90,
+        strikeSuspensionDays: row.strikeSuspensionDays ?? 30,
         saved: true,
     };
 }
@@ -82,6 +96,9 @@ exports.get = async (req, res) => {
             // Pickers (served here so the screen needs no Membership grant).
             membershipTypes,
             facilityTypes,
+            // Slice 4: the pickable no-show items.
+            noShowTypes: (await require('./transactionType.model').findAll({ where: { companyId, chargeType: 'no-show', isActive: true }, attributes: ['id', 'transactionType', 'description', 'facilityTypeId'], order: [['transactionType', 'ASC']] }))
+                .map((t) => ({ id: t.id, transactionType: t.transactionType, description: t.description, facilityTypeId: t.facilityTypeId || null })),
         });
     } catch (error) {
         console.error('Error loading facility settings:', error);
@@ -191,6 +208,10 @@ exports.save = async (req, res) => {
             ['bookingLockMinutes', 1, 60, 'Booking lock minutes must be a whole number between 1 and 60.'],
             ['cancellationNoticeHours', 0, 720, 'Cancellation notice must be a whole number of hours between 0 and 720.'],
             ['checkInOpenMinutes', 0, 240, 'Check-in opens must be a whole number of minutes between 0 and 240.'],
+            ['noShowGraceMinutes', 0, 240, 'No-show grace must be a whole number of minutes between 0 and 240.'],
+            ['strikeCount', 1, 20, 'Strike count must be a whole number between 1 and 20.'],
+            ['strikeWindowDays', 1, 365, 'Strike window must be a whole number of days between 1 and 365.'],
+            ['strikeSuspensionDays', 1, 365, 'Strike suspension must be a whole number of days between 1 and 365.'],
         ];
         const values = {};
         for (const [field, min, max, message] of ints) {
@@ -202,6 +223,14 @@ exports.save = async (req, res) => {
             'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose']) {
             values[flag] = req.body[flag] === true;
         }
+        // Slice 4: the late-cancel action, the charge basis and the no-show item.
+        values.lateCancellationAction = req.body.lateCancellationAction === 'refuse' ? 'refuse' : 'charge';
+        values.noShowChargeBasis = ['booking', 'slot', 'participant'].includes(req.body.noShowChargeBasis) ? req.body.noShowChargeBasis : 'booking';
+        if (req.body.noShowTransactionTypeId) {
+            const tt = await require('./transactionType.model').findOne({ where: { companyId, id: String(req.body.noShowTransactionTypeId) } });
+            if (!tt || tt.chargeType !== 'no-show') return res.status(400).json({ message: 'The no-show item must be a No Show Charges transaction type of the active company.' });
+            values.noShowTransactionTypeId = tt.id;
+        } else values.noShowTransactionTypeId = null;
 
         const parsedSessions = parseSessions(req.body.sessions);
         if (parsedSessions.error) return res.status(400).json({ message: parsedSessions.error });

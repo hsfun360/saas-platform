@@ -33,6 +33,7 @@ const shared = require('./bookingShared');
 const { stampsFor, toMinutes, txFail, runTx } = require('./facilityShared');
 const { ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 const { STATION_LIMITS } = require('./station.constants');
+const noShow = require('./noShow.service');
 
 // ---- club clock helpers -------------------------------------------------------
 
@@ -158,6 +159,7 @@ async function dayPicture(companyId, date, callerId) {
     const billByIssue = new Map(billsOfIssues.map((b) => [b.issueRecordId, { id: b.id, billNo: b.billNo, status: b.status, totalAmount: Number(b.totalAmount) }]));
     const nowDate = new Date();
 
+    const cfg = await noShow.config(companyId);
     const out = types.map((t) => {
         const typeUnits = units.filter((u) => u.facilityTypeId === t.id);
         const hours = rules.openingHours(t, dayType);
@@ -187,6 +189,9 @@ async function dayPicture(companyId, date, callerId) {
                         booker: booker ? { id: booker.id, name: booker.name, memberNo: booker.memberNo, patronType: booker.patronType } : null,
                         participants: (participantsBySlot.get(s.id) || []).map((p) => ({ id: p.id, name: p.name, memberNo: p.memberNo, participantType: p.participantType, isHost: p.isHost === true })),
                         checkInState: state,
+                        // Slice 4 rule 2: a booked slot past start + grace with no check-in.
+                        noShowEligible: !!(cfg && t.noShowChargeEnabled !== false && s.status === 'booked' && !reg && date <= now.date
+                            && bookingRules.minutesUntil(now, String(s.bookingDate), hhmm(s.startTime)) <= -Number(cfg.graceMinutes || 0)),
                         registration: reg ? registrationDto(reg, { patron: patronById.get(reg.patronId), unit }) : null,
                         bill: b ? billByBooking.get(b.id) || null : null,
                     };
@@ -208,7 +213,83 @@ async function dayPicture(companyId, date, callerId) {
             issues: typeIssues.map((i) => issueDto(i, { patron: patronById.get(i.patronId), unit: i.facilityId ? unitById.get(i.facilityId) : null, bill: billByIssue.get(i.id) || null }, nowDate)),
         };
     });
-    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, types: out, callerId };
+    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, noShowControlled: !!cfg, noShowGraceMinutes: cfg ? cfg.graceMinutes : null, types: out, callerId };
+}
+
+// ---- slice 4 rules 2 + 3: mark booked slots as no-show ----------------------------
+
+// Mark the given booked slots no-show (each must be past its start plus the
+// grace), raising ONE charge per booking at its first no-show slot (a later
+// slot of the same booking updates the quantity under the slot basis) and
+// counting the strike; the charges post AFTER commit. Returns the summary.
+async function markNoShows(req, { slotIds }) {
+    const companyId = getUserContext(req).companyId;
+    const ids = [...new Set((Array.isArray(slotIds) ? slotIds : []).map(String))];
+    if (!ids.length) return { error: 'Pick at least one slot.' };
+    const cfg = await noShow.config(companyId);
+    if (!cfg) return { error: 'No-show control is off on Facility Specification.' };
+    const { now } = await clock(companyId);
+    const slots = await BookingSlot.findAll({ where: { companyId, id: { [Op.in]: ids }, status: 'booked' } });
+    if (!slots.length) return { error: 'None of the slots is still booked - refresh the day.' };
+    const bookingIds = [...new Set(slots.map((s) => s.bookingId))];
+    const bookings = await Booking.findAll({ where: { companyId, id: { [Op.in]: bookingIds }, status: 'booked' } });
+    const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    const typeIds = [...new Set(bookings.map((b) => b.facilityTypeId))];
+    const types = await FacilityType.findAll({ where: { id: { [Op.in]: typeIds } } });
+    const typeById = new Map(types.map((t) => [t.id, t]));
+    const registered = new Set((await Registration.findAll({ where: { bookingSlotId: { [Op.in]: slots.map((s) => s.id) } }, attributes: ['bookingSlotId'] })).map((r) => r.bookingSlotId));
+    for (const s of slots) {
+        if (registered.has(s.id)) return { error: `The ${hhmm(s.startTime)} slot was checked in.` };
+        if (bookingRules.minutesUntil(now, String(s.bookingDate), hhmm(s.startTime)) > -Number(cfg.graceMinutes || 0)) return { error: `The ${hhmm(s.startTime)} slot is inside its grace of ${cfg.graceMinutes} minutes - not a no-show yet.` };
+        if (!bookingById.has(s.bookingId)) return { error: 'One of the bookings is no longer booked - refresh the day.' };
+    }
+    const stamps = await stampsFor(req);
+    const callerId = getUserContext(req).userId;
+    const raised = [];
+    const suspensions = [];
+    let marked = 0;
+    await sequelize.transaction(async (transaction) => {
+        for (const bookingId of bookingIds) {
+            const booking = bookingById.get(bookingId);
+            const type = typeById.get(booking.facilityTypeId);
+            const mine = slots.filter((s) => s.bookingId === bookingId);
+            const [n] = await BookingSlot.update({ status: 'no-show' }, { where: { id: { [Op.in]: mine.map((s) => s.id) }, status: 'booked' }, transaction });
+            marked += n;
+            if (!type || type.noShowChargeEnabled === false) continue;
+            const facts = await shared.bookingFacts(booking, { transaction });
+            const noShowSlots = facts.slots.filter((s) => s.row.status === 'no-show').length;
+            const existing = await noShow.NoShowCharge.findOne({ where: { companyId, bookingId, chargeReason: 'no-show' }, transaction });
+            if (existing) {
+                if (cfg.basis === 'slot' && existing.status === 'pending' && existing.transactionTypeId) {
+                    const re = await noShow.quote(req, cfg, { facilityTypeId: type.id, bookingDate: String(facts.shownSlots[0].bookingDate), slots: noShowSlots, participants: facts.roster.length }, { transaction });
+                    if (!re.unpriced) {
+                        Object.assign(existing, { quantity: re.quantity, unitAmount: re.unitAmount, amount: re.amount, taxAmount: re.taxAmount, taxBreakdown: re.taxBreakdown, totalAmount: re.totalAmount, updatedBy: callerId });
+                        await existing.save({ transaction });
+                    }
+                }
+                continue;
+            }
+            const priced = await noShow.quote(req, cfg, { facilityTypeId: type.id, bookingDate: String(facts.shownSlots[0].bookingDate), slots: noShowSlots, participants: facts.roster.length }, { transaction });
+            const row = await noShow.raise({ req, booking, facts, chargeReason: 'no-show', priced, waive: null, strike: type.noShowStrikeEnabled === true, stamps, transaction });
+            raised.push(row);
+            const susp = await noShow.strike({ req, row, cfg, stamps, transaction });
+            if (susp) suspensions.push(susp);
+        }
+    });
+    // Post AFTER commit (the marks survive an AR hiccup).
+    let posted = 0;
+    const pending = [];
+    for (const row of raised) {
+        const r = await noShow.postPending(req, row);
+        if (r.status === 'posted') posted += 1;
+        else pending.push(`${r.bookingNo}: ${r.remarks}`);
+    }
+    for (const s of suspensions) await noShow.queueSuspensionEmail(s);
+    const parts = [`${marked} slot${marked === 1 ? '' : 's'} recorded as no-show on ${bookingIds.length} booking${bookingIds.length === 1 ? '' : 's'}.`];
+    if (posted) parts.push(`${posted} charge${posted === 1 ? '' : 's'} posted.`);
+    if (pending.length) parts.push(`${pending.length} charge${pending.length === 1 ? '' : 's'} pending - ${pending.join('; ')}`);
+    if (suspensions.length) parts.push(`${suspensions.length} member${suspensions.length === 1 ? '' : 's'} suspended from booking.`);
+    return { message: parts.join(' '), marked, posted, pending: pending.length, suspended: suspensions.length };
 }
 
 // ---- shared pieces ---------------------------------------------------------------------
@@ -594,7 +675,17 @@ async function endOfDay(req, { facilityTypeId = null, date }) {
     if (facilityTypeId) where.facilityTypeId = facilityTypeId;
     const [n] = await Registration.update({ status: 'out', timeOut: new Date(), updatedBy: getUserContext(req).userId }, { where });
     const overdue = await IssueRecord.count({ where: { companyId, status: 'issued', dueBack: { [Op.lt]: new Date() }, ...(facilityTypeId ? { facilityTypeId } : {}) } });
-    return { message: `${n} registration${n === 1 ? '' : 's'} signed out.${overdue ? ` ${overdue} issue${overdue === 1 ? '' : 's'} overdue.` : ''}`, signedOut: n, overdue };
+    // Slice 4 rule 3: every still-booked slot past its end on the date is a
+    // no-show (charges raised, strikes counted) while the control is ON.
+    let sweep = null;
+    if (await noShow.config(companyId)) {
+        const { now } = await clock(companyId);
+        const booked = await BookingSlot.findAll({ where: { companyId, bookingDate: date, status: 'booked', ...(facilityTypeId ? { facilityTypeId } : {}) }, attributes: ['id', 'bookingDate', 'endTime'] });
+        const past = booked.filter((s) => bookingRules.minutesUntil(now, String(s.bookingDate), hhmm(s.endTime)) <= 0).map((s) => s.id);
+        if (past.length) sweep = await markNoShows(req, { slotIds: past });
+    }
+    const msg = `${n} registration${n === 1 ? '' : 's'} signed out.${overdue ? ` ${overdue} issue${overdue === 1 ? '' : 's'} overdue.` : ''}${sweep && !sweep.error ? ` ${sweep.message}` : ''}`;
+    return { message: msg, signedOut: n, overdue, noShows: sweep && !sweep.error ? sweep.marked : 0 };
 }
 
 // Worker tick: companies with the auto sign-out ON (the default) sign out the
@@ -633,5 +724,5 @@ async function scanAutoSignOut() {
 
 module.exports = {
     localToDate, clock, registrationDto, issueDto, unitDto, dayPicture,
-    checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut,
+    checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut, markNoShows,
 };

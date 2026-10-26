@@ -17,5 +17,6 @@ router.post('/issues', validate(s.issue), controller.issue);
 router.post('/issues/:id/return', validate(s.returnIssue), controller.returnIssue);
 router.post('/units/:id/clear', validate(s.id), controller.clearUnit);
 router.post('/end-of-day', validate(s.endOfDay), controller.endOfDay);
+router.post('/no-shows', validate(s.markNoShows), controller.markNoShows);
 
 module.exports = router;

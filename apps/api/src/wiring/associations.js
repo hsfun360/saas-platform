@@ -526,6 +526,13 @@ FacilityType.hasMany(FacilityIssueRecord, { foreignKey: 'facilityTypeId', as: 'I
 FacilityIssueRecord.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
 Facility.hasMany(FacilityIssueRecord, { foreignKey: 'facilityId', as: 'IssueRecords', onDelete: 'RESTRICT' });
 FacilityIssueRecord.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+// Facility slice 4 No show (structures approved 2026-10-26): a penalised
+// booking is never deleted (RESTRICT); the suspension references the
+// patron by id.
+const FacilityNoShowCharge = require('../modules/facility/noShowCharge.model');
+const FacilityPatronSuspension = require('../modules/facility/patronSuspension.model');
+FacilityBooking.hasMany(FacilityNoShowCharge, { foreignKey: 'bookingId', as: 'NoShowCharges', onDelete: 'RESTRICT' });
+FacilityNoShowCharge.belongsTo(FacilityBooking, { foreignKey: 'bookingId', as: 'Booking' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -631,6 +638,8 @@ module.exports = {
     FacilityRegistration,
     FacilityRegistrationGuest,
     FacilityIssueRecord,
+    FacilityNoShowCharge,
+    FacilityPatronSuspension,
     GuestVisit,
     GolfNoShowCharge,
     GolfGroupPlayDay,

@@ -18,7 +18,7 @@ router.use(verifyToken);
 router.use(requireModule('FACILITY'));
 
 const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
-    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station'];
+    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station', '/facility/no-show-charges', '/facility/suspensions'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -64,6 +64,11 @@ router.use('/patrons', requireAnyMenuAction(['/facility/bookings', '/facility/st
 router.use('/bills', requireAnyMenuAction(['/facility/bookings', '/facility/station']), require('./bills.routes'));
 // --- Slice 3 Control Station (structures approved 2026-10-26): its own menu. ---
 router.use('/station', requireMenuAction('/facility/station'), require('./station.routes'));
+// --- Slice 4 No show (structures approved 2026-10-26): the penalties and the
+// booking suspensions, each its own menu. ---
+const noShowRoutes = require('./noShow.routes');
+router.use('/no-show-charges', requireMenuAction('/facility/no-show-charges'), noShowRoutes.chargesRouter);
+router.use('/suspensions', requireMenuAction('/facility/suspensions'), noShowRoutes.suspensionsRouter);
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
