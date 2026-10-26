@@ -4,6 +4,7 @@
   <div class="cr-head">
     <div class="cr-head__seats">
       <strong>{{ r.seats.taken }}</strong> of {{ r.seats.capacity }} seats taken
+      @if (held()) { <span class="cell-subtle">· {{ held() }} held for the waitlist</span> }
       @switch (r.session.status) {
         @case ('scheduled') { <span class="status-chip status-chip--info">Scheduled</span> }
         @case ('held') { <span class="status-chip status-chip--on">Held</span> }
@@ -23,8 +24,12 @@
           <span class="material-icons" aria-hidden="true">person_add</span>
           {{ channel() === 'station' ? 'Walk-in' : 'Enrol' }}
         </button>
-      } @else if (r.seats.left === 0) {
-        <span class="cell-subtle">Full - the waitlist arrives with the next slice.</span>
+      } @else if (isFull()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="openEnrol('waitlist')" [disabled]="enrolOpen()">
+          <span class="material-icons" aria-hidden="true">hourglass_top</span>
+          Join waitlist
+        </button>
+        <span class="cell-subtle">Full{{ held() ? ' - ' + held() + ' seat' + (held() === 1 ? '' : 's') + ' held for an offer' : '' }}.</span>
       } @else if (channel() === 'station') {
         <span class="cell-subtle">No walk-ins on this class - enrol from the Class Schedule.</span>
       }
@@ -38,7 +43,7 @@
   @if (enrolOpen()) {
     <form class="cr-enrol" [formGroup]="form" (ngSubmit)="submitEnrol()">
       <fieldset class="cr-kind">
-        <legend class="cr-kind__legend">Enrol</legend>
+        <legend class="cr-kind__legend">{{ formIntent() === 'waitlist' ? 'Join the waitlist' : 'Enrol' }}</legend>
         <label class="cr-kind__opt"><input type="radio" formControlName="kind" value="member" /><span>Member</span></label>
         @if (r.session.class?.visitorsAllowed) {
           <label class="cr-kind__opt"><input type="radio" formControlName="kind" value="visitor" /><span>Visitor</span></label>
@@ -66,12 +71,15 @@
         <input id="crRemarks" type="text" formControlName="remarks" maxlength="255" placeholder="Optional" />
       </div>
       <p class="cell-subtle field-hint">
-        @if (r.session.class?.enrolmentMode === 'term') { The term fee is billed on the seat's own bill, open until the desk settles it. }
+        @if (formIntent() === 'waitlist') { Joins the queue in order; when a seat frees it is offered to the first waiting and held until the offer lapses. Nothing is billed until the seat is confirmed. }
+        @else if (r.session.class?.enrolmentMode === 'term') { The term fee is billed on the seat's own bill, open until the desk settles it. }
         @else { The session fee is billed on the seat's own bill, open until the desk settles it; a free class opens none. }
       </p>
       <div class="cr-enrol__actions">
         <button type="button" class="btn btn--secondary btn--sm" (click)="closeEnrol()" [disabled]="enrolling()">Cancel</button>
-        <button type="submit" class="btn btn--primary btn--sm" [disabled]="enrolling()">{{ enrolling() ? 'Enrolling…' : 'Enrol' }}</button>
+        <button type="submit" class="btn btn--primary btn--sm" [disabled]="enrolling()">
+          {{ enrolling() ? (formIntent() === 'waitlist' ? 'Joining…' : 'Enrolling…') : (formIntent() === 'waitlist' ? 'Join waitlist' : 'Enrol') }}
+        </button>
       </div>
     </form>
   }
@@ -103,8 +111,43 @@
               <button type="button" class="cr-mark" [class.cr-mark--on]="row.status === 'attended'" (click)="mark(row, 'attended')" [disabled]="busyId() === row.attendanceId" aria-label="Attended" title="Attended"><span class="material-icons" aria-hidden="true">check_circle</span></button>
               <button type="button" class="cr-mark" [class.cr-mark--off]="row.status === 'no-show'" (click)="mark(row, 'no-show')" [disabled]="busyId() === row.attendanceId" aria-label="No show" title="No show"><span class="material-icons" aria-hidden="true">person_off</span></button>
               <button type="button" class="cr-mark" [class.cr-mark--info]="row.status === 'excused'" (click)="mark(row, 'excused')" [disabled]="busyId() === row.attendanceId" aria-label="Excused" title="Excused"><span class="material-icons" aria-hidden="true">event_busy</span></button>
+              @if (row.enrolment && row.status === 'enrolled') {
+                <button type="button" class="cr-mark cr-mark--cancel" (click)="askCancelSeat(row)" [disabled]="busyId() === row.attendanceId" [attr.aria-label]="(row.enrolment.mode === 'term' ? 'Withdraw ' : 'Cancel the seat of ') + row.patron.name" [title]="row.enrolment.mode === 'term' ? 'Withdraw from term' : 'Cancel seat'"><span class="material-icons" aria-hidden="true">person_remove</span></button>
+              }
             } @else {
               <span class="status-chip" [class.status-chip--on]="row.status === 'attended'" [class.status-chip--danger]="row.status === 'no-show'" [class.status-chip--info]="row.status === 'excused'" [class.status-chip--off]="row.status === 'enrolled'">{{ markLabel(row.status) }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (waitlist().length) {
+    <h4 class="cr-wait__title">Waitlist <span class="cell-subtle">({{ waitlist().length }})</span></h4>
+    <div class="cr-rows">
+      @for (w of waitlist(); track w.id) {
+        <div class="cr-row cr-row--wait" [class.cr-row--busy]="waitBusyId() === w.id">
+          <div class="cr-row__who">
+            <span class="cr-row__name">{{ w.position }}. {{ w.patronName }}</span>
+            <span class="cr-row__meta">
+              {{ w.memberNo || 'visitor' }}
+              @if (w.mode === 'term') { · term }
+              · {{ waitLabel(w) }}
+            </span>
+          </div>
+          <div class="cr-row__marks">
+            @if (w.status === 'offered') {
+              <span class="status-chip status-chip--info">Offered</span>
+            } @else {
+              <span class="status-chip status-chip--off">Waiting</span>
+            }
+            @if (editable()) {
+              @if (w.status === 'waiting') {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="offer(w)" [disabled]="waitBusyId() === w.id || r.seats.left === 0" [title]="r.seats.left === 0 ? 'No seat is free to offer' : 'Hold a free seat for ' + w.patronName">Offer</button>
+              }
+              <button type="button" class="btn btn--primary btn--sm" (click)="confirmOffer(w)" [disabled]="waitBusyId() === w.id || (w.status === 'waiting' && r.seats.left === 0)" [title]="'Enrol ' + w.patronName + ' now'">Confirm</button>
+              <button type="button" class="cr-mark cr-mark--cancel" (click)="withdraw(w)" [disabled]="waitBusyId() === w.id" [attr.aria-label]="'Withdraw ' + w.patronName + ' from the waitlist'" title="Withdraw"><span class="material-icons" aria-hidden="true">person_remove</span></button>
             }
           </div>
         </div>

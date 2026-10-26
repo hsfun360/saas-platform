@@ -221,9 +221,53 @@ export interface SessionRoster {
     cancelReason: string | null;
     remarks: string | null;
   };
-  seats: { taken: number; capacity: number; left: number };
+  // held = seats offered from the waitlist (slice 5c); left excludes them.
+  seats: { taken: number; capacity: number; left: number; held?: number };
   rows: RosterRow[];
   unmarked: number;
+  waitlist?: WaitlistEntry[];
+}
+
+// Slice 5c: the queue of a full session or term, and a seat's cancellation.
+export type WaitlistStatus = 'waiting' | 'offered' | 'enrolled' | 'withdrawn' | 'lapsed';
+
+export interface WaitlistEntry {
+  id: string;
+  classId: string;
+  sessionId: string | null;
+  scheduleId: string | null;
+  patronId: string;
+  patronName: string;
+  memberNo: string | null;
+  status: WaitlistStatus;
+  offeredAt: string | null;
+  offerExpiresAt: string | null;
+  enrolmentId: string | null;
+  remarks: string | null;
+  createdAt: string;
+  position?: number;
+  mode?: EnrolmentMode;
+}
+
+export type CancelOutcome = 'none' | 'stands' | 'void' | 'finance';
+
+export interface CancelPreview {
+  enrolment: { id: string; patronName: string; memberNo: string | null; status: EnrolmentStatus; feeAmount: number };
+  classCode: string;
+  noticeHours: number;
+  bill: { id: string; billNo: string; status: string; totalAmount: number } | null;
+  mode: EnrolmentMode;
+  late: boolean;
+  remainingSessions: number;
+  outcome: CancelOutcome;
+  session?: { id: string; sessionDate: string; startTime: string };
+}
+
+export interface CancelResult {
+  message: string;
+  outcome: CancelOutcome;
+  late: boolean;
+  mode: EnrolmentMode;
 }
 
 export interface EnrolPayload {
@@ -339,5 +383,33 @@ export class FacilityClassService {
   // Without confirm: the preview of what Hold would mark; with it: the hold.
   hold(sessionId: string, confirm: boolean): Observable<{ message?: string; preview: HoldPreview }> {
     return this.http.post<{ message?: string; preview: HoldPreview }>(`${this.sessions}/${sessionId}/hold`, { confirm });
+  }
+
+  // --- Slice 5c: the patron's cancellation (preview first) and the waitlist ---
+
+  private readonly lifecycle = `${environment.apiUrl}/facility/class-lifecycle`;
+
+  cancelPreview(enrolmentId: string): Observable<CancelPreview> {
+    return this.http.get<CancelPreview>(`${this.lifecycle}/enrolments/${enrolmentId}/cancel-preview`);
+  }
+
+  cancelEnrolment(enrolmentId: string, reason: string | null): Observable<CancelResult> {
+    return this.http.post<CancelResult>(`${this.lifecycle}/enrolments/${enrolmentId}/cancel`, { reason });
+  }
+
+  joinWaitlist(payload: EnrolPayload): Observable<{ message: string; waitlist: WaitlistEntry; position: number }> {
+    return this.http.post<{ message: string; waitlist: WaitlistEntry; position: number }>(`${this.lifecycle}/waitlist`, payload);
+  }
+
+  offerSeat(waitlistId: string): Observable<{ message: string; waitlist: WaitlistEntry }> {
+    return this.http.post<{ message: string; waitlist: WaitlistEntry }>(`${this.lifecycle}/waitlist/${waitlistId}/offer`, {});
+  }
+
+  confirmSeat(waitlistId: string): Observable<EnrolResult & { waitlist: WaitlistEntry }> {
+    return this.http.post<EnrolResult & { waitlist: WaitlistEntry }>(`${this.lifecycle}/waitlist/${waitlistId}/confirm`, {});
+  }
+
+  withdrawSeat(waitlistId: string, reason: string | null): Observable<{ message: string; waitlist: WaitlistEntry }> {
+    return this.http.post<{ message: string; waitlist: WaitlistEntry }>(`${this.lifecycle}/waitlist/${waitlistId}/withdraw`, { reason });
   }
 }

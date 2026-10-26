@@ -219,6 +219,15 @@
 
           @case ('days') {
             <form id="fclDays" [formGroup]="daysForm" (ngSubmit)="onSaveDays()">
+            @if (classSessionsHit().length) {
+              <div class="flash flash-info flash--static" role="status">
+                <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">school</span></span>
+                <span>
+                  Saving cancels {{ classSessionsHit().length }} scheduled class session{{ classSessionsHit().length === 1 ? '' : 's' }} on the closed unit{{ dayPlan()?.facility ? '' : 's' }}: every seat is released, open bills are voided, settled ones are listed for Finance, and the patrons and instructor are emailed.
+                  @for (c of classSessionsHit(); track c.sessionId) { <br>{{ c.classCode }} · {{ c.sessionDate | localDate:'weekday' }} · {{ c.startTime }} - {{ c.endTime }} }
+                </span>
+              </div>
+            }
             @if (dayLines.length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">construction</span>

@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import {
+  ClosureClassSession,
   ClosureTypeOption,
   ClosureUnitOption,
   FacilityClosureDay,
@@ -118,6 +119,9 @@ export class FacilityClosuresComponent implements OnInit {
   readonly daysSaving = signal(false);
   readonly generating = signal(false);
   readonly dayPlan = signal<FacilityClosurePlan | null>(null);
+  // Slice 5c: the scheduled class sessions the generated days would cover
+  // (saving cancels them); cleared with the dialog.
+  readonly classSessionsHit = signal<ClosureClassSession[]>([]);
   readonly dayLines: FormArray<ClosureDayGroup> = this.fb.array<ClosureDayGroup>([]);
   readonly daysForm = this.fb.group({ days: this.dayLines });
 
@@ -249,6 +253,7 @@ export class FacilityClosuresComponent implements OnInit {
     this.dayLines.clear();
     this.dayLines.markAsPristine();
     this.pickedUnits.set(new Set());
+    this.classSessionsHit.set([]);
   }
 
   onSave(): void {
@@ -385,6 +390,7 @@ export class FacilityClosuresComponent implements OnInit {
           res.days.map((d) => ({ closureDate: d.closureDate, dayType: d.dayType, isHoliday: d.isHoliday, startTime: d.startTime || '', endTime: d.endTime || '', isActive: true })),
           true,
         );
+        this.classSessionsHit.set(res.classSessions || []);
         this.generating.set(false);
         if (!res.days.length) this.errorMessage.set('No days in the period match the plan\'s day scope.');
       },

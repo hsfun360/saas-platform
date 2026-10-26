@@ -203,7 +203,7 @@
                   </div>
                 </div>
                 @if (s.status === 'scheduled') {
-                  <p class="cell-subtle field-hint">A move is checked against the venue, the court and the instructor. The roster and attendance arrive with the next slice.</p>
+                  <p class="cell-subtle field-hint">A move is checked against the venue, the court and the instructor; the seats stay with the session.</p>
                 }
               </form>
             }
@@ -213,6 +213,11 @@
             @if (current(); as s) {
               <p class="cell-subtle" style="margin: 0 0 var(--space-md);">
                 {{ s.class?.code }} · {{ s.sessionDate | localDate:'weekday' }} · {{ s.startTime }} - {{ s.endTime }} · {{ s.venue?.code }}. The session is cancelled with this reason@if (s.facility) { and {{ s.facility.code }} is freed on the booking grid}.
+                @if (s.seatsTaken) {
+                  Its {{ s.seatsTaken }} seat{{ s.seatsTaken === 1 ? '' : 's' }} {{ s.seatsTaken === 1 ? 'is' : 'are' }} released: an open bill is voided, a settled one is listed for Finance to refund, a term seat just loses this session, the waitlist is withdrawn, and everyone is emailed with the reason.
+                } @else {
+                  No seat is taken; anyone on the waitlist is withdrawn.
+                }
               </p>
             }
             <form id="csCancelForm" [formGroup]="cancelForm" (ngSubmit)="submitCancel()">

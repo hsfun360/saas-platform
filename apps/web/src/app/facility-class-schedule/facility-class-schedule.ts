@@ -295,8 +295,8 @@ export class FacilityClassScheduleComponent implements OnInit {
     }
     this.saving.set(true);
     this.service.cancelSession(s.id, this.cancelForm.getRawValue().reason.trim()).subscribe({
-      next: () => {
-        this.successMessage.set(`${s.class?.code || 'Session'} on ${formatLocalDate(s.sessionDate, 'weekday')} ${s.startTime} cancelled.`);
+      next: (res) => {
+        this.successMessage.set(res.message || `${s.class?.code || 'Session'} on ${formatLocalDate(s.sessionDate, 'weekday')} ${s.startTime} cancelled.`);
         this.saving.set(false);
         this.cancelForm.markAsPristine();
         this.closeDialog();

@@ -129,6 +129,29 @@ describe('Facility class services', () => {
     expect(http.expectOne('/api/facility/class-sessions/x1/hold').request.body).toEqual({ confirm: true });
   });
 
+  it('previews and cancels a seat, and joins, offers, confirms and withdraws on the waitlist', () => {
+    const base = '/api/facility/class-lifecycle';
+    classes.cancelPreview('e1').subscribe();
+    expect(http.expectOne(`${base}/enrolments/e1/cancel-preview`).request.method).toBe('GET');
+
+    classes.cancelEnrolment('e1', 'Travelling').subscribe();
+    const cancel = http.expectOne(`${base}/enrolments/e1/cancel`);
+    expect(cancel.request.method).toBe('POST');
+    expect(cancel.request.body).toEqual({ reason: 'Travelling' });
+
+    classes.joinWaitlist({ classId: 'c1', sessionId: 'x1', memberNo: 'A1' }).subscribe();
+    const join = http.expectOne(`${base}/waitlist`);
+    expect(join.request.method).toBe('POST');
+    expect(join.request.body).toEqual({ classId: 'c1', sessionId: 'x1', memberNo: 'A1' });
+
+    classes.offerSeat('w1').subscribe();
+    expect(http.expectOne(`${base}/waitlist/w1/offer`).request.method).toBe('POST');
+    classes.confirmSeat('w1').subscribe();
+    expect(http.expectOne(`${base}/waitlist/w1/confirm`).request.method).toBe('POST');
+    classes.withdrawSeat('w1', null).subscribe();
+    expect(http.expectOne(`${base}/waitlist/w1/withdraw`).request.body).toEqual({ reason: null });
+  });
+
   it('reads the timetable by range and filters, adds, moves and cancels a session', () => {
     classes.sessionsBetween('2026-11-02', '2026-11-08', { instructorId: 'i1', classId: null }).subscribe();
     const list = http.expectOne((r) => r.url === '/api/facility/class-sessions');

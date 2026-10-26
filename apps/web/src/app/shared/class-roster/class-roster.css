@@ -186,6 +186,27 @@
   border-color: var(--info-border);
   color: var(--info-text);
 }
+/* The seat's cancellation and a waitlist withdrawal: danger on hover only. */
+.cr-mark--cancel {
+  margin-left: var(--space-xs);
+}
+.cr-mark--cancel:hover:not(:disabled) {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+/* The waitlist (slice 5c) below the seats. */
+.cr-wait__title {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  margin: var(--space-md) 0 var(--space-sm);
+}
+.cr-row--wait .cr-row__marks {
+  align-items: center;
+  gap: var(--space-xs);
+}
 @media (max-width: 767px) {
   .cr-row {
     grid-template-columns: 1fr;

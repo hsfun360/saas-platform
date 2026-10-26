@@ -3,22 +3,26 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { AttendanceStatus, FacilityClassService, RosterRow, SessionRoster } from '../../services/facility-class.service';
+import { AttendanceStatus, CancelPreview, FacilityClassService, RosterRow, SessionRoster, WaitlistEntry } from '../../services/facility-class.service';
 import { FacilityStationService } from '../../services/facility-station.service';
 import { ConfirmDialogComponent, ConfirmRequest } from '../confirm-dialog/confirm-dialog';
-import { LocalDatePipe, formatLocalDate } from '../local-date.pipe';
+import { formatLocalDate } from '../local-date.pipe';
 
 // The ROSTER of one class session (slice 5b): the seats with their bills
 // (UNPAID while the bill is open, with the bill link), the attendance marks
 // the desk or the instructor sets, Hold session (previewing the rows it
 // marks no-show), and the Enrol form (a member by number, or a visitor when
-// the class allows). Embedded by the Class Schedule drawer (channel desk)
-// and the Control Station's Classes view (channel station, walk-ins only).
+// the class allows). Slice 5c adds the seat's cancellation under the class
+// notice (a preview names the bill outcome first), the WAITLIST of a full
+// session (join through the same form, then Offer / Confirm / Withdraw per
+// entry), and the seats held by open offers. Embedded by the Class Schedule
+// drawer (channel desk) and the Control Station's Classes view (channel
+// station, walk-ins only).
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-class-roster',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ConfirmDialogComponent, LocalDatePipe],
+  imports: [CommonModule, ReactiveFormsModule, ConfirmDialogComponent],
   templateUrl: './class-roster.html',
   styleUrls: ['./class-roster.css'],
 })
@@ -46,13 +50,24 @@ export class ClassRosterComponent {
 
   readonly rows = computed(() => (this.roster()?.rows || []).filter((r) => r.status !== 'cancelled'));
   readonly editable = computed(() => this.canEdit() && this.roster()?.session.status === 'scheduled');
+  // The enrol form opens for a seat while one is free, or for a waitlist
+  // entry once the session is full (slice 5c).
   readonly canEnrol = computed(() => {
     const r = this.roster();
     if (!r || !this.editable()) return false;
     if (this.channel() === 'station' && r.session.class?.walkInAllowed === false) return false;
     return r.seats.left > 0;
   });
+  readonly isFull = computed(() => {
+    const r = this.roster();
+    return !!r && this.editable() && r.seats.left === 0;
+  });
+  readonly waitlist = computed(() => this.roster()?.waitlist || []);
+  readonly held = computed(() => this.roster()?.seats.held || 0);
   readonly isTerm = computed(() => this.roster()?.session.class?.enrolmentMode === 'term');
+  // What the open form does: 'enrol' takes a seat, 'waitlist' joins the queue.
+  readonly formIntent = signal<'enrol' | 'waitlist'>('enrol');
+  readonly waitBusyId = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     kind: ['member' as 'member' | 'visitor'],
@@ -161,10 +176,109 @@ export class ClassRosterComponent {
     });
   }
 
-  // --- Enrol ---
+  // --- Cancel a seat (slice 5c): the preview names the bill outcome first ---
 
-  openEnrol(): void {
+  askCancelSeat(row: RosterRow): void {
+    const r = this.roster();
+    if (!r || !this.editable() || !row.enrolment) return;
+    this.busyId.set(row.attendanceId);
+    this.classes.cancelPreview(row.enrolment.id).subscribe({
+      next: (p) => {
+        this.busyId.set(null);
+        this.confirmAction.set({
+          title: p.mode === 'term' ? `Withdraw ${p.enrolment.patronName} from the term?` : `Cancel ${p.enrolment.patronName}'s seat?`,
+          message: this.cancelMessage(p),
+          confirmLabel: p.mode === 'term' ? 'Withdraw from term' : p.late ? 'Cancel late, fee stands' : p.outcome === 'void' ? `Cancel and void ${p.bill?.billNo}` : 'Cancel seat',
+          cancelLabel: 'Keep the seat',
+          danger: true,
+          run: () => {
+            this.confirmAction.set(null);
+            this.busyId.set(row.attendanceId);
+            this.classes.cancelEnrolment(p.enrolment.id, null).subscribe({
+              next: (res) => {
+                this.busyId.set(null);
+                this.message.emit(res.message);
+                this.load();
+                this.changed.emit();
+              },
+              error: (err) => {
+                this.busyId.set(null);
+                this.error.emit(err.error?.message || 'Failed to cancel the seat.');
+              },
+            });
+          },
+        });
+      },
+      error: (err) => {
+        this.busyId.set(null);
+        this.error.emit(err.error?.message || 'Failed to preview the cancellation.');
+      },
+    });
+  }
+
+  private cancelMessage(p: CancelPreview): string {
+    const bill = p.bill ? `bill ${p.bill.billNo} (${p.bill.totalAmount.toFixed(2)}, ${p.bill.status})` : 'no bill';
+    if (p.mode === 'term') {
+      return `${p.enrolment.patronName} leaves the remaining ${p.remainingSessions} session${p.remainingSessions === 1 ? '' : 's'} of the term; the term fee stands (${bill}). A freed seat goes to the waitlist.`;
+    }
+    const when = p.session ? `${formatLocalDate(p.session.sessionDate, 'dayMonth')} ${p.session.startTime}` : 'the session';
+    if (p.late) return `${when} starts inside the ${p.noticeHours}-hour notice, so this is a LATE cancellation: the seat is released but the fee stands (${bill}). A freed seat goes to the waitlist.`;
+    const outcome = p.outcome === 'void' ? `${bill} is voided - nothing is owed.`
+      : p.outcome === 'finance' ? `${bill} was settled - Finance refunds it; the bill stays as paid here.`
+        : 'No fee was billed.';
+    return `${when} is outside the ${p.noticeHours}-hour notice, so the seat cancels in time. ${outcome} A freed seat goes to the waitlist.`;
+  }
+
+  // --- Waitlist (slice 5c) ---
+
+  waitLabel(w: WaitlistEntry): string {
+    if (w.status === 'offered') return `Offered until ${formatLocalDate(w.offerExpiresAt || '', 'datetime')}`;
+    return `Waiting since ${formatLocalDate(w.createdAt, 'datetime')}`;
+  }
+
+  offer(w: WaitlistEntry): void {
+    this.waitAction(w, this.classes.offerSeat(w.id), 'Failed to offer the seat.');
+  }
+
+  confirmOffer(w: WaitlistEntry): void {
+    this.waitAction(w, this.classes.confirmSeat(w.id), 'Failed to confirm the seat.');
+  }
+
+  withdraw(w: WaitlistEntry): void {
+    this.confirmAction.set({
+      title: `Withdraw ${w.patronName} from the waitlist?`,
+      message: w.status === 'offered' ? `${w.patronName}'s offered seat is released and the next in the queue is offered it.` : `${w.patronName} leaves the queue; those behind move up.`,
+      confirmLabel: 'Withdraw',
+      cancelLabel: 'Keep waiting',
+      danger: true,
+      run: () => {
+        this.confirmAction.set(null);
+        this.waitAction(w, this.classes.withdrawSeat(w.id, null), 'Failed to withdraw.');
+      },
+    });
+  }
+
+  private waitAction(w: WaitlistEntry, req$: Observable<{ message: string; standingWarning?: string | null }>, fallback: string): void {
+    this.waitBusyId.set(w.id);
+    req$.subscribe({
+      next: (res) => {
+        this.waitBusyId.set(null);
+        this.message.emit(res.standingWarning ? `${res.message} ${res.standingWarning}` : res.message);
+        this.load();
+        this.changed.emit();
+      },
+      error: (err) => {
+        this.waitBusyId.set(null);
+        this.error.emit(err.error?.message || fallback);
+      },
+    });
+  }
+
+  // --- Enrol (or join the waitlist, through the same form) ---
+
+  openEnrol(intent: 'enrol' | 'waitlist' = 'enrol'): void {
     this.form.reset({ kind: 'member', memberNo: '', name: '', mobile: '', remarks: '' });
+    this.formIntent.set(intent);
     this.enrolOpen.set(true);
   }
 
@@ -186,9 +300,11 @@ export class ClassRosterComponent {
       remarks: v.remarks.trim() || null,
     };
     this.enrolling.set(true);
-    const req$: Observable<{ message: string; standingWarning?: string | null }> = this.channel() === 'station'
-      ? this.station.enrolWalkIn({ classId: payload.classId, sessionId: r.session.id, memberNo: payload.memberNo, visitor: payload.visitor })
-      : this.classes.enrol(payload);
+    const req$: Observable<{ message: string; standingWarning?: string | null }> = this.formIntent() === 'waitlist'
+      ? this.classes.joinWaitlist(payload)
+      : this.channel() === 'station'
+        ? this.station.enrolWalkIn({ classId: payload.classId, sessionId: r.session.id, memberNo: payload.memberNo, visitor: payload.visitor })
+        : this.classes.enrol(payload);
     req$.subscribe({
       next: (res) => {
         this.enrolling.set(false);

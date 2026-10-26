@@ -20,6 +20,16 @@ export interface FacilityClosureDayPreview extends FacilityClosureDay {
   isHoliday?: boolean;
 }
 
+// A scheduled class session (slice 5c) that a closure's days would cover;
+// saving the days cancels it and its seats cascade.
+export interface ClosureClassSession {
+  sessionId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  classCode: string;
+}
+
 // A facility closure plan (structure approved 2026-10-25): the rule header on
 // a Facility Type - ONE unit (`facility`) or every unit of the type
 // (`facility` null) - over a date period, on the matching day types, for a
@@ -97,11 +107,13 @@ export class FacilityClosureService {
 
   // Server-side generation PREVIEW: classifies each date of the plan's period
   // (holidays count as weekend) and returns the matching day rows unsaved.
-  generateDays(planId: string): Observable<{ days: FacilityClosureDayPreview[]; totalInPeriod: number }> {
-    return this.http.post<{ days: FacilityClosureDayPreview[]; totalInPeriod: number }>(`${this.base}/${planId}/generate-days`, {});
+  // `classSessions` (slice 5c) lists the scheduled class sessions on the
+  // plan's unit(s) that the generated days would cover; saving cancels them.
+  generateDays(planId: string): Observable<{ days: FacilityClosureDayPreview[]; totalInPeriod: number; classSessions?: ClosureClassSession[] }> {
+    return this.http.post<{ days: FacilityClosureDayPreview[]; totalInPeriod: number; classSessions?: ClosureClassSession[] }>(`${this.base}/${planId}/generate-days`, {});
   }
 
-  saveDays(planId: string, days: FacilityClosureDay[]): Observable<{ message: string; days: FacilityClosureDay[] }> {
-    return this.http.put<{ message: string; days: FacilityClosureDay[] }>(`${this.base}/${planId}/days`, { days });
+  saveDays(planId: string, days: FacilityClosureDay[]): Observable<{ message: string; days: FacilityClosureDay[]; classSessionsCancelled?: number }> {
+    return this.http.put<{ message: string; days: FacilityClosureDay[]; classSessionsCancelled?: number }>(`${this.base}/${planId}/days`, { days });
   }
 }
