@@ -583,6 +583,14 @@ FacilityClassSession.hasMany(FacilityClassAttendance, { foreignKey: 'sessionId',
 FacilityClassAttendance.belongsTo(FacilityClassSession, { foreignKey: 'sessionId', as: 'Session' });
 FacilityClassEnrolment.hasMany(FacilityBill, { foreignKey: 'classEnrolmentId', as: 'Bills', onDelete: 'RESTRICT' });
 FacilityBill.belongsTo(FacilityClassEnrolment, { foreignKey: 'classEnrolmentId', as: 'ClassEnrolment' });
+// Slice 5c: the waitlist cascades with the class, the session and the schedule.
+const FacilityClassWaitlist = require('../modules/facility/classWaitlist.model');
+FacilityClass.hasMany(FacilityClassWaitlist, { foreignKey: 'classId', as: 'Waitlist', onDelete: 'CASCADE' });
+FacilityClassWaitlist.belongsTo(FacilityClass, { foreignKey: 'classId', as: 'Class' });
+FacilityClassSession.hasMany(FacilityClassWaitlist, { foreignKey: 'sessionId', as: 'Waitlist', onDelete: 'CASCADE' });
+FacilityClassWaitlist.belongsTo(FacilityClassSession, { foreignKey: 'sessionId', as: 'Session' });
+FacilityClassSchedule.hasMany(FacilityClassWaitlist, { foreignKey: 'scheduleId', as: 'Waitlist', onDelete: 'CASCADE' });
+FacilityClassWaitlist.belongsTo(FacilityClassSchedule, { foreignKey: 'scheduleId', as: 'Schedule' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
