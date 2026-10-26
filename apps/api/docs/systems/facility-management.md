@@ -550,12 +550,105 @@ Golf is wired to the same ledger in a later golf slice; nothing in golf changes 
 - Facility Specification gains *Guest rules* (the exception editor) and *Membership type overrides*; Facility Types gains the two default-fee pickers and the approval switch; Membership Types gains the monthly guest allowance.
 - API under `/api/facility`: `patrons` (search, create visitor), `participant-types`, `transaction-types` (+ `/:id/rates`, cells inside the card), `payment-types`, `numbering-schemes`, `bookings` (`availability?facilityTypeId&date`, `locks` claim/release, create, get, cancel, `/:id/participants`, `/:id/bill` open), `bills` (`/:id/items`, `/:id/payments`, void); membership adds `GET /api/membership/members/:id/guest-allowance` for the member screen.
 
-### Slice 3 - Control Station (OUTLINE)
+### Slice 3 - Control Station (FULL DETAIL, drafted 2026-10-26 for approval)
 
-- `facility.Registration` - one row per check-in or walk-in entry: patronId, facilityTypeId, facilityId (NULL for a type-level entry such as the pool), bookingSlotId (NULL = walk-in), registrationNo (`facility-registration` series), timeIn, timeOut, guestCount, status in / out / no-show, billId.
-- `facility.IssueRecord` - one row per issue: patronId, facilityTypeId, facilityId (unit, NULL for a counted consumable), quantity, issuedAt, dueBack, returnedAt, condition on return, depositBillId / feeBillId, status issued / returned / lost.
-- `Facility.unitStatus` + `currentIssueId` for issue-mode units.
-- Station screen `/facility/station`: today's bookings to check in (closes at slot start like the tee sheet's club clock), entry register with the live capacity count per entry type, issue / return board for lockers and towels, guest registration under the guest rules, open issues at end of day.
+**Status:** drafted, not built.
+The station is the desk's live screen for the day: check in the booked slots of the slot types, register entries on the entry types against the live capacity, issue and return the units and consumables of the issue types, and clear what is still open at the end of the day.
+Three tables carry it - the registration (one row per person in a facility), its guests, and the issue record - plus two columns on `Facility`, a few columns on the Specification and the Facility Type, and the `facility-registration` numbering series.
+Decisions proposed here and open for your change: a visitor enters an entry type only as the GUEST of a member's registration (no standalone visitor entry, so the guest rules and the monthly allowance keep covering every non-member in the building); a booked slot is checked in from `checkInOpenMinutes` before its start until its END (a late arrival still plays the rest; the no-show verdict after start plus grace is slice 4's); a bill may now hang off a registration or an issue record as well as a booking, so the station bills a walk-in entry and an issue fee through the slice 2 engine unchanged.
+
+#### `facility.Registration` - one person in a facility
+
+Model `FacilityRegistration`, table `facility."Registration"`, unique `(companyId, registrationNo)`, indexes `(companyId, facilityTypeId, registrationDate)`, `(companyId, patronId, registrationDate)`, partial unique `(bookingSlotId) WHERE bookingSlotId IS NOT NULL` (a slot is checked in once).
+One row per check-in of a booked slot or per walk-in entry; the slot types create it at check-in, the entry types at the door.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `registrationNo` | STRING(50) | no | | From the `facility-registration` series at registration. |
+| `patronId` | UUID | no | | The member (or, for a booked slot, the booker) registering. Visitors never register on their own - they are RegistrationGuest rows. |
+| `facilityTypeId` | UUID | no | | Intra-service FK. |
+| `facilityId` | UUID | yes | | The unit: the court of a checked-in slot, a specific pool; NULL = the type as a whole (the gym counted under the type's capacity). Intra-service FK, RESTRICT. |
+| `bookingSlotId` | UUID | yes | | The slot checked in; NULL = a walk-in entry. The slot's status flips to `checked-in` in the same transaction. |
+| `registrationDate` | DATEONLY | no | | The club-local date (the day's register, the capacity window). |
+| `timeIn` | DATE | no | | Timestamp of arrival. |
+| `timeOut` | DATE | yes | | Timestamp of sign-out; NULL = still inside. The end-of-day sweep stamps the type's close time. |
+| `dayType` | STRING(10) | no | | `weekday` / `weekend` as classified at registration (the guest rule and the fee cell). |
+| `sessionId` | UUID | yes | | The Facility Session `timeIn` falls in (the fee cell); NULL = none. |
+| `guestCount` | INTEGER | no | 0 | Denormalised count of RegistrationGuest rows (the live capacity count adds it). |
+| `status` | STRING(10) | no | 'in' | `in` / `out`. A booked slot never reached has no registration; its slot carries `no-show` (slice 4). |
+| `billId` | UUID | yes | | The bill a walk-in entry opened (the facility fee per entry + the guest fees); a checked-in slot bills on its booking's bill instead and keeps NULL here. |
+| `remarks` | STRING | yes | | |
+| `createdBy` / `createdByDepartmentId` / `updatedBy` | UUID | yes | | Ownership stamps. |
+
+#### `facility.RegistrationGuest` - the guests on an entry
+
+Model `FacilityRegistrationGuest`, table `facility."RegistrationGuest"`, FK cascades with the registration, index `(registrationId)`, index `(companyId, patronId)`.
+The same shape as BookingParticipant's guest lines, so a guest at the pool draws one visit on the host's monthly allowance exactly as a guest on a court does.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `registrationId` | UUID | no | | FK -> Registration. |
+| `patronId` | UUID | yes | | The visitor's Patron when the desk keyed an IC or mobile (found or created); NULL for a casual name. A member-as-guest line carries the member's Patron. |
+| `participantType` | STRING(20) | no | | A ParticipantType code of a guest-like base (`guest` or `member-guest` identity). |
+| `name` | STRING | no | | Snapshot. |
+| `memberNo` | STRING(50) | yes | | Snapshot, member-as-guest only. |
+| `guestVisitId` | UUID | yes | | The `membership.GuestVisit` recorded for the line (value ref across the seam); voided if the line is removed before sign-out, kept after. |
+| `sortOrder` | INTEGER | no | 1 | |
+
+#### `facility.IssueRecord` - one issue of a unit or a quantity
+
+Model `FacilityIssueRecord`, table `facility."IssueRecord"`, indexes `(companyId, facilityTypeId, status)`, `(companyId, patronId, status)`, `(facilityId)`.
+One row per locker issued (trackUnits ON: the unit) or per quantity of a consumable handed out (trackUnits OFF: towels, quantity N).
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `patronId` | UUID | no | | The member holding it (a visitor holds nothing in their own name - the host member does). |
+| `facilityTypeId` | UUID | no | | Intra-service FK. |
+| `facilityId` | UUID | yes | | The unit issued (trackUnits ON); for a consumable the type's single counter row, so the column is never NULL in practice but stays nullable for a type with no row. RESTRICT. |
+| `registrationId` | UUID | yes | | The entry the issue belongs to (a locker taken on the way into the gym), for the end-of-day view; NULL when issued on its own. |
+| `quantity` | INTEGER | no | 1 | 1 for a unit; the pieces for a consumable. |
+| `issuedAt` | DATE | no | | |
+| `dueBack` | DATE | no | | `issuedAt`'s date plus the type's `issueDueDays` at the type's close time (or end of day); the board flags overdue rows. |
+| `returnedAt` | DATE | yes | | NULL = still out. |
+| `returnedQuantity` | INTEGER | yes | | Consumables may come back short; the difference is lost. |
+| `returnCondition` | STRING(10) | yes | | `good` / `damaged` / `lost` at return (`lost` also when written off at the end of the day). |
+| `status` | STRING(10) | no | 'issued' | `issued` / `returned` / `lost`. |
+| `feeBillId` | UUID | yes | | The bill the issue fee opened (the type's `issueFeeTransactionTypeId`), when the type charges one; NULL = free issue. A deposit stays reserved (deposit charge type, not built). |
+| `remarks` | STRING | yes | | Damage noted at return. |
+| `createdBy` / `createdByDepartmentId` / `updatedBy` | UUID | yes | | Ownership stamps. |
+
+#### Columns added in slice 3
+
+- `Facility.unitStatus` (STRING(20), default `available`): `available` / `issued` / `out-of-service` for issue-mode units with trackUnits ON (a lost or damaged return parks the unit `out-of-service` until the desk clears it); other modes keep `available`.
+  `Facility.currentIssueId` (UUID, nullable): the live IssueRecord while `issued`.
+- `FacilitySetting.checkInOpenMinutes` (INTEGER, default 30): a booked slot is checked in from this many minutes before its start until its end.
+  `FacilitySetting.autoSignOutAtClose` (BOOLEAN, default true): the end-of-day sweep stamps `timeOut` at the type's close time on every registration still `in`.
+- `FacilityType.issueFeeTransactionTypeId` (UUID, nullable): the `issue-fee` auto-charged once per issue (trackUnits ON: per unit; OFF: quantity x the flat amount).
+  `FacilityType.issueDueDays` (INTEGER, default 0): 0 = due back the same day at the type's close time.
+  `FacilityType.entryRequiresBooking` (BOOLEAN, default false): an entry type that only admits a patron holding a booking of a linked slot type that day (a squash court entry desk) - off for the gym and the pool.
+- `Bill.bookingId` becomes nullable and `Bill` gains `registrationId` (UUID, nullable) and `issueRecordId` (UUID, nullable): exactly one of the three is set (service rule), the unique index on the live bill moves to a partial unique per source.
+- `NumberingScheme` purpose `facility-registration`, issued at every registration (check-in and walk-in).
+
+#### Station rules (binding at the desk; the desk is the only channel)
+
+1. **Check-in**: a `booked` slot of today checks in from `checkInOpenMinutes` before its start until its end, club clock; the registration names the booker as the patron and the slot's unit, the slot flips to `checked-in`, the booking's roster is shown for the desk to confirm who arrived (a guest who failed to show is dropped from the roster, which voids that guest visit).
+2. **Entry**: a member registers on an entry type inside the type's opening hours for the day type, outside an active closure, and while the live count (registrations `in` plus their guests, under the unit's own capacity when it has one, else the type's) is below the capacity; a barred member is refused, a warning member registers with the standing shown; with `entryRequiresBooking` ON the member must hold a checked-in or booked slot of the linked type that day.
+3. **Guests at the door**: the slice 2 guest resolver (exception > type policy > general flags) at `timeIn`, `maxGuestsPerBooking` as the per-visit cap, each guest-like line one visit on the member's monthly allowance through the seam, `hostMustBePresent` trivially met (the host is the one registering).
+4. **Sign-out**: stamps `timeOut`; the live count drops; a registration with an open bill warns before sign-out and the desk settles or lets it stand (the bill stays open on the register's end-of-day list).
+5. **Issue**: a member takes a unit (trackUnits ON: any `available` unit of the type, the desk picks from the board or the next free) or a quantity (OFF) while holding fewer than `maxIssuePerPatron` across the type, inside opening hours and outside a closure; the issue fee auto-charges on a bill of its own when the type names one; the unit goes `issued` with `currentIssueId` set.
+6. **Return**: `good` frees the unit; `damaged` parks it `out-of-service` with the remark; `lost` (or a short consumable count) closes the record `lost`, parks the unit, and lists the loss for a manual charge (a miscellaneous or issue-fee tile on the fee bill) - no automatic penalty in this slice.
+7. **End of day**: the sweep (a station action, and the worker at the type's close time when `autoSignOutAtClose` is ON) signs out every registration still `in` and lists the issues past `dueBack` as overdue; nothing is written off automatically.
+8. **Billing**: a walk-in entry opens a bill at registration with the type's facility-fee default once (the `per-booking` basis reads as per entry; `per-slot` is refused on an entry type at setup) and the guest fee per guest line; a checked-in slot bills on its booking's bill; an issue bills its fee; the slice 2 settle and void paths apply unchanged.
+
+#### Slice 3 screens and API
+
+- `/facility/station` - **Control Station**: ONE screen for the day with the club clock, a type strip across the top (every active type grouped by mode) and four views: *Check-in* (the slot types: today's booked slots in time order, NEXT / OPEN / CLOSED tags by the clock, Check in opens the roster confirm, Bill jumps to the booking's bill), *Entry* (the entry types: the live count against the capacity, the register of who is in with time in and guests, Register opens the member-by-number form with guest lines under the rule checks, Sign out per row), *Issue* (the issue types: the unit board coloured by `unitStatus` or the counter with the pieces out, Issue opens the member form with the unit or quantity, Return per row with the condition), *End of day* (everything still in or out across the types, Sign out all, the overdue list).
+  The station is its own menu, grantable to the desk without the setup screens.
+- API under `/api/facility/station` (the `/facility/station` grant): `GET /today?date` (the day's picture per type: booked slots with their check-in state, entries with the live count, issues and units), `POST /check-ins` (bookingSlotId, the arrived roster), `POST /registrations` (facilityTypeId, facilityId, memberNo, guests), `POST /registrations/:id/sign-out`, `PUT /registrations/:id/guests`, `POST /issues` (facilityTypeId, facilityId or quantity, memberNo, registrationId), `POST /issues/:id/return` (condition, returnedQuantity, remarks), `POST /units/:id/clear` (out-of-service -> available), `POST /end-of-day` (facilityTypeId); the bill endpoints of slice 2 serve the station's bills.
+- Menus the user adds: `/facility/station`.
 
 ### Slice 4 - No show (OUTLINE)
 
