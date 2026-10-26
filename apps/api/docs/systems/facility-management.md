@@ -650,12 +650,90 @@ One row per locker issued (trackUnits ON: the unit) or per quantity of a consuma
 - API under `/api/facility/station` (the `/facility/station` grant): `GET /today?date` (the day's picture per type: booked slots with their check-in state, entries with the live count, issues and units), `POST /check-ins` (bookingSlotId, the arrived roster), `POST /registrations` (facilityTypeId, facilityId, memberNo, guests), `POST /registrations/:id/sign-out`, `PUT /registrations/:id/guests`, `POST /issues` (facilityTypeId, facilityId or quantity, memberNo, registrationId), `POST /issues/:id/return` (condition, returnedQuantity, remarks), `POST /units/:id/clear` (out-of-service -> available), `POST /end-of-day` (facilityTypeId); the bill endpoints of slice 2 serve the station's bills.
 - Menus the user adds: `/facility/station`.
 
-### Slice 4 - No show (OUTLINE)
+### Slice 4 - No show (FULL DETAIL, drafted 2026-10-26 for approval)
 
-- `facility.NoShowCharge` - one row per penalised booking slot (chargeReason no-show / late-cancel, booker patron, transaction type snapshot, tax snapshot, status pending / posted / waived, AR document snapshot), golf's table shape.
-- `facility.PatronSuspension` - the strike outcome: patronId, facilityTypeId (NULL = all types), reason, fromDate, toDate, liftedBy / liftedAt; the booking channel refuses a suspended patron with the end date named.
-- Specification gains `lateCancellationAction` (charge / refuse), `noShowTransactionTypeId`, `noShowChargeBasis` (booking / slot / participant), `noShowGraceMinutes`, `strikeCount`, `strikeWindowDays`, `strikeSuspensionDays`; Facility Type gains `noShowChargeEnabled` and `noShowStrikeEnabled`.
-- The station's no-show review marks a slot after start + grace; the engine raises the charge and counts the strike; `/facility/no-show-charges` lists, posts and waives.
+**Status:** drafted, not built.
+No-show control is the one master switch the Specification already carries (`noShowControlEnabled`, slice 1) with two consequences the kick-off decided: a CHARGE (a no-show transaction type priced from its flat card, posted to the booker's AR account, pending / posted / waived like golf) and a STRIKE rule (N no-shows in M days suspend booking for S days), each switchable per Facility Type.
+Two tables carry it - the charge and the suspension - plus the detail columns on the Specification and the Facility Type.
+Decisions proposed here and open for your change: a late cancellation is charged (or refused) at the moment of the cancel, a no-show is marked by the desk from the station's Check-in view once the slot's start plus the grace minutes have passed, and the slot type's End of day marks every still-booked slot past its end in one confirmed sweep; the strike is the no-show charge row itself (a late cancellation is charged but never a strike), waiving the money may keep or clear the strike, and a suspension is club-wide (every facility type) and bars BOOKING only - the member still enters the gym and takes a locker; a visitor booker's charge cannot post to AR and stays pending for the desk to collect on the booking's bill or waive.
+
+#### `facility.NoShowCharge` - the penalty on a booking
+
+Model `FacilityNoShowCharge`, table `facility."NoShowCharge"`, indexes `(companyId, status)`, `(companyId, bookingDate)`, `(companyId, bookerPatronId, bookingDate)`, `(bookingId)`; golf's table shape with the booking in place of the flight.
+One row per penalised BOOKING (the basis decides the quantity), charged to the booker.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `bookingId` | UUID | no | | Intra-service FK, RESTRICT (a penalised booking is never deleted). |
+| `bookingNo` | STRING(50) | no | | Snapshot. |
+| `facilityTypeId` | UUID | no | | The type whose switches applied (snapshot for the listing and the strike count). |
+| `bookingDate` | DATEONLY | no | | The booking's date (the strike window counts by it). |
+| `chargeReason` | STRING(20) | no | | `no-show` / `late-cancel`. |
+| `bookerPatronId` | UUID | no | | The patron charged. |
+| `bookerName` | STRING | no | | Snapshot. |
+| `bookerMemberNo` | STRING(50) | yes | | Snapshot; NULL for a visitor booker (the row then cannot post). |
+| `slotSummary` | STRING | no | | 'BC2 18:00 - 20:00 (2 slots)' for the listing and the email. |
+| `transactionTypeId` | UUID | yes | | The no-show transaction type priced; NULL when none was configured (the row is raised unpriced). |
+| `description` | STRING | no | | Code + description snapshot, or 'No-show (unpriced)'. |
+| `quantity` | INTEGER | no | 1 | By `noShowChargeBasis`: 1 per booking, the no-show slots, or the roster size. |
+| `unitAmount` | DECIMAL(21,2) | no | 0 | The flat amount in force on the booking date. |
+| `amount` | DECIMAL(21,2) | no | 0 | quantity x unitAmount. |
+| `taxSchemeCode` | STRING | yes | | Tax snapshot, as a bill line. |
+| `taxAmount` | DECIMAL(21,2) | no | 0 | |
+| `taxBreakdown` | JSONB | yes | | |
+| `totalAmount` | DECIMAL(21,2) | no | 0 | amount plus exclusive tax - what posts to AR. |
+| `strikeCounted` | BOOLEAN | no | false | TRUE on a `no-show` row raised while the type's strike switch is ON; a waive may clear it. The strike window counts these rows. |
+| `status` | STRING(20) | no | 'pending' | `pending` / `posted` / `waived`. |
+| `arDocId` / `arDocNo` / `debtorType` / `debtorSourceId` | UUID / STRING(50) / STRING(20) / UUID | yes | | The AR invoice posted (member bookers). |
+| `postedAt` / `postedBy` | DATE / UUID | yes | | |
+| `waivedAt` / `waivedBy` / `waiveReason` | DATE / UUID / STRING | yes | | |
+| `remarks` | STRING | yes | | Why a pending row did not post (visitor booker, no ledger account, charge barred, no price in force) - the listing shows it and offers Post again. |
+| `createdBy` / `createdByDepartmentId` / `updatedBy` | UUID | yes | | Ownership stamps. |
+
+#### `facility.PatronSuspension` - the strike outcome
+
+Model `FacilityPatronSuspension`, table `facility."PatronSuspension"`, indexes `(companyId, patronId, status)`, `(companyId, status, toDate)`.
+One row per suspension; at most one `active` per patron.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `patronId` | UUID | no | | The member suspended. |
+| `patronName` / `memberNo` | STRING / STRING(50) | no / yes | | Snapshot. |
+| `facilityTypeId` | UUID | yes | | NULL = every facility type (the proposed default); kept so a club may later scope a manual suspension to one type. |
+| `reason` | STRING | no | | 'Automatic - 3 no-shows in 90 days' or the office's text. |
+| `fromDate` | DATEONLY | no | | The day the suspension starts (the strike day). |
+| `toDate` | DATEONLY | no | | Inclusive last day; booking resumes the day after. |
+| `strikeChargeIds` | JSONB | yes | | The NoShowCharge ids that made up the strike count (an audit of why). |
+| `status` | STRING(10) | no | 'active' | `active` / `lifted` / `expired` (the worker expires past rows nightly; a lifted row keeps its dates). |
+| `liftedAt` / `liftedBy` / `liftReason` | DATE / UUID / STRING | yes | | |
+| `createdBy` / `createdByDepartmentId` / `updatedBy` | UUID | yes | | Ownership stamps. |
+
+#### Columns added in slice 4
+
+- `FacilitySetting`: `lateCancellationAction` (STRING(10), default `charge`: `charge` raises the late-cancel charge and lets the cancel through; `refuse` refuses the cancel inside the notice window - the desk may still cancel with a waive and a reason), `noShowTransactionTypeId` (UUID, nullable: the `no-show` charge type priced; when NULL the engine takes the active no-show item scoped to the facility type, else the general one, else raises unpriced), `noShowChargeBasis` (STRING(12), default `booking`: `booking` / `slot` / `participant`), `noShowGraceMinutes` (INTEGER, default 15: a booked slot may be marked no-show once its start plus the grace has passed), `strikeCount` (INTEGER, default 3), `strikeWindowDays` (INTEGER, default 90), `strikeSuspensionDays` (INTEGER, default 30).
+- `FacilityType`: `noShowChargeEnabled` (BOOLEAN, default true) and `noShowStrikeEnabled` (BOOLEAN, default false), both effective only while the Specification's master switch is ON.
+- `Booking` keeps `isLateCancel` (slice 2b) and gains nothing; the booking's display status reads `no-show` when every live slot carries `no-show` (derived, as golf).
+- Email templates `facility.noshow.charged` (the booker: the booking, the reason, the amount and whether it was posted to the account or awaits the desk) and `facility.suspension.started` (the member: the strikes, the dates, whom to contact); `facility.booking.cancelled` gains a `lateCharge` variable (the late-cancel amount when raised, empty otherwise).
+
+#### No-show rules (binding; the office waives, never the engine)
+
+1. **Late cancellation**: on a cancel inside the notice window with the master switch ON and the type's `noShowChargeEnabled`, action `charge` cancels the booking and raises a `late-cancel` charge (pending; never a strike); action `refuse` refuses the cancel naming the deadline, unless the desk cancels with `waiveCharge` and a reason, which raises the row `waived`. The cancel preview already shows the verdict; it now shows the quoted amount or the refusal.
+2. **No-show mark**: from the station's Check-in view a `booked` slot whose start plus `noShowGraceMinutes` has passed without a check-in offers *No show*; marking it sets the slot `no-show`, and the FIRST no-show slot of a booking raises the booking's `no-show` charge (later no-show slots of the same booking update its quantity under the `slot` basis); a slot checked in late is never a no-show.
+3. **End of day** on a slot type lists every still-`booked` slot past its end and, on confirm, marks them all (show expected results: the slots, the bookers, the charges that will be raised).
+4. **Pricing**: the no-show transaction type's flat card in force on the booking date, taxed through the tax seam; quantity 1 per booking, the no-show slot count, or the roster size by the basis; no card in force raises the row unpriced (0.00, remarks 'no price in force') so the office prices it and presses *Re-price*.
+5. **Posting**: AFTER the raising transaction commits (never inside it), each pending row with a member booker posts one AR invoice through the ONE AR invoice type opened to the Facility module (credit NOT enforced - a penalty is never refused by the limit, as golf); a charge-barred member, a missing ledger account or a visitor booker leaves the row pending with the reason in `remarks`; the listing's *Post* retries.
+6. **Strike**: a `no-show` row raised while the type's `noShowStrikeEnabled` is ON counts; when the booker's counted rows with `bookingDate` inside the last `strikeWindowDays` reach `strikeCount` and no suspension is active, a suspension is created from the strike day for `strikeSuspensionDays`, club-wide, and the member is emailed; the counted rows are listed on the suspension.
+7. **Suspended booking**: the booking channel refuses a booker (and a member participant) whose active suspension covers the booking date, naming the last day; the station's entry and issue are unaffected; the office lifts a suspension early with a reason.
+8. **Waive**: the office waives a pending row with a reason; a waived `no-show` row keeps its strike unless the office also clears it (*Waive and clear the strike*); a posted row is reversed in AR by Finance (a credit note), not here.
+
+#### Slice 4 screens and API
+
+- `/facility/no-show-charges` - **No-show Charges**: the listing (status filter, date range, search by booking number or booker; each card the booking, the reason, the amount and tax, the status chip, the AR document or the pending reason) with *Post* on a pending row, *Waive* (reason, keep or clear the strike) and *Re-price*; the kebab holds the booking link.
+- `/facility/suspensions` - **Booking Suspensions**: active and past suspensions (member, dates, reason, the strikes behind it) with *Lift* (reason) and *New suspension* (a manual one: member, dates, reason, optional facility type).
+- Control Station's Check-in view gains the *No show* action per slot past the grace and the End of day sweep for slot types; Facility Bookings' cancel preview shows the late-cancel amount or the refusal and the desk's *Waive the charge* option; Facility Specification's *Cancellation and No-show* card gains the action, the transaction type picker, the basis, the grace and the three strike numbers; Facility Types gain the two switches.
+- API: `GET /no-show-charges?status&from&to&q`, `POST /no-show-charges/:id/post`, `POST /no-show-charges/:id/waive` (reason, clearStrike), `POST /no-show-charges/:id/reprice`; `GET /suspensions?status`, `POST /suspensions` (manual), `POST /suspensions/:id/lift` (reason); `POST /station/no-shows` (slotIds) and the station's `today` picture carrying `noShowEligible` per slot; `POST /bookings/:id/cancel` gains `waiveCharge` + `waiveReason`, `GET /bookings/:id/cancel-preview` gains `charge` (the quote) and `refused`; `GET /settings/no-show-types` (the pickable no-show items). Menus the user adds: `/facility/no-show-charges`, `/facility/suspensions`.
 
 ### Slice 5 - Classes (OUTLINE)
 
