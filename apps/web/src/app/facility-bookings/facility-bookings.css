@@ -435,6 +435,11 @@
   .fb-line select {
     grid-column: 2 / 4;
   }
+  /* The second row: the name or number field spans the number and type
+     columns, the remove button keeps the last. */
+  .fb-line input {
+    grid-column: 1 / 3;
+  }
   .fb-line--head {
     display: none;
   }
