@@ -75,7 +75,9 @@ function bookingDto(booking, facts, extras = {}) {
         contactMobile: booking.contactMobile,
         contactEmail: booking.contactEmail,
         remarks: booking.remarks,
-        status: booking.status,
+        // Slice 4: a booked booking whose every live slot was marked no-show
+        // reads no-show (derived, as golf); the row itself stays booked.
+        status: booking.status === 'booked' && shown.length && shown.every((s) => s.status === 'no-show') ? 'no-show' : booking.status,
         channel: booking.channel,
         workflowInstanceId: booking.workflowInstanceId,
         cancelledAt: booking.cancelledAt,
