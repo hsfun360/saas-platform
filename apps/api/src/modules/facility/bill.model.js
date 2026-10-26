@@ -25,9 +25,19 @@ const Bill = sequelize.define('FacilityBill', {
         type: DataTypes.STRING(50),
         allowNull: false,
     },
+    // Slice 3: a bill hangs off a booking, a registration (walk-in entry) or
+    // an issue record - exactly one of the three (service rule).
     bookingId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
+    },
+    registrationId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    issueRecordId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     // The payer, the booker's Patron.
     patronId: {
@@ -86,6 +96,8 @@ const Bill = sequelize.define('FacilityBill', {
         { name: 'UX_FacilityBill_Company_No', fields: ['companyId', 'billNo'], unique: true },
         { name: 'IX_FacilityBill_Company_Date', fields: ['companyId', 'billDate'] },
         { name: 'IX_FacilityBill_Booking', fields: ['bookingId'] },
+        { name: 'IX_FacilityBill_Registration', fields: ['registrationId'] },
+        { name: 'IX_FacilityBill_Issue', fields: ['issueRecordId'] },
     ],
 });
 

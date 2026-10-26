@@ -509,6 +509,23 @@ FacilityBill.hasMany(FacilityBillItem, { foreignKey: 'billId', as: 'Items', onDe
 FacilityBillItem.belongsTo(FacilityBill, { foreignKey: 'billId', as: 'Bill' });
 FacilityBill.hasMany(FacilityBillPayment, { foreignKey: 'billId', as: 'Payments', onDelete: 'CASCADE' });
 FacilityBillPayment.belongsTo(FacilityBill, { foreignKey: 'billId', as: 'Bill' });
+// Facility slice 3 Control Station (structures approved 2026-10-26):
+// Registration -> RegistrationGuest (cascade); the registration's type and
+// unit are intra-service FKs (RESTRICT); a checked-in slot is referenced by
+// id (partial unique on the model). IssueRecord -> type / unit (RESTRICT).
+const FacilityRegistration = require('../modules/facility/registration.model');
+const FacilityRegistrationGuest = require('../modules/facility/registrationGuest.model');
+const FacilityIssueRecord = require('../modules/facility/issueRecord.model');
+FacilityRegistration.hasMany(FacilityRegistrationGuest, { foreignKey: 'registrationId', as: 'Guests', onDelete: 'CASCADE' });
+FacilityRegistrationGuest.belongsTo(FacilityRegistration, { foreignKey: 'registrationId', as: 'Registration' });
+FacilityType.hasMany(FacilityRegistration, { foreignKey: 'facilityTypeId', as: 'Registrations', onDelete: 'RESTRICT' });
+FacilityRegistration.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+Facility.hasMany(FacilityRegistration, { foreignKey: 'facilityId', as: 'Registrations', onDelete: 'RESTRICT' });
+FacilityRegistration.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+FacilityType.hasMany(FacilityIssueRecord, { foreignKey: 'facilityTypeId', as: 'IssueRecords', onDelete: 'RESTRICT' });
+FacilityIssueRecord.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
+Facility.hasMany(FacilityIssueRecord, { foreignKey: 'facilityId', as: 'IssueRecords', onDelete: 'RESTRICT' });
+FacilityIssueRecord.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -611,6 +628,9 @@ module.exports = {
     FacilityBill,
     FacilityBillItem,
     FacilityBillPayment,
+    FacilityRegistration,
+    FacilityRegistrationGuest,
+    FacilityIssueRecord,
     GuestVisit,
     GolfNoShowCharge,
     GolfGroupPlayDay,

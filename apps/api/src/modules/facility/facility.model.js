@@ -76,6 +76,20 @@ const Facility = sequelize.define('Facility', {
         allowNull: false,
         defaultValue: true,
     },
+    // ---- slice 3 (structures approved 2026-10-26) ----
+    // Issue-mode units with trackUnits ON: 'available' | 'issued' |
+    // 'out-of-service' (a damaged or lost return parks the unit until the
+    // desk clears it); other modes stay 'available'.
+    unitStatus: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'available',
+    },
+    // The live IssueRecord while 'issued'.
+    currentIssueId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

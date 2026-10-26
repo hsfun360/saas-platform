@@ -15,6 +15,10 @@ const { getUserContext, canModifyRecord, annotateCanModify } = require('../../pl
 const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
 const arGateway = require('../../platform/arGateway');
 const Booking = require('./booking.model');
+const Registration = require('./registration.model');
+const RegistrationGuest = require('./registrationGuest.model');
+const IssueRecord = require('./issueRecord.model');
+const Facility = require('./facility.model');
 const FacilityType = require('./facilityType.model');
 const TransactionType = require('./transactionType.model');
 const PaymentType = require('./paymentType.model');
@@ -36,9 +40,77 @@ async function findBill(req, { openOnly = false } = {}) {
     const bill = await Bill.findOne({ where: { companyId, id: req.params.billId } });
     if (!bill) return { status: 404, message: 'Bill not found.' };
     if (openOnly && bill.status !== 'open') return { status: 409, message: `Bill ${bill.billNo} is ${bill.status}.` };
-    const booking = await Booking.findOne({ where: { companyId, id: bill.bookingId } });
-    if (!booking) return { status: 409, message: 'The bill\'s booking no longer exists.' };
-    return { companyId, bill, booking };
+    const source = await sourceOf(companyId, bill);
+    if (!source) return { status: 409, message: 'The bill\'s booking, registration or issue no longer exists.' };
+    return { companyId, bill, booking: source.booking, source };
+}
+
+// What the bill hangs off: the booking (with its facts), the registration
+// (with its guests) or the issue record - normalised to one header the
+// screen renders and one line context the engine prices with.
+async function sourceOf(companyId, bill) {
+    if (bill.bookingId) {
+        const booking = await Booking.findOne({ where: { companyId, id: bill.bookingId } });
+        if (!booking) return null;
+        const facts = await shared.bookingFacts(booking);
+        return {
+            kind: 'booking', booking, facts, label: `booking ${booking.bookingNo}`, facilityTypeId: booking.facilityTypeId,
+            header: {
+                id: booking.id, kind: 'booking', no: booking.bookingNo, status: booking.status,
+                date: facts.shownSlots.length ? String(facts.shownSlots[0].bookingDate) : null, startTime: facts.firstStart, endTime: facts.lastEnd,
+                facilityType: facts.type ? { id: facts.type.id, code: facts.type.code, description: facts.type.description } : null,
+                facilities: [...new Set(facts.slots.map((s) => s.facilityCode))],
+                booker: facts.booker ? { id: facts.booker.id, patronType: facts.booker.patronType, name: facts.booker.name, memberNo: facts.booker.memberNo } : null,
+                slots: facts.liveSlots.length,
+                participants: facts.roster.map((p) => ({ id: p.id, name: p.name, participantType: p.participantType })),
+            },
+        };
+    }
+    const patron = await Patron.findOne({ where: { companyId, id: bill.patronId } });
+    if (bill.registrationId) {
+        const registration = await Registration.findOne({ where: { companyId, id: bill.registrationId } });
+        if (!registration) return null;
+        const [rType, unit, guests] = await Promise.all([
+            FacilityType.findOne({ where: { id: registration.facilityTypeId } }),
+            registration.facilityId ? Facility.findOne({ where: { id: registration.facilityId }, attributes: ['id', 'code', 'name'] }) : null,
+            RegistrationGuest.findAll({ where: { registrationId: registration.id }, order: [['sortOrder', 'ASC']] }),
+        ]);
+        return {
+            kind: 'registration', booking: null, registration, label: `entry ${registration.registrationNo}`, facilityTypeId: registration.facilityTypeId,
+            context: { date: String(registration.registrationDate), dayType: registration.dayType, sessionId: registration.sessionId },
+            header: {
+                id: registration.id, kind: 'registration', no: registration.registrationNo, status: registration.status,
+                date: String(registration.registrationDate), startTime: registration.timeIn ? new Date(registration.timeIn).toISOString() : null, endTime: null,
+                facilityType: rType ? { id: rType.id, code: rType.code, description: rType.description } : null,
+                facilities: unit ? [unit.code] : [],
+                booker: patron ? { id: patron.id, patronType: patron.patronType, name: patron.name, memberNo: patron.memberNo } : null,
+                slots: 0,
+                participants: guests.map((g) => ({ id: g.id, name: g.name, participantType: g.participantType })),
+            },
+        };
+    }
+    if (bill.issueRecordId) {
+        const record = await IssueRecord.findOne({ where: { companyId, id: bill.issueRecordId } });
+        if (!record) return null;
+        const [iType, unit] = await Promise.all([
+            FacilityType.findOne({ where: { id: record.facilityTypeId } }),
+            record.facilityId ? Facility.findOne({ where: { id: record.facilityId }, attributes: ['id', 'code', 'name'] }) : null,
+        ]);
+        return {
+            kind: 'issue', booking: null, issue: record, label: `issue of ${unit ? unit.code : iType ? iType.code : 'unit'}`, facilityTypeId: record.facilityTypeId,
+            context: { date: String(bill.billDate), dayType: 'weekday', sessionId: null },
+            header: {
+                id: record.id, kind: 'issue', no: null, status: record.status,
+                date: String(bill.billDate), startTime: null, endTime: null,
+                facilityType: iType ? { id: iType.id, code: iType.code, description: iType.description } : null,
+                facilities: unit ? [unit.code] : [],
+                booker: patron ? { id: patron.id, patronType: patron.patronType, name: patron.name, memberNo: patron.memberNo } : null,
+                slots: 0,
+                participants: [],
+            },
+        };
+    }
+    return null;
 }
 
 // The line context a booking gives a manual line: the first live slot's date,
@@ -58,30 +130,29 @@ async function lineContext(companyId, booking, facts, { transaction } = {}) {
     };
 }
 
-// The payload the bill screen renders: the bill, the booking's facts, the
+// The line context of a bill on a registration or an issue: its date, day
+// type and session; the payer counts as a member.
+async function stationLineContext(companyId, source) {
+    const { sessions } = await availability.loadRules(companyId);
+    const session = source.context.sessionId ? sessions.find((s) => s.id === source.context.sessionId) : null;
+    return { ...source.context, sessionName: session ? session.name : null, participantType: 'member', sessions, slot: null };
+}
+
+// The payload the bill screen renders: the bill, its source header, the
 // tiles of its facility type, the tenders and the AR Other Debtors.
-async function screenPayload(req, companyId, bill, booking, facts, extras = {}) {
+async function screenPayload(req, companyId, bill, source, extras = {}) {
     await annotateCanModify(req, [bill]);
     const [tiles, tenders, otherDebtors] = await Promise.all([
-        billing.tilesFor(companyId, booking.facilityTypeId),
+        billing.tilesFor(companyId, source.facilityTypeId),
         PaymentType.findAll({ where: { companyId, isActive: true }, order: [['paymentType', 'ASC']] }),
         arGateway.listOtherDebtors(companyId),
     ]);
     return {
         bill: await billing.billDto(bill),
-        booking: {
-            id: booking.id,
-            bookingNo: booking.bookingNo,
-            status: booking.status,
-            bookingDate: facts.shownSlots.length ? String(facts.shownSlots[0].bookingDate) : null,
-            startTime: facts.firstStart,
-            endTime: facts.lastEnd,
-            facilityType: facts.type ? { id: facts.type.id, code: facts.type.code, description: facts.type.description } : null,
-            facilities: [...new Set(facts.slots.map((s) => s.facilityCode))],
-            booker: facts.booker ? { id: facts.booker.id, patronType: facts.booker.patronType, name: facts.booker.name, memberNo: facts.booker.memberNo } : null,
-            slots: facts.liveSlots.length,
-            participants: facts.roster.map((p) => ({ id: p.id, name: p.name, participantType: p.participantType })),
-        },
+        // Kept under `booking` for the screen: bookingNo is the source's number
+        // (a registration number for an entry, none for an issue) and `kind`
+        // says which.
+        booking: { ...source.header, bookingNo: source.header.no, bookingDate: source.header.date },
         tiles,
         tenders: tenders.map((t) => ({ id: t.id, paymentType: t.paymentType, paymentClass: t.paymentClass, description: t.description, iconUrl: t.iconUrl })),
         otherDebtors: (otherDebtors || []).map((d) => ({ id: d.id, code: d.code || d.debtorCode || null, name: d.name })),
@@ -101,7 +172,7 @@ exports.openBill = async (req, res) => {
         if (!booking) return res.status(404).json({ message: 'Booking not found.' });
         const facts = await shared.bookingFacts(booking);
         const existing = await billing.billOfBooking(companyId, booking.id);
-        if (existing) return res.status(200).json(await screenPayload(req, companyId, existing, booking, facts));
+        if (existing) return res.status(200).json(await screenPayload(req, companyId, existing, await sourceOf(companyId, existing)));
         if (booking.status !== 'booked') return res.status(400).json({ message: `Booking ${booking.bookingNo} is ${booking.status} - only a booked booking is billed.` });
         if (!facts.liveSlots.length) return res.status(400).json({ message: 'This booking has no live slots to bill.' });
         if (!facts.booker) return res.status(409).json({ message: 'The booking\'s booker no longer exists.' });
@@ -158,7 +229,7 @@ exports.openBill = async (req, res) => {
             return { bill };
         });
         if (result.fail) return res.status(result.status || 400).json({ message: result.fail });
-        res.status(201).json(await screenPayload(req, companyId, result.bill, booking, facts, { warnings, message: `Bill ${result.bill.billNo} opened.` }));
+        res.status(201).json(await screenPayload(req, companyId, result.bill, await sourceOf(companyId, result.bill), { warnings, message: `Bill ${result.bill.billNo} opened.` }));
     } catch (error) {
         console.error('Error opening facility bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -170,8 +241,8 @@ exports.getBill = async (req, res) => {
     try {
         const found = await findBill(req);
         if (found.status) return res.status(found.status).json({ message: found.message });
-        const { companyId, bill, booking } = found;
-        res.status(200).json(await screenPayload(req, companyId, bill, booking, await shared.bookingFacts(booking)));
+        const { companyId, bill, source } = found;
+        res.status(200).json(await screenPayload(req, companyId, bill, source));
     } catch (error) {
         console.error('Error loading facility bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -183,15 +254,14 @@ exports.addItem = async (req, res) => {
     try {
         const found = await findBill(req, { openOnly: true });
         if (found.status) return res.status(found.status).json({ message: found.message });
-        const { companyId, bill, booking } = found;
+        const { companyId, bill, booking, source } = found;
         const type = await TransactionType.findOne({ where: { companyId, id: String(req.body.transactionTypeId || ''), isActive: true } });
         if (!type) return res.status(400).json({ message: 'Pick a billing item.' });
         if (['package', 'deposit', 'no-show'].includes(type.chargeType)) return res.status(400).json({ message: `'${type.transactionType}' is not a desk billing item.` });
-        if (type.facilityTypeId && type.facilityTypeId !== booking.facilityTypeId) return res.status(400).json({ message: `'${type.transactionType}' belongs to another facility type.` });
+        if (type.facilityTypeId && type.facilityTypeId !== source.facilityTypeId) return res.status(400).json({ message: `'${type.transactionType}' belongs to another facility type.` });
         const quantity = Number.isInteger(Number(req.body.quantity)) ? Number(req.body.quantity) : 1;
         if (quantity < 1 || quantity > 99) return res.status(400).json({ message: 'Quantity must be between 1 and 99.' });
-        const facts = await shared.bookingFacts(booking);
-        const ctx = await lineContext(companyId, booking, facts);
+        const ctx = booking ? await lineContext(companyId, booking, source.facts) : await stationLineContext(companyId, source);
         const stamps = await stampsFor(req);
         const result = await sequelize.transaction(async (transaction) => {
             const added = await billing.addItem({
@@ -255,7 +325,7 @@ exports.settle = async (req, res) => {
     try {
         const found = await findBill(req, { openOnly: true });
         if (found.status) return res.status(found.status).json({ message: found.message });
-        const { companyId, bill, booking } = found;
+        const { companyId, bill, source } = found;
         const raw = Array.isArray(req.body.payments) ? req.body.payments : [];
         if (!raw.length) return res.status(400).json({ message: 'Key in at least one payment.' });
         if (raw.length > 10) return res.status(400).json({ message: 'Too many payment lines.' });
@@ -295,7 +365,7 @@ exports.settle = async (req, res) => {
             if (!od) return res.status(400).json({ message: `Payment ${line.sortOrder}: Other Debtor not found or inactive.` });
             const posted = await billing.postChargeToAccount(req, {
                 bill, arType, target: { debtorType: 'other', sourceId: od.id, incurredByMemberId: null }, amount: line.amount,
-                description: `Facility bill ${bill.billNo} - booking ${booking.bookingNo} (charged to ${od.name})`, stamps,
+                description: `Facility bill ${bill.billNo} - ${source.label} (charged to ${od.name})`, stamps,
             });
             if (posted.error) return res.status(400).json({ message: `Payment ${line.sortOrder} (${od.name}): ${posted.error}` });
             Object.assign(line, { arDocId: posted.id, arDocNo: posted.docNo, debtorType: 'other', debtorSourceId: od.id });
@@ -309,7 +379,7 @@ exports.settle = async (req, res) => {
             if (!target) return res.status(400).json({ message: 'The member\'s charge-to-account target could not be resolved.' });
             for (const line of memberLines) {
                 const posted = await billing.postChargeToAccount(req, {
-                    bill, arType, target, amount: line.amount, description: `Facility bill ${bill.billNo} - booking ${booking.bookingNo} - ${booker.name}`, stamps,
+                    bill, arType, target, amount: line.amount, description: `Facility bill ${bill.billNo} - ${source.label} - ${booker.name}`, stamps,
                 });
                 if (posted.error) return res.status(400).json({ message: posted.error });
                 Object.assign(line, { arDocId: posted.id, arDocNo: posted.docNo, debtorType: target.debtorType, debtorSourceId: target.sourceId });

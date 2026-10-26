@@ -32,6 +32,8 @@ const body = {
     // issue mode
     trackUnits: bool,
     maxIssuePerPatron: numberish,
+    issueDueDays: numberish,
+    entryRequiresBooking: bool,
     // opening hours
     openTimeWeekday: str(8),
     closeTimeWeekday: str(8),
@@ -44,6 +46,7 @@ const body = {
     hostMustBePresent: bool,
     // slice 2: default fees + approval
     feeTransactionTypeId: str(64),
+    issueFeeTransactionTypeId: str(64),
     guestFeeTransactionTypeId: str(64),
     requiresApproval: bool,
 };

@@ -18,7 +18,7 @@ router.use(verifyToken);
 router.use(requireModule('FACILITY'));
 
 const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
-    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings'];
+    '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -58,9 +58,12 @@ router.use('/payment-types', requireMenuAction('/facility/payment-types'), requi
 // claims, bookings and the patron search all live behind the ONE Facility
 // Bookings menu grant. ---
 router.use('/bookings', requireMenuAction('/facility/bookings'), require('./bookings.routes'));
-router.use('/patrons', requireMenuAction('/facility/bookings'), require('./patrons.routes'));
-// --- Slice 2c billing: the bill engine on a booking, same grant. ---
-router.use('/bills', requireMenuAction('/facility/bookings'), require('./bills.routes'));
+router.use('/patrons', requireAnyMenuAction(['/facility/bookings', '/facility/station']), require('./patrons.routes'));
+// --- Slice 2c billing: the bill engine on a booking, a registration or an
+// issue - either desk grant. ---
+router.use('/bills', requireAnyMenuAction(['/facility/bookings', '/facility/station']), require('./bills.routes'));
+// --- Slice 3 Control Station (structures approved 2026-10-26): its own menu. ---
+router.use('/station', requireMenuAction('/facility/station'), require('./station.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

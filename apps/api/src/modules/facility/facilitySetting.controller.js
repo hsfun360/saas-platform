@@ -29,6 +29,8 @@ const DEFAULTS = {
     allowMemberGuestWeekend: true,
     noShowControlEnabled: false,
     cancellationNoticeHours: 24,
+    checkInOpenMinutes: 30,
+    autoSignOutAtClose: true,
 };
 
 function settingDto(row) {
@@ -46,6 +48,8 @@ function settingDto(row) {
         allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
         noShowControlEnabled: row.noShowControlEnabled === true,
         cancellationNoticeHours: row.cancellationNoticeHours,
+        checkInOpenMinutes: row.checkInOpenMinutes ?? 30,
+        autoSignOutAtClose: row.autoSignOutAtClose !== false,
         saved: true,
     };
 }
@@ -186,6 +190,7 @@ exports.save = async (req, res) => {
             ['advanceBookingHours', 0, 23, 'Advance booking hours must be a whole number between 0 and 23.'],
             ['bookingLockMinutes', 1, 60, 'Booking lock minutes must be a whole number between 1 and 60.'],
             ['cancellationNoticeHours', 0, 720, 'Cancellation notice must be a whole number of hours between 0 and 720.'],
+            ['checkInOpenMinutes', 0, 240, 'Check-in opens must be a whole number of minutes between 0 and 240.'],
         ];
         const values = {};
         for (const [field, min, max, message] of ints) {
@@ -194,7 +199,7 @@ exports.save = async (req, res) => {
             values[field] = n.value;
         }
         for (const flag of ['allowSameDayBooking', 'allowMembershipTypeOverride', 'guestControlEnabled', 'allowGuestWeekday', 'allowMemberGuestWeekday',
-            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled']) {
+            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose']) {
             values[flag] = req.body[flag] === true;
         }
 

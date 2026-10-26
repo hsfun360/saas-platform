@@ -157,6 +157,9 @@ if (MODE === 'drain') {
     setInterval(() => scanRainChecks(), 60 * 60 * 1000);
     setInterval(() => scanCaddyRequests(), 60 * 60 * 1000);
     setInterval(() => scanVisits(), 60 * 60 * 1000);
+    // Facility Control Station (2026-10-26): registrations still in after the
+    // type's close time sign out on the tick (club-local clock).
+    setInterval(() => require('./src/modules/facility/station.service').scanAutoSignOut().catch((err) => console.error('[FACILITY STATION] auto sign-out failed:', err)), 15 * 60 * 1000);
 
     // 4. AR statement runs (poll mode): check for queued/expired-lease runs
     // every 30s. Overlapping ticks are safe - the run lease makes a busy run

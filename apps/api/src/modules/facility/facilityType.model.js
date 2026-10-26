@@ -160,6 +160,26 @@ const FacilityType = sequelize.define('FacilityType', {
         allowNull: false,
         defaultValue: false,
     },
+    // ---- slice 3 (structures approved 2026-10-26) ----
+    // The issue-fee transaction type auto-charged once per issue (a unit, or
+    // quantity x the flat amount for a consumable); NULL = free issue.
+    issueFeeTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // Days an issue may be kept; 0 = due back the same day at the close time.
+    issueDueDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    // An entry type that only admits a patron holding a booking of a slot
+    // type that day (a squash entry desk); off for the gym and the pool.
+    entryRequiresBooking: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

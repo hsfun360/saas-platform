@@ -35,6 +35,9 @@ const saveBody = z.object({
     // Cancellation and no-show
     noShowControlEnabled: bool,
     cancellationNoticeHours: numberish,
+    // Control Station (slice 3)
+    checkInOpenMinutes: numberish,
+    autoSignOutAtClose: bool,
     // Sessions (PUT-replaced)
     sessions: z.array(sessionLine).max(50).nullable().optional(),
 });

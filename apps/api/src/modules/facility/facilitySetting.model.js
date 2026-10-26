@@ -99,6 +99,21 @@ const FacilitySetting = sequelize.define('FacilitySetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // ---- slice 3 (structures approved 2026-10-26) ----
+    // A booked slot is checked in from this many minutes before its start
+    // until its end.
+    checkInOpenMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30,
+    },
+    // The end-of-day sweep signs out every registration still in at the
+    // type's close time.
+    autoSignOutAtClose: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
