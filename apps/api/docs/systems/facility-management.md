@@ -737,12 +737,31 @@ One row per suspension; at most one `active` per patron.
 - Control Station's Check-in view gains the *No show* action per slot past the grace and the End of day sweep for slot types; Facility Bookings' cancel preview shows the late-cancel amount or the refusal and the desk's *Waive the charge* option; Facility Specification's *Cancellation and No-show* card gains the action, the transaction type picker, the basis, the grace and the three strike numbers; Facility Types gain the two switches.
 - API: `GET /no-show-charges?status&from&to&q`, `POST /no-show-charges/:id/post`, `POST /no-show-charges/:id/waive` (reason, clearStrike), `POST /no-show-charges/:id/reprice`; `GET /suspensions?status`, `POST /suspensions` (manual), `POST /suspensions/:id/lift` (reason); `POST /station/no-shows` (slotIds) and the station's `today` picture carrying `noShowEligible` per slot; `POST /bookings/:id/cancel` gains `waiveCharge` + `waiveReason`, `GET /bookings/:id/cancel-preview` gains `charge` (the quote) and `refused`; `GET /settings/no-show-types` (the pickable no-show items). Menus the user adds: `/facility/no-show-charges`, `/facility/suspensions`.
 
-### Slice 5 - Classes (FULL DETAIL, drafted 2026-10-26 for approval)
+### Slice 5 - Classes (FULL DETAIL, drafted 2026-10-26 for approval; revised 2026-10-26 with Venue)
 
 **Status:** drafted, not built.
 Instructor-led classes (yoga, aqua aerobics, badminton coaching, swimming lessons): a club publishes a timetable, members enrol per session or per term, the seat is billed through the facility bill, the instructor or the desk marks attendance, and a full session keeps a waitlist.
-Seven tables carry it (the instructor master, the class, its schedule header and generated sessions, the enrolment, the per-session attendance and the waitlist) plus three columns on the Specification and one on the bill.
-Decisions proposed here and open for your change: a class is held on ONE facility type and optionally one unit, and a session on a slot-type unit blocks that unit's booking cells (named `class` on the grid) while a session on an entry type blocks nothing; a class has ONE enrolment mode (`session` or `term`) and ONE fee item per audience (members, and optionally a dearer visitor item), the fee being per session or per term by the mode; the enrolment is billed at enrolment on a facility bill of its own (the same bill drawer and tenders as a booking), the seat is held while the bill is open and an unpaid seat is shown on the roster, not refused; a class no-show is an attendance status only (the fee is already billed) with no penalty and no strike; cancelling a seat outside the class notice voids an unsettled bill and leaves a settled one to Finance for a credit note, inside the notice the fee stands; a booking suspension does NOT bar class enrolment; schedule changes touch FUTURE sessions without enrolments only; the waitlist is first come first served with a timed offer the worker lapses.
+Eight tables carry it (the venue, the instructor master, the class, its schedule header and generated sessions, the enrolment, the per-session attendance and the waitlist) plus three columns on the Specification and one on the bill.
+A class is held at a **Venue** (your 2026-10-26 change): the place of its own, not a facility - two lanes of the pool, the shallow corner, a studio, a meeting room, or a whole court.
+A venue may link to ONE facility unit, and that link decides the blocking: a venue on a slot-type unit blocks the whole unit's booking cells while a session runs (a court is whole), a venue on an entry-type unit blocks nothing (the session takes part of the pool and the door count stays the pool's own), and an unlinked venue blocks nothing and has no closures.
+Decisions proposed here and open for your change: a class has ONE enrolment mode (`session` or `term`) and ONE fee item per audience (members, and optionally a dearer visitor item), the fee being per session or per term by the mode; the enrolment is billed at enrolment on a facility bill of its own (the same bill drawer and tenders as a booking), the seat is held while the bill is open and an unpaid seat is shown on the roster, not refused; a class no-show is an attendance status only (the fee is already billed) with no penalty and no strike; cancelling a seat outside the class notice voids an unsettled bill and leaves a settled one to Finance for a credit note, inside the notice the fee stands; a booking suspension does NOT bar class enrolment; schedule changes touch FUTURE sessions without enrolments only; the waitlist is first come first served with a timed offer the worker lapses; a venue without a facility link gets no closures of its own (an unavailable studio is handled by cancelling the session).
+
+#### `facility.Venue` - where a class is held
+
+Model `FacilityVenue`, table `facility."Venue"`, unique `(companyId, code)`, indexes `(companyId, isActive)`, `(facilityId)`.
+The place of a class; several venues may share one facility unit ('Pool lanes 1-2' and 'Pool lanes 3-4' both on the Swimming Pool).
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `companyId` | UUID | no | | |
+| `code` | STRING(20) | no | | Short code, upper-cased, frozen once a session references the venue. |
+| `name` | STRING | no | | 'Pool lanes 1-2', 'Studio A', 'Badminton Court 3'. |
+| `description` | STRING | yes | | |
+| `facilityId` | UUID | yes | | The facility unit the venue occupies; NULL = not a facility (a studio, a meeting room). A slot-type unit is blocked whole while a session runs; an entry-type unit is not blocked. |
+| `capacity` | INTEGER | no | | Default seats (1 to 500); a class, a schedule or a session may lower it. |
+| `location` | STRING | yes | | Where to find it ('Level 2, past the gym'). |
+| `remarks` | STRING | yes | | |
+| `isActive` | BOOLEAN | no | true | An inactive venue keeps past sessions and cannot be picked for new ones. |
 
 #### `facility.Instructor` - the instructor master
 
@@ -763,7 +782,7 @@ A person who leads sessions; no login of their own in this slice (an instructor 
 
 #### `facility.Class` - the programme
 
-Model `FacilityClass`, table `facility."Class"`, unique `(companyId, code)`, indexes `(companyId, isActive)`, `(companyId, facilityTypeId)`.
+Model `FacilityClass`, table `facility."Class"`, unique `(companyId, code)`, indexes `(companyId, isActive)`, `(companyId, venueId)`.
 What the club offers; the timetable comes from its schedules.
 
 | Column | Type | Null | Default | Meaning |
@@ -772,10 +791,9 @@ What the club offers; the timetable comes from its schedules.
 | `code` | STRING(30) | no | | Upper-cased, frozen once an enrolment exists. |
 | `description` | STRING | no | | The display name ('Morning Yoga'). |
 | `details` | TEXT | yes | | What the class is, what to bring; shown on the roster and in the enrolment email. |
-| `facilityTypeId` | UUID | no | | The type where it is held (any usage mode). |
-| `facilityId` | UUID | yes | | The default unit (a court, the studio); NULL = chosen per schedule. |
+| `venueId` | UUID | yes | | The default venue; NULL = chosen per schedule. |
 | `instructorId` | UUID | yes | | The default instructor; NULL = chosen per schedule. |
-| `capacity` | INTEGER | no | | Default seats per session (1 to 500); a schedule or a session may override. |
+| `capacity` | INTEGER | yes | | Default seats per session; NULL = the venue's capacity, else at most the venue's. A schedule or a session may lower it further. |
 | `enrolmentMode` | STRING(10) | no | 'session' | `session` (one seat in one session) / `term` (one seat in every session of a schedule). |
 | `feeTransactionTypeId` | UUID | yes | | A `class-fee` transaction type priced by its flat card: per session or per term by the mode. NULL = free. |
 | `visitorFeeTransactionTypeId` | UUID | yes | | The item a visitor pays when it differs; NULL = the member item. |
@@ -800,10 +818,10 @@ The header that generates sessions (golf's slot-set / closure-plan pattern: head
 | `weekdays` | JSONB | no | | The ISO weekdays that run (1 = Monday .. 7 = Sunday), at least one. |
 | `startTime` | TIME | no | | |
 | `endTime` | TIME | no | | After `startTime`, same day. |
-| `facilityId` | UUID | yes | | Unit for this schedule's sessions; NULL = the class default (required by save when both are NULL and the type is slot-mode). |
-| `instructorId` | UUID | yes | | NULL = the class default (required by save when both are NULL). |
-| `capacity` | INTEGER | yes | | NULL = the class default. |
-| `skipClosures` | BOOLEAN | no | true | Generation skips a day the facility (or its type) is closed. |
+| `venueId` | UUID | yes | | Venue for this schedule's sessions; NULL = the class default (one of the two must be set at save). |
+| `instructorId` | UUID | yes | | NULL = the class default (one of the two must be set at save). |
+| `capacity` | INTEGER | yes | | NULL = the class default, else the venue's. |
+| `skipClosures` | BOOLEAN | no | true | Generation skips a day the venue's linked facility (or its type) is closed; no effect on an unlinked venue. |
 | `skipPublicHolidays` | BOOLEAN | no | true | Generation skips public holidays (calendar seam). |
 | `termFeeNote` | STRING | yes | | Free text shown with a term enrolment ('10 sessions'). |
 | `status` | STRING(10) | no | 'active' | `active` / `closed` (no new enrolments; sessions run out) / `cancelled` (every future session cancelled). |
@@ -811,7 +829,7 @@ The header that generates sessions (golf's slot-set / closure-plan pattern: head
 
 #### `facility.ClassSession` - one meeting of a class
 
-Model `FacilityClassSession`, table `facility."ClassSession"`, FK `classId` cascades, FK `scheduleId` SET NULL (a one-off session has none), unique `(scheduleId, sessionDate)` on generated rows, indexes `(companyId, sessionDate)`, `(classId, sessionDate)`, `(facilityId, sessionDate)`, `(instructorId, sessionDate)`.
+Model `FacilityClassSession`, table `facility."ClassSession"`, FK `classId` cascades, FK `scheduleId` SET NULL (a one-off session has none), unique `(scheduleId, sessionDate)` on generated rows, indexes `(companyId, sessionDate)`, `(classId, sessionDate)`, `(venueId, sessionDate)`, `(instructorId, sessionDate)`.
 Generated from a schedule or added as a one-off (a make-up session, a workshop).
 
 | Column | Type | Null | Default | Meaning |
@@ -821,9 +839,10 @@ Generated from a schedule or added as a one-off (a make-up session, a workshop).
 | `scheduleId` | UUID | yes | | NULL on a one-off session. |
 | `sessionDate` | DATEONLY | no | | |
 | `startTime` / `endTime` | TIME | no | | Editable per session (a moved session). |
-| `facilityId` | UUID | yes | | Resolved at generation (session > schedule > class); NULL only on an entry type with no unit. |
+| `venueId` | UUID | no | | Resolved at generation (session > schedule > class); editable per session (a moved session). |
+| `facilityId` | UUID | yes | | Snapshot of the venue's linked unit at generation, for the grid's class cells and the conflict checks; NULL on an unlinked venue. |
 | `instructorId` | UUID | no | | Resolved at generation; editable per session (a substitute). |
-| `capacity` | INTEGER | no | | Resolved at generation; editable per session. |
+| `capacity` | INTEGER | no | | Resolved at generation (session > schedule > class > venue); editable per session. |
 | `status` | STRING(10) | no | 'scheduled' | `scheduled` / `held` / `cancelled`. |
 | `heldAt` / `heldBy` | DATE / UUID | yes | | Set by *Hold session*. |
 | `cancelledAt` / `cancelledBy` / `cancelReason` | DATE / UUID / STRING | yes | | |
@@ -891,30 +910,32 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - `FacilitySetting`: `classesEnabled` (BOOLEAN, default false: the master switch for the class screens, the station's Classes view and the grid's class cells), `classCancellationNoticeHours` (INTEGER, default 24: a seat cancelled closer than this to the session start is a late cancellation and keeps its fee; 0 = no notice rule), `classWaitlistOfferHours` (INTEGER, default 24: how long an offered seat is held for the first in the queue).
 - `Bill`: `classEnrolmentId` (UUID, nullable, index) - the fourth source a bill may be keyed to (booking | registration | issue | enrolment); the bill drawer, `sourceOf` and the deep links extend to it.
 - `TransactionType`: no new column; the existing `class-fee` charge type (flat card) is the fee item, `per-booking` its fee basis (one line per enrolment).
-- Email templates `facility.class.enrolled` (the patron: the class, the session or term, the fee and whether it is paid or awaits the desk), `facility.class.session.cancelled` (every enrolled patron and the instructor: the session, the reason, what happens to the fee) and `facility.class.waitlist.offered` (the patron: the seat offered and until when).
+- `Facility`: no new column; the venue links to the unit, never the other way, so a unit knows nothing of classes and the grid reads the sessions by `ClassSession.facilityId`.
+- Email templates `facility.class.enrolled` (the patron: the class, the venue, the session or term, the fee and whether it is paid or awaits the desk), `facility.class.session.cancelled` (every enrolled patron and the instructor: the session, the reason, what happens to the fee) and `facility.class.waitlist.offered` (the patron: the seat offered and until when).
 
 #### Class rules (binding)
 
-1. **Master switch**: with `classesEnabled` OFF the three class screens show their notice and no actions, the station hides its Classes view and the grid shows no class cells; already scheduled sessions stay as data.
-2. **Scheduling**: a schedule generates one `scheduled` session per matching weekday between `dateFrom` and `dateTo` at its times with the resolved unit, instructor and capacity; the preview lists every date and marks SKIPPED the days closed for the facility or the type (when `skipClosures`) and the public holidays (when `skipPublicHolidays`), and marks CONFLICT the dates where the unit already carries a live booking or another session or the instructor another session in the time range; conflicts are not generated and are listed with the booking or session in the way; the user saves the reviewed list (show expected results).
-3. **Changing a schedule**: edited times, unit, instructor or capacity apply to the FUTURE sessions that have no live attendance rows; future sessions with enrolments are listed and left as they are, to be moved or cancelled one by one; a shortened `dateTo` cancels the future sessions beyond it under rule 8; an extended `dateTo` generates the new dates through the same preview.
-4. **Blocking**: a `scheduled` session on a slot-type unit renders the overlapping cells of that unit as `class` on the booking grid (named with the class) and the booking channel refuses a claim that overlaps it; cancelling the session frees the cells; a session on an entry type blocks nothing and its roster does not count toward the entry capacity.
+1. **Master switch**: with `classesEnabled` OFF the four class screens show their notice and no actions, the station hides its Classes view and the grid shows no class cells; already scheduled sessions stay as data.
+2. **Scheduling**: a schedule generates one `scheduled` session per matching weekday between `dateFrom` and `dateTo` at its times with the resolved venue, instructor and capacity; the preview lists every date and marks SKIPPED the days the venue's linked facility or its type is closed (when `skipClosures`) and the public holidays (when `skipPublicHolidays`), and marks CONFLICT the dates where the venue, the venue's slot-type unit or the instructor is already taken in the time range (rule 4 says what counts); conflicts are not generated and are listed with the booking or session in the way; the user saves the reviewed list (show expected results).
+3. **Changing a schedule**: edited times, venue, instructor or capacity apply to the FUTURE sessions that have no live attendance rows; future sessions with enrolments are listed and left as they are, to be moved or cancelled one by one; a shortened `dateTo` cancels the future sessions beyond it under rule 8; an extended `dateTo` generates the new dates through the same preview.
+4. **Blocking and conflicts by venue**: a `scheduled` session whose venue links to a slot-type unit renders the overlapping cells of that whole unit as `class` on the booking grid (named with the class and the venue) and the booking channel refuses a claim that overlaps it; cancelling the session frees the cells; two sessions on venues of the same slot-type unit conflict in overlapping times (the court is whole), and so does a session over a live booking of that unit; a venue linked to an entry-type unit blocks nothing, its sessions do not count toward the entry capacity, and only two sessions on the SAME venue conflict; an unlinked venue blocks nothing and only its own sessions conflict; the same instructor on two overlapping sessions always conflicts.
 5. **Enrolment**: the desk enrols a member by number (the same standing check as a booking: a barred standing refuses, a warning standing warns; a booking suspension does not apply) or a visitor profile when the class allows visitors; a `session` class enrols into one session, a `term` class into a schedule and materialises one attendance row per remaining session; capacity counts the live attendance rows of each session and a full session (or any full session of a term) refuses the enrolment and offers the waitlist; one live enrolment per patron per session or term.
 6. **Billing**: an enrolment with a fee opens a facility bill for the patron with ONE line, the member or the visitor item at the flat price in force on the enrolment date (per session or per term by the mode), taxed through the tax seam; no price in force refuses the enrolment naming the item (as a booking's fee); the bill settles through the bill drawer with the usual tenders (the `member` class posts to AR with credit enforced); the seat is `enrolled` while the bill is open and the roster shows UNPAID until it settles; a free class opens no bill.
 7. **Attendance**: from the session roster (the Class Schedule screen or the station's Classes view) the instructor or the desk marks each row `attended` / `no-show` / `excused`; *Hold session* lists the unmarked rows that will become `no-show` and, on confirm, marks them and sets the session `held`; a held session's rows are final; a class no-show is a status only, with no charge and no strike.
-8. **Session cancellation by the club**: a `scheduled` session is cancelled with a reason; every enrolled patron and the instructor are emailed; `session` enrolments on it are cancelled with their unsettled bills voided and their settled bills listed for Finance (a credit note, not here); `term` enrolments lose the session (their attendance rows are cancelled, the term fee stands); a make-up may be added as a one-off session of the schedule, which materialises the term rows; a closure day generated over a scheduled session warns in the closure preview and cancels the session on confirm.
+8. **Session cancellation by the club**: a `scheduled` session is cancelled with a reason; every enrolled patron and the instructor are emailed; `session` enrolments on it are cancelled with their unsettled bills voided and their settled bills listed for Finance (a credit note, not here); `term` enrolments lose the session (their attendance rows are cancelled, the term fee stands); a make-up may be added as a one-off session of the schedule, which materialises the term rows; a closure day generated over a scheduled session of a linked venue warns in the closure preview and cancels the session on confirm; an unlinked venue that is unavailable is handled by cancelling the session.
 9. **Cancellation by the patron**: outside the class notice (the class's override, else the Specification's) a `session` enrolment is cancelled and its unsettled bill voided (a settled bill is listed for Finance), inside the notice it is cancelled as late and the fee stands; a `term` enrolment withdraws from its remaining sessions and the fee stands either way (no proration); the preview states which applies (show expected results); the freed seat triggers the waitlist.
 10. **Waitlist**: joined when full, first come first served per session or term; when a seat frees the first `waiting` row becomes `offered`, is emailed and holds the seat until `offerExpiresAt`; the desk confirms it into an enrolment (billed as rule 6) or it lapses and the next is offered (worker tick, every 15 minutes with the auto sign-out); a patron may withdraw; an enrolment made directly while a seat is offered is refused (the seat is held).
-11. **Instructors**: a session has one instructor; an instructor cannot be on two sessions that overlap (refused at generation as a conflict and at a session edit); an inactive instructor keeps past sessions; the Class Schedule filters by instructor to give each one their timetable.
+11. **Instructors and venues**: a session has one instructor and one venue; an instructor cannot be on two sessions that overlap (refused at generation as a conflict and at a session edit); an inactive instructor or venue keeps past sessions; the Class Schedule filters by instructor and by venue to give each their timetable; a venue's facility link and a class's or schedule's venue are frozen once a session exists, and a moved session picks its own venue.
 
 #### Slice 5 screens and API
 
+- `/facility/venues` - **Venues**: the master listing (card: code, name, the linked unit or 'not a facility', capacity, active chip; Edit visible, Enable / Disable in the kebab) with a create / edit drawer (the unit picker is a combobox over the active facilities of every type, with the blocking consequence stated under it: 'blocks the whole court while a session runs' / 'takes part of the pool, nothing blocked').
 - `/facility/instructors` - **Instructors**: the master listing (card: code, name, specialities, active chip; Edit visible, Enable / Disable in the kebab) with a create / edit drawer.
-- `/facility/classes` - **Classes**: the master listing (card: code, description, facility type and unit, instructor, capacity, mode, fee items, active chip; Edit visible; *Schedules*, Enable / Disable in the kebab) with a create / edit drawer; *Schedules* opens the class's schedules in the same drawer (list, *New schedule* with the preview of generated sessions marked skipped or conflict, edit, close, cancel).
-- `/facility/class-schedule` - **Class Schedule**: the timetable, a week strip of sessions per day (filters: class, instructor, facility type; status chips scheduled / held / cancelled with seats taken of capacity); a session opens its roster drawer: enrol (member number or visitor), the attendance marks, UNPAID flags with the bill deep link, the waitlist with *Offer* / *Confirm* / *Withdraw*, *Hold session*, *Cancel session* (reason), edit times / unit / instructor / capacity, *Add one-off session*.
-- Control Station gains a **Classes** view (today's sessions with seats taken, the roster with attendance marks and *Hold*, walk-in enrolment when the class allows it); Facility Bookings' grid shows `class` cells; Facility Specification gains a *Classes* card (master switch, class notice hours, waitlist offer hours); the bill drawer opens from an enrolment (`?billId=`).
-- API: `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&facilityTypeId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile), `GET /class-enrolments/:id/cancel-preview`, `POST /class-enrolments/:id/cancel`; `POST /class-waitlist`, `POST /class-waitlist/:id/offer`, `POST /class-waitlist/:id/confirm`, `POST /class-waitlist/:id/withdraw`; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
-- Build order inside the slice: 5a instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
+- `/facility/classes` - **Classes**: the master listing (card: code, description, venue, instructor, capacity, mode, fee items, active chip; Edit visible; *Schedules*, Enable / Disable in the kebab) with a create / edit drawer; *Schedules* opens the class's schedules in the same drawer (list, *New schedule* with the preview of generated sessions marked skipped or conflict, edit, close, cancel).
+- `/facility/class-schedule` - **Class Schedule**: the timetable, a week strip of sessions per day (filters: class, instructor, venue; status chips scheduled / held / cancelled with seats taken of capacity); a session opens its roster drawer: enrol (member number or visitor), the attendance marks, UNPAID flags with the bill deep link, the waitlist with *Offer* / *Confirm* / *Withdraw*, *Hold session*, *Cancel session* (reason), edit times / venue / instructor / capacity, *Add one-off session*.
+- Control Station gains a **Classes** view (today's sessions with the venue and seats taken, the roster with attendance marks and *Hold*, walk-in enrolment when the class allows it); Facility Bookings' grid shows `class` cells; Facility Specification gains a *Classes* card (master switch, class notice hours, waitlist offer hours); the bill drawer opens from an enrolment (`?billId=`).
+- API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile), `GET /class-enrolments/:id/cancel-preview`, `POST /class-enrolments/:id/cancel`; `POST /class-waitlist`, `POST /class-waitlist/:id/offer`, `POST /class-waitlist/:id/confirm`, `POST /class-waitlist/:id/withdraw`; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
+- Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
 ## Public API (gateway seam: `/api/facility`)
 
