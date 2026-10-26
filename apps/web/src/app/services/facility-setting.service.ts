@@ -64,12 +64,22 @@ export interface FacilitySettingDoc {
   // slice 3: Control Station
   checkInOpenMinutes: number;
   autoSignOutAtClose: boolean;
+  // slice 4: No show
+  lateCancellationAction: 'charge' | 'refuse';
+  noShowTransactionTypeId: string | null;
+  noShowChargeBasis: 'booking' | 'slot' | 'participant';
+  noShowGraceMinutes: number;
+  strikeCount: number;
+  strikeWindowDays: number;
+  strikeSuspensionDays: number;
   saved: boolean;
   sessions: FacilitySessionBand[];
   overrides: FacilityAdvanceBookingOverride[];
   guestControlRules: FacilityGuestControlRule[];
   membershipTypes: FacilityMembershipTypeOption[];
   facilityTypes: FacilityTypeOption[];
+  // slice 4: the pickable no-show items.
+  noShowTypes?: { id: string; transactionType: string; description: string; facilityTypeId: string | null }[];
 }
 
 export type FacilitySettingPayload = Omit<FacilitySettingDoc, 'saved' | 'membershipTypes' | 'facilityTypes'>;

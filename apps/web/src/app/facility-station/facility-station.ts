@@ -386,6 +386,25 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ---- slice 4: the no-show mark ----
+
+  askNoShow(s: StationSlot): void {
+    this.confirmAction.set({
+      title: `Record ${s.facility?.code} ${s.startTime} as a no-show?`,
+      message: `${s.booker?.name || s.bookingNo} did not check in. The slot is marked no-show; with no-show control on, the charge is raised to the booker${s.booker?.memberNo ? "'s account" : ' (a visitor - it stays pending for the desk)'} and the strike counted where the type counts them.`,
+      confirmLabel: 'Record no-show',
+      cancelLabel: 'Not yet',
+      run: () => {
+        this.confirmAction.set(null);
+        this.busyId.set(s.slotId);
+        this.service.markNoShows([s.slotId]).subscribe({
+          next: (res) => { this.busyId.set(null); this.successMessage.set(res.message); this.load(true); },
+          error: (err) => { this.busyId.set(null); this.errorMessage.set(err.error?.message || 'Failed to record the no-show.'); },
+        });
+      },
+    });
+  }
+
   // ---- end of day ----
 
   askEndOfDay(): void {
@@ -393,8 +412,10 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     const inside = t ? (t.liveCount || 0) : this.insideCount();
     this.confirmAction.set({
       title: t ? `End of day for ${t.code}?` : 'End of day?',
-      message: `${inside} registration${inside === 1 ? '' : 's'} still in will be signed out at ${this.day()?.clubNow.time || 'now'}. Issues past their due time are listed as overdue; nothing is written off.`,
-      confirmLabel: 'Sign everyone out',
+      message: t && t.usageMode === 'slot'
+        ? `Every slot on ${t.code} still booked past its end today is recorded as a no-show${this.day()?.noShowControlled ? ' and charged to its booker' : ''}; ${(t.slots || []).filter((s) => s.checkInState === 'closed').length} slot${(t.slots || []).filter((s) => s.checkInState === 'closed').length === 1 ? '' : 's'} qualify now.`
+        : `${inside} registration${inside === 1 ? '' : 's'} still in will be signed out at ${this.day()?.clubNow.time || 'now'}. Issues past their due time are listed as overdue; nothing is written off.`,
+      confirmLabel: t && t.usageMode === 'slot' ? 'Record the no-shows' : 'Sign everyone out',
       cancelLabel: 'Not yet',
       danger: false,
       run: () => {

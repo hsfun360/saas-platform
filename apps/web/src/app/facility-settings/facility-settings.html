@@ -302,7 +302,59 @@
                   <p class="cell-subtle field-hint">A cancel closer than this to the slot is a late cancellation; 0 = no notice rule.</p>
                 </div>
               </div>
-              <p class="cell-subtle field-hint">The no-show charge and the strike rule per facility type arrive with the No show slice.</p>
+              <div class="fs-grid">
+                <div class="form-group">
+                  <label for="fsLateAction">Late cancellation
+                    <app-field-info label="Late cancellation" [text]="hint.lateAction" />
+                  </label>
+                  <select id="fsLateAction" formControlName="lateCancellationAction">
+                    <option value="charge">Charge the booker</option>
+                    <option value="refuse">Refuse the cancellation</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="fsNoShowItem">No-show charge item</label>
+                  <app-combobox formControlName="noShowTransactionTypeId" inputId="fsNoShowItem" [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="The type's own or the general no-show item" placeholder="Type to search…" />
+                  <p class="cell-subtle field-hint">A No Show Charges transaction type priced by its flat card.</p>
+                </div>
+                <div class="form-group">
+                  <label for="fsBasis">Charge basis
+                    <app-field-info label="Charge basis" [text]="hint.basis" />
+                  </label>
+                  <select id="fsBasis" formControlName="noShowChargeBasis">
+                    <option value="booking">Per booking</option>
+                    <option value="slot">Per missed slot</option>
+                    <option value="participant">Per participant</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="fsGrace">No-show grace (minutes) <span class="required">*</span></label>
+                  <input id="fsGrace" type="number" inputmode="numeric" min="0" max="240" step="1" formControlName="noShowGraceMinutes"
+                         [attr.aria-invalid]="showError(form.controls.noShowGraceMinutes)" aria-describedby="fsGraceErr" />
+                  @if (showError(form.controls.noShowGraceMinutes)) {
+                    <p id="fsGraceErr" class="field-error" role="alert">Enter a whole number between 0 and 240.</p>
+                  }
+                  <p class="cell-subtle field-hint">A booked slot may be recorded as a no-show this long after its start.</p>
+                </div>
+              </div>
+              <p class="fs-day-title">Strikes
+                <app-field-info label="Strikes" [text]="hint.strikes" />
+              </p>
+              <div class="fs-grid">
+                <div class="form-group">
+                  <label for="fsStrikeCount">No-shows to suspend <span class="required">*</span></label>
+                  <input id="fsStrikeCount" type="number" inputmode="numeric" min="1" max="20" step="1" formControlName="strikeCount" />
+                </div>
+                <div class="form-group">
+                  <label for="fsStrikeWindow">Within (days) <span class="required">*</span></label>
+                  <input id="fsStrikeWindow" type="number" inputmode="numeric" min="1" max="365" step="1" formControlName="strikeWindowDays" />
+                </div>
+                <div class="form-group">
+                  <label for="fsStrikeDays">Suspension (days) <span class="required">*</span></label>
+                  <input id="fsStrikeDays" type="number" inputmode="numeric" min="1" max="365" step="1" formControlName="strikeSuspensionDays" />
+                </div>
+              </div>
+              <p class="cell-subtle field-hint">Each facility type switches its own charge and strike on or off under Facility Types.</p>
             } @else {
               <p class="cell-subtle field-hint">Off - bookings cancel at any time without penalty.</p>
             }

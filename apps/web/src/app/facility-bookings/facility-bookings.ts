@@ -25,6 +25,7 @@ import {
   FacilityBillDoc,
   FacilityBillScreen,
   FacilityPaymentLine,
+  FacilityCancelPreview,
   FacilityGridCell,
   FacilityGridColumn,
   FacilityParticipantLine,
@@ -133,7 +134,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
   readonly liveCount = computed(() => this.bookings().filter((b) => b.status !== 'cancelled').length);
 
   // ---- the ONE drawer: 'book' | 'detail' | 'participants' ----
-  readonly dlgMode = signal<'book' | 'detail' | 'participants' | 'bill' | 'settle' | null>(null);
+  readonly dlgMode = signal<'book' | 'detail' | 'participants' | 'bill' | 'settle' | 'cancelWaive' | null>(null);
   readonly saving = signal(false);
   readonly detail = signal<FacilityBookingRow | null>(null);
   readonly detailLoading = signal(false);
@@ -171,7 +172,12 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     remarks: ['', Validators.maxLength(255)],
     bookingNo: ['', Validators.maxLength(50)],
     roster: this.rosterLines,
+    // Slice 4: the desk's cancel with the late charge waived.
+    cancelReason: ['', Validators.maxLength(255)],
+    waiveReason: ['', Validators.maxLength(255)],
   });
+  readonly cancelTarget = signal<FacilityBookingRow | null>(null);
+  readonly cancelPreviewDoc = signal<FacilityCancelPreview | null>(null);
   // The booker kind and the roster shape are mirrored into signals from the
   // form events so the template re-renders zonelessly.
   readonly bookerKind = signal<'member' | 'visitor'>('member');
@@ -190,6 +196,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     const bs = this.billScreen();
     if (mode === 'bill') return bs ? `Bill ${bs.bill.billNo} - ${this.billSourceLabel()}` : 'Bill';
     if (mode === 'settle') return bs ? `Settle bill ${bs.bill.billNo}` : 'Settle';
+    if (mode === 'cancelWaive') { const c = this.cancelTarget(); return c ? `Cancel ${c.bookingNo} and waive the charge` : 'Cancel and waive'; }
     return d ? `Booking ${d.bookingNo}` : 'Booking';
   });
 
@@ -731,15 +738,69 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
         if (p.pending) lines.push('The pending approval is withdrawn.');
         else if (p.late) lines.push(`This is inside the ${p.noticeHours}-hour notice - it is recorded as a LATE cancellation.`);
         else if (p.controlled) lines.push(`Outside the ${p.noticeHours}-hour notice - no late-cancellation record.`);
+        // Slice 4: the late charge, or the refusal.
+        if (p.late && p.charge) {
+          if (p.charge.unpriced) lines.push(`A late cancellation charge is raised unpriced (${p.charge.reason}) for the office to price.`);
+          else lines.push(`A late cancellation charge of ${(p.charge.totalAmount || 0).toFixed(2)} (${p.charge.description}${(p.charge.quantity || 1) > 1 ? ' x ' + p.charge.quantity : ''}) is raised to the booker${p.bookerIsMember ? "'s account" : ' - a visitor, so it stays pending for the desk'}.`);
+        }
+        if (p.refused) {
+          this.confirmAction.set({
+            title: 'Cancellation refused inside the notice',
+            message: `${lines.join(' ')} The club refuses cancellations inside the notice; the desk may cancel with the charge waived and a reason.`,
+            confirmLabel: 'Cancel and waive the charge',
+            cancelLabel: 'Keep booking',
+            run: () => { this.confirmAction.set(null); this.openCancelWaive(b, p); },
+          });
+          return;
+        }
         this.confirmAction.set({
           title: 'Cancel this booking?',
           message: lines.join(' '),
-          confirmLabel: p.late ? 'Cancel booking (late)' : 'Cancel booking',
+          confirmLabel: p.late ? (p.charge ? 'Cancel and charge' : 'Cancel booking (late)') : 'Cancel booking',
           cancelLabel: 'Keep booking',
           run: () => this.cancelBooking(b),
         });
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to check the cancellation.'),
+    });
+  }
+
+  // Slice 4: the desk cancels inside the notice with the charge waived (a reason).
+  openCancelWaive(b: FacilityBookingRow, preview: FacilityCancelPreview | null = null): void {
+    this.clearMessages();
+    this.cancelTarget.set(b);
+    this.cancelPreviewDoc.set(preview);
+    this.form.controls.cancelReason.reset('');
+    this.form.controls.waiveReason.reset('');
+    this.dlgMode.set('cancelWaive');
+  }
+
+  askCancelWaive(b: FacilityBookingRow): void {
+    this.clearMessages();
+    this.service.cancelPreview(b.id).subscribe({
+      next: (p) => this.openCancelWaive(b, p),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to check the cancellation.'),
+    });
+  }
+
+  submitCancelWaive(): void {
+    const b = this.cancelTarget();
+    if (!b) return;
+    const waiveReason = this.form.controls.waiveReason.value.trim();
+    if (!waiveReason) { this.errorMessage.set('Give the reason for waiving the charge.'); return; }
+    this.saving.set(true);
+    this.service.cancel(b.id, this.form.controls.cancelReason.value.trim() || null, { waiveCharge: true, waiveReason }).subscribe({
+      next: (res) => {
+        this.saving.set(false);
+        this.successMessage.set(res.message);
+        this.form.controls.cancelReason.markAsPristine();
+        this.form.controls.waiveReason.markAsPristine();
+        if (this.detail()?.id === b.id) this.detail.set({ ...res.booking, canModify: b.canModify });
+        this.dlgMode.set(this.detail()?.id === b.id ? 'detail' : null);
+        this.returnScroll.remember(FacilityBookingsComponent.LIST_PATH, b.id);
+        this.loadDay();
+      },
+      error: (err) => { this.saving.set(false); this.errorMessage.set(err.error?.message || 'Failed to cancel the booking.'); },
     });
   }
 
@@ -1011,6 +1072,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     if (mode === 'book') return this.form.dirty || this.rosterLines.dirty;
     if (mode === 'participants') return this.rosterLines.dirty || this.form.controls.hostMemberNo.dirty;
     if (mode === 'settle') return this.payLines.dirty;
+    if (mode === 'cancelWaive') return this.form.controls.cancelReason.dirty || this.form.controls.waiveReason.dirty;
     return false;
   }
 

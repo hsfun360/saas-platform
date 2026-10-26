@@ -79,6 +79,8 @@ export interface StationSlot {
   booker: StationPatron | null;
   participants: { id: string; name: string; memberNo: string | null; participantType: string; isHost: boolean }[];
   checkInState: 'early' | 'open' | 'closed' | 'checked-in';
+  // Slice 4: booked, past start + grace, not checked in.
+  noShowEligible?: boolean;
   registration: StationRegistration | null;
   bill: FacilityBillSummary | null;
 }
@@ -135,6 +137,8 @@ export interface StationDay {
   dayType: 'weekday' | 'weekend';
   clubNow: { date: string; time: string };
   checkInOpenMinutes: number;
+  noShowControlled?: boolean;
+  noShowGraceMinutes?: number | null;
   types: StationType[];
 }
 
@@ -197,6 +201,11 @@ export class FacilityStationService {
 
   clearUnit(unitId: string): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/units/${unitId}/clear`, {});
+  }
+
+  // Slice 4: mark booked slots past their grace as no-show (charges raised after commit).
+  markNoShows(slotIds: string[]): Observable<StationActionResult> {
+    return this.http.post<StationActionResult>(`${this.base}/no-shows`, { slotIds });
   }
 
   endOfDay(facilityTypeId: string | null, date: string): Observable<StationActionResult> {

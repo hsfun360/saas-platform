@@ -323,6 +323,11 @@ export interface FacilityCancelPreview extends FacilityCancelVerdict {
   pending: boolean;
   slots: number;
   guestVisits: number;
+  // Slice 4: inside the notice with the control on.
+  action?: 'charge' | 'refuse';
+  refused?: boolean;
+  bookerIsMember?: boolean;
+  charge?: { unpriced?: boolean; reason?: string; description?: string; quantity: number; unitAmount?: number; amount?: number; taxAmount?: number; totalAmount?: number } | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -376,8 +381,8 @@ export class FacilityBookingService {
     return this.http.get<FacilityCancelPreview>(`${this.base}/${id}/cancel-preview`);
   }
 
-  cancel(id: string, reason: string | null): Observable<{ message: string; booking: FacilityBookingRow }> {
-    return this.http.post<{ message: string; booking: FacilityBookingRow }>(`${this.base}/${id}/cancel`, { reason });
+  cancel(id: string, reason: string | null, waive?: { waiveCharge: boolean; waiveReason: string | null }): Observable<{ message: string; booking: FacilityBookingRow }> {
+    return this.http.post<{ message: string; booking: FacilityBookingRow }>(`${this.base}/${id}/cancel`, { reason, ...(waive || {}) });
   }
 
   saveParticipants(id: string, payload: { participants: FacilityParticipantLine[]; hostMemberNo?: string | null }): Observable<{ message: string; booking: FacilityBookingRow }> {

@@ -264,6 +264,8 @@ const routes: Routes = [
       { path: 'facility/facilities', loadComponent: () => import('./app/facilities/facilities').then((m) => m.FacilitiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/closures', loadComponent: () => import('./app/facility-closures/facility-closures').then((m) => m.FacilityClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       // Facility slice 2a catalogs (structures approved 2026-10-25).
+      { path: 'facility/no-show-charges', loadComponent: () => import('./app/facility-no-show-charges/facility-no-show-charges').then((m) => m.FacilityNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
+      { path: 'facility/suspensions', loadComponent: () => import('./app/facility-suspensions/facility-suspensions').then((m) => m.FacilitySuspensionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/station', loadComponent: () => import('./app/facility-station/facility-station').then((m) => m.FacilityStationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/bookings', loadComponent: () => import('./app/facility-bookings/facility-bookings').then((m) => m.FacilityBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },
       { path: 'facility/participant-types', loadComponent: () => import('./app/facility-participant-types/facility-participant-types').then((m) => m.FacilityParticipantTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'FACILITY' } },

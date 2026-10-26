@@ -1,0 +1,156 @@
+<div class="saas-container">
+
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">event_busy</span>
+      <div>
+        <h1>{{ 'No-show Charges' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The penalties on missed slots and late cancellations: post them to the account, waive them with a reason, re-price the unpriced ones.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (!controlled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon">ℹ️</span>
+      <span>No-show control is off on Facility Specification - no new charges are raised. Existing ones stay listed here.</span>
+    </div>
+  }
+
+  <!-- FILTERS -->
+  <div class="nsc-filters">
+    <div class="nsc-status" role="group" aria-label="Status">
+      @for (s of [['pending', 'Pending'], ['posted', 'Posted'], ['waived', 'Waived'], ['', 'All']]; track s[0]) {
+        <button type="button" class="btn btn--sm" [class.btn--primary]="status() === s[0]" [class.btn--secondary]="status() !== s[0]" (click)="setStatus(s[0])">{{ s[1] }}</button>
+      }
+    </div>
+    @if (status() === 'pending' && pendingTotal() > 0) {
+      <span class="cell-subtle">Pending total <strong>{{ pendingTotal().toFixed(2) }}</strong></span>
+    }
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by booking number, booker or member number…" aria-label="Search charges" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading charges…</p></div>
+  } @else if (charges().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">event_busy</span>
+      <p>No {{ status() || '' }} charges. The Control Station raises one when a booked slot is marked no-show, and a cancel inside the notice raises a late cancellation charge.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No charges match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (c of filtered(); track c.id) {
+        <div class="data-card" [attr.data-return-id]="c.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ reasonLabel(c) }} · {{ c.bookingNo }} <span class="data-card__reg">{{ c.bookingDate | localDate }}</span></div>
+              <div class="data-card__subline">
+                <span>{{ c.bookerName }}</span>
+                @if (c.bookerMemberNo) { <span class="data-card__reg">({{ c.bookerMemberNo }})</span> } @else { <span class="data-card__reg">(visitor)</span> }
+                <span class="data-card__reg">· {{ c.slotSummary }}</span>
+                @if (c.strikeCounted) { <span class="status-chip status-chip--danger">Strike</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Item</dt><dd>{{ c.description }}{{ c.quantity > 1 ? ' x ' + c.quantity : '' }}</dd></div>
+                <div class="meta"><dt>Amount</dt><dd>{{ c.totalAmount.toFixed(2) }}{{ c.taxAmount ? ' (tax ' + c.taxAmount.toFixed(2) + ')' : '' }}</dd></div>
+                @if (c.status === 'posted') { <div class="meta"><dt>Posted</dt><dd>{{ c.arDocNo }} · {{ c.postedAt | localDate:'datetime' }}</dd></div> }
+                @if (c.status === 'waived') { <div class="meta"><dt>Waived</dt><dd>{{ c.waiveReason }} · {{ c.waivedAt | localDate:'datetime' }}</dd></div> }
+                @if (c.status === 'pending' && c.remarks) { <div class="meta"><dt>Pending</dt><dd class="nsc-remark">{{ c.remarks }}</dd></div> }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span class="status-chip" [class]="'status-chip ' + statusClass(c)">{{ c.status }}</span>
+            </div>
+            <div class="data-row__actions">
+              @if (c.status === 'pending' && c.canModify !== false) {
+                @if (c.transactionTypeId && c.totalAmount > 0) {
+                  <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="post(c)" [disabled]="busyId() === c.id">
+                    <span class="material-icons" aria-hidden="true">account_balance</span>
+                    Post
+                  </button>
+                } @else {
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="reprice(c)" [disabled]="busyId() === c.id">
+                    <span class="material-icons" aria-hidden="true">price_change</span>
+                    Re-price
+                  </button>
+                }
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for charge on ' + c.bookingNo">
+                  <button type="button" appMenuItem (click)="openWaive(c)">
+                    <span class="material-icons" aria-hidden="true">money_off</span>
+                    Waive
+                  </button>
+                  <button type="button" appMenuItem (click)="openBooking(c)">
+                    <span class="material-icons" aria-hidden="true">event_available</span>
+                    Open booking
+                  </button>
+                </app-overflow-menu>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openBooking(c)">
+                  <span class="material-icons" aria-hidden="true">event_available</span>
+                  Booking
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (waiveTarget(); as c) {
+    <app-dialog #dlg variant="drawer" [title]="'Waive the charge on ' + c.bookingNo" [busy]="saving()" [dirty]="form.dirty" (close)="closeWaive()">
+      <form id="nscWaive" class="saas-form saas-form--dialog" [formGroup]="form" (ngSubmit)="submitWaive()">
+        <p class="cell-subtle">{{ reasonLabel(c) }} · {{ c.bookerName }} · {{ c.slotSummary }} · {{ c.totalAmount.toFixed(2) }}</p>
+        <div class="form-group">
+          <label for="nscReason">Reason <span class="required">*</span></label>
+          <textarea id="nscReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="form.controls.reason.invalid && form.controls.reason.touched" aria-describedby="nscReasonErr"></textarea>
+          @if (form.controls.reason.invalid && form.controls.reason.touched) { <p id="nscReasonErr" class="field-error" role="alert">Give the reason for waiving.</p> }
+        </div>
+        @if (c.strikeCounted) {
+          <div class="form-row">
+            <label class="nsc-check">
+              <input type="checkbox" formControlName="clearStrike" />
+              <span>Also clear the strike (the no-show no longer counts toward a suspension)</span>
+            </label>
+          </div>
+        }
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="nscWaive" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Waiving…' : 'Waive ' + c.totalAmount.toFixed(2) }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as a) {
+    <app-confirm-dialog [request]="a" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

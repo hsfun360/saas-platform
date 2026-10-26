@@ -438,6 +438,21 @@
                     <app-field-info label="Booking approval" [text]="hint.approval" />
                   </label>
                 </div>
+                @if (formMode() === 'slot') {
+                  <div class="form-row">
+                    <label class="ft-check switch">
+                      <input type="checkbox" role="switch" formControlName="noShowChargeEnabled" />
+                      <span>Charge no-shows and late cancellations on this type</span>
+                    </label>
+                  </div>
+                  <div class="form-row">
+                    <label class="ft-check switch">
+                      <input type="checkbox" role="switch" formControlName="noShowStrikeEnabled" />
+                      <span>Count no-shows on this type as strikes</span>
+                    </label>
+                  </div>
+                  <p class="cell-subtle field-hint">Both apply only while no-show control is on in Facility Specification.</p>
+                }
               </details>
             </form>
           }

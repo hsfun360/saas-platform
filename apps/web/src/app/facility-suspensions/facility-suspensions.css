@@ -1,0 +1,7 @@
+/* Booking Suspensions - screen-specific bits only; the listing chrome is global. */
+.sus-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}

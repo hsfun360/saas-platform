@@ -1,0 +1,31 @@
+/* No-show Charges - screen-specific bits only; the listing chrome is global. */
+.nsc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.nsc-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.nsc-remark {
+  color: var(--danger-text);
+}
+.nsc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.nsc-check input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}

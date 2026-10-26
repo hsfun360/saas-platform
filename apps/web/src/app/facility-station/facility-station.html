@@ -112,7 +112,13 @@
                         <span class="material-icons" aria-hidden="true">how_to_reg</span>
                         Check in
                       </button>
-                    } @else {
+                    }
+                    @if (s.noShowEligible && s.slotStatus === 'booked') {
+                      <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askNoShow(s)" [disabled]="busyId() === s.slotId">
+                        <span class="material-icons" aria-hidden="true">person_off</span>
+                        No show
+                      </button>
+                    } @else if (s.checkInState !== 'open') {
                       <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(s.bill?.id || null, s.bookingId)">
                         <span class="material-icons" aria-hidden="true">receipt_long</span>
                         {{ s.bill ? 'Bill' : 'Open bill' }}
@@ -289,9 +295,9 @@
       }
 
       <!-- ============ END OF DAY ============ -->
-      @if (t.usageMode !== 'slot') {
+      @if (t.usageMode !== 'slot' || day()?.noShowControlled) {
         <div class="st-eod">
-          <span class="cell-subtle">End of day: sign out everyone still in on {{ t.code }} and list the overdue issues.</span>
+          <span class="cell-subtle">{{ t.usageMode === 'slot' ? 'End of day: record every slot still booked past its end as a no-show.' : 'End of day: sign out everyone still in on ' + t.code + ' and list the overdue issues.' }}</span>
           <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="askEndOfDay()" [disabled]="t.usageMode === 'entry' && !(t.liveCount || 0)">
             <span class="material-icons" aria-hidden="true">nightlight</span>
             End of day

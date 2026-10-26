@@ -1,0 +1,150 @@
+<div class="saas-container">
+
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">gavel</span>
+      <div>
+        <h1>{{ 'Booking Suspensions' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Members barred from booking facilities - automatically after repeated no-shows, or by the office - with the dates and the strikes behind each.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div class="sus-filters" role="group" aria-label="Status">
+    @for (s of [['active', 'Active'], ['lifted', 'Lifted'], ['expired', 'Expired'], ['', 'All']]; track s[0]) {
+      <button type="button" class="btn btn--sm" [class.btn--primary]="status() === s[0]" [class.btn--secondary]="status() !== s[0]" (click)="setStatus(s[0])">{{ s[1] }}</button>
+    }
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by member, member number or reason…" aria-label="Search suspensions" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading suspensions…</p></div>
+  } @else if (suspensions().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">gavel</span>
+      <p>No {{ status() || '' }} suspensions. One starts automatically when a member reaches the strike count on a type with strikes on, or use 'New suspension'.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No suspensions match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (s of filtered(); track s.id) {
+        <div class="data-card" [attr.data-return-id]="s.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ s.patronName }} <span class="data-card__reg">{{ s.memberNo ? '(' + s.memberNo + ')' : '' }}</span></div>
+              <div class="data-card__subline">
+                <span>{{ s.fromDate | localDate }} to {{ s.toDate | localDate }}</span>
+                <span class="data-card__reg">· {{ s.facilityTypeCode || 'every facility type' }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Reason</dt><dd>{{ s.reason }}</dd></div>
+                @if (s.strikeChargeIds.length) { <div class="meta"><dt>Strikes</dt><dd>{{ s.strikeChargeIds.length }}</dd></div> }
+                @if (s.status === 'lifted') { <div class="meta"><dt>Lifted</dt><dd>{{ s.liftReason }} · {{ s.liftedAt | localDate:'datetime' }}</dd></div> }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span class="status-chip" [class]="'status-chip ' + statusClass(s)">{{ s.status }}</span>
+            </div>
+            <div class="data-row__actions">
+              @if (s.status === 'active' && s.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openLift(s)" [disabled]="busyId() === s.id">
+                  <span class="material-icons" aria-hidden="true">lock_open</span>
+                  Lift
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button type="button" class="btn btn--primary saas-fab" (click)="openNew()" aria-label="New suspension" *appCan="'create'">
+    <span class="material-icons" aria-hidden="true">add</span>
+    New suspension
+  </button>
+
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="mode === 'new' ? 'New suspension' : 'Lift the suspension of ' + (liftTarget()?.patronName || '')" [busy]="saving()" [dirty]="isDirty()" (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+          @case ('new') {
+            <form id="susNew" [formGroup]="form" (ngSubmit)="submitNew()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="susMember">Member number <span class="required">*</span></label>
+                  <input id="susMember" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="susMemberErr" />
+                  @if (showError(form.controls.memberNo)) { <p id="susMemberErr" class="field-error" role="alert">Key in the member number.</p> }
+                </div>
+                <div class="form-group">
+                  <label for="susType">Facility type</label>
+                  <app-combobox formControlName="facilityTypeId" inputId="susType" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every facility type" placeholder="Type to search…" />
+                </div>
+                <div class="form-group">
+                  <label for="susFrom">First day <span class="required">*</span></label>
+                  <input id="susFrom" type="date" formControlName="fromDate" [attr.aria-invalid]="showError(form.controls.fromDate)" />
+                </div>
+                <div class="form-group">
+                  <label for="susTo">Last day <span class="required">*</span></label>
+                  <input id="susTo" type="date" formControlName="toDate" [attr.aria-invalid]="showError(form.controls.toDate)" aria-describedby="susToErr" />
+                  @if (showError(form.controls.toDate)) { <p id="susToErr" class="field-error" role="alert">Pick the last day.</p> }
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="susReason">Reason <span class="required">*</span></label>
+                <textarea id="susReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(form.controls.reason)" aria-describedby="susReasonErr"></textarea>
+                @if (showError(form.controls.reason)) { <p id="susReasonErr" class="field-error" role="alert">Give the reason.</p> }
+              </div>
+              <p class="cell-subtle field-hint">The member is barred from booking inside the dates; entry and issue at the Control Station are unaffected. The member is emailed.</p>
+            </form>
+          }
+          @case ('lift') {
+            <form id="susLift" [formGroup]="liftForm" (ngSubmit)="submitLift()">
+              @if (liftTarget(); as s) { <p class="cell-subtle">{{ s.fromDate | localDate }} to {{ s.toDate | localDate }} · {{ s.reason }}</p> }
+              <div class="form-group">
+                <label for="susLiftReason">Reason <span class="required">*</span></label>
+                <textarea id="susLiftReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(liftForm.controls.reason)" aria-describedby="susLiftErr"></textarea>
+                @if (showError(liftForm.controls.reason)) { <p id="susLiftErr" class="field-error" role="alert">Give the reason for lifting.</p> }
+              </div>
+            </form>
+          }
+        }
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        @if (mode === 'new') {
+          <button type="submit" form="susNew" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Suspend' }}</button>
+        } @else {
+          <button type="submit" form="susLift" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Lifting…' : 'Lift suspension' }}</button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

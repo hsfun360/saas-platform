@@ -58,6 +58,11 @@ describe('FacilityStationService', () => {
     service.clearUnit('u1').subscribe();
     expect(http.expectOne('/api/facility/station/units/u1/clear').request.method).toBe('POST');
 
+    service.markNoShows(['s9']).subscribe();
+    const ns = http.expectOne('/api/facility/station/no-shows');
+    expect(ns.request.body).toEqual({ slotIds: ['s9'] });
+    ns.flush({ message: 'marked', marked: 1 });
+
     service.endOfDay('t2', '2026-11-02').subscribe();
     const eod = http.expectOne('/api/facility/station/end-of-day');
     expect(eod.request.body).toEqual({ facilityTypeId: 't2', date: '2026-11-02' });

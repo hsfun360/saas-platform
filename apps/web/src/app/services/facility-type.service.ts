@@ -60,6 +60,9 @@ export interface FacilityType {
   issueFeeTransactionTypeId: string | null;
   issueDueDays: number;
   entryRequiresBooking: boolean;
+  // slice 4: no-show switches (under the Specification's master switch)
+  noShowChargeEnabled: boolean;
+  noShowStrikeEnabled: boolean;
   // listing counts
   unitCount: number;
   activeUnitCount: number;

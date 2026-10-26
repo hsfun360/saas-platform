@@ -85,7 +85,11 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
   }
 
   // Long behavioural explanations live in <app-field-info> popovers.
+  readonly noShowTypeOptions = signal<{ value: string; label: string }[]>([]);
   readonly hint = {
+    lateAction: 'Charge: a cancel inside the notice goes through and the late cancellation charge is raised to the booker. Refuse: the booking channel refuses the cancel; the desk may still cancel with the charge waived and a reason.',
+    basis: 'What one no-show charge counts: once per booking, once per missed slot, or once per participant on the roster. The item\'s flat price applies per unit.',
+    strikes: 'A no-show counts as a strike on types with the strike switch on. Reaching the count inside the window suspends the member from booking every facility for the suspension days; the office may lift it early.',
     checkIn: 'The Control Station checks a booked slot in from this many minutes before its start until the slot ends; a slot never checked in is the no-show review\'s (No show slice).',
     autoSignOut: 'At each type\'s close time the worker signs out every registration still in, so the register never carries yesterday\'s names; off = the desk signs everyone out by hand under End of day.',
     window: 'The general rule for every facility type. A type can shorten or lengthen its own window under Facility Types; the early-opening hours always apply club-wide.',
@@ -132,6 +136,13 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
     cancellationNoticeHours: [24, [Validators.required, Validators.min(0), Validators.max(720)]],
     checkInOpenMinutes: [30, [Validators.required, Validators.min(0), Validators.max(240)]],
     autoSignOutAtClose: [true],
+    lateCancellationAction: ['charge' as 'charge' | 'refuse'],
+    noShowTransactionTypeId: [''],
+    noShowChargeBasis: ['booking' as 'booking' | 'slot' | 'participant'],
+    noShowGraceMinutes: [15, [Validators.required, Validators.min(0), Validators.max(240)]],
+    strikeCount: [3, [Validators.required, Validators.min(1), Validators.max(20)]],
+    strikeWindowDays: [90, [Validators.required, Validators.min(1), Validators.max(365)]],
+    strikeSuspensionDays: [30, [Validators.required, Validators.min(1), Validators.max(365)]],
     sessions: this.fb.array<SessionGroup>([]),
   });
 
@@ -239,7 +250,15 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
           cancellationNoticeHours: doc.cancellationNoticeHours ?? 24,
           checkInOpenMinutes: doc.checkInOpenMinutes ?? 30,
           autoSignOutAtClose: doc.autoSignOutAtClose !== false,
+          lateCancellationAction: doc.lateCancellationAction === 'refuse' ? 'refuse' : 'charge',
+          noShowTransactionTypeId: doc.noShowTransactionTypeId || '',
+          noShowChargeBasis: doc.noShowChargeBasis || 'booking',
+          noShowGraceMinutes: doc.noShowGraceMinutes ?? 15,
+          strikeCount: doc.strikeCount ?? 3,
+          strikeWindowDays: doc.strikeWindowDays ?? 90,
+          strikeSuspensionDays: doc.strikeSuspensionDays ?? 30,
         });
+        this.noShowTypeOptions.set((doc.noShowTypes || []).map((t) => ({ value: t.id, label: `${t.transactionType} - ${t.description}` })));
         this.sessions.clear();
         for (const s of doc.sessions || []) this.sessions.push(this.newSession(s));
         this.sessionsLength.set(this.sessions.length);
@@ -367,6 +386,13 @@ export class FacilitySettingsComponent implements OnInit, UnsavedChangesAware {
       cancellationNoticeHours: clampInt(v.cancellationNoticeHours, 0, 720, 24),
       checkInOpenMinutes: clampInt(v.checkInOpenMinutes, 0, 240, 30),
       autoSignOutAtClose: v.autoSignOutAtClose === true,
+      lateCancellationAction: v.lateCancellationAction === 'refuse' ? 'refuse' : 'charge',
+      noShowTransactionTypeId: v.noShowTransactionTypeId || null,
+      noShowChargeBasis: v.noShowChargeBasis,
+      noShowGraceMinutes: clampInt(v.noShowGraceMinutes, 0, 240, 15),
+      strikeCount: clampInt(v.strikeCount, 1, 20, 3),
+      strikeWindowDays: clampInt(v.strikeWindowDays, 1, 365, 90),
+      strikeSuspensionDays: clampInt(v.strikeSuspensionDays, 1, 365, 30),
       sessions: sessions.map((s) => ({ name: s.name.trim(), startTime: s.startTime, endTime: s.endTime })),
     }).subscribe({
       next: (res) => {

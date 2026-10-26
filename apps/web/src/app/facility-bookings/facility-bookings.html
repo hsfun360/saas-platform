@@ -198,6 +198,12 @@
                         <span class="material-icons" aria-hidden="true">event_busy</span>
                         Cancel booking
                       </button>
+                      @if (b.status === 'booked' && meta()?.setting?.noShowControlEnabled) {
+                        <button type="button" appMenuItem (click)="askCancelWaive(b)" [disabled]="cancellingId() === b.id">
+                          <span class="material-icons" aria-hidden="true">money_off</span>
+                          Cancel and waive charge
+                        </button>
+                      }
                     </app-overflow-menu>
                   }
                 </div>
@@ -513,6 +519,26 @@
             </form>
           }
 
+          <!-- ---- CANCEL AND WAIVE (slice 4): the desk cancels inside the notice with the charge waived ---- -->
+          @case ('cancelWaive') {
+            <form id="fbCancelWaive" [formGroup]="form" (ngSubmit)="submitCancelWaive()">
+              @if (cancelTarget(); as c) {
+                <p class="cell-subtle">{{ c.bookingNo }} · {{ c.facilities.join(', ') }} {{ c.bookingDate | localDate }} {{ c.startTime }}{{ c.endTime ? ' - ' + c.endTime : '' }} · {{ c.booker?.name }}</p>
+              }
+              @if (cancelPreviewDoc(); as p) {
+                <p class="cell-subtle">{{ p.late ? 'Inside the ' + p.noticeHours + '-hour notice.' : 'Outside the notice - no charge applies; a plain cancel will do.' }}{{ p.charge && !p.charge.unpriced ? ' The late cancellation charge of ' + (p.charge.totalAmount || 0).toFixed(2) + ' is recorded as waived.' : '' }}</p>
+              }
+              <div class="form-group">
+                <label for="fbCancelReason">Cancellation reason</label>
+                <textarea id="fbCancelReason" rows="2" wrap="off" formControlName="cancelReason" maxlength="255"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="fbWaiveReason">Why the charge is waived <span class="required">*</span></label>
+                <textarea id="fbWaiveReason" rows="2" wrap="off" formControlName="waiveReason" maxlength="255"></textarea>
+              </div>
+            </form>
+          }
+
           <!-- ---- PARTICIPANTS: edit the roster of a live booking ---- -->
           @case ('participants') {
             <form id="fbRoster" [formGroup]="form" (ngSubmit)="saveParticipants()">
@@ -597,6 +623,10 @@
               <button *appCan="'edit'" type="button" class="btn btn--danger" (click)="askVoidBill()" [disabled]="billBusy()">Void bill</button>
               <button *appCan="'edit'" type="button" class="btn btn--primary" (click)="openSettle()" [disabled]="billBusy() || !billScreen()?.bill?.items?.length">Settle</button>
             }
+          }
+          @case ('cancelWaive') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Keep booking</button>
+            <button type="submit" form="fbCancelWaive" class="btn btn--danger" [disabled]="saving()">{{ saving() ? 'Cancelling…' : 'Cancel and waive' }}</button>
           }
           @case ('settle') {
             <button type="button" class="btn btn--secondary" (click)="dlgMode.set('bill')" [disabled]="billBusy()">Back</button>
