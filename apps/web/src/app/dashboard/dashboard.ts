@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnDestroy, OnInit, computed, effect, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
-import { RouterModule, Router, NavigationEnd } from '@angular/router';
+import { RouterModule, Router, NavigationCancel, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { LanguageService } from '../services/language.service';
@@ -184,9 +184,12 @@ export class Dashboard implements OnInit, OnDestroy {
     // 2026-10-27) - the drawer covers the content, so after navigating the
     // chosen screen must show without a manual hamburger tap. Expanding a
     // menu GROUP never navigates, so it keeps the drawer open naturally.
+    // NavigationCancel closes it too (user request 2026-10-27): when the
+    // unsaved-changes guard rejects the tap ("Keep editing"), the user chose
+    // the form behind the drawer, so it must get out of the way as well.
     // Router.events is a sanctioned RxJS source (signals state standard).
     this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((e) => {
-      if (e instanceof NavigationEnd && window.innerWidth < 768) {
+      if ((e instanceof NavigationEnd || e instanceof NavigationCancel) && window.innerWidth < 768) {
         this.isSidebarPinned.set(false);
       }
     });
