@@ -3,7 +3,7 @@
   <header class="google-topbar" [class.google-topbar--admin]="isSystemAdmin">
 
     <div class="topbar-left">
-      <button type="button" class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned"><span class="material-icons" aria-hidden="true">menu</span></button>
+      <button type="button" class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned()"><span class="material-icons" aria-hidden="true">menu</span></button>
       <div class="brand-stack">
         <!-- The active MODULE title lives at the top of the sidebar (.sidebar-module),
              not here - keeps the header compact, especially on mobile. -->
@@ -232,7 +232,7 @@
 
   <div class="main-layout">
 
-    <aside class="sidebar" [class.pinned]="isSidebarPinned">
+    <aside class="sidebar" [class.pinned]="isSidebarPinned()">
       <!-- Active SYSTEM banner - the module title, moved here from the header.
            Distinct brand-tinted block so it reads as the section's title, not a
            menu item; reuses .icon/.label so the icon-only rail and hover/pin
@@ -343,7 +343,7 @@
   </div>
 
   <!-- Mobile drawer backdrop (only visible < 768px when the drawer is open) -->
-  @if (isSidebarPinned) {
+  @if (isSidebarPinned()) {
     <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
   }
 

@@ -1,6 +1,7 @@
-import { Component, OnDestroy, OnInit, computed, effect, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, computed, effect, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { LanguageService } from '../services/language.service';
@@ -74,6 +75,7 @@ interface NavNode {
 })
 export class Dashboard implements OnInit, OnDestroy {
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly authService = inject(AuthService);
   private readonly languageService = inject(LanguageService);
   readonly i18n = inject(I18nService);
@@ -137,7 +139,9 @@ export class Dashboard implements OnInit, OnDestroy {
   // rail; mobile treats pinned as "drawer open" so it must start false.
   // The header hamburger toggles this at every tier - on desktop that is
   // the Gmail-style collapse-to-rail (the CSS no longer forces 256px).
-  isSidebarPinned = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  // A signal (not a plain property): the router-driven auto-close below
+  // mutates it outside any template event, so zoneless CD must be notified.
+  readonly isSidebarPinned = signal(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
 
   // Workspace (company) switching. Async-loaded state is held in signals so the
   // switcher/banner refresh on the HTTP callback (zone-based CD isn't reliable here).
@@ -176,6 +180,17 @@ export class Dashboard implements OnInit, OnDestroy {
   private notifTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
+    // Mobile drawer: choosing a DESTINATION closes the overlay (user request
+    // 2026-10-27) - the drawer covers the content, so after navigating the
+    // chosen screen must show without a manual hamburger tap. Expanding a
+    // menu GROUP never navigates, so it keeps the drawer open naturally.
+    // Router.events is a sanctioned RxJS source (signals state standard).
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((e) => {
+      if (e instanceof NavigationEnd && window.innerWidth < 768) {
+        this.isSidebarPinned.set(false);
+      }
+    });
+
     const token = localStorage.getItem('token');
     if (token) {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -317,9 +332,9 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   toggleSidebar(): void {
-    this.isSidebarPinned = !this.isSidebarPinned;
+    this.isSidebarPinned.update((v) => !v);
     // Mobile drawer: move focus into the navigation when it opens.
-    if (this.isSidebarPinned && window.innerWidth < 768) {
+    if (this.isSidebarPinned() && window.innerWidth < 768) {
       requestAnimationFrame(() => document.querySelector<HTMLElement>('.sidebar-nav a, .sidebar-nav button')?.focus());
     }
   }
@@ -465,7 +480,7 @@ export class Dashboard implements OnInit, OnDestroy {
   // Esc closes any open menu/dropdown and the mobile navigation drawer.
   onEscape(): void {
     this.closeDropdown();
-    this.isSidebarPinned = false;
+    this.isSidebarPinned.set(false);
   }
 
   toggleWorkspaceDropdown(event: Event): void {
