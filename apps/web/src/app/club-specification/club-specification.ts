@@ -9,6 +9,7 @@ import { ClubNumbering, ClubSpecification, MembershipStatusOption } from '../mod
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
+import { FieldInfoComponent } from '../shared/field-info/field-info';
 
 // Membership Management → Club Specification (SRS 2.1.1 - the membership
 // system master). A per-company singleton the club sets once: club type,
@@ -21,7 +22,7 @@ import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-club-specification',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ConfirmDialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ConfirmDialogComponent, FieldInfoComponent],
   templateUrl: './club-specification.html',
   styleUrls: ['../numbering/numbering.css', './club-specification.css'],
   host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
@@ -88,7 +89,17 @@ export class ClubSpecificationComponent implements OnInit, UnsavedChangesAware {
 
   // Collapsible section cards (Settings-style chevron headers) - the screen is
   // long on a phone, so each card folds to its header. All start expanded.
+  // Three cards since 2026-10-28 (user request): Club profile (type +
+  // admission + sales channels), Credit facility, Membership number.
   readonly collapsedSections = signal<Record<string, boolean>>({});
+
+  // The long behavioural explanations behind each (i) (settings-chrome
+  // standard: ONE short inline hint per field, the rest in the popover).
+  readonly hint = {
+    committee: 'A committee club admits members by proposal, interview and provision. Membership entry shows the Proposer field and hides the salesperson pickers, and the Sales channels below disappear because a committee club has no sales agents. Switch it off for a commercial pay-to-join club.',
+    credit: 'When on, membership entry shows the credit terms - credit limit, terms, statement, arrears reminders and late-payment interest - and the Membership Type carries a default credit limit. When off those fields are hidden and every membership is saved with a credit limit of 0.',
+    autoNumber: 'When on, the system issues the next membership number on save from the Membership No. series (configure the format below; the same series is maintained on Numbering Control). When off, staff key the number in, for example from a pre-printed card, and the system only checks that it is not already used.',
+  };
 
   toggleSection(id: string): void {
     this.collapsedSections.update((c) => ({ ...c, [id]: !c[id] }));

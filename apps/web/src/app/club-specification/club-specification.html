@@ -32,13 +32,14 @@
   } @else {
     <form [formGroup]="form" (ngSubmit)="save()" class="saas-form cs-form">
 
-      <!-- Club type -->
+      <!-- Club profile: the type, how members join, and (commercial clubs)
+           who sells memberships - one card (user request 2026-10-28). -->
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button"
                 (click)="toggleSection('clubType')" [attr.aria-expanded]="isExpanded('clubType')">
           <span class="settings-header__text">
-            <span class="settings-header__title">Club type</span>
-            <span class="settings-header__sub">What kind of club this is - decides which golfing options exist.</span>
+            <span class="settings-header__title">Club profile</span>
+            <span class="settings-header__sub">What kind of club this is, how members join and who sells memberships.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('clubType')" aria-hidden="true">chevron_right</span>
@@ -56,79 +57,49 @@
                 </label>
               }
             </div>
-          </div>
-        }
-      </section>
 
-      <!-- Admission model -->
-      <section class="settings-card">
-        <button type="button" class="settings-header settings-header--button"
-                (click)="toggleSection('admission')" [attr.aria-expanded]="isExpanded('admission')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Admission</span>
-            <span class="settings-header__sub">How members join - committee-vouched or commercial pay-to-join.</span>
-          </span>
-          <span class="material-icons settings-header__chevron"
-                [class.settings-header__chevron--open]="isExpanded('admission')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('admission')) {
-          <div class="settings-body">
-          <label class="cs-option" [class.cs-option--active]="formValue().isCommittee">
-            <input type="checkbox" formControlName="isCommittee" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">Committee club</span>
-              <span class="cs-option__hint">
-                Members are proposed and vouched in (proposal → interview → provision).
-                Membership entry shows the Proposer field and hides the salesperson pickers.
-                Leave off for a commercial pay-to-join club.
+            <!-- Admission: a feature enabler, so a switch (settings-chrome standard). -->
+            <label class="cs-switch switch">
+              <input type="checkbox" role="switch" formControlName="isCommittee" />
+              <span class="cs-switch__text">
+                <span class="cs-option__title">Committee club<app-field-info label="Committee club" [text]="hint.committee" /></span>
+                <span class="cs-option__hint">Members are proposed and vouched in; off = a commercial pay-to-join club.</span>
               </span>
-            </span>
-          </label>
+            </label>
+
+            <!-- Sales channels (commercial clubs only): behavioural options, so checkboxes. -->
+            @if (!formValue().isCommittee) {
+              <div class="cs-sub">
+                <h3 class="cs-sub__title">Sales channels</h3>
+                <p class="cs-sub__hint">Who sells memberships - only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</p>
+                <div class="cs-options">
+                  <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
+                    <input type="checkbox" formControlName="salesAgencyEnabled" />
+                    <span class="cs-option__text">
+                      <span class="cs-option__title">Sales agencies</span>
+                      <span class="cs-option__hint">Outsourced agency companies and their staff.</span>
+                    </span>
+                  </label>
+                  <label class="cs-option" [class.cs-option--active]="formValue().salesExternalEnabled">
+                    <input type="checkbox" formControlName="salesExternalEnabled" />
+                    <span class="cs-option__text">
+                      <span class="cs-option__title">External individuals</span>
+                      <span class="cs-option__hint">Freelance salespeople outside the company.</span>
+                    </span>
+                  </label>
+                  <label class="cs-option" [class.cs-option--active]="formValue().salesInternalEnabled">
+                    <input type="checkbox" formControlName="salesInternalEnabled" />
+                    <span class="cs-option__text">
+                      <span class="cs-option__title">Internal sales staff</span>
+                      <span class="cs-option__hint">Salespeople employed directly by the club.</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            }
           </div>
         }
       </section>
-
-      <!-- Sales channels (commercial clubs only) -->
-      @if (!formValue().isCommittee) {
-        <section class="settings-card">
-          <button type="button" class="settings-header settings-header--button"
-                  (click)="toggleSection('sales')" [attr.aria-expanded]="isExpanded('sales')">
-            <span class="settings-header__text">
-              <span class="settings-header__title">Sales channels</span>
-              <span class="settings-header__sub">Who sells memberships - only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</span>
-            </span>
-            <span class="material-icons settings-header__chevron"
-                  [class.settings-header__chevron--open]="isExpanded('sales')" aria-hidden="true">chevron_right</span>
-          </button>
-          @if (isExpanded('sales')) {
-          <div class="settings-body">
-            <div class="cs-options">
-              <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
-                <input type="checkbox" formControlName="salesAgencyEnabled" />
-                <span class="cs-option__text">
-                  <span class="cs-option__title">Sales agencies</span>
-                  <span class="cs-option__hint">Outsourced agency companies and their staff.</span>
-                </span>
-              </label>
-              <label class="cs-option" [class.cs-option--active]="formValue().salesExternalEnabled">
-                <input type="checkbox" formControlName="salesExternalEnabled" />
-                <span class="cs-option__text">
-                  <span class="cs-option__title">External individuals</span>
-                  <span class="cs-option__hint">Freelance salespeople outside the company.</span>
-                </span>
-              </label>
-              <label class="cs-option" [class.cs-option--active]="formValue().salesInternalEnabled">
-                <input type="checkbox" formControlName="salesInternalEnabled" />
-                <span class="cs-option__text">
-                  <span class="cs-option__title">Internal sales staff</span>
-                  <span class="cs-option__hint">Salespeople employed directly by the club.</span>
-                </span>
-              </label>
-            </div>
-          </div>
-          }
-        </section>
-      }
 
       <!-- Credit facility -->
       <section class="settings-card">
@@ -143,14 +114,11 @@
         </button>
         @if (isExpanded('credit')) {
         <div class="settings-body">
-          <label class="cs-option" [class.cs-option--active]="formValue().creditFacilityEnabled">
-            <input type="checkbox" formControlName="creditFacilityEnabled" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">Members can charge expenses to their account</span>
-              <span class="cs-option__hint">
-                Membership entry shows the credit terms - credit limit, terms, statement, arrears reminders and late-payment interest.
-                When off those fields are hidden and memberships are saved with a credit limit of 0.
-              </span>
+          <label class="cs-switch switch">
+            <input type="checkbox" role="switch" formControlName="creditFacilityEnabled" />
+            <span class="cs-switch__text">
+              <span class="cs-option__title">Members can charge expenses to their account<app-field-info label="Credit facility" [text]="hint.credit" /></span>
+              <span class="cs-option__hint">Off = the credit fields are hidden and memberships save with a credit limit of 0.</span>
             </span>
           </label>
         </div>
@@ -170,14 +138,11 @@
         </button>
         @if (isExpanded('numbering')) {
         <div class="settings-body">
-          <label class="cs-option" [class.cs-option--active]="formValue().isMembershipAutoNumber">
-            <input type="checkbox" formControlName="isMembershipAutoNumber" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">Auto-generate membership numbers</span>
-              <span class="cs-option__hint">
-                The system issues the next number on save.
-                When off, staff key the number in (e.g. from a pre-printed card) and only uniqueness is checked.
-              </span>
+          <label class="cs-switch switch">
+            <input type="checkbox" role="switch" formControlName="isMembershipAutoNumber" />
+            <span class="cs-switch__text">
+              <span class="cs-option__title">Auto-generate membership numbers<app-field-info label="Auto-generate membership numbers" [text]="hint.autoNumber" /></span>
+              <span class="cs-option__hint">Off = staff key the number in and only uniqueness is checked.</span>
             </span>
           </label>
           @if (formValue().isMembershipAutoNumber) {
