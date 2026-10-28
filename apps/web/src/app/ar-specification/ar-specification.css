@@ -88,6 +88,13 @@ input[type='number'] {
   gap: var(--space-sm);
 }
 
+/* Heading and Reset stay one line each at phone width (both fit in 340px;
+   wrapped side by side they read as a crowded two-line block). */
+.arsp-cols__head .settings-sub__title,
+.arsp-cols__head .btn {
+  white-space: nowrap;
+}
+
 .arsp-cols__list {
   display: flex;
   flex-direction: column;
