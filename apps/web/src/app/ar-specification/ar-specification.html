@@ -32,127 +32,166 @@
   } @else {
     <form [formGroup]="form" (ngSubmit)="onSave()">
 
-      <!-- Statement period -->
+      <!-- ======== Statement of Account: period, aging buckets, printed layout ======== -->
       <section class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('cutoff')"
-                [attr.aria-expanded]="isExpanded('cutoff')">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('statement')"
+                [attr.aria-expanded]="isExpanded('statement')">
           <span class="settings-header__text">
-            <span class="settings-header__title">Statement cutoff</span>
-            <span class="settings-header__sub">Drives the default From/To date range on Statement Generation.</span>
+            <span class="settings-header__title">Statement of Account</span>
+            <span class="settings-header__sub">The statement period, the aging buckets, and the look of the printed statement - what prints, the table columns and the remittance advice.</span>
           </span>
-          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('cutoff')" aria-hidden="true">chevron_right</span>
+          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('statement')" aria-hidden="true">chevron_right</span>
         </button>
-        @if (isExpanded('cutoff')) {
+        @if (isExpanded('statement')) {
           <div class="settings-body">
-            <div class="form-group form-group--narrow">
-              <label for="arspCutoff">Statement cutoff day
-                <app-field-info label="Statement cutoff day" [text]="hint.cutoff" />
-              </label>
-              <input id="arspCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
-                     formControlName="statementCutoffDay" placeholder="Blank = calendar month"
-                     [attr.aria-invalid]="showError(form.controls.statementCutoffDay)"
-                     aria-describedby="arspCutoffErr" />
-              @if (showError(form.controls.statementCutoffDay)) {
-                <div id="arspCutoffErr" class="field-error" role="alert">Cutoff day must be a whole day between 1 and 31 (or blank for calendar month).</div>
-              }
-            </div>
-          </div>
-        }
-      </section>
 
-      <!-- Aging boundaries -->
-      <section class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('aging')"
-                [attr.aria-expanded]="isExpanded('aging')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Aging boundaries</span>
-            <span class="settings-header__sub">Upper day boundary of each statement aging bucket - N filled boundaries print N+1 buckets.</span>
-          </span>
-          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('aging')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('aging')) {
-          <div class="settings-body">
-            <div class="arsp-aging__grid">
-              <div class="form-group">
-                <label for="arspA1">Aging 1 <span class="required">*</span>
-                  <app-field-info label="Aging boundaries" [text]="hint.aging" />
+            <!-- Statement period -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Statement period</h3>
+              <p class="settings-sub__hint">Drives the default From and To dates on Statement Generation.</p>
+              <div class="form-group form-group--narrow">
+                <label for="arspCutoff">Statement cutoff day
+                  <app-field-info label="Statement cutoff day" [text]="hint.cutoff" />
                 </label>
-                <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" [attr.aria-invalid]="showError(form.controls.aging1)" aria-describedby="arspA1Err" />
-                @if (showError(form.controls.aging1)) {
-                  <div class="field-error" role="alert" id="arspA1Err">The first boundary is required.</div>
+                <input id="arspCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
+                       formControlName="statementCutoffDay" placeholder="Blank = calendar month"
+                       [attr.aria-invalid]="showError(form.controls.statementCutoffDay)"
+                       aria-describedby="arspCutoffErr" />
+                @if (showError(form.controls.statementCutoffDay)) {
+                  <div id="arspCutoffErr" class="field-error" role="alert">Cutoff day must be a whole day between 1 and 31 (or blank for calendar month).</div>
                 }
               </div>
-              <div class="form-group"><label for="arspA2">Aging 2</label><input id="arspA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>
-              <div class="form-group"><label for="arspA3">Aging 3</label><input id="arspA3" type="number" inputmode="numeric" min="1" step="1" formControlName="aging3" /></div>
-              <div class="form-group"><label for="arspA4">Aging 4</label><input id="arspA4" type="number" inputmode="numeric" min="1" step="1" formControlName="aging4" /></div>
-              <div class="form-group"><label for="arspA5">Aging 5</label><input id="arspA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
-              <div class="form-group"><label for="arspA6">Aging 6</label><input id="arspA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
             </div>
-            <small class="cell-subtle">Fill left to right, each greater than the last. Changing boundaries only affects statements generated after the change.</small>
-          </div>
-        }
-      </section>
 
-      <!-- Statement layout (Level 1: brand + trim the standard PDF) -->
-      <section class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('layout')"
-                [attr.aria-expanded]="isExpanded('layout')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Statement layout</span>
-            <span class="settings-header__sub">Brand and trim the standard Statement of Account PDF - logo, accent colour, printed sections, remittance advice.</span>
-          </span>
-          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('layout')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('layout')) {
-          <div class="settings-body">
-            <div class="arsp-layout-checks">
-              <label class="arsp-check"><input type="checkbox" formControlName="statementShowLogo" /> Print the club logo (uses the Company logo when one is set)</label>
-              <label class="arsp-check"><input type="checkbox" formControlName="statementShowAging" /> Print the aging buckets strip</label>
-              <label class="arsp-check"><input type="checkbox" formControlName="statementShowIncurredBy" /> Show who incurred each charge on the lines</label>
-              <label class="arsp-check"><input type="checkbox" formControlName="statementShowDeposit" /> Print the security deposit held</label>
-              <label class="arsp-check"><input type="checkbox" formControlName="statementShowGeneratedNote" /> Print the "computer-generated statement" note</label>
+            <!-- Aging boundaries -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Aging boundaries
+                <app-field-info label="Aging boundaries" [text]="hint.aging" />
+              </h3>
+              <p class="settings-sub__hint">Upper day boundary of each bucket printed on the statement; N filled boundaries print N+1 buckets.</p>
+              <div class="arsp-aging__grid">
+                <div class="form-group">
+                  <label for="arspA1">Aging 1 <span class="required">*</span></label>
+                  <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" [attr.aria-invalid]="showError(form.controls.aging1)" aria-describedby="arspA1Err" />
+                  @if (showError(form.controls.aging1)) {
+                    <div class="field-error" role="alert" id="arspA1Err">The first boundary is required.</div>
+                  }
+                </div>
+                <div class="form-group"><label for="arspA2">Aging 2</label><input id="arspA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>
+                <div class="form-group"><label for="arspA3">Aging 3</label><input id="arspA3" type="number" inputmode="numeric" min="1" step="1" formControlName="aging3" /></div>
+                <div class="form-group"><label for="arspA4">Aging 4</label><input id="arspA4" type="number" inputmode="numeric" min="1" step="1" formControlName="aging4" /></div>
+                <div class="form-group"><label for="arspA5">Aging 5</label><input id="arspA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
+                <div class="form-group"><label for="arspA6">Aging 6</label><input id="arspA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
+              </div>
+              <small class="cell-subtle">Fill left to right, each greater than the last. Changing boundaries only affects statements generated after the change.</small>
             </div>
-            <div class="arsp-brand-row">
-              <label class="arsp-check"><input type="checkbox" formControlName="useBrandColor" /> Use a brand accent colour</label>
+
+            <!-- Printed layout: what prints on the standard PDF -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Printed layout</h3>
+              <p class="settings-sub__hint">Brand and trim the one standard Statement of Account PDF.</p>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="statementShowLogo" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Club logo</span>
+                  <span class="switch-row__hint">Prints the Company logo in the letterhead; nothing prints when no logo is set.</span>
+                </span>
+              </label>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="statementShowAging" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Aging buckets strip</span>
+                  <span class="switch-row__hint">Prints the aging buckets under the statement lines.</span>
+                </span>
+              </label>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="statementShowIncurredBy" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Who incurred each charge</span>
+                  <span class="switch-row__hint">Each line names the member or nominee behind the charge.</span>
+                </span>
+              </label>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="statementShowDeposit" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Security deposit held</span>
+                  <span class="switch-row__hint">Prints the deposit figure in the header block.</span>
+                </span>
+              </label>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="statementShowGeneratedNote" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Computer-generated note</span>
+                  <span class="switch-row__hint">Prints the standard "no signature is required" note below the body.</span>
+                </span>
+              </label>
+
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="useBrandColor" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Brand accent colour</span>
+                  <span class="switch-row__hint">Tints the title and band fills; label text flips white or dark automatically.</span>
+                </span>
+              </label>
               @if (form.controls.useBrandColor.value) {
                 <label for="arspBrand" class="arsp-brand-pick">
                   <input id="arspBrand" type="color" formControlName="statementBrandColor" />
-                  <span class="cell-subtle">Title and band fills; label text flips white or dark automatically.</span>
+                  <span class="cell-subtle">Brand colour</span>
                 </label>
               }
             </div>
-            <!-- Column layout: drag to reorder, untick to hide, type to rename -->
-            <div class="arsp-cols">
+
+            <!-- Table columns: drag to reorder, untick to hide, type to rename -->
+            <div class="settings-sub">
               <div class="arsp-cols__head">
-                <span class="arsp-cols__title">Table columns</span>
+                <h3 class="settings-sub__title">Table columns</h3>
                 <button type="button" class="btn btn--link btn--sm" (click)="resetColumns()">Reset to standard</button>
               </div>
-              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Drag to set the printed order, untick to hide a column (the rest stretch to fill the page), and type a heading to rename it.</p>
+              <p class="settings-sub__hint">Drag to set the printed order, untick to hide a column (the rest stretch to fill the page), and type a heading to rename it.</p>
               <!-- Reactive FormArray rows (house standard). Controls bind by INSTANCE
                    ([formControl], not an index path): a drag moves the group inside the
                    array and the key-tracked row moves with it. -->
-              <div cdkDropList (cdkDropListDropped)="onColumnDrop($event)" class="arsp-cols__list">
-                @for (g of columns.controls; track g.controls.key.value) {
-                  <div class="arsp-cols__row" cdkDrag cdkDragLockAxis="y">
-                    <span class="material-icons arsp-cols__grip" cdkDragHandle aria-hidden="true">drag_indicator</span>
-                    <label class="arsp-cols__check">
-                      <input type="checkbox" [formControl]="g.controls.visible"
-                             [attr.aria-label]="'Print the ' + g.controls.name.value + ' column'" />
-                      <span [class.arsp-cols__name--off]="!g.controls.visible.value">{{ g.controls.name.value }}</span>
-                    </label>
-                    <input type="text" class="arsp-cols__label" maxlength="30" [formControl]="g.controls.label"
-                           [placeholder]="g.controls.name.value" [attr.aria-label]="'Printed heading for ' + g.controls.name.value" />
-                  </div>
-                }
+              <div class="arsp-cols array-editor">
+                <div cdkDropList (cdkDropListDropped)="onColumnDrop($event)" class="arsp-cols__list">
+                  @for (g of columns.controls; track g.controls.key.value) {
+                    <div class="arsp-cols__row" cdkDrag cdkDragLockAxis="y">
+                      <span class="material-icons arsp-cols__grip" cdkDragHandle aria-hidden="true">drag_indicator</span>
+                      <label class="arsp-cols__check">
+                        <input type="checkbox" [formControl]="g.controls.visible"
+                               [attr.aria-label]="'Print the ' + g.controls.name.value + ' column'" />
+                        <span [class.arsp-cols__name--off]="!g.controls.visible.value">{{ g.controls.name.value }}</span>
+                      </label>
+                      <input type="text" class="arsp-cols__label" maxlength="30" [formControl]="g.controls.label"
+                             [placeholder]="g.controls.name.value" [attr.aria-label]="'Printed heading for ' + g.controls.name.value" />
+                    </div>
+                  }
+                </div>
               </div>
             </div>
 
-            <div class="form-group" style="margin-top: var(--space-sm);">
-              <label for="arspFooter">Remittance advice / footer text</label>
-              <textarea id="arspFooter" rows="3" formControlName="statementFooterText" maxlength="2000"
-                        placeholder="e.g. Please remit payment to Maybank a/c 5123-4567-8901 (Your Club Berhad)."></textarea>
-              <small class="cell-subtle">Printed below the statement body on every statement. Blank = nothing printed.</small>
+            <!-- Remittance advice + the saved-options preview -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Remittance advice</h3>
+              <p class="settings-sub__hint">Printed below the statement body on every statement; blank prints nothing.</p>
+              <div class="form-group">
+                <label for="arspFooter">Footer text</label>
+                <textarea id="arspFooter" rows="3" formControlName="statementFooterText" maxlength="2000"
+                          placeholder="e.g. Please remit payment to Maybank a/c 5123-4567-8901 (Your Club Berhad)."></textarea>
+              </div>
+              <div class="arsp-actions">
+                <button type="button" class="btn btn--secondary" [disabled]="previewing()" (click)="onPreviewLayout()">
+                  <span class="material-icons" aria-hidden="true">visibility</span>
+                  {{ previewing() ? 'Rendering…' : 'Preview layout (PDF)' }}
+                </button>
+              </div>
+              <small class="cell-subtle">The preview renders the last SAVED options on a sample statement - save first to see changes.</small>
             </div>
+
           </div>
         }
       </section>
@@ -169,13 +208,15 @@
           </button>
           @if (isExpanded('integration')) {
             <div class="settings-body">
-              <div class="form-group">
-                <label class="arsp-check switch">
-                  <input type="checkbox" role="switch" formControlName="membershipIntegration" />
-                  <span>Membership bills through AR (fee runs and standing charges post as AR documents)</span>
-                  <app-field-info label="Membership billing through AR" [text]="hint.integration" />
-                </label>
-              </div>
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="membershipIntegration" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Membership bills through AR
+                    <app-field-info label="Membership billing through AR" [text]="hint.integration" />
+                  </span>
+                  <span class="switch-row__hint">Fee runs and standing charges post as AR documents; off = fees are collected at the membership front desk.</span>
+                </span>
+              </label>
               <div class="form-grid">
                 <div class="form-group">
                   <label for="arspInterestType">Interest run posts under</label>
@@ -212,24 +253,26 @@
             <!-- Prerequisite first (show-expected-results): the base currency
                  every foreign amount is converted into. -->
             @if (baseCurrencyCode()) {
-              <p class="arsp-base" style="margin: 0 0 var(--space-xs);">
+              <p class="arsp-base">
                 <span class="material-icons" aria-hidden="true">currency_exchange</span>
                 Base currency: <strong>{{ baseCurrencyCode() }}</strong>
                 <span class="cell-subtle">(the company default currency)</span>
               </p>
             } @else {
-              <p class="arsp-base arsp-base--missing" style="margin: 0 0 var(--space-xs);">
+              <p class="arsp-base arsp-base--missing">
                 <span class="material-icons" aria-hidden="true">warning</span>
                 Set the company default currency on the Companies screen first - it becomes the AR base currency.
               </p>
             }
-            <div class="form-group">
-              <label class="arsp-check switch">
-                <input type="checkbox" role="switch" formControlName="multiCurrencyEnabled" />
-                <span>Enable multi-currency (Other Debtor accounts may be opened in a foreign currency)</span>
-                <app-field-info label="Multi-currency" [text]="hint.multiCurrency" />
-              </label>
-            </div>
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="multiCurrencyEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Multi-currency
+                  <app-field-info label="Multi-currency" [text]="hint.multiCurrency" />
+                </span>
+                <span class="switch-row__hint">Other Debtor accounts may be opened in a foreign currency; off = every account is in the base currency.</span>
+              </span>
+            </label>
             <div class="form-grid">
               <div class="form-group">
                 <label for="arspFxType">Exchange difference posts under
@@ -245,14 +288,6 @@
           </div>
         }
       </section>
-
-      <div class="arsp-actions">
-        <button type="button" class="btn btn--secondary" [disabled]="previewing()" (click)="onPreviewLayout()">
-          <span class="material-icons" aria-hidden="true">visibility</span>
-          {{ previewing() ? 'Rendering…' : 'Preview layout (PDF)' }}
-        </button>
-      </div>
-      <small class="cell-subtle">The preview renders the last SAVED options on a sample statement - save first to see changes.</small>
 
       <!-- Sticky save bar (settings-chrome standard): exists only while the
            form is dirty, docked at the viewport bottom. -->

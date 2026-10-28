@@ -39,9 +39,9 @@ const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
 
 // Account Receivable → AR Specification (split from Statement Generation
 // 2026-08-06, same role as Club Specification for Membership): the per-company
-// AR options singleton. Today: statement cutoff day + the aging boundaries
-// printed on every statement. Future AR-wide switches land here, not on the
-// processing screens.
+// AR options singleton: the Statement of Account (cutoff day, aging
+// boundaries, printed layout), Membership integration and multi-currency.
+// Future AR-wide switches land here, not on the processing screens.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-specification',
@@ -113,8 +113,11 @@ export class ArSpecificationComponent implements OnInit, UnsavedChangesAware {
   readonly saving = signal(false);
 
   // Collapsible section cards (standard: start expanded; folding never loses
-  // form state - the FormGroup keeps values while the DOM is hidden).
-  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true, integration: true, currency: true });
+  // form state - the FormGroup keeps values while the DOM is hidden). Three
+  // cards since 2026-10-28: Statement of Account (period + aging + printed
+  // layout + columns + remittance as sub-groups), Membership integration
+  // (entitled companies only) and Multi-currency.
+  readonly expanded = signal<Record<string, boolean>>({ statement: true, integration: true, currency: true });
 
   // Membership integration (2026-08-15): shown ONLY when the company is
   // entitled to Membership Management (AR-only subscribers never see it);

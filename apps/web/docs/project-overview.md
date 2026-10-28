@@ -796,7 +796,7 @@ A single run card (the "Generate a month" cards on AR Interest, Statement Genera
 #### Settings-screen chrome: switches, field-info popovers, sticky save bar, array-editor cards (standard 2026-10-18)
 
 Four primitives (user-approved on the Golf Specification pilot) complete the grouped-settings look.
-Older settings screens (AR Specification, Club Specification) migrate as they are touched; every new settings screen composes all four from day one.
+All three settings screens (Golf Specification, Club Specification, AR Specification) compose them as of 2026-10-28; every new settings screen composes all four from day one.
 
 **Toggle switch vs checkbox - classify by what the control does (revised 2026-10-28).**
 Every **standalone on/off setting** - a feature enabler that reveals dependent settings ("Guest control", "Rain checks") AND a single yes/no rule ("Merge booking", "Same-day booking", "Prorate by holes not played") - renders as a toggle (user decision 2026-10-28 on Club Specification, then Golf Specification; the earlier "behavioural options stay checkboxes" split was dropped).
@@ -832,7 +832,7 @@ A sidebar menu click, `router.navigate` and the SPA browser Back all pause on th
 Every add/remove row editor (overrides, exceptions, rules) sits on the global **`.array-editor`** card: a lightly sunken bordered surface holding the header row, the rows, the Add button and the empty-state hint - so the repeating group reads as one unit, separate from the static fields around it.
 Compose it on the editor's container; row inputs keep the grid-row field chrome standard.
 
-Reference implementation for all of these: `golf-settings` (`.html`/`.ts`/`.css`, six cards with sub-groups) and `club-specification` (three cards); the popover component and its behaviour spec live in `shared/field-info/`.
+Reference implementation for all of these: `golf-settings` (`.html`/`.ts`/`.css`, six cards with sub-groups), `club-specification` (three cards) and `ar-specification` (three cards; its Statement of Account card holds five sub-groups and the column drag list sits on the `.array-editor` card even though it has no add/remove); the popover component and its behaviour spec live in `shared/field-info/`.
 
 #### Dialog sections (long form drawers) - THE standard
 

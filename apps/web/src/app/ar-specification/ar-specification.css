@@ -1,6 +1,8 @@
 /* AR Specification - company-wide AR options (section-card standard, same
-   role as Club Specification). Composes the global .settings-card chrome;
-   only the aging grid and the save row are screen-local. */
+   role as Club Specification). Composes the global .settings-card chrome,
+   the .settings-sub sub-groups, the .switch-row toggles and the .array-editor
+   card; only the aging grid, the base-currency readout, the brand-colour
+   picker and the column drag list are screen-local. */
 
 /* Day-count fields keep type=number (numeric keyboard, min/max) but hide the
    browser spin buttons - nobody spins to day 27 or boundary 180 one click at
@@ -40,6 +42,7 @@ input[type='number'] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
+  margin: 0 0 var(--space-xs);
   font-size: var(--font-body-2);
   color: var(--text-primary);
 }
@@ -57,61 +60,32 @@ input[type='number'] {
   color: var(--danger-text);
 }
 
-/* Statement layout section */
-.arsp-layout-checks {
-  display: flex;
-  flex-direction: column;
-}
-
-.arsp-check {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: 44px;
-  font-size: var(--font-body-2);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-/* Plain option checkboxes only - the feature-enabler rows compose the global
-   .switch, whose input must keep the 44x24 toggle sizing. */
-.arsp-check input[type='checkbox']:not([role='switch']) {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
-  accent-color: var(--brand);
-  flex-shrink: 0;
-}
-
-.arsp-brand-row {
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-xs);
-}
-
+/* Brand colour picker, revealed under its switch row and indented to the
+   switch-row text column (44px toggle + the row gap). */
 .arsp-brand-pick {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding-left: 30px;
+  padding-left: calc(44px + var(--space-md));
+  min-height: 44px;
 }
 
-/* Column layout drag list */
-.arsp-cols {
-  border-top: 1px solid var(--border);
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
+.arsp-brand-pick input[type='color'] {
+  width: 56px;
+  height: 36px;
+  padding: var(--space-2xs);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-input);
+  cursor: pointer;
 }
 
+/* Column layout drag list (on the global .array-editor card) */
 .arsp-cols__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-}
-
-.arsp-cols__title {
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
 }
 
 .arsp-cols__list {
@@ -142,12 +116,12 @@ input[type='number'] {
   font-size: var(--icon-md);
 }
 
+/* Row-editor flags stay tick boxes (the switch is for standalone settings). */
 .arsp-cols__check {
-  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
-  min-height: 36px;
+  min-height: 44px;
   font-size: var(--font-body-2);
   color: var(--text-primary);
   cursor: pointer;
@@ -173,14 +147,4 @@ input[type='number'] {
   background: var(--surface-input);
   color: var(--text-primary);
   font-size: var(--font-body-2);
-}
-
-.arsp-brand-pick input[type='color'] {
-  width: 56px;
-  height: 36px;
-  padding: var(--space-2xs);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-input);
-  cursor: pointer;
 }
