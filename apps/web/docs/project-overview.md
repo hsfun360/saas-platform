@@ -798,11 +798,18 @@ A single run card (the "Generate a month" cards on AR Interest, Statement Genera
 Four primitives (user-approved on the Golf Specification pilot) complete the grouped-settings look.
 Older settings screens (AR Specification, Club Specification) migrate as they are touched; every new settings screen composes all four from day one.
 
-**Toggle switch vs checkbox - classify by what the control does.**
-A **feature enabler** - it turns a subsystem on/off and usually reveals dependent settings below ("Enable guest control", "Enable rain checks") - renders as a toggle: compose the global **`.switch`** on its label and add `role="switch"` to the input.
-It stays a native `<input type="checkbox">`, so `formControlName`, the dirty guard and Space-key operation are untouched; the styling is purely visual.
-A **behavioural option within a feature** ("Allow merge booking", "Prorate by holes not played") stays a plain checkbox.
-Never mix: two visual weights are the point - activating a module vs configuring it.
+**Toggle switch vs checkbox - classify by what the control does (revised 2026-10-28).**
+Every **standalone on/off setting** - a feature enabler that reveals dependent settings ("Guest control", "Rain checks") AND a single yes/no rule ("Merge booking", "Same-day booking", "Prorate by holes not played") - renders as a toggle (user decision 2026-10-28 on Club Specification, then Golf Specification; the earlier "behavioural options stay checkboxes" split was dropped).
+It stays a native `<input type="checkbox">` with `role="switch"`, so `formControlName`, the dirty guard and Space-key operation are untouched; the styling is purely visual.
+A **tick box** remains for a SET of parallel options chosen together (the Sales channels, the guest-control weekday/weekend grid) and for the flags inside a row editor.
+The switch always sits in the global **`.switch-row`**: `<label class="switch-row switch">` holding the input and a `.switch-row__text` stack of `.switch-row__title` (the setting's NAME, with the `<app-field-info>` inside it) and `.switch-row__hint` (ONE short consequence line, "off = …" where that helps).
+No per-screen copy (`.cs-switch`, `.gs-check switch` were folded into it).
+
+**Sub-groups inside a settings card - `.settings-sub`.**
+When a card holds more than one topic (Golf Specification's "Who may play" = guest control + handicap control + playing rights), each topic is a `.settings-sub` block: a divider above either a `.settings-sub__title` + `.settings-sub__hint` pair (a plain group such as "Minimum players", "Share caps") or a `.switch-row` that heads its own dependent settings.
+The first sub-group in a body draws no divider.
+A card lists its sub-groups in its header subtitle so a folded card still says what it holds.
+This is how the 2026-10-28 regroups cut Club Specification from five cards to three and Golf Specification from eleven to six ("too many groupings") without a left-hand settings nav.
 
 **Field-info popover - long explanations live behind an (i), not under the field.**
 Each field keeps **at most ONE short inline hint** (value format, immediate consequence, "0 = no cap").
@@ -825,7 +832,7 @@ A sidebar menu click, `router.navigate` and the SPA browser Back all pause on th
 Every add/remove row editor (overrides, exceptions, rules) sits on the global **`.array-editor`** card: a lightly sunken bordered surface holding the header row, the rows, the Add button and the empty-state hint - so the repeating group reads as one unit, separate from the static fields around it.
 Compose it on the editor's container; row inputs keep the grid-row field chrome standard.
 
-Reference implementation for all four: `golf-settings` (`.html`/`.ts`/`.css`); the popover component and its behaviour spec live in `shared/field-info/`.
+Reference implementation for all of these: `golf-settings` (`.html`/`.ts`/`.css`, six cards with sub-groups) and `club-specification` (three cards); the popover component and its behaviour spec live in `shared/field-info/`.
 
 #### Dialog sections (long form drawers) - THE standard
 

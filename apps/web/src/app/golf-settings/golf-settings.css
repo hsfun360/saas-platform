@@ -25,6 +25,8 @@
   font-size: var(--font-body-2);
 }
 
+/* Plain option checkboxes (the guest-control weekday/weekend grid). Every
+   on/off setting is a global .switch-row (styles.css) since 2026-10-28. */
 .gs-check {
   display: flex;
   align-items: center;
@@ -34,9 +36,7 @@
   cursor: pointer;
   min-height: 44px;
 }
-/* Plain option checkboxes only - feature-enabler rows compose the global
-   .switch, whose input must keep the 44x24 toggle sizing. */
-.gs-check input[type='checkbox']:not([role='switch']) {
+.gs-check input[type='checkbox'] {
   width: var(--icon-sm);
   height: var(--icon-sm);
   flex-shrink: 0;

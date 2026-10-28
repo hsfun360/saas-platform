@@ -59,19 +59,19 @@
             </div>
 
             <!-- Admission: a feature enabler, so a switch (settings-chrome standard). -->
-            <label class="cs-switch switch">
+            <label class="switch-row switch">
               <input type="checkbox" role="switch" formControlName="isCommittee" />
-              <span class="cs-switch__text">
-                <span class="cs-option__title">Committee club<app-field-info label="Committee club" [text]="hint.committee" /></span>
-                <span class="cs-option__hint">Members are proposed and vouched in; off = a commercial pay-to-join club.</span>
+              <span class="switch-row__text">
+                <span class="switch-row__title">Committee club<app-field-info label="Committee club" [text]="hint.committee" /></span>
+                <span class="switch-row__hint">Members are proposed and vouched in; off = a commercial pay-to-join club.</span>
               </span>
             </label>
 
             <!-- Sales channels (commercial clubs only): behavioural options, so checkboxes. -->
             @if (!formValue().isCommittee) {
-              <div class="cs-sub">
-                <h3 class="cs-sub__title">Sales channels</h3>
-                <p class="cs-sub__hint">Who sells memberships - only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</p>
+              <div class="settings-sub">
+                <h3 class="settings-sub__title">Sales channels</h3>
+                <p class="settings-sub__hint">Who sells memberships - only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</p>
                 <div class="cs-options">
                   <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
                     <input type="checkbox" formControlName="salesAgencyEnabled" />
@@ -114,11 +114,11 @@
         </button>
         @if (isExpanded('credit')) {
         <div class="settings-body">
-          <label class="cs-switch switch">
+          <label class="switch-row switch">
             <input type="checkbox" role="switch" formControlName="creditFacilityEnabled" />
-            <span class="cs-switch__text">
-              <span class="cs-option__title">Members can charge expenses to their account<app-field-info label="Credit facility" [text]="hint.credit" /></span>
-              <span class="cs-option__hint">Off = the credit fields are hidden and memberships save with a credit limit of 0.</span>
+            <span class="switch-row__text">
+              <span class="switch-row__title">Members can charge expenses to their account<app-field-info label="Credit facility" [text]="hint.credit" /></span>
+              <span class="switch-row__hint">Off = the credit fields are hidden and memberships save with a credit limit of 0.</span>
             </span>
           </label>
         </div>
@@ -138,11 +138,11 @@
         </button>
         @if (isExpanded('numbering')) {
         <div class="settings-body">
-          <label class="cs-switch switch">
+          <label class="switch-row switch">
             <input type="checkbox" role="switch" formControlName="isMembershipAutoNumber" />
-            <span class="cs-switch__text">
-              <span class="cs-option__title">Auto-generate membership numbers<app-field-info label="Auto-generate membership numbers" [text]="hint.autoNumber" /></span>
-              <span class="cs-option__hint">Off = staff key the number in and only uniqueness is checked.</span>
+            <span class="switch-row__text">
+              <span class="switch-row__title">Auto-generate membership numbers<app-field-info label="Auto-generate membership numbers" [text]="hint.autoNumber" /></span>
+              <span class="switch-row__hint">Off = staff key the number in and only uniqueness is checked.</span>
             </span>
           </label>
           @if (formValue().isMembershipAutoNumber) {

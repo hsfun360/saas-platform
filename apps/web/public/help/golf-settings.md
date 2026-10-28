@@ -15,11 +15,14 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 
 [Screenshot: Golf Specification screen with all sections expanded]
 
-- The screen is one form made of eleven collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Buggies**, **Caddies**, **Playing Rights & Round Quotas**, **Group Bookings** and **Tee Sheet**.
-- Click a section's header band to fold it away or open it again; folding never loses what you typed.
-- Each section mixes plain fields with switches (tick boxes); some switches reveal more fields when turned on.
-- Several sections carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
-- There is one **Save** button at the bottom; it is greyed out until something has changed, and saves every section at once.
+- The screen is one form made of six collapsible cards: **Booking Rules** (the advance window, the booking lock, the same-day, merge and junior switches, the booking limits and sessions, and **Minimum players**), **Who may play** (**Guest control**, **Handicap control** and **Playing rights & round quotas**), **Cancellation, No-show & Rain Checks**, **Buggies & Caddies**, **Group Bookings** and **Tee Sheet**.
+- Click a card's header band to fold it away or open it again; folding never loses what you typed.
+  A card that holds several topics separates them with a thin line.
+- Every on/off setting is a toggle switch with its name, a one-line caption and, where there is more to know, an (i) that opens the full explanation.
+  Some switches reveal more fields when turned on.
+  Only the guest weekday/weekend answers and the flags inside the rule tables are tick boxes.
+- Several cards carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
+- A sticky bar with **Discard changes** and **Save** appears at the bottom as soon as you change something; Save stores every card at once.
 - A green message confirms the save; a red message explains what the system refused.
 
 ## Common tasks
@@ -31,7 +34,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 3. Read the preview line under the fields - it states the rule in words, e.g. "Bookings for a play date open 7 day(s) before - and already the previous evening from 10:00 pm".
 4. Click **Save**.
 
-If certain membership types may book earlier than everyone else, tick **Allow Membership Type to override the advance booking days**, click **Add override**, pick the membership type and enter its own number of days.
+If certain membership types may book earlier than everyone else, switch **Membership Type override** on, click **Add override**, pick the membership type and enter its own number of days.
 A membership type without golfing rights is listed with the suffix "(no golfing right)" so you can tell it apart.
 Override lines are kept even while the switch is off, but only take effect while it is on.
 
@@ -49,7 +52,7 @@ Public holidays follow the weekend rule.
 
 ### Require a minimum number of players
 
-1. Open **Minimum Players** and enter the **Weekday Minimum** and **Weekend & Holiday Minimum** (1 means no restriction).
+1. Under **Booking Rules**, scroll to **Minimum players** and enter the **Weekday Minimum** and **Weekend & Holiday Minimum** (1 means no restriction).
 2. For a course, a day or a time band that needs a different minimum, click **Add exception** and fill the row: **Course** (or Every course), **Days**, optional **From** / **To** times (leave both empty for the whole day) and **Min**.
 3. Click **Save**.
 
@@ -58,7 +61,7 @@ When several exceptions could apply, the most specific wins: a specific course b
 
 ### Restrict guests
 
-1. Open **Guest Control** and tick **Enable guest control**.
+1. Open **Who may play** and switch **Guest control** on.
    While it is off, guests are always welcome and the settings below are ignored.
 2. Under **Weekday** and **Weekend & Holiday**, tick or untick **Allow guest (visitor)** and **Allow member as guest** (a member playing under another member's booking).
 3. For finer control - e.g. no guests on Sunday mornings on the West course - click **Add exception** and fill the row with the same Course / Days / From / To scoping plus the two guest tick boxes.
@@ -69,7 +72,7 @@ How *many* guests a member may bring is not set here - it is the guest quota on 
 
 ### Apply handicap limits and accompaniment rules
 
-1. Open **Handicap Control** and tick **Enable handicap control**.
+1. Under **Who may play**, switch **Handicap control** on.
    Rules are kept while the switch is off and only take effect while it is on.
 2. Under **Handicap limits**, click **Add limit** for each cap: **Course**, **Days**, **Holes** (9, 18 or Any), **Gender** (Men, Ladies or Any), the **Max hcp** index, and optionally the **Latest tee-off** time the capped golfers may start.
    Example: Men 36.0 and Ladies 40.0 on weekdays for 18 holes, latest tee-off 14:29.
@@ -82,9 +85,9 @@ The Booking screen refuses a flight that breaks a rule; the Front Desk still reg
 
 ### Set the cancellation notice and no-show penalty
 
-[Screenshot: Cancellation & No-show section with the control switched on]
+[Screenshot: Cancellation, No-show & Rain Checks card with the cancellation control switched on]
 
-1. Open **Cancellation & No-show** and tick **Enable cancellation & no-show control**.
+1. Open **Cancellation, No-show & Rain Checks** and switch **Cancellation & no-show control** on.
 2. Enter the **Cancellation Notice (hours)** - a booking cancelled with less notice than this before its first tee time is a late cancellation (`24` for a 24-hour rule; `0` switches the notice rule off).
 3. Choose what a late cancellation does under **Late Cancellation**:
    - **Allow the cancellation and charge the no-show penalty** - the flight is freed for others and the penalty is charged to the booker (staff may waive it with a reason at the time of cancelling).
@@ -98,24 +101,24 @@ Charges are posted to the booker's member account and can be followed up on the 
 
 ### Allow rain checks for abandoned rounds
 
-[Screenshot: Rain Checks section with the switch on]
+[Screenshot: Rain checks sub-group with the switch on]
 
-1. Open **Rain Checks** and tick **Enable rain checks**.
-   Turning it on reveals the three fields below and adds **Issue rain check** to the Tee Time Sheet's ⋮ menu of a registered player whose bill is settled.
+1. Under **Cancellation, No-show & Rain Checks**, switch **Rain checks** on.
+   Turning it on reveals the three settings below and adds **Issue rain check** to the Tee Time Sheet's ⋮ menu of a registered player whose bill is settled.
 2. Enter **Valid for (days)** - how long an issued rain check can be redeemed, counted from the day of issue (`90` for three months).
 3. Choose the **Value Basis**: **Green-fee lines only** credits the green fee paid and treats caddy, buggy and food as consumed; **The whole bill** credits everything on the settled bill.
-4. Tick or untick **Prorate by holes not played**: ticked, the value is the basis times the share of holes not played (the desk keys the holes played when issuing); unticked, the full basis is credited whatever was played.
+4. Switch **Prorate by holes not played** on or off: on, the value is the basis times the share of holes not played (the desk keys the holes played when issuing); off, the full basis is credited whatever was played.
    A preview sentence restates the rule on a worked example, for example "A rain check is worth the settled bill's green-fee lines, prorated by the holes not played (6 of 18 holes played on a 90.00 green fee = 60.00); the desk may lower it, never raise it. It can be redeemed once, on one later bill of the same golfer, within 90 days of issue."
 5. Click **Save**.
 
-The three fields are kept while the switch is off, so a club can prepare the rule before switching it on.
+The three settings are kept while the switch is off, so a club can prepare the rule before switching it on.
 A rain check needs a Rain Check No. series under Numbering Control, and redeeming one needs a payment type of class Rain Check.
 
 ### Switch on the Buggy Station
 
-[Screenshot: Buggies section with the switch on]
+[Screenshot: Buggies & Caddies card with the buggy switch on]
 
-1. Open **Buggies** and tick **Enable buggy management**.
+1. Open **Buggies & Caddies** and switch **Buggy management** on.
 2. Click **Save**.
 
 On, the Buggy Station issues a unit per buggy slot - a single buggy fee is one slot, two shared buggy fees in the same flight are one slot for both riders - and only once the fees are paid.
@@ -124,9 +127,9 @@ Which courses make the buggy compulsory (the fee auto-charged at registration) i
 
 ### Switch on the Caddy Station
 
-[Screenshot: Caddies section with the switch on]
+[Screenshot: Buggies & Caddies card with the caddy switch on]
 
-1. Open **Caddies** and tick **Enable caddy management**.
+1. Open **Buggies & Caddies** and switch **Caddy management** on.
 2. Click **Save**.
 
 On, the Caddy Station checks caddies in (first in is next up, back of the queue after each round), assigns one caddy per caddy slot - a single caddy fee is one slot, two shared caddy fees in the same flight are one slot for both golfers - only once the fees are paid, and records each round with the holes played.
@@ -135,9 +138,9 @@ Off, the Caddies register, grades and groups can still be keyed.
 
 ### Restrict where and how often a player type may play
 
-[Screenshot: Playing Rights & Round Quotas section with rows]
+[Screenshot: Playing rights & round quotas sub-group with rows]
 
-1. Open **Playing Rights & Round Quotas** and tick **Enable playing rights & round quotas**.
+1. Under **Who may play**, switch **Playing rights & round quotas** on.
 2. Under **Playing rights (whitelist)**, click **Add playing right** for each allowance: pick the **Target** (a player type, or an affiliated or reciprocal club), optionally a **Membership type** when the target is a member-base type, the **Course** (or every course), the **Days**, a **From** / **To** time band, and **Valid from** / **Valid to** dates.
    A target with no rows may play anywhere; a target with rows may play only inside at least one of them, so a reciprocal club allowed "weekdays before noon on E1" gets one row saying exactly that.
 3. Under **Round quotas**, click **Add round quota** for each cap: the **Target** (and membership type), the **Days** it counts, the **Period** (per week, month or year), **Max rounds**, and optionally **Max guest rounds** (the guests that member may bring over the same period).
@@ -152,14 +155,14 @@ Rows are kept while the switch is off.
 
 [Screenshot: Group Bookings section with the control switched on]
 
-1. Open **Group Bookings** and tick **Enable group booking control**.
+1. Open **Group Bookings** and switch **Group booking control** on.
    Leave it off if the club only keys its own events (a committee club's Monthly Medal): a group booking is then confirmed the moment it is created.
    Turning it on reveals five more fields: three timers directly underneath, and two more under **Share caps**.
 2. Enter the **Tentative Hold (hours)** - how long a tentative booking's reserved flights hold the tee sheet before they are released if the booking has not been submitted for approval (`72` for three days; `0` holds them until submitted).
 3. Enter the **Deposit Due (days after approval)** - the proforma's pay-by date defaults to this many days after approval.
 4. Enter the **Default Deposit (% of the group bill)** - the deposit demanded when the proforma does not state one (`0` means no deposit, so approval confirms the booking at once).
    A preview sentence restates the three timers in words, for example "Reserved flights of a tentative booking are released after 72 hour(s) unless it is submitted for approval. Unless the proforma states otherwise, the deposit is 30% of the group bill, due 7 day(s) after approval; a booking whose deposit is not in by then lapses and its flights are released."
-5. Under the **Share caps** sub-heading ("The hard ceiling on the share of a course's tee times that all group bookings together may hold on one day - whatever an approver decides. Reserve flights refuses past it. Club events are exempt and do not count. 0 = no cap."), enter the **Weekday Group Share Cap (%)** and the **Weekend & Holiday Group Share Cap (%)**.
+5. Under the **Share caps** sub-heading (its (i) explains: the hard ceiling on the share of a course's tee times that all group bookings together may hold on one day, whatever an approver decides; Reserve flights refuses past it; club events are exempt and do not count; 0 = no cap), enter the **Weekday Group Share Cap (%)** and the **Weekend & Holiday Group Share Cap (%)**.
    These two fields are always visible and apply whether the control is on or off; a reservation that would push groups past the cap is refused with the numbers.
 6. With the control on, enter **Tentative Bookings per User** - how many tentative bookings with reserved flights one user may hold at a time (`0` means no limit).
 7. With the control on, enter **Next in Line (hours)** - when a held day frees up, how long the first group on its waitlist has to reserve it before the offer passes to the next group.
@@ -185,19 +188,19 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | --- | --- | --- | --- |
 | **Advance Booking Days** | Yes | How many days before the play date bookings open, for members and public golfers alike, e.g. `7`. | Whole number from 0 to 365. |
 | **Advance Booking Hours** | Yes | How many hours before midnight the next day's window opens early, e.g. `2` opens it at 10:00 pm; `0` opens it at midnight. | Whole number from 0 to 23; applies club-wide and cannot be overridden per membership type. |
-| **Allow Membership Type to override the advance booking days** | No | Tick to let selected membership types book earlier than the general rule. | Reveals the override table; lines are kept while off but ignored. |
+| **Membership Type override** (switch) | No | On to let selected membership types book earlier than the general rule. | Reveals the override table; lines are kept while off but ignored. |
 | **Override - Membership Type** | Yes (per line) | The membership type that gets its own window. | Each membership type may appear once. |
 | **Override - Days** | Yes (per line) | That type's advance booking days, e.g. `14`. | Whole number from 0 to 365. |
 | **Booking Lock (minutes)** | Yes | How long a selected flight is held while the player list is keyed; a countdown shows on the Booking screen. | Whole number from 1 to 60. |
-| **Allow merge booking** | No | Tick to let players from different bookings share a flight until its seats are full. | When off, the first confirmed booking claims the whole flight. |
+| **Same-day booking** (switch) | No | On to let today's flights be booked. | When off, bookings start from tomorrow and today's flights are taken by registering at the Front Desk. |
+| **Merge booking** (switch) | No | On to let players from different bookings share a flight until its seats are full. | When off, the first confirmed booking claims the whole flight. |
+| **Junior booking control** (switch) | No | On to require a junior member (a son, daughter or ward dependent) to play with their principal, or with an adult member when no principal is on record. | The Booking screen refuses; the Front Desk warns. |
 | **Weekday booking limit** | Yes | No limit, One booking per day, or One booking per session. | Per session needs at least one Session defined. |
 | **Weekend & holiday booking limit** | Yes | The same choice for weekends and public holidays. | Public holidays always count as weekend. |
 | **Sessions - Name** | Yes (per line) | The club's label for the day part, e.g. `Morning`. | Up to 50 characters; each name once. |
 | **Sessions - From / Until** | Yes (per line) | The session's time band; Until is not included in the band. | From must be before Until; sessions may not overlap. |
-| **Allow same-day booking** | No | Tick to let today's flights be booked. | When off, bookings start from tomorrow and today's flights are taken by registering at the Front Desk. |
-| **Junior booking control** | No | Tick to require a junior member (a son, daughter or ward dependent) to play with their principal, or with an adult member when no principal is on record. | The Booking screen refuses; the Front Desk warns. |
 
-### Minimum Players
+#### Minimum players (under Booking Rules)
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
@@ -208,21 +211,23 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Exception - From / To** | No | A flight-time band; leave both empty for the whole day. | Both or neither; From must be before To; rows with the same course and days may not overlap. |
 | **Exception - Min** | Yes (per line) | The minimum for that scope. | Whole number from 1 to 10. |
 
-### Guest Control
+### Who may play
+
+#### Guest control
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Enable guest control** | No | The master switch; off = guests always welcome. | Reveals the settings below. |
+| **Guest control** (switch) | No | The master switch; off = guests always welcome. | Reveals the settings below. |
 | **Allow guest (visitor)** (Weekday / Weekend & Holiday) | No | Whether bookings may include visitors on that day type. | Ticked by default. |
 | **Allow member as guest** (Weekday / Weekend & Holiday) | No | Whether a member may play under another member's booking on that day type. | Ticked by default. |
 | **Exception - Course / Days / From / To** | As above | The scope of the exception, same rules as the Minimum Players exceptions. | Most specific row wins. |
 | **Exception - Guest / Member guest** | No | The two answers for that scope. | Untick to forbid. |
 
-### Handicap Control
+#### Handicap control
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Enable handicap control** | No | The master switch; rules are kept while off. | Reveals both rule tables. |
+| **Handicap control** (switch) | No | The master switch; rules are kept while off. | Reveals both rule tables. |
 | **Limit - Course / Days** | As above | The scope of the cap. | One limit per course, days, holes and gender combination. |
 | **Limit - Holes** | No | 9, 18 or Any. | |
 | **Limit - Gender** | No | Men, Ladies or Any. | A golfer of unknown gender takes the stricter matching cap. |
@@ -234,42 +239,11 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Accompaniment - Men ≤ / Ladies ≤** | Yes (per line) | The highest handicap index a companion may have, by gender, e.g. `24.0` / `36.0`. | 0.0 to 54.0. |
 | **Accompaniment - Latest tee-off** | No | The latest start time for the targeted golfers. | A valid time of day. |
 
-### Cancellation & No-show
+#### Playing rights & round quotas
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Enable cancellation & no-show control** | No | The master switch; off = bookings cancel any time and nobody is charged. | Turning it on needs a No-show Charge picked. |
-| **Cancellation Notice (hours)** | Yes | The notice a cancellation needs before the booking's first tee time, e.g. `24`; `0` means no notice rule. | Whole number from 0 to 720. |
-| **Late Cancellation** | Yes | Allow and charge the penalty, or refuse the cancellation. | |
-| **No-show Charge** | Yes (while on) | The Transaction Type of charge type No Show Charges that prices the penalty. | Must be one of this club's No Show Charges types and active while the control is on. |
-| **Charge Basis** | Yes | Per no-show player, or Per booking. | |
-
-### Rain Checks
-
-| Field | Required | What to enter | Rules |
-| --- | --- | --- | --- |
-| **Enable rain checks** | No | The master switch; off = the Tee Time Sheet offers no Issue rain check. | Open rain checks already issued can still be redeemed. |
-| **Valid for (days)** | Yes (while on) | Days from issue until an unredeemed rain check expires, e.g. `90`. | Whole number from 1 to 730. |
-| **Value Basis** | Yes | Green-fee lines only, or The whole bill. | |
-| **Prorate by holes not played** | No | Ticked = value times the unplayed share; unticked = the full basis. | On by default. |
-
-### Buggies
-
-| Field | Required | What to enter | Rules |
-| --- | --- | --- | --- |
-| **Enable buggy management** | No | The master switch; off = the Buggy Station issues, returns and swaps nothing. | The fleet register stays editable while off; the compulsory-buggy fee still charges because it is a course rule. |
-
-### Caddies
-
-| Field | Required | What to enter | Rules |
-| --- | --- | --- | --- |
-| **Enable caddy management** | No | The master switch; off = the Caddy Station checks nobody in and assigns nobody. | The register stays editable while off. |
-
-### Playing Rights & Round Quotas
-
-| Field | Required | What to enter | Rules |
-| --- | --- | --- | --- |
-| **Enable playing rights & round quotas** | No | The master switch; rows are kept while off. | Reveals both tables. |
+| **Playing rights & round quotas** (switch) | No | The master switch; rows are kept while off. | Reveals both tables. |
 | **Playing right - Target** | Yes (per row) | A player type, or an affiliated or reciprocal club. | Every row needs one. |
 | **Playing right - Membership type** | No | Narrows a member-base target to one membership type. | Shown only for member-base player types; blank = every membership type. |
 | **Playing right - Course / Days / From / To** | Days yes | The allowance's scope. | A time band needs both times; From before To. |
@@ -280,11 +254,39 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Round quota - Max rounds** | Yes | The most booked or registered rounds in the period. | Whole number from 1 to 999. |
 | **Round quota - Max guest rounds** | No | The most guest lines on that member's own bookings in the period. | Whole number from 0 to 999; blank = no cap. |
 
+### Cancellation, No-show & Rain Checks
+
+#### Cancellation & no-show control
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Cancellation & no-show control** (switch) | No | The master switch; off = bookings cancel any time and nobody is charged. | Turning it on needs a No-show Charge picked. |
+| **Cancellation Notice (hours)** | Yes | The notice a cancellation needs before the booking's first tee time, e.g. `24`; `0` means no notice rule. | Whole number from 0 to 720. |
+| **Late Cancellation** | Yes | Allow and charge the penalty, or refuse the cancellation. | |
+| **No-show Charge** | Yes (while on) | The Transaction Type of charge type No Show Charges that prices the penalty. | Must be one of this club's No Show Charges types and active while the control is on. |
+| **Charge Basis** | Yes | Per no-show player, or Per booking. | |
+
+#### Rain checks
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Rain checks** (switch) | No | The master switch; off = the Tee Time Sheet offers no Issue rain check. | Open rain checks already issued can still be redeemed. |
+| **Valid for (days)** | Yes (while on) | Days from issue until an unredeemed rain check expires, e.g. `90`. | Whole number from 1 to 730. |
+| **Value Basis** | Yes | Green-fee lines only, or The whole bill. | |
+| **Prorate by holes not played** (switch) | No | On = value times the unplayed share; off = the full basis. | On by default. |
+
+### Buggies & Caddies
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Buggy management** (switch) | No | The master switch; off = the Buggy Station issues, returns and swaps nothing. | The fleet register stays editable while off; the compulsory-buggy fee still charges because it is a course rule. |
+| **Caddy management** (switch) | No | The master switch; off = the Caddy Station checks nobody in and assigns nobody. | The register stays editable while off. |
+
 ### Group Bookings
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Enable group booking control** | No | The master switch; off = a group booking is confirmed at creation with no holds, approval or deposit clock. | Reveals the three timers below and the two per-user fields under Share caps; all five are kept while off. |
+| **Group booking control** (switch) | No | The master switch; off = a group booking is confirmed at creation with no holds, approval or deposit clock. | Reveals the three timers below and the two per-user fields under Share caps; all five are kept while off. |
 | **Tentative Hold (hours)** | Yes (while on) | How long a tentative booking's reserved flights hold the tee sheet before they are released unless it is submitted, e.g. `72`; `0` = no expiry. | Whole number from 0 to 720. |
 | **Deposit Due (days after approval)** | Yes (while on) | The default pay-by date of the deposit, counted from approval, e.g. `7`. | Whole number from 0 to 365; a manager may extend a booking's date once. |
 | **Default Deposit (% of the group bill)** | Yes (while on) | The deposit demanded when the proforma does not state one, e.g. `30`; `0` = none, approval confirms at once. | Whole number from 0 to 100. |
@@ -301,7 +303,8 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 
 ## Tips & troubleshooting
 
-- The **Save** button stays grey until you change something; after a successful save the screen reloads with the saved values.
+- The save bar appears only once you change something; **Discard changes** puts every card back to the saved values, and after a successful save the screen reloads with them.
+- Leaving the screen with unsaved changes asks you to confirm first.
 - If you see "Define at least one session before limiting bookings per session", add at least one row under **Sessions** or set the limit back to per day.
 - If you see "Every session needs a name.", "Session 'Morning' needs both From and Until times." or "Session 'Morning': the From time must be before the Until time.", complete that session row before saving.
 - If you see "Every override line needs a membership type.", pick a type on each override row or remove the empty row.

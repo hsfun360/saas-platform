@@ -79,51 +79,12 @@
   color: var(--text-secondary);
 }
 
-/* A feature-enabler row: the global .switch toggle beside a title + ONE short
-   hint (the long explanation sits behind the (i) popover). */
-.cs-switch {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-md);
-  min-height: 44px;
-  padding: var(--space-sm) 0;
-  cursor: pointer;
-}
-.cs-switch input[type='checkbox'] {
-  margin-top: var(--space-2xs);
-}
-.cs-switch__text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-}
-.cs-switch .cs-option__title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-/* The radio cards sit above the admission switch. */
-.cs-options + .cs-switch {
+/* The feature-enabler rows (Committee club, credit facility, auto-number)
+   and the Sales channels sub-group compose the GLOBAL .switch-row and
+   .settings-sub primitives (styles.css); only the spacing between the radio
+   cards and the admission switch is local. */
+.cs-options + .switch-row {
   margin-top: var(--space-md);
-}
-
-/* A sub-group inside a card (Sales channels under the admission switch). */
-.cs-sub {
-  margin-top: var(--space-sm);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--border);
-}
-.cs-sub__title {
-  margin: 0 0 var(--space-2xs);
-  font-size: var(--font-body);
-  font-weight: var(--weight-semibold, 600);
-  color: var(--text-primary);
-}
-.cs-sub__hint {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--font-body-2);
-  color: var(--text-secondary);
 }
 
 /* The numbering summary + configure button under the auto toggle. */

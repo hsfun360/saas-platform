@@ -32,13 +32,15 @@
   } @else {
     <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
 
-      <!-- ============ Booking Rules ============ -->
+      <!-- ============ 1. Booking Rules (window, lock, switches, limits,
+           sessions + the Minimum players sub-group; regrouped 2026-10-28
+           from two cards) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('booking')"
                 [attr.aria-expanded]="isExpanded('booking')">
           <span class="settings-header__text">
             <span class="settings-header__title">Booking Rules</span>
-            <span class="settings-header__sub">How far in advance flights can be booked - and when the daily window opens.</span>
+            <span class="settings-header__sub">How far ahead flights can be booked, how many bookings a member may hold, and the fewest players a booking must bring.</span>
           </span>
           <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('booking')" aria-hidden="true">chevron_right</span>
         </button>
@@ -68,13 +70,13 @@
               <p class="gs-preview">{{ preview }}</p>
             }
 
-            <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="allowMembershipTypeOverride" />
-                <span>Allow Membership Type to override the advance booking days</span>
-                <app-field-info label="Membership Type override" [text]="hint.typeOverride" />
-              </label>
-            </div>
+            <label class="switch-row switch" style="margin-top: var(--space-sm);">
+              <input type="checkbox" role="switch" formControlName="allowMembershipTypeOverride" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Membership Type override<app-field-info label="Membership Type override" [text]="hint.typeOverride" /></span>
+                <span class="switch-row__hint">Selected membership types may book earlier than the general days.</span>
+              </span>
+            </label>
 
             @if (overridesOn()) {
               <div class="gs-overrides array-editor">
@@ -124,13 +126,28 @@
               </div>
             </div>
 
-            <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="allowBookingMerge" />
-                <span>Allow merge booking - a flight may be shared by players from different bookings</span>
-                <app-field-info label="Merge booking" [text]="hint.merge" />
-              </label>
-            </div>
+            <!-- The three booking on/off rules together (switch-row standard). -->
+            <label class="switch-row switch" style="margin-top: var(--space-sm);">
+              <input type="checkbox" role="switch" formControlName="allowSameDayBooking" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Same-day booking<app-field-info label="Same-day booking" [text]="hint.sameDay" /></span>
+                <span class="switch-row__hint">Today's flights can be booked; off = today is taken at the front desk only.</span>
+              </span>
+            </label>
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="allowBookingMerge" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Merge booking<app-field-info label="Merge booking" [text]="hint.merge" /></span>
+                <span class="switch-row__hint">A flight may be shared by players from different bookings.</span>
+              </span>
+            </label>
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="juniorBookingControlEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Junior booking control<app-field-info label="Junior booking control" [text]="hint.junior" /></span>
+                <span class="switch-row__hint">A junior must play with their principal (parent).</span>
+              </span>
+            </label>
 
             <div class="gs-grid" style="margin-top: var(--space-md);">
               <div class="form-group">
@@ -194,174 +211,50 @@
               </button>
             </div>
 
-            <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="allowSameDayBooking" />
-                <span>Allow same-day booking - today's flights can be booked</span>
-                <app-field-info label="Same-day booking" [text]="hint.sameDay" />
-              </label>
-            </div>
-
-            <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="juniorBookingControlEnabled" />
-                <span>Junior booking control - a junior must play with their principal (parent)</span>
-                <app-field-info label="Junior booking control" [text]="hint.junior" />
-              </label>
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- ============ Minimum Players ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('minPlayers')"
-                [attr.aria-expanded]="isExpanded('minPlayers')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Minimum Players</span>
-            <span class="settings-header__sub">The fewest golfers a booking must bring - keep flights filled. 1 means no restriction.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('minPlayers')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('minPlayers')) {
-          <div class="settings-body">
-            <div class="gs-grid">
-              <div class="form-group">
-                <label for="gsMinWd">Weekday Minimum <span class="required">*</span></label>
-                <input id="gsMinWd" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekday"
-                       [attr.aria-invalid]="showError(form.controls.minPlayersWeekday)" aria-describedby="gsMinWdErr" />
-                @if (showError(form.controls.minPlayersWeekday)) {
-                  <p id="gsMinWdErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
-                }
-              </div>
-              <div class="form-group">
-                <label for="gsMinWe">Weekend &amp; Holiday Minimum <span class="required">*</span></label>
-                <input id="gsMinWe" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekend"
-                       [attr.aria-invalid]="showError(form.controls.minPlayersWeekend)" aria-describedby="gsMinWeErr" />
-                @if (showError(form.controls.minPlayersWeekend)) {
-                  <p id="gsMinWeErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
-                }
-              </div>
-            </div>
-            <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum - or when joining an existing flight brings the flight's total to it.</p>
-
-            <div class="gs-overrides array-editor">
-              @if (minPlayerRules.length > 0) {
-                <div class="gs-mp-row gs-mp-row--head" aria-hidden="true">
-                  <span>Course</span>
-                  <span>Days</span>
-                  <span>From</span>
-                  <span>To</span>
-                  <span>Min</span>
-                  <span></span>
+            <!-- Minimum players sub-group (was its own card until 2026-10-28). -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Minimum players</h3>
+              <p class="settings-sub__hint">The fewest golfers a booking must bring - keep flights filled. 1 means no restriction.</p>
+              <div class="gs-grid">
+                <div class="form-group">
+                  <label for="gsMinWd">Weekday Minimum <span class="required">*</span></label>
+                  <input id="gsMinWd" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekday"
+                         [attr.aria-invalid]="showError(form.controls.minPlayersWeekday)" aria-describedby="gsMinWdErr" />
+                  @if (showError(form.controls.minPlayersWeekday)) {
+                    <p id="gsMinWdErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
+                  }
                 </div>
-              }
-              <div formArrayName="minPlayerRules">
-                @for (g of minPlayerRules.controls; track g; let i = $index) {
-                  <div class="gs-mp-row" [formGroupName]="i">
-                    <app-combobox formControlName="courseId"
-                                  [options]="courseOptions()"
-                                  [allowEmpty]="true" emptyLabel="Every course"
-                                  [ariaLabel]="'Rule ' + (i + 1) + ' course'"
-                                  placeholder="Every course" />
-                    <select formControlName="dayScope" [attr.aria-label]="'Rule ' + (i + 1) + ' day scope'">
-                      <option value="all">All days</option>
-                      <option value="weekday">Weekday</option>
-                      <option value="weekend">Weekend &amp; Holiday</option>
-                      @for (d of daysOfWeek; track d.key) {
-                        <option [value]="d.key">{{ d.label }}</option>
-                      }
-                    </select>
-                    <input type="time" formControlName="startTime" [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
-                    <input type="time" formControlName="endTime" [attr.aria-label]="'Rule ' + (i + 1) + ' to time'" />
-                    <input type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayers"
-                           [attr.aria-label]="'Rule ' + (i + 1) + ' minimum players'" />
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeRule(i)"
-                            [attr.aria-label]="'Remove rule ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  </div>
-                }
-              </div>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="addRule()">
-                <span class="material-icons" aria-hidden="true">add</span>
-                Add exception
-              </button>
-              @if (minPlayerRules.length === 0) {
-                <p class="cell-subtle field-hint">No exceptions - every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
-              }
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- ============ Guest Control ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('guests')"
-                [attr.aria-expanded]="isExpanded('guests')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Guest Control</span>
-            <span class="settings-header__sub">When a booking may bring guests - visitors, and members playing as another member's guest.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('guests')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('guests')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="guestControlEnabled" />
-                <span>Enable guest control - restrict when a booking may bring guests</span>
-              </label>
-              <p class="cell-subtle field-hint">Off means no restriction anywhere: guests are always welcome.</p>
-            </div>
-
-            @if (guestControlOn()) {
-              <div class="gs-grid" style="margin-top: var(--space-md);">
-                <div class="gs-gc-day">
-                  <p class="gs-gc-day__title">Weekday</p>
-                  <label class="gs-check">
-                    <input type="checkbox" formControlName="allowGuestWeekday" />
-                    <span>Allow guest (visitor)</span>
-                  </label>
-                  <label class="gs-check">
-                    <input type="checkbox" formControlName="allowMemberGuestWeekday" />
-                    <span>Allow member as guest</span>
-                  </label>
-                </div>
-                <div class="gs-gc-day">
-                  <p class="gs-gc-day__title">Weekend &amp; Holiday</p>
-                  <label class="gs-check">
-                    <input type="checkbox" formControlName="allowGuestWeekend" />
-                    <span>Allow guest (visitor)</span>
-                  </label>
-                  <label class="gs-check">
-                    <input type="checkbox" formControlName="allowMemberGuestWeekend" />
-                    <span>Allow member as guest</span>
-                  </label>
+                <div class="form-group">
+                  <label for="gsMinWe">Weekend &amp; Holiday Minimum <span class="required">*</span></label>
+                  <input id="gsMinWe" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekend"
+                         [attr.aria-invalid]="showError(form.controls.minPlayersWeekend)" aria-describedby="gsMinWeErr" />
+                  @if (showError(form.controls.minPlayersWeekend)) {
+                    <p id="gsMinWeErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
+                  }
                 </div>
               </div>
+              <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum - or when joining an existing flight brings the flight's total to it.</p>
 
               <div class="gs-overrides array-editor">
-                @if (guestRules.length > 0) {
-                  <div class="gs-gc-row gs-gc-row--head" aria-hidden="true">
+                @if (minPlayerRules.length > 0) {
+                  <div class="gs-mp-row gs-mp-row--head" aria-hidden="true">
                     <span>Course</span>
                     <span>Days</span>
                     <span>From</span>
                     <span>To</span>
-                    <span>Guest</span>
-                    <span>Member guest</span>
+                    <span>Min</span>
                     <span></span>
                   </div>
                 }
-                <div formArrayName="guestRules">
-                  @for (g of guestRules.controls; track g; let i = $index) {
-                    <div class="gs-gc-row" [formGroupName]="i">
+                <div formArrayName="minPlayerRules">
+                  @for (g of minPlayerRules.controls; track g; let i = $index) {
+                    <div class="gs-mp-row" [formGroupName]="i">
                       <app-combobox formControlName="courseId"
                                     [options]="courseOptions()"
                                     [allowEmpty]="true" emptyLabel="Every course"
-                                    [ariaLabel]="'Guest rule ' + (i + 1) + ' course'"
+                                    [ariaLabel]="'Rule ' + (i + 1) + ' course'"
                                     placeholder="Every course" />
-                      <select formControlName="dayScope" [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
+                      <select formControlName="dayScope" [attr.aria-label]="'Rule ' + (i + 1) + ' day scope'">
                         <option value="all">All days</option>
                         <option value="weekday">Weekday</option>
                         <option value="weekend">Weekend &amp; Holiday</option>
@@ -369,403 +262,229 @@
                           <option [value]="d.key">{{ d.label }}</option>
                         }
                       </select>
-                      <input type="time" formControlName="startTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
-                      <input type="time" formControlName="endTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
-                      <input type="checkbox" class="gs-gc-row__check" formControlName="allowGuest"
-                             [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow guest (visitor)'" />
-                      <input type="checkbox" class="gs-gc-row__check" formControlName="allowMemberGuest"
-                             [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow member as guest'" />
-                      <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)"
-                              [attr.aria-label]="'Remove guest rule ' + (i + 1)">
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Rule ' + (i + 1) + ' to time'" />
+                      <input type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayers"
+                             [attr.aria-label]="'Rule ' + (i + 1) + ' minimum players'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeRule(i)"
+                              [attr.aria-label]="'Remove rule ' + (i + 1)">
                         <span class="material-icons" aria-hidden="true">close</span>
                       </button>
                     </div>
                   }
                 </div>
-                <button type="button" class="btn btn--secondary btn--sm" (click)="addGuestRule()">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addRule()">
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add exception
                 </button>
-                @if (guestRules.length === 0) {
-                  <p class="cell-subtle field-hint">No exceptions - the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
+                @if (minPlayerRules.length === 0) {
+                  <p class="cell-subtle field-hint">No exceptions - every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
                 }
               </div>
-            }
+            </div>
           </div>
         }
       </div>
 
-      <!-- ============ Handicap Control (Tropicana procedure 2) ============ -->
+      <!-- ============ 2. Who may play (Guest control + Handicap control +
+           Playing rights & round quotas; three cards until 2026-10-28) ============ -->
       <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('handicap')"
-                [attr.aria-expanded]="isExpanded('handicap')">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('players')"
+                [attr.aria-expanded]="isExpanded('players')">
           <span class="settings-header__text">
-            <span class="settings-header__title">Handicap Control</span>
-            <span class="settings-header__sub">Maximum handicap limits and beginner/provisional accompaniment. Handicap index and status are keyed on the Golfers screen.</span>
+            <span class="settings-header__title">Who may play</span>
+            <span class="settings-header__sub">Guests, handicap limits and accompaniment, and which player types or clubs may play where and how often.</span>
           </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('handicap')" aria-hidden="true">chevron_right</span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('players')" aria-hidden="true">chevron_right</span>
         </button>
-        @if (isExpanded('handicap')) {
+        @if (isExpanded('players')) {
           <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
+
+            <!-- Guest control -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="guestControlEnabled" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Guest control</span>
+                  <span class="switch-row__hint">Restrict when a booking may bring guests; off = guests are always welcome.</span>
+                </span>
+              </label>
+
+              @if (guestControlOn()) {
+                <div class="gs-grid" style="margin-top: var(--space-sm);">
+                  <div class="gs-gc-day">
+                    <p class="gs-gc-day__title">Weekday</p>
+                    <label class="gs-check">
+                      <input type="checkbox" formControlName="allowGuestWeekday" />
+                      <span>Allow guest (visitor)</span>
+                    </label>
+                    <label class="gs-check">
+                      <input type="checkbox" formControlName="allowMemberGuestWeekday" />
+                      <span>Allow member as guest</span>
+                    </label>
+                  </div>
+                  <div class="gs-gc-day">
+                    <p class="gs-gc-day__title">Weekend &amp; Holiday</p>
+                    <label class="gs-check">
+                      <input type="checkbox" formControlName="allowGuestWeekend" />
+                      <span>Allow guest (visitor)</span>
+                    </label>
+                    <label class="gs-check">
+                      <input type="checkbox" formControlName="allowMemberGuestWeekend" />
+                      <span>Allow member as guest</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="gs-overrides array-editor">
+                  @if (guestRules.length > 0) {
+                    <div class="gs-gc-row gs-gc-row--head" aria-hidden="true">
+                      <span>Course</span>
+                      <span>Days</span>
+                      <span>From</span>
+                      <span>To</span>
+                      <span>Guest</span>
+                      <span>Member guest</span>
+                      <span></span>
+                    </div>
+                  }
+                  <div formArrayName="guestRules">
+                    @for (g of guestRules.controls; track g; let i = $index) {
+                      <div class="gs-gc-row" [formGroupName]="i">
+                        <app-combobox formControlName="courseId"
+                                      [options]="courseOptions()"
+                                      [allowEmpty]="true" emptyLabel="Every course"
+                                      [ariaLabel]="'Guest rule ' + (i + 1) + ' course'"
+                                      placeholder="Every course" />
+                        <select formControlName="dayScope" [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
+                          <option value="all">All days</option>
+                          <option value="weekday">Weekday</option>
+                          <option value="weekend">Weekend &amp; Holiday</option>
+                          @for (d of daysOfWeek; track d.key) {
+                            <option [value]="d.key">{{ d.label }}</option>
+                          }
+                        </select>
+                        <input type="time" formControlName="startTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
+                        <input type="time" formControlName="endTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
+                        <input type="checkbox" class="gs-gc-row__check" formControlName="allowGuest"
+                               [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow guest (visitor)'" />
+                        <input type="checkbox" class="gs-gc-row__check" formControlName="allowMemberGuest"
+                               [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow member as guest'" />
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)"
+                                [attr.aria-label]="'Remove guest rule ' + (i + 1)">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="addGuestRule()">
+                    <span class="material-icons" aria-hidden="true">add</span>
+                    Add exception
+                  </button>
+                  @if (guestRules.length === 0) {
+                    <p class="cell-subtle field-hint">No exceptions - the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Handicap control (Tropicana procedure 2) -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
                 <input type="checkbox" role="switch" formControlName="handicapControlEnabled" />
-                <span>Enable handicap control - bookings refuse violations; the front desk registers with a warning</span>
-                <app-field-info label="Handicap control" [text]="hint.handicap" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Handicap control<app-field-info label="Handicap control" [text]="hint.handicap" /></span>
+                  <span class="switch-row__hint">Maximum handicap limits and beginner/provisional accompaniment; bookings refuse violations, the front desk warns.</span>
+                </span>
               </label>
-            </div>
 
-            @if (handicapControlOn()) {
-              <p class="gs-hc-title">Handicap limits</p>
-              <div class="array-editor">
-              @if (limitRules.length > 0) {
-                <div class="gs-hl-row gs-hl-row--head" aria-hidden="true">
-                  <span>Course</span>
-                  <span>Days</span>
-                  <span>Holes</span>
-                  <span>Gender</span>
-                  <span>Max hcp</span>
-                  <span>Latest tee-off</span>
-                  <span></span>
-                </div>
-              }
-              <div formArrayName="limitRules">
-                @for (g of limitRules.controls; track g; let i = $index) {
-                  <div class="gs-hl-row" [formGroupName]="i">
-                    <app-combobox formControlName="courseId"
-                                  [options]="courseOptions()"
-                                  [allowEmpty]="true" emptyLabel="Every course"
-                                  [ariaLabel]="'Handicap limit rule ' + (i + 1) + ' course'"
-                                  placeholder="Every course" />
-                    <select formControlName="dayScope" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' day scope'">
-                      <option value="all">All days</option>
-                      <option value="weekday">Weekday</option>
-                      <option value="weekend">Weekend &amp; Holiday</option>
-                      @for (d of daysOfWeek; track d.key) {
-                        <option [value]="d.key">{{ d.label }}</option>
-                      }
-                    </select>
-                    <select formControlName="holes" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' holes'">
-                      <option value="">Any</option>
-                      <option value="9">9</option>
-                      <option value="18">18</option>
-                    </select>
-                    <select formControlName="gender" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' gender'">
-                      <option value="any">Any</option>
-                      <option value="men">Men</option>
-                      <option value="women">Ladies</option>
-                    </select>
-                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="maxHandicap"
-                           [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' maximum handicap'" />
-                    <input type="time" formControlName="latestTeeOff"
-                           [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' latest tee-off'" />
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeLimitRule(i)"
-                            [attr.aria-label]="'Remove handicap limit rule ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  </div>
-                }
-              </div>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="addLimitRule()">
-                <span class="material-icons" aria-hidden="true">add</span>
-                Add limit
-              </button>
-              @if (limitRules.length === 0) {
-                <p class="cell-subtle field-hint">No limits - any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
-              }
-              </div>
-
-              <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
-              <div class="array-editor">
-              @if (accRules.length > 0) {
-                <div class="gs-ha-row gs-ha-row--head" aria-hidden="true">
-                  <span>Course</span>
-                  <span>Days</span>
-                  <span>Holes</span>
-                  <span>From</span>
-                  <span>To</span>
-                  <span>Beg</span>
-                  <span>Prov</span>
-                  <span>Min</span>
-                  <span>Men ≤</span>
-                  <span>Ladies ≤</span>
-                  <span>Latest tee-off</span>
-                  <span></span>
-                </div>
-              }
-              <div formArrayName="accRules">
-                @for (g of accRules.controls; track g; let i = $index) {
-                  <div class="gs-ha-row" [formGroupName]="i">
-                    <app-combobox formControlName="courseId"
-                                  [options]="courseOptions()"
-                                  [allowEmpty]="true" emptyLabel="Every course"
-                                  [ariaLabel]="'Accompaniment rule ' + (i + 1) + ' course'"
-                                  placeholder="Every course" />
-                    <select formControlName="dayScope" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' day scope'">
-                      <option value="all">All days</option>
-                      <option value="weekday">Weekday</option>
-                      <option value="weekend">Weekend &amp; Holiday</option>
-                      @for (d of daysOfWeek; track d.key) {
-                        <option [value]="d.key">{{ d.label }}</option>
-                      }
-                    </select>
-                    <select formControlName="holes" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' holes'">
-                      <option value="">Any</option>
-                      <option value="9">9</option>
-                      <option value="18">18</option>
-                    </select>
-                    <input type="time" formControlName="startTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' from time'" />
-                    <input type="time" formControlName="endTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' to time'" />
-                    <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToBeginner"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to beginners'" />
-                    <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToProvisional"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to provisional handicaps'" />
-                    <input type="number" inputmode="numeric" min="1" max="3" step="1" formControlName="minCompanions"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companions needed'" />
-                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapMen"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for men'" />
-                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapWomen"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for ladies'" />
-                    <input type="time" formControlName="latestTeeOff"
-                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' latest tee-off'" />
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeAccRule(i)"
-                            [attr.aria-label]="'Remove accompaniment rule ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  </div>
-                }
-              </div>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="addAccRule()">
-                <span class="material-icons" aria-hidden="true">add</span>
-                Add rule
-              </button>
-              @if (accRules.length === 0) {
-                <p class="cell-subtle field-hint">No rules - beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
-              }
-              </div>
-            }
-          </div>
-        }
-      </div>
-
-      <!-- ============ Cancellation & No-show (Tropicana procedure) ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('noshow')"
-                [attr.aria-expanded]="isExpanded('noshow')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Cancellation &amp; No-show</span>
-            <span class="settings-header__sub">Minimum cancellation notice and the penalty charged to the booker for late cancellations and no-shows.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('noshow')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('noshow')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="noShowControlEnabled" />
-                <span>Enable cancellation &amp; no-show control</span>
-                <app-field-info label="Cancellation and no-show control" [text]="hint.noShow" />
-              </label>
-            </div>
-
-            @if (noShowControlOn()) {
-              <div class="gs-grid" style="margin-top: var(--space-md);">
-                <div class="form-group">
-                  <label for="gsNoticeHours">Cancellation Notice (hours) <span class="required">*</span></label>
-                  <input id="gsNoticeHours" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="cancellationNoticeHours"
-                         [attr.aria-invalid]="showError(form.controls.cancellationNoticeHours)" aria-describedby="gsNoticeHoursErr" />
-                  @if (showError(form.controls.cancellationNoticeHours)) {
-                    <p id="gsNoticeHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
-                  }
-                  <p class="cell-subtle field-hint">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
-                </div>
-                <div class="form-group">
-                  <label for="gsLateAction">Late Cancellation
-                    <app-field-info label="Late Cancellation" [text]="hint.lateAction" />
-                  </label>
-                  <select id="gsLateAction" formControlName="lateCancellationAction">
-                    @for (a of lateActions; track a.key) {
-                      <option [value]="a.key">{{ a.label }}</option>
-                    }
-                  </select>
-                </div>
-              </div>
-              <div class="gs-grid" style="margin-top: var(--space-md);">
-                <div class="form-group">
-                  <label for="gsNoShowType">No-show Charge <span class="required">*</span>
-                    <app-field-info label="No-show Charge" [text]="hint.noShowType" />
-                  </label>
-                  <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
-                                [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="- Select -"
-                                placeholder="Type to search…" />
-                </div>
-                <div class="form-group">
-                  <label for="gsChargeBasis">Charge Basis</label>
-                  <select id="gsChargeBasis" formControlName="noShowChargeBasis">
-                    @for (b of chargeBases; track b.key) {
-                      <option [value]="b.key">{{ b.label }}</option>
-                    }
-                  </select>
-                  <p class="cell-subtle field-hint">Per player multiplies the price by the number of no-show players; per booking charges it once.</p>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      </div>
-
-      <!-- ============ Rain Checks (abandoned-round credit) ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('raincheck')"
-                [attr.aria-expanded]="isExpanded('raincheck')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Rain Checks</span>
-            <span class="settings-header__sub">Whether the front desk may issue a rain check when a paid round is abandoned, how its value is worked out and how long it stays redeemable.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('raincheck')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('raincheck')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="rainCheckEnabled" />
-                <span>Enable rain checks</span>
-                <app-field-info label="Rain checks" [text]="hint.rainCheck" />
-              </label>
-            </div>
-
-            @if (rainCheckOn()) {
-              <div class="gs-grid" style="margin-top: var(--space-md);">
-                <div class="form-group">
-                  <label for="gsRcDays">Valid for (days) <span class="required">*</span></label>
-                  <input id="gsRcDays" type="number" inputmode="numeric" min="1" max="730" step="1" formControlName="rainCheckValidityDays"
-                         [attr.aria-invalid]="showError(form.controls.rainCheckValidityDays)" aria-describedby="gsRcDaysErr" />
-                  @if (showError(form.controls.rainCheckValidityDays)) {
-                    <p id="gsRcDaysErr" class="field-error" role="alert">Enter a whole number between 1 and 730.</p>
-                  }
-                  <p class="cell-subtle field-hint">Counted from the day of issue; an unredeemed rain check expires after this and the issuer is notified.</p>
-                </div>
-                <div class="form-group">
-                  <label for="gsRcBasis">Value Basis</label>
-                  <select id="gsRcBasis" formControlName="rainCheckBasis">
-                    @for (b of rainCheckBases; track b.key) {
-                      <option [value]="b.key">{{ b.label }}</option>
-                    }
-                  </select>
-                  <p class="cell-subtle field-hint">Green-fee lines only treats caddy, buggy and food as consumed; the whole bill credits everything paid.</p>
-                </div>
-              </div>
-              <div class="form-row" style="margin-top: var(--space-md);">
-                <label class="gs-check">
-                  <input type="checkbox" formControlName="rainCheckProrate" />
-                  <span>Prorate by holes not played</span>
-                  <app-field-info label="Prorate by holes not played" [text]="hint.prorate" />
-                </label>
-              </div>
-              @if (rainCheckPreview(); as preview) {
-                <p class="cell-subtle field-hint">{{ preview }}</p>
-              }
-            }
-          </div>
-        }
-      </div>
-
-      <!-- ============ Buggies (buggy management, 2026-10-17) ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('buggies')"
-                [attr.aria-expanded]="isExpanded('buggies')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Buggies</span>
-            <span class="settings-header__sub">Whether the Buggy Station issues, returns and swaps the club's buggies against the paid buggy fees of each flight.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('buggies')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('buggies')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="buggyManagementEnabled" />
-                <span>Enable buggy management</span>
-                <app-field-info label="Buggy management" [text]="hint.buggy" />
-              </label>
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- ============ Caddies (caddy management, 2026-10-17) ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('caddies')"
-                [attr.aria-expanded]="isExpanded('caddies')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Caddies</span>
-            <span class="settings-header__sub">Whether the Caddy Station checks caddies in and assigns them to flights from the paid caddy fees, in queue order.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('caddies')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('caddies')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="caddyManagementEnabled" />
-                <span>Enable caddy management</span>
-                <app-field-info label="Caddy management" [text]="hint.caddy" />
-              </label>
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- ============ Playing Rights & Round Quotas (spec 2.3.4 / 2.3.5) ============ -->
-      <div class="settings-card">
-        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('rights')"
-                [attr.aria-expanded]="isExpanded('rights')">
-          <span class="settings-header__text">
-            <span class="settings-header__title">Playing Rights &amp; Round Quotas</span>
-            <span class="settings-header__sub">Which courses, days, time bands and dates each player type or affiliated club may play, and how many rounds per week, month or year.</span>
-          </span>
-          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('rights')" aria-hidden="true">chevron_right</span>
-        </button>
-        @if (isExpanded('rights')) {
-          <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="playingRightsEnabled" />
-                <span>Enable playing rights &amp; round quotas</span>
-                <app-field-info label="Playing rights and round quotas" [text]="hint.rights" />
-              </label>
-            </div>
-
-            @if (playingRightsOn()) {
-              <h3 class="gs-subhead">Playing rights (whitelist)</h3>
-              <div class="gs-overrides array-editor">
-                @if (rightRules.length > 0) {
-                  <div class="gs-pr-row gs-pr-row--head" aria-hidden="true">
-                    <span>Target</span>
-                    <span>Membership type</span>
+              @if (handicapControlOn()) {
+                <p class="gs-hc-title">Handicap limits</p>
+                <div class="array-editor">
+                @if (limitRules.length > 0) {
+                  <div class="gs-hl-row gs-hl-row--head" aria-hidden="true">
                     <span>Course</span>
                     <span>Days</span>
+                    <span>Holes</span>
+                    <span>Gender</span>
+                    <span>Max hcp</span>
+                    <span>Latest tee-off</span>
+                    <span></span>
+                  </div>
+                }
+                <div formArrayName="limitRules">
+                  @for (g of limitRules.controls; track g; let i = $index) {
+                    <div class="gs-hl-row" [formGroupName]="i">
+                      <app-combobox formControlName="courseId"
+                                    [options]="courseOptions()"
+                                    [allowEmpty]="true" emptyLabel="Every course"
+                                    [ariaLabel]="'Handicap limit rule ' + (i + 1) + ' course'"
+                                    placeholder="Every course" />
+                      <select formControlName="dayScope" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' day scope'">
+                        <option value="all">All days</option>
+                        <option value="weekday">Weekday</option>
+                        <option value="weekend">Weekend &amp; Holiday</option>
+                        @for (d of daysOfWeek; track d.key) {
+                          <option [value]="d.key">{{ d.label }}</option>
+                        }
+                      </select>
+                      <select formControlName="holes" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' holes'">
+                        <option value="">Any</option>
+                        <option value="9">9</option>
+                        <option value="18">18</option>
+                      </select>
+                      <select formControlName="gender" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' gender'">
+                        <option value="any">Any</option>
+                        <option value="men">Men</option>
+                        <option value="women">Ladies</option>
+                      </select>
+                      <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="maxHandicap"
+                             [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' maximum handicap'" />
+                      <input type="time" formControlName="latestTeeOff"
+                             [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' latest tee-off'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeLimitRule(i)"
+                              [attr.aria-label]="'Remove handicap limit rule ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addLimitRule()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add limit
+                </button>
+                @if (limitRules.length === 0) {
+                  <p class="cell-subtle field-hint">No limits - any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
+                }
+                </div>
+
+                <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
+                <div class="array-editor">
+                @if (accRules.length > 0) {
+                  <div class="gs-ha-row gs-ha-row--head" aria-hidden="true">
+                    <span>Course</span>
+                    <span>Days</span>
+                    <span>Holes</span>
                     <span>From</span>
                     <span>To</span>
-                    <span>Valid from</span>
-                    <span>Valid to</span>
+                    <span>Beg</span>
+                    <span>Prov</span>
+                    <span>Min</span>
+                    <span>Men ≤</span>
+                    <span>Ladies ≤</span>
+                    <span>Latest tee-off</span>
                     <span></span>
                   </div>
                 }
-                <div formArrayName="rightRules">
-                  @for (g of rightRules.controls; track g; let i = $index) {
-                    <div class="gs-pr-row" [formGroupName]="i">
-                      <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
-                                    [ariaLabel]="'Playing right ' + (i + 1) + ' target'" placeholder="Player type or club" />
-                      @if (targetTakesMembershipType(g.controls.target.value)) {
-                        <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
-                                      [ariaLabel]="'Playing right ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
-                      } @else {
-                        <span class="gs-pr-row__na">-</span>
-                      }
-                      <app-combobox formControlName="courseId" [options]="courseOptions()" [allowEmpty]="true" emptyLabel="Every course"
-                                    [ariaLabel]="'Playing right ' + (i + 1) + ' course'" placeholder="Every course" />
-                      <select formControlName="dayScope" [attr.aria-label]="'Playing right ' + (i + 1) + ' day scope'">
+                <div formArrayName="accRules">
+                  @for (g of accRules.controls; track g; let i = $index) {
+                    <div class="gs-ha-row" [formGroupName]="i">
+                      <app-combobox formControlName="courseId"
+                                    [options]="courseOptions()"
+                                    [allowEmpty]="true" emptyLabel="Every course"
+                                    [ariaLabel]="'Accompaniment rule ' + (i + 1) + ' course'"
+                                    placeholder="Every course" />
+                      <select formControlName="dayScope" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' day scope'">
                         <option value="all">All days</option>
                         <option value="weekday">Weekday</option>
                         <option value="weekend">Weekend &amp; Holiday</option>
@@ -773,86 +492,317 @@
                           <option [value]="d.key">{{ d.label }}</option>
                         }
                       </select>
-                      <input type="time" formControlName="startTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' from time'" />
-                      <input type="time" formControlName="endTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' to time'" />
-                      <input type="date" formControlName="effectiveFrom" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid from'" />
-                      <input type="date" formControlName="effectiveTo" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid to'" />
-                      <button type="button" class="btn btn--danger btn--sm" (click)="removeRightRule(i)"
-                              [attr.aria-label]="'Remove playing right ' + (i + 1)">
+                      <select formControlName="holes" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' holes'">
+                        <option value="">Any</option>
+                        <option value="9">9</option>
+                        <option value="18">18</option>
+                      </select>
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' from time'" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' to time'" />
+                      <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToBeginner"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to beginners'" />
+                      <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToProvisional"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to provisional handicaps'" />
+                      <input type="number" inputmode="numeric" min="1" max="3" step="1" formControlName="minCompanions"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companions needed'" />
+                      <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapMen"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for men'" />
+                      <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapWomen"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for ladies'" />
+                      <input type="time" formControlName="latestTeeOff"
+                             [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' latest tee-off'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeAccRule(i)"
+                              [attr.aria-label]="'Remove accompaniment rule ' + (i + 1)">
                         <span class="material-icons" aria-hidden="true">close</span>
                       </button>
                     </div>
                   }
                 </div>
-                <button type="button" class="btn btn--secondary btn--sm" (click)="addRightRule()">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addAccRule()">
                   <span class="material-icons" aria-hidden="true">add</span>
-                  Add playing right
+                  Add rule
                 </button>
-                @if (rightRules.length === 0) {
-                  <p class="cell-subtle field-hint">No playing rights - every player type and club may play everywhere. Add a row to allow a target only on a course, a day type, a time band or between two dates; a target with any row may play only inside its rows.</p>
+                @if (accRules.length === 0) {
+                  <p class="cell-subtle field-hint">No rules - beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
                 }
-              </div>
+                </div>
+              }
+            </div>
 
-              <h3 class="gs-subhead" style="margin-top: var(--space-lg);">Round quotas</h3>
-              <div class="gs-overrides array-editor">
-                @if (quotaRules.length > 0) {
-                  <div class="gs-rq-row gs-rq-row--head" aria-hidden="true">
-                    <span>Target</span>
-                    <span>Membership type</span>
-                    <span>Days</span>
-                    <span>Period</span>
-                    <span>Max rounds</span>
-                    <span>Max guest rounds</span>
-                    <span></span>
-                  </div>
-                }
-                <div formArrayName="quotaRules">
-                  @for (g of quotaRules.controls; track g; let i = $index) {
-                    <div class="gs-rq-row" [formGroupName]="i">
-                      <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
-                                    [ariaLabel]="'Round quota ' + (i + 1) + ' target'" placeholder="Player type or club" />
-                      @if (targetTakesMembershipType(g.controls.target.value)) {
-                        <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
-                                      [ariaLabel]="'Round quota ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
-                      } @else {
-                        <span class="gs-pr-row__na">-</span>
-                      }
-                      <select formControlName="dayScope" [attr.aria-label]="'Round quota ' + (i + 1) + ' day scope'">
-                        <option value="all">All days</option>
-                        <option value="weekday">Weekday</option>
-                        <option value="weekend">Weekend &amp; Holiday</option>
-                        @for (d of daysOfWeek; track d.key) {
-                          <option [value]="d.key">{{ d.label }}</option>
-                        }
-                      </select>
-                      <select formControlName="period" [attr.aria-label]="'Round quota ' + (i + 1) + ' period'">
-                        @for (p of quotaPeriods(); track p.key) {
-                          <option [value]="p.key">{{ p.label }}</option>
-                        }
-                      </select>
-                      <input type="number" inputmode="numeric" min="1" max="999" step="1" formControlName="maxRounds" [attr.aria-label]="'Round quota ' + (i + 1) + ' max rounds'" />
-                      <input type="number" inputmode="numeric" min="0" max="999" step="1" formControlName="maxGuestRounds" placeholder="No cap" [attr.aria-label]="'Round quota ' + (i + 1) + ' max guest rounds'" />
-                      <button type="button" class="btn btn--danger btn--sm" (click)="removeQuotaRule(i)"
-                              [attr.aria-label]="'Remove round quota ' + (i + 1)">
-                        <span class="material-icons" aria-hidden="true">close</span>
-                      </button>
+            <!-- Playing rights & round quotas (spec 2.3.4 / 2.3.5) -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="playingRightsEnabled" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Playing rights &amp; round quotas<app-field-info label="Playing rights and round quotas" [text]="hint.rights" /></span>
+                  <span class="switch-row__hint">Which courses, days, time bands and dates each player type or affiliated club may play, and how many rounds per week, month or year.</span>
+                </span>
+              </label>
+
+              @if (playingRightsOn()) {
+                <h3 class="gs-subhead">Playing rights (whitelist)</h3>
+                <div class="gs-overrides array-editor">
+                  @if (rightRules.length > 0) {
+                    <div class="gs-pr-row gs-pr-row--head" aria-hidden="true">
+                      <span>Target</span>
+                      <span>Membership type</span>
+                      <span>Course</span>
+                      <span>Days</span>
+                      <span>From</span>
+                      <span>To</span>
+                      <span>Valid from</span>
+                      <span>Valid to</span>
+                      <span></span>
                     </div>
                   }
+                  <div formArrayName="rightRules">
+                    @for (g of rightRules.controls; track g; let i = $index) {
+                      <div class="gs-pr-row" [formGroupName]="i">
+                        <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
+                                      [ariaLabel]="'Playing right ' + (i + 1) + ' target'" placeholder="Player type or club" />
+                        @if (targetTakesMembershipType(g.controls.target.value)) {
+                          <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
+                                        [ariaLabel]="'Playing right ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
+                        } @else {
+                          <span class="gs-pr-row__na">-</span>
+                        }
+                        <app-combobox formControlName="courseId" [options]="courseOptions()" [allowEmpty]="true" emptyLabel="Every course"
+                                      [ariaLabel]="'Playing right ' + (i + 1) + ' course'" placeholder="Every course" />
+                        <select formControlName="dayScope" [attr.aria-label]="'Playing right ' + (i + 1) + ' day scope'">
+                          <option value="all">All days</option>
+                          <option value="weekday">Weekday</option>
+                          <option value="weekend">Weekend &amp; Holiday</option>
+                          @for (d of daysOfWeek; track d.key) {
+                            <option [value]="d.key">{{ d.label }}</option>
+                          }
+                        </select>
+                        <input type="time" formControlName="startTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' from time'" />
+                        <input type="time" formControlName="endTime" [attr.aria-label]="'Playing right ' + (i + 1) + ' to time'" />
+                        <input type="date" formControlName="effectiveFrom" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid from'" />
+                        <input type="date" formControlName="effectiveTo" [attr.aria-label]="'Playing right ' + (i + 1) + ' valid to'" />
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeRightRule(i)"
+                                [attr.aria-label]="'Remove playing right ' + (i + 1)">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="addRightRule()">
+                    <span class="material-icons" aria-hidden="true">add</span>
+                    Add playing right
+                  </button>
+                  @if (rightRules.length === 0) {
+                    <p class="cell-subtle field-hint">No playing rights - every player type and club may play everywhere. Add a row to allow a target only on a course, a day type, a time band or between two dates; a target with any row may play only inside its rows.</p>
+                  }
                 </div>
-                <button type="button" class="btn btn--secondary btn--sm" (click)="addQuotaRule()">
-                  <span class="material-icons" aria-hidden="true">add</span>
-                  Add round quota
-                </button>
-                @if (quotaRules.length === 0) {
-                  <p class="cell-subtle field-hint">No round quotas. Add a row to cap a target's booked or registered rounds per week, month or year on the days it covers (the most specific row wins); Max guest rounds caps the guests the member brings over the same period.</p>
-                }
-              </div>
-            }
+
+                <h3 class="gs-subhead" style="margin-top: var(--space-lg);">Round quotas</h3>
+                <div class="gs-overrides array-editor">
+                  @if (quotaRules.length > 0) {
+                    <div class="gs-rq-row gs-rq-row--head" aria-hidden="true">
+                      <span>Target</span>
+                      <span>Membership type</span>
+                      <span>Days</span>
+                      <span>Period</span>
+                      <span>Max rounds</span>
+                      <span>Max guest rounds</span>
+                      <span></span>
+                    </div>
+                  }
+                  <div formArrayName="quotaRules">
+                    @for (g of quotaRules.controls; track g; let i = $index) {
+                      <div class="gs-rq-row" [formGroupName]="i">
+                        <app-combobox formControlName="target" [options]="targetOptions()" [allowEmpty]="false"
+                                      [ariaLabel]="'Round quota ' + (i + 1) + ' target'" placeholder="Player type or club" />
+                        @if (targetTakesMembershipType(g.controls.target.value)) {
+                          <app-combobox formControlName="membershipTypeId" [options]="typeOptions()" [allowEmpty]="true" emptyLabel="Every membership type"
+                                        [ariaLabel]="'Round quota ' + (i + 1) + ' membership type'" placeholder="Every membership type" />
+                        } @else {
+                          <span class="gs-pr-row__na">-</span>
+                        }
+                        <select formControlName="dayScope" [attr.aria-label]="'Round quota ' + (i + 1) + ' day scope'">
+                          <option value="all">All days</option>
+                          <option value="weekday">Weekday</option>
+                          <option value="weekend">Weekend &amp; Holiday</option>
+                          @for (d of daysOfWeek; track d.key) {
+                            <option [value]="d.key">{{ d.label }}</option>
+                          }
+                        </select>
+                        <select formControlName="period" [attr.aria-label]="'Round quota ' + (i + 1) + ' period'">
+                          @for (p of quotaPeriods(); track p.key) {
+                            <option [value]="p.key">{{ p.label }}</option>
+                          }
+                        </select>
+                        <input type="number" inputmode="numeric" min="1" max="999" step="1" formControlName="maxRounds" [attr.aria-label]="'Round quota ' + (i + 1) + ' max rounds'" />
+                        <input type="number" inputmode="numeric" min="0" max="999" step="1" formControlName="maxGuestRounds" placeholder="No cap" [attr.aria-label]="'Round quota ' + (i + 1) + ' max guest rounds'" />
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeQuotaRule(i)"
+                                [attr.aria-label]="'Remove round quota ' + (i + 1)">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="addQuotaRule()">
+                    <span class="material-icons" aria-hidden="true">add</span>
+                    Add round quota
+                  </button>
+                  @if (quotaRules.length === 0) {
+                    <p class="cell-subtle field-hint">No round quotas. Add a row to cap a target's booked or registered rounds per week, month or year on the days it covers (the most specific row wins); Max guest rounds caps the guests the member brings over the same period.</p>
+                  }
+                </div>
+              }
+            </div>
           </div>
         }
       </div>
 
-      <!-- ============ Group Bookings (lifecycle control) ============ -->
+      <!-- ============ 3. Cancellation, No-show & Rain Checks (two cards
+           until 2026-10-28) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('cancellation')"
+                [attr.aria-expanded]="isExpanded('cancellation')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Cancellation, No-show &amp; Rain Checks</span>
+            <span class="settings-header__sub">The cancellation notice and no-show penalty charged to the booker, and the rain check credit for an abandoned paid round.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('cancellation')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('cancellation')) {
+          <div class="settings-body">
+
+            <!-- Cancellation & no-show (Tropicana procedure) -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="noShowControlEnabled" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Cancellation &amp; no-show control<app-field-info label="Cancellation and no-show control" [text]="hint.noShow" /></span>
+                  <span class="switch-row__hint">Minimum cancellation notice, and the penalty charged for late cancellations and no-shows.</span>
+                </span>
+              </label>
+
+              @if (noShowControlOn()) {
+                <div class="gs-grid" style="margin-top: var(--space-sm);">
+                  <div class="form-group">
+                    <label for="gsNoticeHours">Cancellation Notice (hours) <span class="required">*</span></label>
+                    <input id="gsNoticeHours" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="cancellationNoticeHours"
+                           [attr.aria-invalid]="showError(form.controls.cancellationNoticeHours)" aria-describedby="gsNoticeHoursErr" />
+                    @if (showError(form.controls.cancellationNoticeHours)) {
+                      <p id="gsNoticeHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
+                    }
+                    <p class="cell-subtle field-hint">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="gsLateAction">Late Cancellation
+                      <app-field-info label="Late Cancellation" [text]="hint.lateAction" />
+                    </label>
+                    <select id="gsLateAction" formControlName="lateCancellationAction">
+                      @for (a of lateActions; track a.key) {
+                        <option [value]="a.key">{{ a.label }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+                <div class="gs-grid" style="margin-top: var(--space-md);">
+                  <div class="form-group">
+                    <label for="gsNoShowType">No-show Charge <span class="required">*</span>
+                      <app-field-info label="No-show Charge" [text]="hint.noShowType" />
+                    </label>
+                    <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
+                                  [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="- Select -"
+                                  placeholder="Type to search…" />
+                  </div>
+                  <div class="form-group">
+                    <label for="gsChargeBasis">Charge Basis</label>
+                    <select id="gsChargeBasis" formControlName="noShowChargeBasis">
+                      @for (b of chargeBases; track b.key) {
+                        <option [value]="b.key">{{ b.label }}</option>
+                      }
+                    </select>
+                    <p class="cell-subtle field-hint">Per player multiplies the price by the number of no-show players; per booking charges it once.</p>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Rain checks (abandoned-round credit) -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="rainCheckEnabled" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Rain checks<app-field-info label="Rain checks" [text]="hint.rainCheck" /></span>
+                  <span class="switch-row__hint">The front desk may issue a rain check when a paid round is abandoned.</span>
+                </span>
+              </label>
+
+              @if (rainCheckOn()) {
+                <div class="gs-grid" style="margin-top: var(--space-sm);">
+                  <div class="form-group">
+                    <label for="gsRcDays">Valid for (days) <span class="required">*</span></label>
+                    <input id="gsRcDays" type="number" inputmode="numeric" min="1" max="730" step="1" formControlName="rainCheckValidityDays"
+                           [attr.aria-invalid]="showError(form.controls.rainCheckValidityDays)" aria-describedby="gsRcDaysErr" />
+                    @if (showError(form.controls.rainCheckValidityDays)) {
+                      <p id="gsRcDaysErr" class="field-error" role="alert">Enter a whole number between 1 and 730.</p>
+                    }
+                    <p class="cell-subtle field-hint">Counted from the day of issue; an unredeemed rain check expires after this and the issuer is notified.</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="gsRcBasis">Value Basis</label>
+                    <select id="gsRcBasis" formControlName="rainCheckBasis">
+                      @for (b of rainCheckBases; track b.key) {
+                        <option [value]="b.key">{{ b.label }}</option>
+                      }
+                    </select>
+                    <p class="cell-subtle field-hint">Green-fee lines only treats caddy, buggy and food as consumed; the whole bill credits everything paid.</p>
+                  </div>
+                </div>
+                <label class="switch-row switch">
+                  <input type="checkbox" role="switch" formControlName="rainCheckProrate" />
+                  <span class="switch-row__text">
+                    <span class="switch-row__title">Prorate by holes not played<app-field-info label="Prorate by holes not played" [text]="hint.prorate" /></span>
+                    <span class="switch-row__hint">On = the basis times the unplayed share; off = the full basis whatever was played.</span>
+                  </span>
+                </label>
+                @if (rainCheckPreview(); as preview) {
+                  <p class="cell-subtle field-hint">{{ preview }}</p>
+                }
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- ============ 4. Buggies & Caddies (the two station doors; two
+           cards until 2026-10-28) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('fleet')"
+                [attr.aria-expanded]="isExpanded('fleet')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Buggies &amp; Caddies</span>
+            <span class="settings-header__sub">Whether the Buggy Station and the Caddy Station run against the paid buggy and caddy fees of each flight.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('fleet')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('fleet')) {
+          <div class="settings-body">
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="buggyManagementEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Buggy management<app-field-info label="Buggy management" [text]="hint.buggy" /></span>
+                <span class="switch-row__hint">The Buggy Station issues, returns and swaps the club's buggies against the paid buggy fees.</span>
+              </span>
+            </label>
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="caddyManagementEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Caddy management<app-field-info label="Caddy management" [text]="hint.caddy" /></span>
+                <span class="switch-row__hint">The Caddy Station checks caddies in and assigns them to flights from the paid caddy fees, in queue order.</span>
+              </span>
+            </label>
+          </div>
+        }
+      </div>
+
+      <!-- ============ 5. Group Bookings (lifecycle control) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('groups')"
                 [attr.aria-expanded]="isExpanded('groups')">
@@ -864,16 +814,16 @@
         </button>
         @if (isExpanded('groups')) {
           <div class="settings-body">
-            <div class="form-row">
-              <label class="gs-check switch">
-                <input type="checkbox" role="switch" formControlName="groupBookingControlEnabled" />
-                <span>Enable group booking control</span>
-                <app-field-info label="Group booking control" [text]="hint.group" />
-              </label>
-            </div>
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="groupBookingControlEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Group booking control<app-field-info label="Group booking control" [text]="hint.group" /></span>
+                <span class="switch-row__hint">Group bookings go through tentative holds, approval and a deposit deadline; off = confirmed at creation.</span>
+              </span>
+            </label>
 
             @if (groupControlOn()) {
-              <div class="gs-grid" style="margin-top: var(--space-md);">
+              <div class="gs-grid" style="margin-top: var(--space-sm);">
                 <div class="form-group">
                   <label for="gsGroupHold">Tentative Hold (hours) <span class="required">*</span></label>
                   <input id="gsGroupHold" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="groupTentativeHoldHours"
@@ -907,56 +857,58 @@
               }
             }
 
-            <h3 class="gs-hc-title">Share caps
-              <app-field-info label="Share caps" [text]="hint.shareCaps" />
-            </h3>
-            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Club events are exempt and do not count. 0 = no cap.</p>
-            <div class="gs-grid">
-              <div class="form-group">
-                <label for="gsCapWd">Weekday Group Share Cap (%) <span class="required">*</span></label>
-                <input id="gsCapWd" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekday"
-                       [attr.aria-invalid]="showError(form.controls.groupShareCapWeekday)" aria-describedby="gsCapWdErr" />
-                @if (showError(form.controls.groupShareCapWeekday)) {
-                  <p id="gsCapWdErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
-                }
-              </div>
-              <div class="form-group">
-                <label for="gsCapWe">Weekend &amp; Holiday Group Share Cap (%) <span class="required">*</span></label>
-                <input id="gsCapWe" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekend"
-                       [attr.aria-invalid]="showError(form.controls.groupShareCapWeekend)" aria-describedby="gsCapWeErr" />
-                @if (showError(form.controls.groupShareCapWeekend)) {
-                  <p id="gsCapWeErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
-                }
-              </div>
-              @if (groupControlOn()) {
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Share caps
+                <app-field-info label="Share caps" [text]="hint.shareCaps" />
+              </h3>
+              <p class="settings-sub__hint">Club events are exempt and do not count. 0 = no cap.</p>
+              <div class="gs-grid">
                 <div class="form-group">
-                  <label for="gsMaxTent">Tentative Bookings per User <span class="required">*</span></label>
-                  <input id="gsMaxTent" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="groupMaxTentativePerUser"
-                         [attr.aria-invalid]="showError(form.controls.groupMaxTentativePerUser)" aria-describedby="gsMaxTentErr" />
-                  @if (showError(form.controls.groupMaxTentativePerUser)) {
-                    <p id="gsMaxTentErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                  <label for="gsCapWd">Weekday Group Share Cap (%) <span class="required">*</span></label>
+                  <input id="gsCapWd" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekday"
+                         [attr.aria-invalid]="showError(form.controls.groupShareCapWeekday)" aria-describedby="gsCapWdErr" />
+                  @if (showError(form.controls.groupShareCapWeekday)) {
+                    <p id="gsCapWdErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
                   }
-                  <p class="cell-subtle field-hint">How many tentative bookings with reserved flights one user may hold at a time - stops a salesperson parking the best days. 0 = no limit.</p>
                 </div>
                 <div class="form-group">
-                  <label for="gsNextInLine">Next in Line (hours) <span class="required">*</span></label>
-                  <input id="gsNextInLine" type="number" inputmode="numeric" min="1" max="168" step="1" formControlName="groupNextInLineHours"
-                         [attr.aria-invalid]="showError(form.controls.groupNextInLineHours)" aria-describedby="gsNextInLineErr" />
-                  @if (showError(form.controls.groupNextInLineHours)) {
-                    <p id="gsNextInLineErr" class="field-error" role="alert">Enter a whole number between 1 and 168.</p>
+                  <label for="gsCapWe">Weekend &amp; Holiday Group Share Cap (%) <span class="required">*</span></label>
+                  <input id="gsCapWe" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekend"
+                         [attr.aria-invalid]="showError(form.controls.groupShareCapWeekend)" aria-describedby="gsCapWeErr" />
+                  @if (showError(form.controls.groupShareCapWeekend)) {
+                    <p id="gsCapWeErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
                   }
-                  <p class="cell-subtle field-hint">When a held day frees up, the first group on its waitlist has this long to reserve it before the offer passes to the next; members' own bookings are never blocked.</p>
                 </div>
+                @if (groupControlOn()) {
+                  <div class="form-group">
+                    <label for="gsMaxTent">Tentative Bookings per User <span class="required">*</span></label>
+                    <input id="gsMaxTent" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="groupMaxTentativePerUser"
+                           [attr.aria-invalid]="showError(form.controls.groupMaxTentativePerUser)" aria-describedby="gsMaxTentErr" />
+                    @if (showError(form.controls.groupMaxTentativePerUser)) {
+                      <p id="gsMaxTentErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                    }
+                    <p class="cell-subtle field-hint">How many tentative bookings with reserved flights one user may hold at a time - stops a salesperson parking the best days. 0 = no limit.</p>
+                  </div>
+                  <div class="form-group">
+                    <label for="gsNextInLine">Next in Line (hours) <span class="required">*</span></label>
+                    <input id="gsNextInLine" type="number" inputmode="numeric" min="1" max="168" step="1" formControlName="groupNextInLineHours"
+                           [attr.aria-invalid]="showError(form.controls.groupNextInLineHours)" aria-describedby="gsNextInLineErr" />
+                    @if (showError(form.controls.groupNextInLineHours)) {
+                      <p id="gsNextInLineErr" class="field-error" role="alert">Enter a whole number between 1 and 168.</p>
+                    }
+                    <p class="cell-subtle field-hint">When a held day frees up, the first group on its waitlist has this long to reserve it before the offer passes to the next; members' own bookings are never blocked.</p>
+                  </div>
+                }
+              </div>
+              @if (capPreview(); as preview) {
+                <p class="gs-preview">{{ preview }}</p>
               }
             </div>
-            @if (capPreview(); as preview) {
-              <p class="gs-preview">{{ preview }}</p>
-            }
           </div>
         }
       </div>
 
-      <!-- ============ Tee Sheet (seat-dot colours) ============ -->
+      <!-- ============ 6. Tee Sheet (seat-dot colours) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('teesheet')"
                 [attr.aria-expanded]="isExpanded('teesheet')">

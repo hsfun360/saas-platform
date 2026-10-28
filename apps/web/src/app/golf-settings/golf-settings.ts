@@ -144,7 +144,11 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
   readonly ruleTargets = signal<GolfRuleTargets | null>(null);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, rights: true, buggies: true, caddies: true, groups: true, teesheet: true });
+  // Six cards since 2026-10-28 (user: "too many groupings"): Booking Rules
+  // (+ Minimum players), Who may play (guest + handicap + playing rights),
+  // Cancellation/No-show + Rain Checks, Buggies & Caddies, Group Bookings,
+  // Tee Sheet. Feature switches head their own .settings-sub sub-group.
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, players: true, cancellation: true, fleet: true, groups: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],

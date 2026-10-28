@@ -864,6 +864,72 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
+/* The switch ROW (standard 2026-10-28, Club Specification + Golf
+   Specification): the toggle beside a stacked title + ONE short hint, with
+   the long explanation behind an <app-field-info> inside the title.
+     <label class="switch-row switch">
+       <input type="checkbox" role="switch" formControlName="x" />
+       <span class="switch-row__text">
+         <span class="switch-row__title">Guest control<app-field-info … /></span>
+         <span class="switch-row__hint">Off = guests are always welcome.</span>
+       </span>
+     </label>
+   Never a per-screen copy (.cs-switch / .gs-check switch were folded in). */
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  min-height: 44px;
+  padding: var(--space-sm) 0;
+  cursor: pointer;
+}
+.switch-row input[type='checkbox'] {
+  margin-top: var(--space-2xs);
+}
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.switch-row__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.switch-row__hint {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* A sub-group inside a settings card (standard 2026-10-28): a divider above
+   a titled block (title + hint) or above a switch row that heads its own
+   dependent settings. The first sub-group in a body draws no divider. */
+.settings-sub {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+.settings-body > .settings-sub:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.settings-sub__title {
+  margin: 0 0 var(--space-2xs);
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.settings-sub__hint {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
 /* ============================================================== */
 /* Sticky save bar - long settings FORMS (standard 2026-10-18)    */
 /* Pinned to the viewport bottom while the form is on screen, so  */
