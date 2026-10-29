@@ -128,7 +128,7 @@ Differences from dev are deliberate and few:
 | API | Cloud Run `platform-api` - https://platform-api-640963543517.asia-southeast3.run.app |
 | Worker | `platform-api-outboxworker`, drain mode, scale-to-zero, `outbox-sweep` scheduler (asia-southeast1) - identical wiring to dev |
 | Images | **Pulled from the DEV project's registry** (`asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps/...`); staging's Cloud Run service agent has `artifactregistry.reader` on that repo. This is the build-once-promote seam for the future CI/CD pipeline - staging has NO registry of its own |
-| Database | Cloud SQL `platform-db-staging` (PG18, db-g1-small, zonal), database `platformDB`, seeded 2026-08-01 as a COPY OF DEV (db-copy job pattern with BOTH Cloud SQL connectors attached; the temporary cross-project `cloudsql.client` grant and `SRC_DATABASE_URL` secret were removed after) |
+| Database | Cloud SQL `platform-db-staging` (PG18, db-g1-small, zonal), database `platformDB`, seeded 2026-08-01 as a COPY OF DEV (db-copy job pattern with BOTH Cloud SQL connectors attached; the temporary cross-project `cloudsql.client` grant and `SRC_DATABASE_URL` secret were removed after); RE-COPIED FROM DEV 2026-10-29 with the serverless export/import recipe below |
 | Secrets | Own `DATABASE_URL` + FRESH JWT keypair; `SMTP_ENCRYPTION_KEY` and `EMAIL_PASS` copied from dev (the SMTP key MUST match wherever the data came from) |
 | Admin | `admin@myeasysoft.com` via the staging `seed-users` job (its own password, printed once to job logs - same rotate/recover procedure as dev) |
 | SSO | Google NOT configured yet (needs a staging OAuth client + `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, same steps as dev); Microsoft hidden (`MICROSOFT_SSO_ENABLED=false`) - to enable, set it `true` and register the staging web URL + `/login` as an SPA redirect URI on the shared Entra app (see the dev Microsoft SSO row) |
@@ -136,6 +136,30 @@ Differences from dev are deliberate and few:
 
 Verified 2026-08-01: browser login as staging admin, full catalogue present (5 modules / 41 menus / 24 users), forgot-password email delivered in 4s via ping-driven drain, sweep firing.
 
+## Re-copying the staging database from dev (done 2026-10-29)
+
+Staging never promoted between 2026-08-01 and 2026-10-27, so its database was three months behind the models.
+The first promotion then failed database initialization on every boot: the pre-sync Module.code backfill in `app.js` keyed on `Modules.audience`, a column staging did not have yet (fixed in code the same day, commit `fix(api): Module.code backfill tolerates a schema that predates Module.audience`).
+Dev had also run manual migration scripts the boot does not contain (golf Player revamp, closure re-key), so letting the alter-sync catch up in place was judged riskier than a fresh copy.
+Staging data is only ever a copy of dev, so nothing needed preserving.
+
+Recipe (serverless, no Cloud Run job, about 15 minutes end to end):
+
+1. Push and deploy the code that staging will run, so dev's `SchemaMeta` fingerprint (copied with the data) matches the promoted image and staging boots with `fingerprint match - skipping sync`.
+2. Create a PRIVATE transfer bucket in the dev project (`--uniform-bucket-level-access --public-access-prevention`); never reuse the public assets bucket.
+   Grant the dev instance service account `roles/storage.objectAdmin` and the staging instance service account `roles/storage.objectViewer` on it (`serviceAccountEmailAddress` from `gcloud sql instances describe`).
+3. `gcloud sql backups create --instance platform-db-staging --project my-easy-software-staging` (safety net) and `gcloud scheduler jobs pause outbox-sweep --location asia-southeast1 --project my-easy-software-staging` so copied outbox rows cannot be sent from staging.
+4. `gcloud sql export sql platform-db-dev gs://<bucket>/platformDB-dev-<date>.sql.gz --database=platformDB --offload --project my-easy-software-dev` (offload = a temporary instance does the dump; dev is untouched).
+5. Drop and recreate `platformDB` on staging AS THE `postgres` USER over the Cloud SQL proxy (`cloud-sql-proxy --port 15432 --token "$(gcloud auth print-access-token)" my-easy-software-staging:asia-southeast3:platform-db-staging`, then a Node script with `apps/api/node_modules/pg` connected to the `postgres` maintenance database: `pg_terminate_backend` for sessions on platformDB, `DROP DATABASE "platformDB"`, `CREATE DATABASE "platformDB" OWNER postgres`).
+   GOTCHA: `gcloud sql databases delete platformDB` is REFUSED (`must be owner of database`) because the API runs as `cloudsqlsuperuser` and the database is owned by `postgres`.
+6. `gcloud sql import sql platform-db-staging gs://<bucket>/<file> --database=platformDB --user=postgres --project my-easy-software-staging`.
+   GOTCHA: without `--user=postgres` the import runs as `cloudsqlsuperuser` and dies on its first statement with `permission denied for database platformDB` (nothing is written).
+7. Promote to staging (the workflow), then read the staging api boot log: expect `fingerprint match - skipping sync` and no `Database initialization failed`.
+8. Over the proxy: confirm `SchemaMeta.fingerprint`, the schema list, `Modules` codes, then mark every copied `OutboxMessage` row with status `PENDING` as `FAILED` (with an `errorLog` note) BEFORE resuming the sweep.
+9. Re-run the staging `seed-users` job (the copy replaces the staging admin with dev's users; password printed once to the job logs).
+10. Remove the two bucket grants, delete the bucket and dump, delete the local secret file, stop the proxy. The on-demand backup stays.
+
+Side effects: every staging user and record becomes dev's (dev passwords work on staging until changed); refresh tokens and trusted devices fail staging's own JWT keys, so everyone logs in fresh; avatar and logo URLs still point at the dev assets bucket.
 ## Still to do for the environment split
 
 - CI/CD: DONE 2026-08-01 - see [`cicd.md`](cicd.md) (push to `dev` -> build + deploy dev; manual "Promote to staging" redeploys the same digests).
