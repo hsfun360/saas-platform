@@ -14,8 +14,11 @@ const schemas = require('./numbering.schemas');
 
 // Build a router serving: GET /meta, GET /, POST /, PATCH /:id, POST /preview.
 // `model` = the module's NumberingScheme; `purposes` = the [{key,label}] list
-// this screen offers (and validates against).
-function makeNumberingRouter({ model, purposes }) {
+// this screen offers (and validates against); `typeTokenLabel` = what {TYPE}
+// means on THIS module's screen (e.g. AR: 'Transaction type code') and
+// `typeSample` the sample code its previews render it as - defaults stay the
+// membership wording/sample.
+function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample }) {
     const { previewNext } = require('../modules/saas/numberingGenerator');
     const { normalizeConfig } = require('../modules/saas/numberingScheme.service');
     const {
@@ -49,15 +52,19 @@ function makeNumberingRouter({ model, purposes }) {
         resetRule: row.resetRule,
         currentPeriod: row.currentPeriod,
         isActive: row.isActive,
-        nextPreview: row.mode === 'auto' ? previewNext(row).number : null,
+        nextPreview: row.mode === 'auto' ? previewNext(row, { typeCode: typeSample }).number : null,
     });
+
+    const tokens = typeTokenLabel
+        ? FORMAT_TOKENS.map((tok) => (tok.token === '{TYPE}' ? { ...tok, label: typeTokenLabel } : tok))
+        : FORMAT_TOKENS;
 
     router.get('/meta', (req, res) => {
         res.status(200).json({
             modes: NUMBERING_MODES,
             resetRules: RESET_RULES,
             purposes,
-            tokens: FORMAT_TOKENS,
+            tokens,
         });
     });
 
@@ -146,7 +153,7 @@ function makeNumberingRouter({ model, purposes }) {
         currentNumber: 0,
         resetRule: row.resetRule || 'never',
         currentPeriod: null,
-    }).number;
+    }, { typeCode: typeSample }).number;
 
     router.get('/copy-sources', async (req, res) => {
         try {

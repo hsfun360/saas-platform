@@ -39,6 +39,20 @@ export class NumberingComponent implements OnInit {
   readonly module: NumberingModule =
     (inject(ActivatedRoute).snapshot.data['numberingModule'] as NumberingModule) || 'membership';
 
+  // What the {TYPE} token means on THIS module's screen: the sample shown in
+  // the live preview and the hint under it. AR fills it with the document's
+  // Transaction Type code at issue time (user decision 2026-10-29);
+  // membership with the member's type code at creation. Golf and Facility do
+  // not fill it yet, so their preview and hint say so honestly.
+  readonly typeSample: string =
+    this.module === 'ar' ? 'INV' : this.module === 'membership' ? 'ORD' : '';
+  readonly typeHint: string =
+    this.module === 'ar'
+      ? "The type token is shown as a sample (INV); the document's actual Transaction Type code (e.g. CN01) is used when the number is issued."
+      : this.module === 'membership'
+        ? "The type token is shown as a sample (ORD); the member's actual type code is used at creation."
+        : 'The type token is not filled by this module - it renders blank in issued numbers.';
+
   readonly schemes = signal<NumberingScheme[]>([]);
   readonly modes = signal<MembershipStatusOption[]>([]);
   readonly resetRules = signal<MembershipStatusOption[]>([]);
@@ -123,7 +137,7 @@ export class NumberingComponent implements OnInit {
       '{YYYY}': yyyy,
       '{YY}': yyyy.slice(-2),
       '{MM}': String(now.getMonth() + 1).padStart(2, '0'),
-      '{TYPE}': format.includes('{TYPE}') ? 'ORD' : '',
+      '{TYPE}': format.includes('{TYPE}') ? this.typeSample : '',
     };
     return format.replace(/\{PREFIX\}|\{SEQ\}|\{YYYY\}|\{YY\}|\{MM\}|\{TYPE\}/g, (m) => map[m] ?? '');
   }

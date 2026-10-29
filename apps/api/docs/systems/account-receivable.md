@@ -26,6 +26,9 @@ That producer/ledger boundary is why AR is its own service and not part of Membe
 - Interest run statuses: `pending` | `confirmed` | `cancelled`.
 - Statement statuses: `generated` | `sent` | `void`; statement RUN statuses: `queued` | `running` | `cancelling` | `completed` | `cancelled` | `failed`.
 - Numbering purposes (`ar.NumberingScheme`, screen `/ar/numbering`): `ar-invoice`, `ar-debit-note`, `ar-credit-note`, `ar-interest`, `ar-deposit`, `ar-receipt`, `ar-refund`, `ar-statement`, `ar-other-debtor`.
+  The `{TYPE}` format token on an AR series is the document's **Transaction Type code** (user decision 2026-10-29), filled when the number is issued: ledger drafts/posts pass the loaded type, draft posting and void reversals resolve it from the stored `transactionTypeId` (`typeCodeOf`), receipts/refunds use the `paymentMethod` code snapshot, the refund offset CN uses the deposit-conversion designation, interest the designated Interest type, and producer charges pass it through `arGateway.postCharge`; the workflow completion handlers mirror the same codes req-less.
+  Deposits, statements and the Other Debtor code have no transaction type, so `{TYPE}` renders blank there.
+  The screen's meta labels the token per module (`makeNumberingRouter({ typeTokenLabel, typeSample })` - AR: 'Transaction type code', sample INV).
 - Source modules on a ledger row: `membership` | `golf` | `pos` | `facility` | `ar`.
 
 ## Design decisions (approved 2026-08-04/05)

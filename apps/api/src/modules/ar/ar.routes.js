@@ -195,6 +195,10 @@ router.use(
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
         purposes: require('../../platform/numberingGateway').purposesFor('ar'),
+        // {TYPE} on AR series = the document's Transaction Type code (e.g.
+        // CN01), filled when the number is issued (user decision 2026-10-29).
+        typeTokenLabel: 'Transaction type code',
+        typeSample: 'INV',
     }),
 );
 

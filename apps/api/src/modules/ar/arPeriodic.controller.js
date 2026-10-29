@@ -276,7 +276,8 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
         // Interest documents number under their OWN series (ar-interest,
         // added 2026-08-20 to sync numbering with the transaction classes) -
         // no longer borrowed from the Debit Note series.
-        const issued = await numberingGateway.issueNumber(req, 'ar-interest', { transaction: t });
+        // {TYPE} = the designated Interest transaction type's code.
+        const issued = await numberingGateway.issueNumber(req, 'ar-interest', { transaction: t, typeCode: interestType.transactionType });
         if (issued && issued.number) return issued.number;
         // Synthetic fallback: bulk confirms can land in the same millisecond,
         // so suffix with the generation id to stay unique.

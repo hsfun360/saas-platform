@@ -42,12 +42,17 @@ function registerArLedgerPurpose(purpose, docType, synthPrefix) {
             const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
             if (!debtor) return;
 
+            // {TYPE} in the series = the document's Transaction Type code.
+            const ArTransactionType = require('../modules/ar/transactionType.model');
+            const typeRow = row.transactionTypeId
+                ? await ArTransactionType.findOne({ where: { id: row.transactionTypeId }, attributes: ['transactionType'], transaction })
+                : null;
             await posting.postDraftLedger({
                 companyId: instance.companyId,
                 debtor,
                 row,
                 issueDocNo: async (t) => {
-                    const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t });
+                    const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t, typeCode: typeRow ? typeRow.transactionType : undefined });
                     if (issued && issued.number) return issued.number;
                     return `${synthPrefix}-${Date.now().toString(36).toUpperCase()}`;
                 },
@@ -100,17 +105,22 @@ purposeRegistry.register('ar-refund', {
         const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
         if (!debtor) return;
 
-        const issuerFor = (purpose, prefix) => async (t) => {
-            const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t });
+        const issuerFor = (purpose, prefix, typeCode) => async (t) => {
+            const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t, typeCode });
             if (issued && issued.number) return issued.number;
             return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
         };
+        // {TYPE}: the refund's payment-method code; the offset leg's CN takes
+        // the deposit-conversion designation's code (the type that CN gets).
+        const cnTypeCode = row.refundMode === 'offset'
+            ? (await require('../modules/ar/catalogDefaults').depositConversionType(instance.companyId)).transactionType
+            : null;
         await posting.postDraftRefund({
             companyId: instance.companyId,
             debtor,
             row,
-            issueDocNo: issuerFor('ar-refund', 'RF'),
-            issueCnDocNo: issuerFor('ar-credit-note', 'CN'),
+            issueDocNo: issuerFor('ar-refund', 'RF', row.paymentMethod),
+            issueCnDocNo: issuerFor('ar-credit-note', 'CN', cnTypeCode),
             stamps: { updatedBy: instance.submitterUserId || null },
             t: transaction,
         });

@@ -199,6 +199,7 @@ async function postCharge(req, {
     // the AR Specification's Membership-integration switch. Enforced HERE at
     // the seam - picker filtering alone is never the gate.
     const PRODUCER_MODULES = ['membership', 'golf', 'facility', 'pos'];
+    let typeCode = null; // fills the invoice series' {TYPE} token
     if (PRODUCER_MODULES.includes(sourceModule)) {
         const type = await getTransactionType(companyId, transactionTypeId, { module: sourceModule });
         if (!type) return { error: `The transaction type is not usable by the ${sourceModule} module.` };
@@ -206,10 +207,11 @@ async function postCharge(req, {
         if (sourceModule === 'membership' && !(await isMembershipIntegrationEnabled(companyId))) {
             return { error: 'Membership integration is switched off in AR Specification - membership documents cannot post to AR.' };
         }
+        typeCode = type.transactionType;
     }
 
     const issueDocNo = async (t) => {
-        const issued = await numberingGateway.issueNumber(req, 'ar-invoice', { transaction: t });
+        const issued = await numberingGateway.issueNumber(req, 'ar-invoice', { transaction: t, typeCode });
         if (issued && issued.number) return issued.number;
         return `INV-${Date.now().toString(36).toUpperCase()}-${String(sourceRef).slice(0, 4).toUpperCase()}`;
     };

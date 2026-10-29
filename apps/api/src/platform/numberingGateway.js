@@ -36,7 +36,8 @@ async function getMode(req, purpose) {
 //   null                     - no scheme configured
 //   { manual: true }         - scheme is manual (caller collects the number)
 //   { number, seq }          - the generated number
-// `opts.typeCode` fills the {TYPE} token (the membership type's category code).
+// `opts.typeCode` fills the {TYPE} token - the issuing document's type code
+// (membership type for member numbers, AR Transaction Type for AR documents).
 // `opts.transaction` - pass the caller's BUSINESS transaction for GAPLESS
 // numbering: the counter then rolls back with a failed create, so the number
 // is never burned (see numberingGenerator.issue).

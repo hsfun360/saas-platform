@@ -88,15 +88,29 @@ async function loadDebtor(req) {
 // in-tx issue; manual -> the caller's number (uniqueness pre-checked by the
 // caller); no scheme -> the caller's number, else a synthetic fallback so
 // SYSTEM-generated documents (void reversals, conversion CNs) never block on
-// missing setup.
-function docNoIssuer(req, purpose, manualNo) {
+// missing setup. `typeCode` fills the scheme's {TYPE} token: on AR series it
+// is the document's Transaction Type code (user decision 2026-10-29) -
+// deposits and statements have no type, so theirs renders blank.
+function docNoIssuer(req, purpose, manualNo, typeCode) {
     return async (t) => {
-        const issued = await numberingGateway.issueNumber(req, purpose, { transaction: t });
+        const issued = await numberingGateway.issueNumber(req, purpose, { transaction: t, typeCode });
         if (issued && issued.number) return issued.number;
         if (manualNo) return manualNo;
         const synth = `${SYNTHETIC_PREFIX[purpose] || 'DOC'}-${Date.now().toString(36).toUpperCase()}`;
         return synth;
     };
+}
+
+// The Transaction Type CODE behind a stored transactionTypeId - what the
+// {TYPE} numbering token prints. Null when the document carries no type.
+async function typeCodeOf(companyId, transactionTypeId) {
+    if (!transactionTypeId) return null;
+    const ArTransactionType = require('./transactionType.model');
+    const row = await ArTransactionType.findOne({
+        where: { companyId, id: transactionTypeId },
+        attributes: ['transactionType'],
+    });
+    return row ? row.transactionType : null;
 }
 
 async function ledgerNoInUse(companyId, docType, docNo) {
@@ -689,7 +703,7 @@ async function createDraft(req, res, companyId, debtor, lk) {
 
     const placement = await getCallerPlacement(req);
     const stamps = ownershipStamps(req, placement);
-    const issue = docNoIssuer(req, lk.numberingPurpose, no.manualNo);
+    const issue = docNoIssuer(req, lk.numberingPurpose, no.manualNo, fields.txnType.transactionType);
     const taxLedger = require('./taxLedger.service');
     const row = await sequelize.transaction(async (t) => {
         const created = await Ledger.create({
@@ -871,7 +885,7 @@ function makeSubmit(lk) {
             }
             await posting.postDraftLedger({
                 companyId, debtor, row,
-                issueDocNo: docNoIssuer(req, lk.numberingPurpose, row.docNo),
+                issueDocNo: docNoIssuer(req, lk.numberingPurpose, row.docNo, await typeCodeOf(companyId, row.transactionTypeId)),
                 stamps, t,
             });
             outcome = { pending: false };
@@ -995,7 +1009,7 @@ async function createReceiptDraft(req, res, companyId, debtor) {
 
     const placement = await getCallerPlacement(req);
     const stamps = ownershipStamps(req, placement);
-    const issue = docNoIssuer(req, 'ar-receipt', no.manualNo);
+    const issue = docNoIssuer(req, 'ar-receipt', no.manualNo, fields.txnType.transactionType);
     const row = await sequelize.transaction(async (t) => Receipt.create({
         companyId,
         debtorId: debtor.id,
@@ -1106,7 +1120,8 @@ exports.submitReceipt = async (req, res) => {
         try {
             await sequelize.transaction(async (t) => posting.postDraftReceipt({
                 companyId, debtor, row,
-                issueDocNo: docNoIssuer(req, 'ar-receipt', row.docNo),
+                // row.paymentMethod snapshots the payment type's CODE at save.
+                issueDocNo: docNoIssuer(req, 'ar-receipt', row.docNo, row.paymentMethod),
                 stamps, t,
             }));
         } catch (e) {
@@ -1278,7 +1293,7 @@ exports.createRefund = async (req, res) => {
 
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
-        const issue = docNoIssuer(req, 'ar-refund', no.manualNo);
+        const issue = docNoIssuer(req, 'ar-refund', no.manualNo, fields.txnType ? fields.txnType.transactionType : null);
         const row = await sequelize.transaction(async (t) => Receipt.create({
             companyId,
             debtorId: debtor.id,
@@ -1405,10 +1420,15 @@ exports.submitRefund = async (req, res) => {
                     outcome = { pending: true };
                     return;
                 }
+                // The offset leg's CN numbers under the deposit-conversion
+                // designation - its code fills {TYPE} (same type the CN gets).
+                const cnTypeCode = row.refundMode === 'offset'
+                    ? (await require('./catalogDefaults').depositConversionType(companyId)).transactionType
+                    : null;
                 await posting.postDraftRefund({
                     companyId, debtor, row,
-                    issueDocNo: docNoIssuer(req, 'ar-refund', row.docNo),
-                    issueCnDocNo: docNoIssuer(req, 'ar-credit-note', null),
+                    issueDocNo: docNoIssuer(req, 'ar-refund', row.docNo, row.paymentMethod),
+                    issueCnDocNo: docNoIssuer(req, 'ar-credit-note', null, cnTypeCode),
                     stamps, t,
                 });
                 outcome = { pending: false };
@@ -1844,7 +1864,7 @@ exports.postLedger = async (req, res) => {
             row = await sequelize.transaction(async (t) => {
                 const posted = await posting.postLedgerDoc({
                     companyId, debtor, docType: kind.key,
-                    issueDocNo: docNoIssuer(req, kind.numberingPurpose, manualNo),
+                    issueDocNo: docNoIssuer(req, kind.numberingPurpose, manualNo, txnType.transactionType),
                     docDate: dates.docDate, trxDate: dates.trxDate,
                     transactionTypeId: txnType.id,
                     isInterestChargeable: txnType.isInterestChargeable === true,
@@ -1954,7 +1974,8 @@ exports.voidLedger = async (req, res) => {
         try {
             reversal = await sequelize.transaction(async (t) => posting.voidLedgerDoc({
                 companyId, debtor, row,
-                issueDocNo: docNoIssuer(req, kind.numberingPurpose, null),
+                // The reversal reuses the voided document's type for {TYPE}.
+                issueDocNo: docNoIssuer(req, kind.numberingPurpose, null, await typeCodeOf(companyId, row.transactionTypeId)),
                 docDate: dates.docDate, trxDate: dates.trxDate,
                 stamps, t,
             }));

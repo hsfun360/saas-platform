@@ -11,7 +11,9 @@ function periodTag(resetRule, date) {
 }
 
 // Render a number from a scheme + a sequence value. `{TYPE}` is filled from
-// opts.typeCode (the membership type code, supplied at creation time).
+// opts.typeCode - the owning document's type code, supplied at issue time by
+// the caller (membership type code for member numbers, AR Transaction Type
+// code for AR documents). Blank when the caller has no type to offer.
 function renderNumber(scheme, seq, opts = {}) {
     const date = opts.date || new Date();
     const pad = Math.max(0, Number(scheme.seqPadLength) || 0);

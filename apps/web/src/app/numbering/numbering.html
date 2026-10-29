@@ -162,7 +162,7 @@
             <span class="nb-preview__label">Next number will look like</span>
             <span class="nb-preview__value">{{ preview() }}</span>
             @if ((form.controls.format.value || '').includes('{TYPE}')) {
-              <span class="nb-hint">The type token is shown as a sample (ORD); the member's actual type code is used at creation.</span>
+              <span class="nb-hint">{{ typeHint }}</span>
             }
           </div>
         }
