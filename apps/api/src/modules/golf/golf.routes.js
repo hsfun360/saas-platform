@@ -110,6 +110,9 @@ router.use(
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
         purposes: require('../../platform/numberingGateway').purposesFor('golf'),
+        // Golf numbers carry no document type (a booking spans player types,
+        // a bill aggregates items) - no {TYPE} token (user decision 2026-10-29).
+        typeToken: false,
     }),
 );
 

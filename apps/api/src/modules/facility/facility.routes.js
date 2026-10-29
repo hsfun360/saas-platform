@@ -100,6 +100,9 @@ router.use(
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
         purposes: require('../../platform/numberingGateway').purposesFor('facility'),
+        // Facility numbers carry no document type - no {TYPE} token (user
+        // decision 2026-10-29, same as golf).
+        typeToken: false,
     }),
 );
 

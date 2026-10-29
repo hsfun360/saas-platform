@@ -17,8 +17,11 @@ const schemas = require('./numbering.schemas');
 // this screen offers (and validates against); `typeTokenLabel` = what {TYPE}
 // means on THIS module's screen (e.g. AR: 'Transaction type code') and
 // `typeSample` the sample code its previews render it as - defaults stay the
-// membership wording/sample.
-function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample }) {
+// membership wording/sample. `typeToken: false` removes {TYPE} entirely for a
+// module whose documents carry no type to print (golf, facility - user
+// decision 2026-10-29): the meta stops offering the insert chip AND a
+// hand-typed {TYPE} in a saved format is rejected.
+function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample, typeToken = true }) {
     const { previewNext } = require('../modules/saas/numberingGenerator');
     const { normalizeConfig } = require('../modules/saas/numberingScheme.service');
     const {
@@ -55,9 +58,15 @@ function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample }) {
         nextPreview: row.mode === 'auto' ? previewNext(row, { typeCode: typeSample }).number : null,
     });
 
-    const tokens = typeTokenLabel
-        ? FORMAT_TOKENS.map((tok) => (tok.token === '{TYPE}' ? { ...tok, label: typeTokenLabel } : tok))
-        : FORMAT_TOKENS;
+    const tokens = FORMAT_TOKENS
+        .filter((tok) => typeToken || tok.token !== '{TYPE}')
+        .map((tok) => (typeTokenLabel && tok.token === '{TYPE}' ? { ...tok, label: typeTokenLabel } : tok));
+
+    // null = fine; a message when the saved format uses a token this module
+    // does not fill.
+    const formatTokenError = (body) => (!typeToken && typeof body.format === 'string' && body.format.includes('{TYPE}')
+        ? 'The {TYPE} token is not available for this module - its numbers carry no document type.'
+        : null);
 
     router.get('/meta', (req, res) => {
         res.status(200).json({
@@ -87,6 +96,8 @@ function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample }) {
 
             const parsed = normalizeConfig(req.body);
             if (parsed.error) return res.status(400).json({ message: parsed.error });
+            const tokenErr = formatTokenError(req.body);
+            if (tokenErr) return res.status(400).json({ message: tokenErr });
             const purpose = String(req.body.purpose || '').trim();
             if (!purposeKeys.includes(purpose)) return res.status(400).json({ message: 'Invalid numbering purpose.' });
 
@@ -266,6 +277,8 @@ function makeNumberingRouter({ model, purposes, typeTokenLabel, typeSample }) {
 
             const parsed = normalizeConfig(req.body);
             if (parsed.error) return res.status(400).json({ message: parsed.error });
+            const tokenErr = formatTokenError(req.body);
+            if (tokenErr) return res.status(400).json({ message: tokenErr });
 
             Object.assign(row, parsed.value, { updatedBy: getUserContext(req).userId });
             await row.save();
