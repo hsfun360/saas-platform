@@ -15,7 +15,7 @@ On top of that platform run the **core product systems**: Membership, Golf, Faci
 Three Cloud Run services, two images (`login-*` was decommissioned 2026-08-01):
 
 - `platform-web` - the Angular SPA behind nginx, which also reverse-proxies `/api` to the API.
-- `platform-api` - this repository's `server.js` (Express, Node 20).
+- `platform-api` - this repository's `server.js` (Express, Node 24).
 - `platform-api-outboxworker` - the same image with the command overridden to `outboxworker.js`; it drains the transactional outbox and runs the time-driven scans (see [notification.md](notification.md)).
 
 ## Service topology

@@ -1,5 +1,5 @@
 # --- Stage 1: Build Stage (Installing Dependencies) ---
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -13,7 +13,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # --- Stage 2: Production Stage (Final, Lean Image) ---
-FROM node:20-slim AS production
+FROM node:24-slim AS production
 
 # Set the working directory
 WORKDIR /app

@@ -42,13 +42,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      # The lockfile is authored by npm 11 (local dev). Node 20 bundles npm 10,
-      # whose `npm ci` rejects the lock's optional-peer entries (chokidar ^5 on
-      # @angular-devkit/core) as "missing from lock file" - so pin npm 11 here.
+      # The lockfile is authored by npm 11 (local dev). Node 24 already bundles
+      # npm 11; the pin stays as a guard, because an older npm's `npm ci` rejects
+      # the lock's optional-peer entries (chokidar ^5 on @angular-devkit/core) as
+      # "missing from lock file".
       - name: Use npm 11 (matches the lockfile author)
         run: npm install -g npm@11
 
@@ -78,14 +79,14 @@ jobs:
 
       - name: Build and push platform-api
         run: |
-          docker build -t "$REGISTRY/platform-api:$GITHUB_SHA" -t "$REGISTRY/platform-api:latest" apps/api
+          docker build --pull -t "$REGISTRY/platform-api:$GITHUB_SHA" -t "$REGISTRY/platform-api:latest" apps/api
           docker push "$REGISTRY/platform-api:$GITHUB_SHA"
           docker push "$REGISTRY/platform-api:latest"
           echo "API_DIGEST=$(gcloud artifacts docker images describe "$REGISTRY/platform-api:$GITHUB_SHA" --format='value(image_summary.digest)')" >> "$GITHUB_ENV"
 
       - name: Build and push platform-web
         run: |
-          docker build -t "$REGISTRY/platform-web:$GITHUB_SHA" -t "$REGISTRY/platform-web:latest" apps/web
+          docker build --pull -t "$REGISTRY/platform-web:$GITHUB_SHA" -t "$REGISTRY/platform-web:latest" apps/web
           docker push "$REGISTRY/platform-web:$GITHUB_SHA"
           docker push "$REGISTRY/platform-web:latest"
           echo "WEB_DIGEST=$(gcloud artifacts docker images describe "$REGISTRY/platform-web:$GITHUB_SHA" --format='value(image_summary.digest)')" >> "$GITHUB_ENV"

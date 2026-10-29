@@ -1,5 +1,5 @@
 # --- Stage 1: build the Angular app ---
-FROM node:20-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 
 # Install deps first (better layer caching). Build needs devDependencies (Angular

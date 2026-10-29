@@ -2,7 +2,7 @@
 
 ## Coding guidelines & architecture
 
-- **Language:** CommonJS JavaScript on Node 20 - no TypeScript, no build step.
+- **Language:** CommonJS JavaScript on Node 24 - no TypeScript, no build step.
   Keep modules small and lazy-require across module folders only through the seams (below).
 - **Layout:** `src/platform/` (cross-cutting seams and infrastructure), `src/modules/<service>/` (one folder per service: `*.model.js`, `*.routes.js`, `*.controller.js`, `*.service.js`, `*.constants.js`, `*.schemas.js`), `src/wiring/` (associations and composition-time registries), `src/app.js` (the composition root).
 - **Security:** bcrypt for password hashing.

@@ -2,7 +2,7 @@
 
 ## Project overview
 
-- **Tech stack:** Node.js 20 (CommonJS JavaScript, no TypeScript), Express 5, Sequelize 6 over PostgreSQL, Zod at the request boundary, Docker, Google Cloud Run.
+- **Tech stack:** Node.js 24 (CommonJS JavaScript, no TypeScript), Express 5, Sequelize 6 over PostgreSQL, Zod at the request boundary, Docker, Google Cloud Run.
 - **What it is:** the modular-monolith API behind the club SaaS - identity and sessions, the control plane (tenancy, RBAC, subscriptions), the product systems (Membership, Golf, AR; Facility stubbed), the shared capabilities (Tax, Dimension, Workflow) and the outbox worker.
   The service map and the per-service specs start at [`docs/systems/README.md`](systems/README.md).
 - **Entry points:** `server.js` (the API, all composition in `src/app.js`) and `outboxworker.js` (the worker, same image).
@@ -18,6 +18,6 @@
   Boot runs `sequelize.sync({ alter: true })` only when the model fingerprint changed (`src/platform/schemaFingerprint.js`, stored in `public."SchemaMeta"`; `FORCE_SCHEMA_SYNC=1` overrides after manual DDL).
   "Skipping sync (fingerprint match)" in the log is the normal case.
   Renames and drops that the alter-sync cannot express go in a guarded boot block in `src/app.js` or a `scripts/migrate-*.js` run before deploy.
-- **Build the container:** `docker build -t platform-api apps/api` (multi-stage `node:20-slim`, production dependencies only, `CMD ["node", "server.js"]`).
+- **Build the container:** `docker build -t platform-api apps/api` (multi-stage `node:24-slim`, production dependencies only, `CMD ["node", "server.js"]`).
 - **Run the container locally:** `docker run -p 8080:8080 --env-file .env platform-api`.
 - **Deploy:** the CI pipeline builds and deploys `platform-api` and `platform-api-outboxworker` from the same image on push to `dev` (see `docs/ops/cicd.md` at the repo root); the manual runbooks are the `deploy-api` and `deploy-worker` skills under `.claude/skills/`.
