@@ -553,6 +553,21 @@ async function initializeDB() {
                 // and nothing read the column since. Idempotent drop.
                 await sequelize.query(`ALTER TABLE public."Modules" DROP COLUMN IF EXISTS "landingRoute"`);
                 await sequelize.query(`ALTER TABLE public."Modules" ADD COLUMN IF NOT EXISTS "code" VARCHAR(30)`);
+                // The mapping below keys on Module.audience, a column younger
+                // (2026-08-10) than the catalogue itself. A database that
+                // lags that far (staging, copied from dev 2026-08-01 and not
+                // promoted until 2026-10-27) has no such column yet, and
+                // because this block runs BEFORE the alter-sync that would add
+                // it, the UPDATE threw, initializeDB aborted, the sync and the
+                // fingerprint write never ran, and every boot failed the same
+                // way. Add the column here exactly as the model declares it
+                // (NOT NULL DEFAULT 'tenant' - every pre-2026-08-10 module IS a
+                // tenant module; the platform catalogue arrived with the
+                // column). Idempotent; the alter-sync then finds it in place.
+                // Skipping the mapping instead would be WRONG: the name
+                // fallback below would freeze MEMBERSHIP_MANAGEMENT where every
+                // entitlement check expects MEMBERSHIP.
+                await sequelize.query(`ALTER TABLE public."Modules" ADD COLUMN IF NOT EXISTS "audience" VARCHAR(10) NOT NULL DEFAULT 'tenant'`);
                 // Known catalogue -> frozen codes. 'System Setup' and 'System
                 // Administration' are the SAME drifted module (renamed along
                 // the way) - both map to TENANT_ADMIN.
