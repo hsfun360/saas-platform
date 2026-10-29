@@ -3,6 +3,10 @@
 // condition evaluator is the part with silent-failure potential, so it gets
 // exhaustive unit coverage.)
 
+// The service under test pulls in the Sequelize connection module, whose
+// constructor needs a URL even though no test here touches the database.
+// Set a dummy one so the suite runs without a .env (CI, a fresh worktree).
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://test:test@localhost:5432/testdb';
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { evalCondition } = require('./workflowEngine');
