@@ -490,6 +490,99 @@ body {
   font-size: var(--icon-md);
   color: var(--text-muted);
 }
+/* Header-style popover (.menu-pop) - the dropdown anchored to a trigger in a
+   bar: the shell's Workspace / Language / Apps / Account / Notifications
+   menus. Lifted here from dashboard.css on 2026-10-30 (the shell stylesheet
+   had outgrown the 14 kB component budget) and global for the same reason as
+   the kebab popover above: theme-aware via the tokens, reusable by any bar.
+   Variants: --left anchors to the trigger's left edge, --apps is wide enough
+   that the longest module name stays on ONE line (still narrower than a 375px
+   viewport with the edge gap). Items are buttons: __item rows, __title caption,
+   __sub secondary text, __check / __check--sm the selected mark, __glyph the
+   accent icon, __divider a hairline. z-index 1000 = level with the drawer,
+   below the header (1100). */
+.menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 220px;
+  padding: var(--space-sm);
+  box-shadow: var(--shadow);
+  z-index: 1000;
+  cursor: default;
+}
+.menu-pop--left {
+  left: 0;
+  right: auto;
+  top: 100%;
+  margin-top: var(--space-sm);
+}
+/* Apps switcher: wide enough that the longest module name (Membership
+   Management) stays on ONE line - a wrapped app name reads as two entries.
+   Still narrower than the smallest mobile viewport (375px) with the
+   right-anchored popover's edge gap. */
+.menu-pop--apps {
+  min-width: 300px;
+}
+.menu-pop--apps .menu-pop__item {
+  white-space: nowrap;
+}
+.menu-pop__title {
+  padding: var(--space-sm);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-xs);
+  text-transform: uppercase;
+}
+.menu-pop__item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: var(--space-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  transition: background 0.15s;
+}
+.menu-pop__item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.menu-pop__item:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+.menu-pop__sub {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.menu-pop__check {
+  font-size: var(--icon-sm);
+  color: var(--success-text);
+}
+.menu-pop__check--sm {
+  font-size: var(--icon-xs);
+}
+.menu-pop__glyph {
+  font-size: var(--icon-md);
+  color: var(--accent);
+}
+.menu-pop__divider {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+
 /* Sort menu (shared/sort-menu) composes the popover classes above; these are
    its two extras: the direction arrow on the trigger and the active-item
    indicator pinned to the row end. */

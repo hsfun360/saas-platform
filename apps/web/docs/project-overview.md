@@ -294,6 +294,7 @@ Beyond the primitives named in their own sections, `styles.css` holds these smal
 - `.combo input` - the baseline field chrome for the combobox's inner input (44px, border, input surface) so it reads as a standard field anywhere, including grid-row editors the `.form-group` rules cannot reach.
 - The search clear-button suppression: `input[type='search']::-webkit-search-cancel-button` and `::-webkit-search-decoration` are set to `appearance: none`, because every search box renders the app's own `.saas-search__clear` and the native × only doubled it.
 - `.overflow-menu__pop` (the right-anchored popover at `z-index: 950`, above the FAB and below the drawer) and `.overflow-menu__item` (a 44px full-width row with the icon in `--text-muted`) - the kebab's own chrome, which the sort menu composes.
+- `.menu-pop` with `--left` / `--apps` and `__title` / `__item` / `__sub` / `__check` / `__check--sm` / `__glyph` / `__divider` - the header-style popover anchored to a bar trigger (the shell's Workspace / Language / Apps / Account / Notifications menus), lifted out of `dashboard.css` on 2026-10-30 when the shell stylesheet outgrew its 14 kB budget; the shell keeps only its own variants (`.menu-pop--account` + `.account-*`, `.notif-pop*`).
 
 #### Shared components and helpers (src/app/shared and src/app/i18n)
 
@@ -905,7 +906,7 @@ Nothing module-scoped goes in the app bar.
   Settings lives ONLY in the avatar menu - never re-add a separate header gear.
   The email/role block (`.topbar-user`) is **desktop-only** (≥ 1024px): on a tablet it does not fit beside the switcher and the icon group and overflowed the bar (fixed 2026-10-12), so the `@media (max-width: 1023px)` rule hides it and drops the divider in front of the icons; the Language label and the admin chip hide at the mobile tier (`.hide-mobile`, no `!important` - nothing hidden carries an inline display).
   The bell stays visible at every width.
-- Every header dropdown uses the shared token-based **`.menu-pop`** system, so they follow all 3 appearance modes.
+- Every header dropdown uses the shared token-based **`.menu-pop`** system (global in `styles.css` since 2026-10-30, see "Other global utilities"), so they follow all 3 appearance modes.
   The bar itself stays branded (`--bar-brand` blue; `--bar-admin` red for system admins, both shell-local tokens) in both themes - the one deliberate always-dark surface.
 - The **module title does NOT belong here** (moved to the sidebar 2026-07-23; it used to truncate to "SYSTEM ADM..." on phones).
   Don't re-add it.

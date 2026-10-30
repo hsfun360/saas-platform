@@ -20,6 +20,15 @@
      expansion overlays, so it stays 72); pinned/desktop = 256px; mobile
      drawer overlays = 0. Overridden per state/breakpoint below. */
   --content-sidebar: 72px;
+
+  /* --- GOOGLE STYLE TOP BAR --- */
+  /* The branded app bar is the ONE deliberately always-dark surface (both
+     themes); everything drawn ON it uses these bar-local tokens, never a hex. */
+  --bar-brand: rgb(0, 60, 145);
+  --bar-admin: #be0000;
+  --bar-hover: rgba(255, 255, 255, 0.12);
+  --bar-divider: rgba(255, 255, 255, 0.35);
+  --surface-logo-tile: #ffffff; /* arbitrary company logos stay legible on the dark bar */
 }
 
 /* Pinned sidebar pushes content (tablet tier) - tell the screens. */
@@ -27,16 +36,6 @@
   --content-sidebar: 256px;
 }
 
-/* --- GOOGLE STYLE TOP BAR --- */
-/* The branded app bar is the ONE deliberately always-dark surface (both
-   themes); everything drawn ON it uses these bar-local tokens, never a hex. */
-:host {
-  --bar-brand: rgb(0, 60, 145);
-  --bar-admin: #be0000;
-  --bar-hover: rgba(255, 255, 255, 0.12);
-  --bar-divider: rgba(255, 255, 255, 0.35);
-  --surface-logo-tile: #ffffff; /* arbitrary company logos stay legible on the dark bar */
-}
 .google-topbar {
   display: flex;
   justify-content: space-between;
@@ -53,6 +52,9 @@
      position:relative establishes the stacking context for this z-index. */
   position: relative;
   z-index: 1100;
+}
+.google-topbar--admin {
+  background-color: var(--bar-admin);
 }
 
 /* Module title + workspace switcher stacked on two lines (left of the bar). */
@@ -71,12 +73,9 @@
 }
 
 /* The switcher shrinks to the space left of the right-side icons, and the
-   company name truncates within it (same mechanism as the module title). */
+   company name truncates within it (same mechanism as the module title). The
+   trigger button inside it carries the same min/max width (see .ws-trigger). */
 .workspace-switcher {
-  min-width: 0;
-  max-width: 100%;
-}
-.workspace-switcher > button {
   min-width: 0;
   max-width: 100%;
 }
@@ -87,16 +86,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Smallest phones: drop the logo chip from the bar - the NAME identifies the
-   workspace better than the logo, and every freed pixel goes to it. The logo
-   still shows inside the switcher dropdown rows (.ws-logo--row unaffected). */
-@media (max-width: 767px) {
-  .ws-trigger .ws-logo,
-  .ws-trigger .ws-icon {
-    display: none;
-  }
 }
 
 /* Flat company trigger on the branded bar - no boxed pill. A subtle hover
@@ -115,6 +104,8 @@
   cursor: pointer;
   font-size: var(--font-body-2);
   min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
 }
 .ws-trigger:hover:not(:disabled):not(.ws-trigger--static) {
   background: var(--bar-hover);
@@ -149,14 +140,16 @@
 /* FORCE FLEXBOX TO KEEP ITEMS SIDE-BY-SIDE AND CENTERED */
 .topbar-left, .topbar-right {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: var(--space-md); /* Spacing between items */
   height: 100%; /* Take full height of header for perfect centering */
 }
 
-/* HAMBURGER MENU */
-.menu-btn {
+/* HAMBURGER MENU + RIGHT SIDE ICONS: one 48px round icon button, text ON the
+   branded bar is always the on-brand token (the bar is dark blue / dark red in
+   both themes). */
+.menu-btn,
+.icon-btn {
   background: transparent;
   border: none;
   color: var(--text-on-brand);
@@ -169,28 +162,13 @@
   justify-content: center;
   transition: background-color 0.2s;
 }
-
-.menu-btn:hover {
-  background-color: var(--bar-hover);
-}
-
-/* RIGHT SIDE ICONS */
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-on-brand);
-  cursor: pointer;
-  width: 48px; 
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
+.menu-btn:hover,
 .icon-btn:hover {
   background-color: var(--bar-hover);
+}
+.icon-btn .material-icons,
+.menu-btn .material-icons {
+  font-size: var(--icon-lg);
 }
 
 /* --- AVATAR & DROPDOWN --- */
@@ -198,87 +176,109 @@
   position: relative;
   display: flex; /* Helps center the image vertically */
   align-items: center;
-  cursor: pointer;
   margin-left: var(--space-xs);
 }
-
-/* --- Header dropdown popovers (Workspace / Language / Apps / Account) ---
-   These float over the CONTENT area, so they follow the appearance mode via
-   theme tokens - only the branded header bar itself keeps its fixed colour. */
-.menu-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 12px);
-  background: var(--surface-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  min-width: 220px;
-  padding: var(--space-sm);
-  box-shadow: var(--shadow);
-  z-index: 1000;
-  cursor: default;
-}
-.menu-pop--left {
-  left: 0;
-  right: auto;
-  top: 100%;
-  margin-top: var(--space-sm);
-}
-/* Apps switcher: wide enough that the longest module name (Membership
-   Management) stays on ONE line - a wrapped app name reads as two entries.
-   Still narrower than the smallest mobile viewport (375px) with the
-   right-anchored popover's edge gap. */
-.menu-pop--apps {
-  min-width: 300px;
-}
-.menu-pop--apps .menu-pop__item {
-  white-space: nowrap;
-}
-.menu-pop__title {
-  padding: var(--space-sm);
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-xs);
-  text-transform: uppercase;
-}
-.menu-pop__item {
-  width: 100%;
-  text-align: left;
+/* Avatar trigger: ring hover/focus from tokens (no inline handlers). */
+.avatar-trigger {
   background: transparent;
   border: none;
-  padding: var(--space-sm);
-  color: var(--text-primary);
+  padding: 0;
   cursor: pointer;
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.avatar-ring {
+  padding: var(--space-xs);
+  border-radius: 50%;
+  border: 2px solid var(--bar-divider);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.avatar-trigger:hover .avatar-ring,
+.avatar-trigger:focus-visible .avatar-ring {
+  /* Non-field control: the offset ring, not the field halo. */
+  border-color: var(--text-on-brand);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The language quick-switch wrapper (anchors its dropdown). */
+.topbar-lang {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* ---- Header user block: text ON the branded bar is always the on-brand
+   token (the bar is dark blue / dark red in both themes). ---- */
+.topbar-user {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: right;
+}
+.topbar-user__email {
+  color: var(--text-on-brand);
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+.topbar-user__role {
+  color: var(--text-on-brand);
+  opacity: 0.85;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+.topbar-admin-chip {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+}
+.header-actions {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: var(--font-body);
-  transition: background 0.15s;
+  border-left: 1px solid var(--bar-divider);
+  padding-left: var(--space-md);
 }
-.menu-pop__item:hover:not(:disabled) {
-  background: var(--surface-hover);
+/* Tablet and below: the email/role block does not fit beside the switcher and
+   the icon group (the 2026-10-12 sweep saw it overflow the bar at 768-1023),
+   so it is desktop-only; the divider in front of the icon group goes with it.
+   This block sits AFTER the base .topbar-user and .header-actions rules on
+   purpose: same specificity, so source order decides (earlier attempts sat
+   before them and never applied). */
+@media (max-width: 1023px) {
+  .topbar-user {
+    display: none;
+  }
+  .header-actions {
+    border-left: none;
+    padding-left: 0;
+  }
 }
-.menu-pop__item:disabled {
-  cursor: default;
-  opacity: 0.65;
-}
-.menu-pop__sub {
-  font-size: var(--font-caption);
-  color: var(--text-muted);
-}
-.menu-pop__check {
-  font-size: var(--icon-sm);
-  color: var(--success-text);
-}
-.menu-pop__divider {
-  height: 1px;
-  background: var(--border);
-  width: 100%;
-}
+
+/* The header dropdown popovers compose the GLOBAL .menu-pop family (styles.css,
+   next to the kebab popover it mirrors) - the shell keeps only its own
+   variants: the notification list and the account card below. */
 
 /* --- Notification bell (header) --- */
 .notif-bell {
@@ -306,19 +306,6 @@
   max-width: 380px;
   max-height: 70vh;
   overflow-y: auto;
-}
-
-/* The bell sits mid-header, so a right-anchored popover overflows the left
-   viewport edge on narrow screens - pin it under the header instead. */
-@media (max-width: 767px) {
-  .notif-pop {
-    position: fixed;
-    left: var(--space-sm);
-    right: var(--space-sm);
-    top: calc(var(--header-height) + var(--space-xs));
-    min-width: 0;
-    max-width: none;
-  }
 }
 
 .notif-pop__title {
@@ -393,7 +380,6 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: transparent;
   flex-shrink: 0;
   margin-top: 6px;
 }
@@ -490,10 +476,7 @@
   flex-direction: column;
   height: 100vh;
   width: 100%; /* Changed from 100vw to 100% to avoid scrollbars */
-  margin: 0;
-  padding: 0;
   overflow: hidden; /* Prevents the whole page from scrolling horizontally */
-  box-sizing: border-box;
 }
 
 /* 4. MAIN LAYOUT - Sidebar and Content Area */
@@ -525,6 +508,17 @@
   border-right: 1px solid var(--border);
   box-sizing: border-box;
   overflow: hidden;
+
+  /* --- Sub-menu hierarchy (master vs sub-menu) ---
+     An EXPANDED group renders as a contained block: the parent header and its
+     children sit together inside one rounded, tinted panel (.nav-group--open),
+     children indented within it - the hierarchy reads as a card in the sidebar.
+     The vars flip with the same states that show labels: in the 72px icon-only
+     rail there is no room for inset/indent, so the block degrades to a plain
+     full-width tint behind the group's icons (inset/radius/indent all 0). */
+  --subnav-indent: 0px;
+  --group-inset: 0px;
+  --group-radius: 0px;
 }
 
 /* Pinned State (Pushes Content) */
@@ -538,23 +532,10 @@
   position: absolute; /* Overlays over content */
   height: 100%;
   box-shadow: var(--shadow);
-  border-right: 1px solid var(--border);
 }
 
-/* --- Sub-menu hierarchy (master vs sub-menu) ---
-   An EXPANDED group renders as a contained block: the parent header and its
-   children sit together inside one rounded, tinted panel (.nav-group--open),
-   children indented within it - the hierarchy reads as a card in the sidebar.
-   The vars flip with the same states that show labels: in the 72px icon-only
-   rail there is no room for inset/indent, so the block degrades to a plain
-   full-width tint behind the group's icons (inset/radius/indent all 0). */
-.sidebar {
-  --subnav-indent: 0px;
-  --group-inset: 0px;
-  --group-radius: 0px;
-}
 .sidebar.pinned,
-.sidebar:not(.pinned):hover {
+.sidebar:hover {
   --subnav-indent: 24px;
   --group-inset: var(--space-sm);
   --group-radius: 12px;
@@ -598,8 +579,8 @@
   line-height: 1.25;
   padding-right: var(--space-sm);
 }
-.sidebar.pinned .sidebar-module .sidebar-module__name,
-.sidebar:not(.pinned):hover .sidebar-module .sidebar-module__name {
+.sidebar.pinned .sidebar-module__name,
+.sidebar:hover .sidebar-module__name {
   white-space: normal;
 }
 
@@ -619,13 +600,16 @@
   border-radius: 3px;
 }
 
-/* 1. Reset the UL (Crucial: This removes the hidden 40px padding) */
+/* 1. Reset the UL (Crucial: This removes the hidden 40px padding). The nested
+   group lists and their items inherit list-style: none from here. */
 .sidebar-nav ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
+/* Anchors carry no border/background/padding of their own, so only the
+   layout, colour and pill shape are declared. */
 .sidebar-nav a {
   height: 48px;
   display: flex;
@@ -634,12 +618,7 @@
   border-radius: 0 24px 24px 0;
   color: var(--text-secondary);
   text-decoration: none;
-  border: none;
-  background: none;
-  width: 100%;
   transition: background 0.2s;
-  padding: 0; 
-  margin: 0;
   overflow: hidden; /* Ensures text doesn't bleed out */
 }
 
@@ -659,9 +638,6 @@
    A section heading looks like a nav link: the icon shows in the icon-only rail;
    its label + chevron fade in/out exactly like menu-item labels (.label), so the
    rail stays a clean icon column and text appears when the sidebar expands. */
-.nav-group {
-  list-style: none;
-}
 /* The expanded group's contained block (see the hierarchy comment above).
    overflow: hidden clips the full-width pill rows to the block's radius. */
 .nav-group--open {
@@ -673,13 +649,13 @@
 }
 /* The open group's HEADER is the block's full-bleed title bar (a shade darker
    again): edge to edge, flat bottom; the block's overflow:hidden clips its top
-   corners to the block radius, so it needs no rounding of its own. */
+   corners to the block radius, so it needs no rounding of its own. Hover only
+   darkens it a touch (the background stays the head surface). */
 .nav-group--open > .nav-group__header {
   background: var(--nav-group-head-surface);
   border-radius: 0;
 }
 .nav-group--open > .nav-group__header:hover {
-  background: var(--nav-group-head-surface);
   filter: brightness(0.96);
 }
 /* A nested group opened INSIDE an open block shares its tint - a hairline
@@ -729,7 +705,6 @@
   transition: opacity 0.15s;
 }
 .nav-group__menus {
-  list-style: none;
   padding: 2px 0 0;
   margin: 0 0 0 var(--subnav-indent);
   transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -740,16 +715,11 @@
   font-size: var(--icon-sm);
 }
 
-/* Chevron follows the label's visibility (tablet hover / pin expand). */
-.sidebar.pinned .nav-group__chevron,
-.sidebar:hover .nav-group__chevron {
-  opacity: 1;
-}
-
-/* 2. THE ICON: This must be exactly 72px to match the collapsed sidebar */
+/* 2. THE ICON: This must be exactly 72px to match the collapsed sidebar.
+   justify-content: center holds in every state (rail, hover, pinned). */
 .icon {
   font-size: var(--icon-md);
-  width: 72px;      
+  width: 72px;
   min-width: 72px;
   height: 48px;
   display: flex;
@@ -769,16 +739,13 @@
 
 /* --- HOVER / PINNED BEHAVIOR --- */
 
-/* Show labels only when expanded */
-.sidebar.pinned .label, 
-.sidebar:hover .label { 
-  opacity: 1; 
-}
-
-/* Keep the icons centered even when expanded for that clean Gmail alignment */
-.sidebar.pinned .icon,
-.sidebar:hover .icon {
-  justify-content: center; 
+/* Show labels (and the group chevrons, which follow the labels' visibility)
+   only when expanded: tablet hover / pin expand. */
+.sidebar.pinned .label,
+.sidebar:hover .label,
+.sidebar.pinned .nav-group__chevron,
+.sidebar:hover .nav-group__chevron {
+  opacity: 1;
 }
 
 /* CONTENT AREA */
@@ -790,12 +757,7 @@
   background-color: var(--surface-page);
   padding: var(--space-lg);
   overflow-y: auto; /* Allow vertical scroll only inside the content area */
-  box-sizing: border-box;
   position: relative; /* anchors the floating help (Book) icon below */
-  /*transition: margin-left 0.15s ease-in-out;*/
-
-  /* Add margin to prevent content from hiding behind collapsed sidebar */
-  /*margin-left: 0; */
 }
 
 /* Floating help (Book) icon: sits at the end of the screen's title line, top-right
@@ -812,6 +774,26 @@
   top: var(--space-lg);
   right: var(--space-lg);
   z-index: 950;
+}
+
+/* ---- Pending invitations band at the top of the content area ---- */
+.shell-invites {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  border-radius: 12px;
+}
+.shell-invites__title {
+  margin: 0 0 var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-h2);
+  color: var(--info-text);
+}
+.shell-invites .data-list {
+  padding-bottom: 0;
 }
 
 /* If the sidebar is pinned, the content doesn't need to change because it's flexed.
@@ -872,8 +854,42 @@
   display: none;
 }
 
+/* .hide-mobile: visible by default; hidden on mobile below (no !important
+   needed since 2026-10-12: no hidden element carries an inline display any
+   more). It needs no base rule of its own. */
+
+/* ============================================================== */
+/* MOBILE TIER (< 768px) - ONE block for everything that changes  */
+/* at the mobile boundary: the off-canvas drawer + bottom nav,    */
+/* the header declutter (keep: hamburger + truncated title + Apps */
+/* + avatar; hide: email/role, Help, Settings, workspace label -  */
+/* Settings lives in the avatar dropdown), and the popover pins.  */
+/* It sits AFTER every base rule it overrides, so same-specificity */
+/* overrides win on source order.                                  */
+/* ============================================================== */
 @media (max-width: 767px) {
-  /* Side nav becomes an off-canvas drawer toggled by the hamburger / "More". */
+  /* Smallest phones: drop the logo chip from the bar - the NAME identifies the
+     workspace better than the logo, and every freed pixel goes to it. The logo
+     still shows inside the switcher dropdown rows (.ws-logo--row unaffected). */
+  .ws-trigger .ws-logo,
+  .ws-trigger .ws-icon {
+    display: none;
+  }
+
+  /* The bell sits mid-header, so a right-anchored popover overflows the left
+     viewport edge on narrow screens - pin it under the header instead. */
+  .notif-pop {
+    position: fixed;
+    left: var(--space-sm);
+    right: var(--space-sm);
+    top: calc(var(--header-height) + var(--space-xs));
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* Side nav becomes an off-canvas drawer toggled by the hamburger / "More".
+     The drawer is always full width (256px), so groups always render as
+     contained blocks (the expanded-state vars). */
   .sidebar {
     position: fixed;
     top: var(--header-height); /* drawer slides in BELOW the header */
@@ -886,23 +902,18 @@
     width: 256px;
     transform: translateX(-100%);
     box-shadow: var(--shadow);
-  }
-  .sidebar.pinned {
-    transform: translateX(0);
-    width: 256px;
-  }
-  /* Always show labels in the full-width drawer; neutralise hover-expand. */
-  .sidebar .label {
-    opacity: 1;
-  }
-  .sidebar .nav-group__chevron {
-    opacity: 1;
-  }
-  /* Drawer is always full width - groups always render as contained blocks. */
-  .sidebar {
     --subnav-indent: 24px;
     --group-inset: var(--space-sm);
     --group-radius: 12px;
+  }
+  .sidebar.pinned {
+    transform: translateX(0);
+  }
+  /* Always show labels (and chevrons) in the full-width drawer; neutralise
+     hover-expand. */
+  .sidebar .label,
+  .sidebar .nav-group__chevron {
+    opacity: 1;
   }
   /* The drawer overlays content - it never occupies flow width. */
   :host, .main-layout:has(.sidebar.pinned) {
@@ -910,7 +921,6 @@
   }
   .sidebar:not(.pinned):hover {
     position: fixed;
-    width: 256px;
     transform: translateX(-100%);
     box-shadow: none;
   }
@@ -939,52 +949,7 @@
     background: var(--overlay);
     z-index: 999;
   }
-}
 
-/* ============================================================== */
-/* THREE-TIER RESPONSIVE SIDEBAR                                  */
-/*  - Mobile   (<768px):    off-canvas drawer + bottom nav (above)*/
-/*  - Tablet   (768-1023px): icon RAIL (72px), hover/pin expands  */
-/*    to 256px - the collapsible middle tier (base rules above).  */
-/*  - Desktop  (>=1024px):  starts PINNED (256px); the hamburger  */
-/*    collapses to the rail (Gmail) + larger content spacing.     */
-/* ============================================================== */
-@media (min-width: 1024px) {
-  /* Desktop reuses the tablet rail/pin mechanics UNCHANGED (rail 72px,
-     hover peeks as an overlay, .pinned = 256px in flow). The only desktop
-     difference is the DEFAULT: the shell starts pinned (expanded) at
-     >=1024px - set in dashboard.ts - and the header hamburger collapses
-     it back to the rail, Gmail-style. No width overrides here: forcing
-     256px made the hamburger a dead control on desktop. */
-
-  /* Larger content gutter on desktop (the "larger spacing" tier). */
-  .content-area {
-    padding: var(--space-xl);
-  }
-  .content-help {
-    top: var(--space-xl);
-    right: var(--space-xl);
-  }
-}
-
-/* ============================================================== */
-/* MOBILE HEADER DECLUTTER (< 768px)                              */
-/* Keep on the bar: hamburger + (truncated) title + Apps + avatar.*/
-/* Hide: email/role text, Help, Settings, workspace-name label    */
-/* (Settings now lives in the avatar dropdown).                   */
-/* ============================================================== */
-.hide-mobile {
-  /* visible by default; hidden on mobile below (no !important needed since
-     2026-10-12: no hidden element carries an inline display any more) */
-}
-/* The language quick-switch wrapper (anchors its dropdown). */
-.topbar-lang {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-@media (max-width: 767px) {
   .hide-mobile {
     display: none;
   }
@@ -1014,7 +979,9 @@
   .topbar-right {
     flex: 0 0 auto;
   }
-  .menu-btn {
+  /* The hamburger and the avatar must never be squeezed off-screen. */
+  .menu-btn,
+  .avatar-wrapper {
     flex-shrink: 0;
   }
 
@@ -1025,143 +992,31 @@
   }
 
   /* (The divider in front of the icon group is dropped by the 1023px rule
-     that follows the base .header-actions rule further down.) */
-
-  /* The avatar must never be squeezed off-screen. */
-  .avatar-wrapper {
-    flex-shrink: 0;
-  }
-}
-/* ---- Header user block + hamburger: text ON the branded bar is always the
-   on-brand token (the bar is dark blue / dark red in both themes). ---- */
-.topbar-user {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: right;
-}
-.topbar-user__email {
-  color: var(--text-on-brand);
-  font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
-  line-height: 1.2;
-}
-.topbar-user__role {
-  color: var(--text-on-brand);
-  opacity: 0.85;
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  line-height: 1.2;
-}
-/* Tablet and below: the email/role block does not fit beside the switcher and
-   the icon group (the 2026-10-12 sweep saw it overflow the bar at 768-1023),
-   so it is desktop-only; the divider in front of the icon group goes with it.
-   This block sits AFTER the base .topbar-user rule on purpose: same
-   specificity, so source order decides (the first attempt sat before it and
-   never applied). */
-@media (max-width: 1023px) {
-  .topbar-user {
-    display: none;
-  }
-  margin-top: var(--space-xs);
-}
-.menu-btn {
-  color: var(--text-on-brand);
+     next to the base .header-actions rule above.) */
 }
 
-/* ---- Pending invitations band at the top of the content area ---- */
-.shell-invites {
-  margin-bottom: var(--space-lg);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--info-surface);
-  border: 1px solid var(--info-border);
-  border-radius: 12px;
-}
-.shell-invites__title {
-  margin: 0 0 var(--space-sm);
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--font-h2);
-  color: var(--info-text);
-}
-.shell-invites .data-list {
-  padding-bottom: 0;
-}
+/* ============================================================== */
+/* THREE-TIER RESPONSIVE SIDEBAR                                  */
+/*  - Mobile   (<768px):    off-canvas drawer + bottom nav (above)*/
+/*  - Tablet   (768-1023px): icon RAIL (72px), hover/pin expands  */
+/*    to 256px - the collapsible middle tier (base rules above).  */
+/*  - Desktop  (>=1024px):  starts PINNED (256px); the hamburger  */
+/*    collapses to the rail (Gmail) + larger content spacing.     */
+/* ============================================================== */
+@media (min-width: 1024px) {
+  /* Desktop reuses the tablet rail/pin mechanics UNCHANGED (rail 72px,
+     hover peeks as an overlay, .pinned = 256px in flow). The only desktop
+     difference is the DEFAULT: the shell starts pinned (expanded) at
+     >=1024px - set in dashboard.ts - and the header hamburger collapses
+     it back to the rail, Gmail-style. No width overrides here: forcing
+     256px made the hamburger a dead control on desktop. */
 
-.google-topbar--admin {
-  background-color: var(--bar-admin);
-}
-.topbar-admin-chip {
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 12px;
-  background: var(--danger-surface);
-  color: var(--danger-text);
-  border: 1px solid var(--danger-border);
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.5px;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  border-left: 1px solid var(--bar-divider);
-  padding-left: var(--space-md);
-}
-/* With the email/role block hidden (tablet and below) the divider in front of
-   the icon group goes too. Placed AFTER the base rule: same specificity, so
-   source order decides (two earlier copies sat before it and never applied). */
-@media (max-width: 1023px) {
-  .header-actions {
-    border-left: none;
-    padding-left: 0;
+  /* Larger content gutter on desktop (the "larger spacing" tier). */
+  .content-area {
+    padding: var(--space-xl);
   }
-}
-.icon-btn .material-icons,
-.menu-btn .material-icons {
-  font-size: var(--icon-lg);
-}
-.menu-pop__glyph {
-  font-size: var(--icon-md);
-  color: var(--accent);
-}
-.menu-pop__check--sm {
-  font-size: var(--icon-xs);
-}
-/* Avatar trigger: ring hover/focus from tokens (no inline handlers). */
-.avatar-trigger {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  justify-content: center;
-}
-.avatar-ring {
-  padding: var(--space-xs);
-  border-radius: 50%;
-  border: 2px solid var(--bar-divider);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.avatar-trigger:hover .avatar-ring,
-.avatar-trigger:focus-visible .avatar-ring {
-  /* Non-field control: the offset ring, not the field halo. */
-  border-color: var(--text-on-brand);
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-.avatar-img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
+  .content-help {
+    top: var(--space-xl);
+    right: var(--space-xl);
+  }
 }
