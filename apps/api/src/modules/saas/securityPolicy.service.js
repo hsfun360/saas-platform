@@ -14,6 +14,7 @@ const Account = require('./account.model');
 const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
+const mfa = require('../identity/mfa.service');
 
 const MFA_POLICIES = ['optional', 'required'];
 
@@ -83,6 +84,10 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
         ? await User.count({ where: { id: { [Op.in]: userIds }, mfaEnabled: true } })
         : 0;
     return {
+        // Without MFA_ENCRYPTION_KEY the platform cannot enrol anyone, so the
+        // login gate is dormant and a 'required' policy has no effect yet -
+        // the screen says so instead of promising one.
+        mfaAvailable: mfa.isMfaConfigured(),
         mfaPolicy: account.mfaPolicy || 'optional',
         mfaRequiredFrom: account.mfaRequiredFrom ? String(account.mfaRequiredFrom).slice(0, 10) : null,
         effective: policyRequiresMfa(account, today),

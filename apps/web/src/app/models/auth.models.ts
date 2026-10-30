@@ -164,6 +164,7 @@ export interface MfaStatus {
 export type MfaPolicy = 'optional' | 'required';
 
 export interface SecurityPolicyState {
+  mfaAvailable: boolean;          // false = the platform has no MFA key yet; the policy cannot take effect
   mfaPolicy: MfaPolicy;
   mfaRequiredFrom: string | null; // YYYY-MM-DD, only while required
   effective: boolean;             // in force today

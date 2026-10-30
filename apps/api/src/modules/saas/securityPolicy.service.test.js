@@ -15,6 +15,7 @@ const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
 const policy = require('./securityPolicy.service');
+const mfa = require('../identity/mfa.service');
 
 function fn(impl) {
     const f = (...args) => { f.calls.push(args); return impl ? impl(...args) : undefined; };
@@ -84,6 +85,7 @@ beforeEach(() => {
 test('state counts each user once and reports how many have not enrolled', async () => {
     const state = await policy.getSecurityPolicyState('acct-X', '2026-10-30');
     assert.deepStrictEqual(state, {
+        mfaAvailable: mfa.isMfaConfigured(), // mirrors the process env (a local .env may carry MFA_ENCRYPTION_KEY)
         mfaPolicy: 'required',
         mfaRequiredFrom: '2026-11-01',
         effective: false, // starts 2026-11-01, "today" is 2026-10-30

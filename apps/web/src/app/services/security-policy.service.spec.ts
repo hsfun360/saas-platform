@@ -7,6 +7,7 @@ import { environment } from '../../environments/environment';
 import { SecurityPolicyState } from '../models/auth.models';
 
 const STATE: SecurityPolicyState = {
+  mfaAvailable: true,
   mfaPolicy: 'required',
   mfaRequiredFrom: '2026-11-01',
   effective: false,

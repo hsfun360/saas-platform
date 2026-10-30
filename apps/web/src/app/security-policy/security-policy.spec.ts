@@ -10,7 +10,7 @@ import { SecurityPolicyState } from '../models/auth.models';
 const URL = `${environment.apiUrl}/auth/account/security-policy`;
 
 function state(over: Partial<SecurityPolicyState> = {}): SecurityPolicyState {
-  return { mfaPolicy: 'optional', mfaRequiredFrom: null, effective: false, users: 12, enrolled: 4, notEnrolled: 8, ...over };
+  return { mfaAvailable: true, mfaPolicy: 'optional', mfaRequiredFrom: null, effective: false, users: 12, enrolled: 4, notEnrolled: 8, ...over };
 }
 
 describe('SecurityPolicyComponent', () => {
@@ -69,6 +69,15 @@ describe('SecurityPolicyComponent', () => {
     req.flush({ message: 'Security policy updated.', ...state() });
     expect(c.form.dirty).toBe(false);
     expect(c.successMessage()).toBe('Security policy updated.');
+  });
+
+  it('warns, but still allows editing, when the platform has no MFA key', () => {
+    const fixture = mount(state({ mfaAvailable: false }));
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.flash-error.flash--static')?.textContent).toContain('not available on this platform yet');
+    expect(el.querySelector('input[role=switch]')).not.toBeNull();
+    const ok = mount(state({ mfaAvailable: true }));
+    expect(ok.nativeElement.querySelector('.flash-error.flash--static')).toBeNull();
   });
 
   it('saving a required policy sends the date and re-seeds the form from the answer', () => {

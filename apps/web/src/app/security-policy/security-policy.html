@@ -30,6 +30,13 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the security policy…</p></div>
   } @else if (state()) {
+    @if (!state()!.mfaAvailable) {
+      <div class="flash flash-error flash--static" role="alert">
+        <span class="flash-icon material-icons" aria-hidden="true">warning</span>
+        <span>Two-factor authentication is not available on this platform yet, so this policy cannot take effect until your platform administrator enables it. You can still set it now.</span>
+      </div>
+    }
+
     <form [formGroup]="form" (ngSubmit)="save()" class="saas-form">
 
       <!-- Two-factor authentication -->

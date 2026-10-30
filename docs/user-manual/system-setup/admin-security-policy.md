@@ -75,6 +75,7 @@ Administrators stay obliged to use it whatever the switch says.
   It is the number of people who will be stopped at their next sign-in and asked to set up an authenticator app, so announce it, give a start date, and have your help desk ready for recovery questions.
 - A user who loses their phone uses a recovery code to get in, or asks you to reset their two-factor authentication under **User Management**; the policy then asks them to set it up again at their next sign-in.
 - If a user says they cannot turn two-factor authentication off under Profile → Security, that is the policy working: the Disable button is replaced by a **Required** tag and the system refuses with "Your organisation requires two-factor authentication for every user, so it cannot be disabled."
+- If a red note says two-factor authentication is not available on this platform yet, the platform has not been set up for it; you can still save the policy, but nobody is asked to enrol until your platform administrator enables two-factor authentication.
 - If you see "Your account could not be resolved", you opened the screen from the System Administration workspace; switch to one of your companies and try again.
 - If you see "mfaRequiredFrom must be a date (YYYY-MM-DD)", the date was not picked from the calendar; clear the field and pick the date again.
 
