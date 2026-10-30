@@ -72,6 +72,17 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
 - **Standing rule**: every NEW endpoint that reads a body/query/params mounts `validate()` with a schema, exactly like the rate-limiter rule above.
   The rollout completed on 2026-10-12: the identity-hosted tenant-admin routes (`/api/auth/company/*`, `/account/*`, `/companies/*`), the `/api/admin` routes, the shared numbering router (`platform/numberingController.js`) and the `/api/notifications` id routes all mount it; the only bare routes left read no request part or take a multipart upload bounded by multer.
 
+## HTTP security headers and the dependency audit gate (2026-10-30)
+
+- The SPA sends a Content-Security-Policy, HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy and COOP from nginx.
+  The headers live in `apps/web/security-headers.conf`, which every location nginx serves itself includes (never `/api/`), because an `add_header` inside a location replaces the server-level set.
+- The CSP allows scripts only from the bundle and Google Identity Services, so index.html carries no inline script: the pre-paint theme switch lives in `public/theme-boot.js`.
+  Inline styles stay allowed because Angular injects component styles at runtime.
+  Images may come from any https host (public storage objects, identity-provider avatars, email previews); connect and frame sources are limited to the two sign-in providers.
+- The API mounts helmet right after CORS in `src/app.js` with a load-nothing CSP and Cross-Origin-Resource-Policy relaxed to cross-origin, since mail clients and the web app fetch files and images from it.
+- Every push to `dev` runs `npm audit --omit=dev --audit-level=high` for both apps before anything is built; Dependabot alerts and security updates are enabled on the repository for the rest.
+  Transitive pins that upstream has not moved are handled with npm `overrides` in `apps/api/package.json` (uuid below 12 is forced to 11.1.1 because Sequelize and ExcelJS still require it as CommonJS).
+
 ## Parked (deliberate, with triggers)
 
 - **WAF (Cloud Armor) + external HTTPS load balancer + custom domain**: one pre-launch milestone (the LB is required for all three; the custom domain also retires the run.app Safe Browsing reputation issue).

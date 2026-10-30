@@ -53,6 +53,19 @@ jobs:
       - name: Use npm 11 (matches the lockfile author)
         run: npm install -g npm@11
 
+      # Supply-chain gate: a HIGH or CRITICAL advisory against a PRODUCTION
+      # dependency fails the build before anything is built. Dev-only tooling
+      # (vite, vitest, the CLI) is tracked by Dependabot alerts instead so a
+      # build-tool advisory never blocks a deploy. `npm audit` needs only the
+      # lockfile, so the api is audited without installing it.
+      - name: Audit production dependencies (api)
+        working-directory: apps/api
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit production dependencies (web)
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Install web dependencies
         working-directory: apps/web
         run: npm ci

@@ -108,6 +108,24 @@ function createApp() {
     };
 
     app.use(cors(corsOptions));
+    // HTTP security headers (helmet). The API serves JSON, file downloads and
+    // inline PDF previews - never a page that embeds anything - so the CSP is
+    // "load nothing, frame nowhere". Cross-Origin-Resource-Policy is relaxed
+    // to cross-origin because mail clients and the web app on another origin
+    // legitimately GET images/files from here. The SPA's own policy lives in
+    // apps/web/security-headers.conf (nginx) and is NOT applied to /api/.
+    app.use(require('helmet')({
+        contentSecurityPolicy: {
+            useDefaults: false,
+            directives: {
+                defaultSrc: ["'none'"],
+                frameAncestors: ["'none'"],
+                baseUri: ["'none'"],
+                formAction: ["'none'"],
+            },
+        },
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }));
     // Refresh-token cookie (path-scoped to /api/auth; see session.service.js).
     app.use(require('cookie-parser')());
     // Audit who-context (verified identity + ip + requestId on AsyncLocalStorage)

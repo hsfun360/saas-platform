@@ -21,6 +21,10 @@ FROM nginx:1.27-alpine AS production
 # PORT; default 8080) into /etc/nginx/conf.d/default.conf before nginx starts.
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
+# Security headers, included by the site config in every location nginx serves
+# itself (see the file for the CSP rationale and the add_header gotcha).
+COPY security-headers.conf /etc/nginx/security-headers.conf
+
 # The built SPA.
 COPY --from=build /app/dist/Login/browser /usr/share/nginx/html
 
