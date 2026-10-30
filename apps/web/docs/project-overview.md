@@ -950,7 +950,8 @@ Access is enforced in **three layers** - and the backend is the only authoritati
 
 **Auth gate.**
 The shell is behind `authGuard`, which requires a token that is present **and not expired** (it decodes `exp`).
-HTTP `401`s are also caught by the auth interceptor, which clears storage and redirects to `/login`.
+When no valid token is stored (the 1h access token routinely expires between visits), the guard makes ONE silent `POST /api/auth/refresh` from the httpOnly refresh cookie through `SessionRefreshService` (`session-refresh.service.ts`, the same single-flight call the interceptor uses on a 401) and lets the route through on success; on failure it falls through to `/login`, and the failure is remembered for the page load so a dead session never re-asks the API on every navigation (one more attempt is armed only after a valid token has been seen again, i.e. a new sign-in) - added 2026-10-30 after a tab idle for ~20 hours bounced to `/login` with a live refresh cookie.
+HTTP `401`s are also caught by the auth interceptor, which refreshes and replays once, and clears storage and redirects to `/login` only when that refresh fails.
 
 **Guarding a new system route.**
 Opt a route into per-system access with route `data` + the shared guard - never re-implement the check inline:

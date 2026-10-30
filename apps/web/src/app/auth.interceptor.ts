@@ -1,13 +1,8 @@
-import { HttpInterceptorFn, HttpErrorResponse, HttpClient, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError, Observable, shareReplay, finalize } from 'rxjs';
-import { environment } from '../environments/environment';
-
-// One in-flight refresh at a time: simultaneous 401s all wait on the same call
-// instead of racing the rotation (a raced rotated-token replay would revoke
-// the whole session family server-side).
-let refreshInFlight: Observable<{ token: string }> | null = null;
+import { catchError, switchMap, throwError, Observable } from 'rxjs';
+import { SessionRefreshService } from './session-refresh.service';
 
 // Endpoints where a 401/expired token must NOT trigger a refresh attempt:
 // the auth flows themselves (login, refresh, mfa, ...) handle their own errors.
@@ -21,7 +16,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   const router = inject(Router);
-  const http = inject(HttpClient);
+  const session = inject(SessionRefreshService);
   const token = localStorage.getItem('token');
 
   // Attach the access token AND send credentials (the httpOnly refresh cookie
@@ -47,7 +42,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // logout. Rotate the refresh cookie for a fresh token and replay the
       // request; only when THAT fails is the session really over.
       if (refreshable && isTokenProblem(error)) {
-        return refreshThenRetry(http, req, next).pipe(
+        return refreshThenRetry(session, req, next).pipe(
           catchError(() => {
             logoutToLogin();
             return throwError(() => error);
@@ -55,7 +50,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
 
-      if (status === 401) {
+      // A 401 from the refresh endpoint itself is the refresh CALLER's verdict
+      // to act on (the replay above logs out; the route guard's boot restore
+      // falls through to /login on its own) - not a second logout here.
+      if (status === 401 && !req.url.includes('/auth/refresh')) {
         logoutToLogin();
       }
       return throwError(() => error);
@@ -71,20 +69,14 @@ function isTokenProblem(error: HttpErrorResponse): boolean {
   return error.status === 403 && /invalid or expired token/i.test(msg);
 }
 
-function refreshThenRetry(http: HttpClient, req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> {
-  if (!refreshInFlight) {
-    refreshInFlight = http.post<{ token: string }>(`${environment.apiUrl}/auth/refresh`, {}, { withCredentials: true }).pipe(
-      shareReplay(1),
-      finalize(() => { refreshInFlight = null; }),
-    );
-  }
-  return refreshInFlight.pipe(
-    switchMap(({ token }) => {
-      localStorage.setItem('token', token);
-      return next(req.clone({
-        withCredentials: true,
-        setHeaders: { Authorization: `Bearer ${token}` },
-      }));
-    }),
+// One refresh at a time app-wide (SessionRefreshService single-flights it, so
+// simultaneous 401s - and a guard restore - all wait on the same call), then
+// replay the request with the new token.
+function refreshThenRetry(session: SessionRefreshService, req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> {
+  return session.refresh().pipe(
+    switchMap((token) => next(req.clone({
+      withCredentials: true,
+      setHeaders: { Authorization: `Bearer ${token}` },
+    }))),
   );
 }
