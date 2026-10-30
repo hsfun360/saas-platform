@@ -78,6 +78,7 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   The headers live in `apps/web/security-headers.conf`, which every location nginx serves itself includes (never `/api/`), because an `add_header` inside a location replaces the server-level set.
 - The CSP allows scripts only from the bundle and Google Identity Services, so index.html carries no inline script: the pre-paint theme switch lives in `public/theme-boot.js`.
   Inline styles stay allowed because Angular injects component styles at runtime.
+  Critical-CSS inlining is disabled in the production build (`optimization.styles.inlineCritical: false` in `angular.json`): it defers the stylesheet with an inline `onload` handler that the policy blocks, which left the app unstyled on the first deploy.
   Images may come from any https host (public storage objects, identity-provider avatars, email previews); connect and frame sources are limited to the two sign-in providers.
 - The API mounts helmet right after CORS in `src/app.js` with a load-nothing CSP and Cross-Origin-Resource-Policy relaxed to cross-origin, since mail clients and the web app fetch files and images from it.
 - Every push to `dev` runs `npm audit --omit=dev --audit-level=high` for both apps before anything is built; Dependabot alerts and security updates are enabled on the repository for the rest.
