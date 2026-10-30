@@ -41,7 +41,8 @@ Every public endpoint mounts a per-IP rate-limiter factory from `platform/rateLi
 - Register / verify: `POST /register-user`, `GET /verify/:token`, `POST /verify-email`, `POST /register-lead`, `POST /activate`.
 - Login + SSO: `POST /login`, `GET /sso-config`, `POST /google`, `POST /google/exchange`, `POST /microsoft-login`.
 - Password: `POST /forgot-password`, `POST /reset-password`, `POST /change-password` (session).
-- MFA: `POST /mfa/verify` (the `mfa` token + code), `POST /mfa/setup`, `POST /mfa/enable` (session or `mfa-enroll` token), `GET /mfa/status`, `POST /mfa/disable`.
+- MFA: `POST /mfa/verify` (the `mfa` token + code), `POST /mfa/setup`, `POST /mfa/enable` (session or `mfa-enroll` token), `GET /mfa/status` (adds `required` + `requiredBy` role|organisation), `POST /mfa/disable` (refused while required).
+  The forced-enrolment gate in `completeLogin` (`mfaEnrollRequired` + `mfaEnrollReason`) covers administrator roles AND every user of an account whose MFA policy is in force (`saas/securityPolicy.service.js`, 2026-10-30); the code challenge is skipped on a workspace switch, the enrolment gate never is.
 - Sessions: `POST /refresh`, `POST /logout`.
 - Onboarding (the `onboarding` token): `GET /onboarding/modules`, `POST /onboarding/provision` (one `provisionTenant()` path shared with the platform's subscriber creation).
 - Profile: `GET /profile`, `PUT /profile` (queues the `profile.updated` security alert), `POST /upload-avatar`.

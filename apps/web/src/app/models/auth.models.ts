@@ -133,6 +133,8 @@ export interface AuthResponse {
   mfaRequired?: boolean;
   // Admin role without MFA: enrollment is mandatory before entering the app.
   mfaEnrollRequired?: boolean;
+  // Why enrolment is forced: an administrator role, or the organisation's policy.
+  mfaEnrollReason?: 'role' | 'organisation';
   // Short-lived purpose token carrying the login context across the MFA step.
   mfaToken?: string;
   companyName?: string | null;
@@ -151,6 +153,28 @@ export interface MfaStatus {
   enabled: boolean;
   enrolledAt?: string | null;
   recoveryCodesLeft: number;
+  // Mandatory for this user: an administrator role, or the subscriber's
+  // security policy (System Setup -> Security Policy). Disable is refused.
+  required?: boolean;
+  requiredBy?: 'role' | 'organisation' | null;
+}
+
+// System Setup -> Security Policy: the subscriber's account-wide MFA policy
+// plus the expected result the screen states before Save (2026-10-30).
+export type MfaPolicy = 'optional' | 'required';
+
+export interface SecurityPolicyState {
+  mfaPolicy: MfaPolicy;
+  mfaRequiredFrom: string | null; // YYYY-MM-DD, only while required
+  effective: boolean;             // in force today
+  users: number;                  // everyone the policy reaches
+  enrolled: number;
+  notEnrolled: number;
+}
+
+export interface SecurityPolicyUpdate {
+  mfaPolicy: MfaPolicy;
+  mfaRequiredFrom: string | null;
 }
 
 export interface MfaSetupResponse {

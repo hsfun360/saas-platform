@@ -118,9 +118,15 @@
                   } @else {
                     Adds a 6-digit code at login, so a stolen password alone cannot enter your account.
                   }
+                  @if (mfaS.required) {
+                    {{ mfaS.requiredBy === 'role' ? 'Required for administrator accounts.' : 'Required by your organisation\'s security policy.' }}
+                    @if (!mfaS.enabled) { You will be asked to set it up at your next sign-in. }
+                  }
                 </div>
               </div>
-              @if (mfaS.enabled) {
+              @if (mfaS.enabled && mfaS.required) {
+                <span class="status-chip status-chip--on">Required</span>
+              } @else if (mfaS.enabled) {
                 <button type="button" class="btn btn--danger" (click)="startMfaDisable()" [disabled]="mfaBusy()">Disable</button>
               } @else {
                 <button type="button" class="btn btn--success" (click)="startMfaSetup()" [disabled]="mfaBusy()">

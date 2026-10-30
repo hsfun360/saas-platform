@@ -42,6 +42,22 @@ const Account = sequelize.define('Account', {
     defaultCurrencyCode: {
         type: DataTypes.STRING(3),
         allowNull: true,
+    },
+    // Tenant-level MFA policy (approved 2026-10-30): 'optional' (the default -
+    // users enrol themselves; administrator roles are still forced) or
+    // 'required' (every user of the account must enrol at their next sign-in).
+    // Enforced by the login gate through securityPolicy.service.
+    mfaPolicy: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'optional',
+    },
+    // When 'required': the calendar date the requirement starts (so staff can
+    // be told first). NULL = immediately. Cleared whenever the policy is
+    // 'optional'.
+    mfaRequiredFrom: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
     }
 }, {
     tableName: 'Account',

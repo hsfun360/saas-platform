@@ -44,6 +44,7 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Public Holidays](system-setup/admin-public-holidays.md) - Holiday calendar per country your companies operate in; single-country organizations never see a country picker.
 - [Currencies](system-setup/admin-account-currencies.md) - Choose which platform currencies your organization uses and star the default offered to companies.
 - [Languages](system-setup/admin-account-languages.md) - Enable the languages your users may choose and set the default/fallback language.
+- [Security Policy](system-setup/admin-security-policy.md) - Require two-factor authentication for every user of the organization, optionally from a start date, with the expected result stated before Save.
 - [Email Templates](system-setup/admin-account-email-templates.md) - Customise the wording and brand colour of system emails, shared or per company, with live preview and test send.
 - [Audit Log](system-setup/admin-account-audit-log.md) - Read-only trail of every create, update and delete your staff made, with field-by-field before/after values.
 - [Workflow Setup](system-setup/admin-workflows.md) - Design approval chains per document type: ordered steps, approver rules, quorum, conditions, SLA reminder or escalation, preview.

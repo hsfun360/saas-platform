@@ -13,6 +13,7 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
 - **No enumeration**: wrong email and wrong password return the identical generic 401.
 - **TOTP MFA (two-factor authentication)**: 6-digit authenticator-app code after the password, plus 8 single-use recovery codes (hashed at rest).
   MANDATORY for System Admin and Tenant Admin roles (forced enrollment at login; self-disable refused); opt-in for everyone else via Profile -> Security.
+  **Tenant-level policy (2026-10-30):** a Tenant Admin can make it mandatory for EVERY user of the subscription (System Setup -> Security Policy, `Account.mfaPolicy` = required, optionally from a date so staff can be told first); the same forced-enrolment gate then applies to all of them at login, SSO login and workspace switch, self-disable is refused, and the Profile card says why.
   The TOTP secret is AES-256-GCM encrypted under its own `MFA_ENCRYPTION_KEY`.
   Recovery path: Tenant Admin resets a managed user's MFA; System Admin resets anyone's (never their own).
 - **Trusted devices ("don't ask again on this device")**: passing the MFA code with the checkbox ticked sets a second httpOnly cookie (`td`, 30 days, path `/api/auth`) whose SHA-256 is stored in the `TrustedDevice` table; later logins from that browser skip only the code step (`trustedDevice.service.js`).

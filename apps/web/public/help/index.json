@@ -292,5 +292,8 @@
   },
   "admin-industry-types": {
     "title": "Industry Types"
+  },
+  "admin-security-policy": {
+    "title": "Security Policy"
   }
 }

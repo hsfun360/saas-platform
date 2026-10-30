@@ -29,6 +29,7 @@
 
 - TOTP MFA is available to all users (self-service enrollment under Profile, Security).
 - MFA is **mandatory** for privileged roles (System Admin and Tenant Admin); self-disable is refused for them and enrollment is forced at login.
+- A subscriber may extend that requirement to **every user of its account** (tenant-level MFA policy, optionally from a start date, set by its Tenant Admin under System Setup, Security Policy); enforcement is the same forced enrolment at sign-in and self-disable refusal (control added 2026-10-30).
 - TOTP secrets are stored encrypted (AES, key in Secret Manager); recovery codes are stored hashed.
 - MFA reset is a deliberate administrative action (tenant-admin and system-admin endpoints), and is audit-logged.
 

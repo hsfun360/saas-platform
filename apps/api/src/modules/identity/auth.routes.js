@@ -19,6 +19,8 @@ const tenantController = require('../saas/tenant.controller');
 const invitationController = require('../saas/invitation.controller');
 const accountLanguageController = require('../saas/accountLanguage.controller');
 const accountCurrencyController = require('../saas/accountCurrency.controller');
+const securityPolicyController = require('../saas/securityPolicy.controller');
+const securityPolicySchemas = require('../saas/securityPolicy.schemas');
 const accountEmailTemplateController = require('../saas/accountEmailTemplate.controller');
 const industryTypeController = require('../saas/industryType.controller');
 const salutationController = require('../saas/salutation.controller');
@@ -341,6 +343,11 @@ router.delete('/account/roles/:roleId', authenticateToken, requireTenant, requir
 // The subscriber's chosen language subset + default, from their own account.
 router.get('/account/languages', authenticateToken, requireTenant, requireMenuAction('/admin/account-languages'), accountLanguageController.getAccountLanguages);
 router.put('/account/languages', authenticateToken, requireTenant, requireMenuAction('/admin/account-languages'), validate(accountLanguageSchemas.updateAccount), accountLanguageController.updateAccountLanguages);
+
+// --- SUBSCRIBER SECURITY POLICY (Tenant Admin self-service, 2026-10-30) ---
+// The account's MFA policy: optional, or required for every user (from a date).
+router.get('/account/security-policy', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), securityPolicyController.getSecurityPolicy);
+router.put('/account/security-policy', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.update), securityPolicyController.updateSecurityPolicy);
 
 // --- PER-USER PREFERRED LANGUAGE (any authenticated user) ---
 // The languages the user may pick from (their active account's set) + their pick.

@@ -4,7 +4,8 @@
     @if (recoveryCodes().length === 0) {
       <h1 class="auth-title">Set up two-factor authentication</h1>
       <p class="auth-lead">
-        Administrator accounts require a second factor. Scan the QR code with an
+        Your account must use a second factor - administrator roles always do, and so
+        does every user where the organisation's security policy requires it. Scan the QR code with an
         authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, …),
         then enter the 6-digit code it shows for <strong>{{ userEmail }}</strong>.
       </p>

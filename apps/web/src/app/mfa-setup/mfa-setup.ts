@@ -10,8 +10,9 @@ function hasSessionToken(res: MfaEnableResponse): res is MfaEnableResponse & { t
   return typeof res.token === 'string' && res.token.length > 0;
 }
 
-// Forced MFA enrollment for administrator accounts (System Admin / Tenant
-// Admin without MFA). Runs full-screen OUTSIDE the shell on the 'mfa-enroll'
+// Forced MFA enrollment: administrator accounts (System Admin / Tenant Admin
+// without MFA) and, since 2026-10-30, every user of an account whose security
+// policy requires MFA. Runs full-screen OUTSIDE the shell on the 'mfa-enroll'
 // purpose token; a successful enable completes the login (the response carries
 // the full session) and lands in /home. Self-service enrollment for everyone
 // else lives in Profile -> Security.

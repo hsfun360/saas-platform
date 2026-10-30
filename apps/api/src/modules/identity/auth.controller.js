@@ -19,6 +19,7 @@ const RoleMenu = require('../saas/roleMenu.model');
 const { isUserSystemAdmin } = require('../saas/systemAdmin');
 const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
 const { hasTenantAdminRole, canAdministerCompany } = require('../saas/tenant');
+const securityPolicy = require('../saas/securityPolicy.service');
 const { provisionTenant, listEntitlableModules } = require('../saas/provisioning.service');
 const { isPasswordBreached, BREACHED_PASSWORD_MESSAGE } = require('../../platform/passwordBreach');
 const { isDisposableEmail, DISPOSABLE_EMAIL_MESSAGE } = require('../../platform/disposableEmail');
@@ -141,13 +142,18 @@ const generateMfaToken = (user, purpose, ctx) => jwt.sign(
 //   - admin role (System Admin / Tenant Admin) without MFA -> forced enrollment
 //     (skipped when MFA_ENCRYPTION_KEY isn't configured, so a missing key can
 //     never lock every admin out)
+//   - the account's MFA policy (Account.mfaPolicy 'required', in force today)
+//     -> the SAME forced enrollment for every other user of that account
+//     (2026-10-30). skipMfaGates skips only the code CHALLENGE (a session that
+//     already proved its code, e.g. a workspace switch); enrollment is checked
+//     on every grant, so switching into an account that requires MFA enrols.
 async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
     const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
 
-    if (!skipMfaGates && mfa.isMfaConfigured()) {
+    if (mfa.isMfaConfigured()) {
         // A live trusted-device cookie ("don't ask again on this device")
         // stands in for the code - the password/SSO step above already ran.
-        if (user.mfaEnabled && !mfaVerified && !(await trustedDevices.hasValidTrust(req, user.id))) {
+        if (!skipMfaGates && user.mfaEnabled && !mfaVerified && !(await trustedDevices.hasValidTrust(req, user.id))) {
             return {
                 message: 'Enter the 6-digit code from your authenticator app.',
                 mfaRequired: true,
@@ -155,10 +161,19 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
                 email: user.email,
             };
         }
-        if (!user.mfaEnabled && (isSystemAdmin || context.roleName === 'Tenant Admin')) {
+        const enrol = securityPolicy.enrolmentRequiredFor({
+            mfaEnabled: user.mfaEnabled === true,
+            isSystemAdmin,
+            roleName: context.roleName,
+            policyRequires: await securityPolicy.accountRequiresMfa(context.accountId),
+        });
+        if (enrol.required) {
             return {
-                message: 'Administrator accounts require two-factor authentication. Please set it up to continue.',
+                message: enrol.reason === 'role'
+                    ? 'Administrator accounts require two-factor authentication. Please set it up to continue.'
+                    : 'Your organisation requires two-factor authentication for every user. Please set it up to continue.',
                 mfaEnrollRequired: true,
+                mfaEnrollReason: enrol.reason,
                 mfaToken: generateMfaToken(user, 'mfa-enroll', ctx),
                 email: user.email,
             };
@@ -582,7 +597,7 @@ async function resolveWorkspaceContext(userId, companyId) {
     }
 
     const { roleName, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
-    return { companyId: resolvedCompanyId, companyName, roleName, menus };
+    return { companyId: resolvedCompanyId, companyName, roleName, menus, accountId };
 }
 
 // Persist the workspace a user just entered, so the NEXT login can skip the
@@ -696,7 +711,10 @@ exports.switchWorkspace = async (req, res) => {
         const rememberMe = req.user.rememberMe === true;
 
         // Already authenticated (and MFA-verified if applicable) this session -
-        // switching company must not re-challenge, so the gates are skipped.
+        // switching company must not re-challenge for a code, so the challenge
+        // is skipped. Enrollment is NOT skipped: entering a workspace whose
+        // account requires MFA (or where the user is Tenant Admin) without MFA
+        // answers mfaEnrollRequired, and the shell sends them to /mfa-setup.
         // The refresh session is re-issued scoped to the NEW workspace (the old
         // family is revoked) with the same rememberMe horizon.
         await sessions.revokeSession(req, res);
@@ -1814,14 +1832,23 @@ exports.mfaVerify = async (req, res) => {
 exports.mfaStatus = async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id, {
-            attributes: ['mfaEnabled', 'mfaEnrolledAt', 'mfaRecoveryCodes', 'authMethod'],
+            attributes: ['id', 'email', 'mfaEnabled', 'mfaEnrolledAt', 'mfaRecoveryCodes', 'authMethod'],
         });
         if (!user) return res.status(404).json({ message: 'User not found.' });
+        // Why MFA is mandatory for this user, if it is: an administrator role,
+        // or the account's security policy. The Profile card hides Disable
+        // and says which (2026-10-30).
+        const adminRole = await isUserSystemAdmin(user.id, user.email)
+            || (req.user.companyId ? await hasTenantAdminRole(user.id, req.user.companyId) : false);
+        const policyRequires = !adminRole
+            && await securityPolicy.accountRequiresMfa(await securityPolicy.accountIdForCompany(req.user.companyId));
         res.status(200).json({
             available: mfa.isMfaConfigured(),
             enabled: user.mfaEnabled === true,
             enrolledAt: user.mfaEnrolledAt,
             recoveryCodesLeft: Array.isArray(user.mfaRecoveryCodes) ? user.mfaRecoveryCodes.length : 0,
+            required: adminRole || policyRequires,
+            requiredBy: adminRole ? 'role' : (policyRequires ? 'organisation' : null),
         });
     } catch (error) {
         console.error('MFA status error:', error);
@@ -1918,6 +1945,10 @@ exports.mfaDisable = async (req, res) => {
             : false);
         if (adminRole) {
             return res.status(403).json({ message: 'Two-factor authentication is mandatory for administrator accounts and cannot be disabled.' });
+        }
+        // The account's policy makes it mandatory for everyone else too.
+        if (await securityPolicy.accountRequiresMfa(await securityPolicy.accountIdForCompany(req.user.companyId))) {
+            return res.status(403).json({ message: 'Your organisation requires two-factor authentication for every user, so it cannot be disabled.' });
         }
 
         let ok = mfa.verifyTotp(code, user.mfaSecret);

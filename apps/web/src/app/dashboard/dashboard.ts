@@ -510,6 +510,15 @@ export class Dashboard implements OnInit, OnDestroy {
     this.switchingWorkspace.set(true);
     this.authService.switchWorkspace(companyId).subscribe({
       next: (res) => {
+        if (res.mfaEnrollRequired && res.mfaToken) {
+          // The target workspace requires MFA (its account policy, or a Tenant
+          // Admin role there) and this user has none: the old session is gone,
+          // the enrol token drives the full-screen /mfa-setup flow, which then
+          // lands in the new workspace (2026-10-30).
+          localStorage.setItem('token', res.mfaToken);
+          window.location.assign('/mfa-setup');
+          return;
+        }
         if (res.token) {
           localStorage.setItem('token', res.token);
         }

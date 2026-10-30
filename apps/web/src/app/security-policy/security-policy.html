@@ -1,0 +1,96 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">security</span>
+      <div>
+        <h1>{{ 'Security Policy' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Account-wide security rules for every user of your subscription.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the security policy…</p></div>
+  } @else if (state()) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="saas-form">
+
+      <!-- Two-factor authentication -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('mfa')" [attr.aria-expanded]="isExpanded('mfa')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Two-factor authentication</span>
+            <span class="settings-header__sub">Whether every user must sign in with an authenticator app, and from when.</span>
+          </span>
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('mfa')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('mfa')) {
+          <div class="settings-body">
+            <!-- A standalone on/off setting: a switch (settings-chrome standard). -->
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="mfaRequired" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Require two-factor authentication for all users<app-field-info label="Require two-factor authentication" [text]="hint.required" /></span>
+                <span class="switch-row__hint">Off = users may set it up themselves under Profile; administrator roles are always required.</span>
+              </span>
+            </label>
+
+            @if (formValue().mfaRequired) {
+              <div class="settings-sub">
+                <h3 class="settings-sub__title">Start date</h3>
+                <p class="settings-sub__hint">Give staff notice first, or leave it blank to require it from the next sign-in.</p>
+                <div class="form-group form-group--narrow">
+                  <label for="spMfaFrom">Required from</label>
+                  <input id="spMfaFrom" type="date" formControlName="mfaRequiredFrom" />
+                  <p class="cell-subtle field-hint">Blank = from the next sign-in.</p>
+                </div>
+              </div>
+            }
+
+            <!-- The expected result, stated before Save (never a surprise). -->
+            <div class="flash flash-info flash--static" role="status" aria-live="polite">
+              <span class="flash-icon material-icons" aria-hidden="true">info</span>
+              <span>{{ expected() }}</span>
+            </div>
+          </div>
+        }
+      </section>
+
+      <!-- Sticky save bar (settings-chrome standard): exists only while the
+           form is dirty, docked at the viewport bottom. -->
+      @if (form.dirty) {
+        <div class="save-bar" *appCan="'edit'">
+          <span class="save-bar__status">Unsaved changes</span>
+          <button type="button" class="btn btn--link btn--sm" (click)="discard()" [disabled]="saving()">Discard changes</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      }
+    </form>
+
+    <!-- Route-leave confirmation (unsavedChangesGuard). -->
+    @if (leaveConfirm(); as c) {
+      <app-confirm-dialog [request]="c" (cancelled)="cancelLeave()" />
+    }
+  }
+</div>
