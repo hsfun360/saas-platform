@@ -176,6 +176,7 @@
   position: relative;
   display: flex; /* Helps center the image vertically */
   align-items: center;
+  cursor: pointer;
   margin-left: var(--space-xs);
 }
 /* Avatar trigger: ring hover/focus from tokens (no inline handlers). */
