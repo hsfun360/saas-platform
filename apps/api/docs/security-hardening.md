@@ -81,6 +81,7 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   Critical-CSS inlining is disabled in the production build (`optimization.styles.inlineCritical: false` in `angular.json`): it defers the stylesheet with an inline `onload` handler that the policy blocks, which left the app unstyled on the first deploy.
   Images may come from any https host (public storage objects, identity-provider avatars, email previews); connect and frame sources are limited to the two sign-in providers.
 - The API mounts helmet right after CORS in `src/app.js` with a load-nothing CSP and Cross-Origin-Resource-Policy relaxed to cross-origin, since mail clients and the web app fetch files and images from it.
+- Upgrades must actually reach browsers: nginx now marks only Angular's hashed bundles immutable, every fixed-name file (tinymce/, assets/, i18n/, theme-boot.js) revalidates, and TinyMCE URLs carry `?v=<version>` (`TINYMCE_VERSION`, guarded by a spec) so a browser holding an old immutable copy fetches the new one.
 - Every push to `dev` runs `npm audit --omit=dev --audit-level=high` for both apps before anything is built; Dependabot alerts and security updates are enabled on the repository for the rest.
   Transitive pins that upstream has not moved are handled with npm `overrides` in `apps/api/package.json` (uuid below 12 is forced to 11.1.1 because Sequelize and ExcelJS still require it as CommonJS).
 

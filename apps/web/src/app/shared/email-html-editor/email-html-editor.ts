@@ -43,6 +43,17 @@ const CHIP_CSS = `.${CHIP_CLASS}{background:#eef2ff;color:#3730a3;padding:1px 6p
 
 let tinymceLoader: Promise<TinyMCE> | null = null;
 
+/**
+ * Installed TinyMCE version, appended to every TinyMCE URL (the loader script
+ * and, via cache_suffix, the theme/model/plugins/skins it fetches itself).
+ * The files under /tinymce are served by FIXED names, so without this a browser
+ * that cached one version keeps using it after an upgrade; the query string
+ * gives each version its own cache entry. The spec next to this file fails when
+ * it drifts from node_modules/tinymce, so bump it with the dependency.
+ */
+export const TINYMCE_VERSION = '8.10.1';
+const TINYMCE_CACHE_SUFFIX = '?v=' + TINYMCE_VERSION;
+
 /** Load the self-hosted TinyMCE script once, resolving with the global. */
 function loadTinymce(): Promise<TinyMCE> {
   const existing = window.tinymce;
@@ -50,7 +61,7 @@ function loadTinymce(): Promise<TinyMCE> {
   if (tinymceLoader) return tinymceLoader;
   tinymceLoader = new Promise<TinyMCE>((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = '/tinymce/tinymce.min.js';
+    script.src = '/tinymce/tinymce.min.js' + TINYMCE_CACHE_SUFFIX;
     script.referrerPolicy = 'origin';
     script.onload = () => {
       const t = window.tinymce;
@@ -192,6 +203,7 @@ export class EmailHtmlEditorComponent implements AfterViewInit, OnDestroy, Contr
       target: this.host().nativeElement,
       base_url: '/tinymce',
       suffix: '.min',
+      cache_suffix: TINYMCE_CACHE_SUFFIX,
       license_key: 'gpl',
       // Match the app theme (resolved at open time; reopen the editor to re-skin
       // after a live theme switch). Dark assets are bundled under /tinymce.
