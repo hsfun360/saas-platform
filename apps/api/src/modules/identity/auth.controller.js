@@ -68,6 +68,10 @@ const generateToken = (userId, email, companyId=null, companyName=null, isSystem
     );
 };
 
+// Every refused sign-in (unknown email, wrong password, wrong MFA code) also
+// logs ONE line: console.warn('[AUTH] login failed', {reason, ip}) - never the
+// email. Cloud Logging turns it into the auth_login_failures metric that the
+// "login failure burst" alert watches (docs/ops/alerting.md, 2026-10-30).
 // Capped exponential backoff for consecutive FAILED local-login attempts
 // (index = failures so far). The first three attempts are free (humans typo),
 // then delays grow to a 15-minute ceiling - never a permanent lockout, which
@@ -314,6 +318,7 @@ exports.login = async (req, res) => {
         // 2. Find the user
         const user = await User.findOne({ where: { email: cleanEmail } });
         if (!user) {
+            console.warn('[AUTH] login failed', JSON.stringify({ reason: 'bad-credentials', ip: req.ip }));
             return res.status(401).json({ message: "Invalid email or password." });
         }
 
@@ -355,6 +360,7 @@ exports.login = async (req, res) => {
                 failedLoginCount: (user.failedLoginCount || 0) + 1,
                 lastFailedLoginAt: new Date(),
             });
+            console.warn('[AUTH] login failed', JSON.stringify({ reason: 'bad-credentials', ip: req.ip }));
             return res.status(401).json({ message: "Invalid email or password." });
         }
 
@@ -1804,6 +1810,7 @@ exports.mfaVerify = async (req, res) => {
             }
         }
         if (!ok) {
+            console.warn('[AUTH] login failed', JSON.stringify({ reason: 'bad-mfa-code', ip: req.ip }));
             return res.status(401).json({ message: 'That code is not valid. Please try again.' });
         }
 

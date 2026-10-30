@@ -22,7 +22,7 @@ Examples: credential compromise, data exposure across tenant boundaries, ransomw
 
 ## 3. Detection sources
 
-- Cloud Monitoring alerts (the alert set grows with the platform; a Cloud SQL backup-failure alert is still to be configured).
+- Cloud Monitoring alerts: 5xx spikes, sign-in failure bursts, boot or background-job failures and scheduler failures email the operations address since 2026-10-30 (runbook: docs/ops/alerting.md); the alert set grows with the platform (a Cloud SQL backup-failure alert is still to be configured).
 - Cloud Logging for `platform-api`, `platform-web` and the worker (`platform-api-outboxworker`).
 - The append-only audit trail (`audit."AuditLog"`) with per-tenant and platform viewers.
 - Dependabot and Artifact Registry vulnerability findings.

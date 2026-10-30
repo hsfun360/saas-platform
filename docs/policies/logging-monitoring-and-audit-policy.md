@@ -29,7 +29,7 @@
 
 ## 4. Monitoring and alerting
 
-- Cloud Monitoring alerts on backup-job failures (email to the operations address); the alert catalogue grows with the platform - new critical asynchronous paths must ship with a failure alert, like the backup job did.
+- Cloud Monitoring alerts email the operations address (`admin@myeasysoft.com`) in dev and staging for: Cloud Run 5xx spikes, sign-in failure bursts (a log-based metric on every refused sign-in), API boot or background-job failures, and Cloud Scheduler sweep failures (set up 2026-10-30, catalogue and runbook in [docs/ops/alerting.md](../ops/alerting.md)); the alert catalogue grows with the platform - new critical asynchronous paths must ship with a failure alert, and the Cloud SQL backup-failure alert is wired with the production instance.
 - Rate-limit and backoff mechanisms log their triggers, giving early signal of brute-force and abuse attempts.
 - Dependabot and Artifact Registry scanning findings surface through GitHub and the Google Cloud console respectively and are triaged per the [Vulnerability & Patch Management Policy](vulnerability-and-patch-management-policy.md).
 
