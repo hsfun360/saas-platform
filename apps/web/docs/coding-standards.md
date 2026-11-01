@@ -79,6 +79,9 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
 - **Submit:** guard with `if (form.invalid) { form.markAllAsTouched(); return; }`, then read `form.getRawValue()`.
   Seed the form with `form.reset(initialValues)` on open so it starts pristine (which keeps the unsaved-changes guard and Save state correct).
 - **Unsaved-changes guard:** bind the shared `<app-dialog>`'s `[dirty]="form.dirty"` and route the footer Cancel through `dlg.requestClose()`.
+- **Every `<form (ngSubmit)>` binds `[formGroup]`**, even for a single control (wrap it: `new FormGroup({ code })`).
+  Only the `FormGroupDirective` (or `NgForm` from `FormsModule`, which this app does not import) turns the submit into `ngSubmit` AND prevents the browser's native submission; a bare `<form>` holding a lone `[formControl]` reloads the page as `GET /route?` on every submit.
+  That is how the forced MFA enrolment page minted a fresh secret on each tap and rejected every authenticator code (2026-11-01); the specs beside `mfa-setup` and `profile` dispatch a submit event and assert `defaultPrevented`.
 - **HTML5 input types are required:** give every field its correct native type/attributes, never a bare `type="text"`.
   Use `type="email"` + `inputmode="email"`, `type="url"`, `type="number"` + `inputmode="decimal"` + `min`/`max`/`step`, `type="date"`, and `type="tel"` (or the shared `<app-phone-input>`), plus `autocomplete` and `maxlength` where they apply.
   Correct types give mobile the right keyboard, enable free browser validation, and improve autofill.

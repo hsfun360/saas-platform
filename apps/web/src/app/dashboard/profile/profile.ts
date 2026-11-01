@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../auth.service';
 import { PhoneInputComponent } from '../../shared/phone-input/phone-input';
 import { MfaStatus } from '../../models/auth.models';
@@ -44,6 +44,9 @@ export class ProfileComponent implements OnInit {
   readonly mfaMode = signal<'idle' | 'enrolling' | 'disabling'>('idle');
   // The code is a reactive control so Enter submits the enrol / disable form.
   readonly mfaCode = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  // Bound with [formGroup] on both MFA forms: without the FormGroupDirective a
+  // <form (ngSubmit)> submits natively and reloads the page (see mfa-setup.ts).
+  readonly mfaForm = new FormGroup({ code: this.mfaCode });
 
   ngOnInit(): void {
     this.loadMfaStatus();

@@ -24,11 +24,11 @@
           <code class="mfa-code-inline">{{ otpauthUrl() }}</code>
         </p>
 
-        <form (ngSubmit)="confirm()">
+        <form [formGroup]="form" (ngSubmit)="confirm()">
           <div class="form-group">
             <label for="mfa-setup-code">6-digit code</label>
             <input id="mfa-setup-code" class="mfa-code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-                   placeholder="123456" [formControl]="code"
+                   placeholder="123456" formControlName="code"
                    [attr.aria-invalid]="code.touched && code.invalid ? 'true' : null" [attr.aria-describedby]="code.touched && code.invalid ? 'mfaCodeErr' : null">
             @if (code.touched && code.invalid) {
               <div id="mfaCodeErr" class="field-error" role="alert">Enter the 6-digit code from your app.</div>

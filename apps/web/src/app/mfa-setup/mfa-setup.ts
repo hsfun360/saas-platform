@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth.service';
 import { MfaEnableResponse } from '../models/auth.models';
@@ -35,8 +35,16 @@ export class MfaSetupComponent implements OnInit {
   readonly loading = signal(true);
   readonly submitting = signal(false);
   readonly errorMessage = signal('');
-  // The 6-digit code is a reactive control so Enter submits the form.
+  // The 6-digit code is a reactive control so Enter submits the form. It sits
+  // in a FormGroup bound with [formGroup]: ONLY the FormGroupDirective (or
+  // NgForm from FormsModule) turns a <form>'s submit into ngSubmit AND prevents
+  // the browser's native submission. A bare <form (ngSubmit)> with a lone
+  // [formControl] has no directive on the form, so every tap of the button
+  // reloaded the page as GET /mfa-setup? - which minted a NEW secret and made
+  // the code in the authenticator app wrong forever (found 2026-11-01, the
+  // first real enrolment on dev once MFA_ENCRYPTION_KEY existed).
   readonly code = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] });
+  readonly form = new FormGroup({ code: this.code });
 
   // After enabling: show the recovery codes ONCE, then continue into the app.
   readonly recoveryCodes = signal<string[]>([]);
