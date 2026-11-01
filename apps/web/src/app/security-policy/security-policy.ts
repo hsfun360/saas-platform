@@ -93,6 +93,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     if (!s) return '';
     const n = s.trustedDevices;
     const devices = `${n} trusted ${n === 1 ? 'device' : 'devices'}`;
+    const skipVerb = n === 1 ? 'skips' : 'skip';
     if (!v.trustedDevicesAllowed) {
       if (!s.trustedDevicesAllowed) return 'Trusted devices are off: every sign-in asks for a code.';
       return n
@@ -106,12 +107,12 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     const dayWord = days === 1 ? 'day' : 'days';
     if (!s.trustedDevicesAllowed) return `Users who enter their code may skip it on that browser for ${days} ${dayWord}; the password is still required every time.`;
     if (days < s.trustedDeviceDays) {
-      return `${devices} currently skip the code. Any device trusted more than ${days} ${dayWord} ago will be asked for a code at its next sign-in; devices trusted from now on skip it for ${days} ${dayWord}.`;
+      return `${devices} currently ${skipVerb} the code. Any device trusted more than ${days} ${dayWord} ago will be asked for a code at its next sign-in; devices trusted from now on skip it for ${days} ${dayWord}.`;
     }
     if (days > s.trustedDeviceDays) {
-      return `${devices} currently skip the code and keep their ${s.trustedDeviceDays}-day window; devices trusted from now on skip it for ${days} ${dayWord}.`;
+      return `${devices} currently ${skipVerb} the code and keep their ${s.trustedDeviceDays}-day window; devices trusted from now on skip it for ${days} ${dayWord}.`;
     }
-    return `${devices} currently skip the code, each for ${days} ${dayWord} after being trusted.`;
+    return `${devices} currently ${skipVerb} the code, each for ${days} ${dayWord} after being trusted.`;
   });
 
   // ---- Route-leave guard (unsavedChangesGuard on the route) ----
