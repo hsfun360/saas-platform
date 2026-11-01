@@ -1,0 +1,28 @@
+/* Access Requests (2026-11-01): three section cards of listing rows. The
+   count chip sits beside each card title; the decision dialog quotes the
+   request. Everything else is the global listing and settings chrome. */
+.ar-count {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 var(--space-xs);
+  margin-left: var(--space-xs);
+  border-radius: 12px;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  vertical-align: var(--space-2xs);
+}
+.ar-who {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+}
+.ar-reason {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}

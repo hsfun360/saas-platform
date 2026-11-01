@@ -31,10 +31,12 @@ const User = require('../identity/user.model');
 const Role = require('./role.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
 const workstations = require('../identity/registeredWorkstation.service');
+const remoteAccess = require('../identity/remoteAccessGrant.service');
 const mfa = require('../identity/mfa.service');
 
 const MFA_POLICIES = ['optional', 'required'];
 const TRUSTED_DEVICE_DAYS = { min: 1, max: 90, default: 30 };
+const REMOTE_ACCESS_DAYS = remoteAccess.GRANT_DAYS;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Today's date as YYYY-MM-DD in the server's clock. The policy date is a
@@ -85,6 +87,22 @@ async function accountRequiresMfa(accountId, today = todayIso()) {
 // account (the System Administration workspace) = no.
 function workstationTrustEnabled(account) {
     return !!account && account.workstationTrustEnabled === true;
+}
+
+// The account's remote-access ceiling, normalised: { maxDays }. A stored
+// value outside the range falls back to the default.
+function remoteAccessPolicy(account) {
+    const n = account ? Number(account.remoteAccessGrantMaxDays) : NaN;
+    const maxDays = Number.isInteger(n) && n >= REMOTE_ACCESS_DAYS.min && n <= REMOTE_ACCESS_DAYS.max
+        ? n
+        : REMOTE_ACCESS_DAYS.default;
+    return { maxDays };
+}
+
+async function remoteAccessPolicyForAccount(accountId) {
+    if (!accountId) return remoteAccessPolicy(null);
+    const account = await Account.findByPk(accountId, { attributes: ['id', 'remoteAccessGrantMaxDays'] });
+    return remoteAccessPolicy(account);
 }
 
 async function workstationTrustEnabledForAccount(accountId) {
@@ -144,7 +162,7 @@ async function honouredTrustedDevices(userIds, trust, now = new Date()) {
 // the show-expected-results principle.
 async function getSecurityPolicyState(accountId, today = todayIso()) {
     const account = await Account.findByPk(accountId, {
-        attributes: ['id', 'ownerUserId', 'mfaPolicy', 'mfaRequiredFrom', 'mfaTrustedDevicesAllowed', 'mfaTrustedDeviceDays', 'workstationTrustEnabled'],
+        attributes: ['id', 'ownerUserId', 'mfaPolicy', 'mfaRequiredFrom', 'mfaTrustedDevicesAllowed', 'mfaTrustedDeviceDays', 'workstationTrustEnabled', 'remoteAccessGrantMaxDays'],
     });
     if (!account) return null;
     const userIds = await policyUserIds(account);
@@ -155,6 +173,8 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
     const trustedDevices = await honouredTrustedDevices(userIds, trust);
     const liveWorkstations = await workstations.countLiveWorkstations(account.id);
     const lockedRoles = await Role.count({ where: { accountId: account.id, signInLockedToWorkstations: true } });
+    const activeGrants = await remoteAccess.countActiveGrants(account.id);
+    const pendingRequests = await remoteAccess.countPendingRequests(account.id);
     return {
         // Without MFA_ENCRYPTION_KEY the platform cannot enrol anyone, so the
         // login gate is dormant and a 'required' policy has no effect yet -
@@ -174,6 +194,11 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
         workstations: liveWorkstations,
         // Roles whose holders may sign in only from a registered workstation.
         lockedRoles,
+        // Remote-access grants: the ceiling an approver may give, how many
+        // grants are in force and how many requests wait for a decision.
+        remoteAccessGrantMaxDays: remoteAccessPolicy(account).maxDays,
+        activeGrants,
+        pendingRequests,
     };
 }
 
@@ -221,11 +246,21 @@ async function applySecurityPolicy(accountId, body) {
         stationsEnabled = body.workstationTrustEnabled;
     }
 
+    let grantMaxDays = remoteAccessPolicy(account).maxDays;
+    if (body.remoteAccessGrantMaxDays !== undefined && body.remoteAccessGrantMaxDays !== null) {
+        const n = Number(body.remoteAccessGrantMaxDays);
+        if (!Number.isInteger(n) || n < REMOTE_ACCESS_DAYS.min || n > REMOTE_ACCESS_DAYS.max) {
+            return { error: 400, message: `remoteAccessGrantMaxDays must be a whole number from ${REMOTE_ACCESS_DAYS.min} to ${REMOTE_ACCESS_DAYS.max}.` };
+        }
+        grantMaxDays = n;
+    }
+
     account.mfaPolicy = policy;
     account.mfaRequiredFrom = from;
     account.mfaTrustedDevicesAllowed = trustedAllowed;
     account.mfaTrustedDeviceDays = trustedDays;
     account.workstationTrustEnabled = stationsEnabled;
+    account.remoteAccessGrantMaxDays = grantMaxDays;
     await account.save();
     return { ok: true };
 }
@@ -238,9 +273,11 @@ module.exports = {
     enrolmentRequiredFor,
     trustedDevicePolicy,
     workstationTrustEnabled,
+    remoteAccessPolicy,
     accountRequiresMfa,
     trustedDevicePolicyForAccount,
     workstationTrustEnabledForAccount,
+    remoteAccessPolicyForAccount,
     accountIdForCompany,
     getSecurityPolicyState,
     applySecurityPolicy,

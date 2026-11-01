@@ -22,6 +22,9 @@ module.exports = {
             // Registered workstations (2026-11-01): whether a registered
             // station lets staff roles skip the code. Omitted = keep stored.
             workstationTrustEnabled: z.boolean().optional(),
+            // Remote-access grants (2026-11-01): the ceiling in days an
+            // approver may give. Omitted = keep stored.
+            remoteAccessGrantMaxDays: z.number().int().nullable().optional(),
         }),
     },
     // POST /account/workstations - register THIS browser under a name.

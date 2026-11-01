@@ -20,6 +20,9 @@ const STATE: SecurityPolicyState = {
   workstationTrustEnabled: false,
   workstations: 0,
   lockedRoles: 0,
+  remoteAccessGrantMaxDays: 30,
+  activeGrants: 0,
+  pendingRequests: 0,
 };
 
 const STATION = { id: 'ws-1', name: 'Front Desk 1', device: 'Chrome on Windows', registeredBy: 'Yap Soon Kum', createdAt: '2026-11-01T01:00:00.000Z', expiresAt: '2027-11-01T01:00:00.000Z', lastUsedAt: null, ip: '203.0.113.9', current: true };
@@ -46,17 +49,17 @@ describe('SecurityPolicyService', () => {
   });
 
   it('writes the policy with PUT carrying the MFA rule, the trusted-device rule and the workstation switch', () => {
-    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true }).subscribe();
+    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 14 }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true });
+    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 14 });
     req.flush({ message: 'Security policy updated.', ...STATE });
   });
 
   it('sends null for the date when the policy is optional', () => {
-    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false }).subscribe();
+    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...STATE, mfaPolicy: 'optional', mfaRequiredFrom: null });
   });
 

@@ -29,6 +29,71 @@ const button = (url, label) =>
 
 module.exports = [
     {
+        // Remote-access request (2026-11-01): a staff member whose role is
+        // locked to registered workstations asked, from the sign-in screen,
+        // to sign in from elsewhere. Sent to every approver.
+        key: 'access.remote-request',
+        name: 'Remote access requested',
+        description: 'Sent to the approvers when a staff member locked to registered workstations asks to sign in from outside the premises.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The approver's name." },
+            { name: 'requesterName', description: 'Who is asking.' },
+            { name: 'requesterEmail', description: "The requester's email address." },
+            { name: 'device', description: 'The device they asked from, e.g. "Chrome on Windows".' },
+            { name: 'ip', description: 'The IP address they asked from.' },
+            { name: 'reason', description: 'The reason they typed (may be empty).' },
+            { name: 'requestedAt', description: 'When they asked (ISO timestamp).' },
+            { name: 'reviewLink', description: 'Link to the Access Requests screen.' },
+        ],
+        sample: { userName: 'Yap Soon Kum', requesterName: 'Alice Tan', requesterEmail: 'alice@example.com', device: 'Chrome on Windows', ip: '203.0.113.9', reason: 'Working from home while the clubhouse is closed.', requestedAt: '2026-11-01T09:30:00.000Z', reviewLink: 'https://app.example.com/admin/access-requests' },
+        fromName: null,
+        subject: '{{requesterName}} asks to sign in from outside the premises',
+        bodyHtml: card(`
+            <p>Hi {{userName}},</p>
+            <p><strong>{{requesterName}}</strong> ({{requesterEmail}}) holds a role that signs in only from your registered workstations, and has asked to sign in from somewhere else.</p>
+            <table style="border-collapse: collapse; margin: 12px 0;">
+                <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Device</td><td style="padding: 4px 0;">{{device}}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Address</td><td style="padding: 4px 0;">{{ip}}</td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Asked</td><td style="padding: 4px 0;">{{requestedAt}}</td></tr>
+                {{#if reason}}<tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Reason</td><td style="padding: 4px 0;">{{reason}}</td></tr>{{/if}}
+            </table>
+            <p>If anything looks unfamiliar, phone them before you decide. Approving lifts only the workstation rule for a number of days you choose; their password and two-factor code still apply.</p>
+            ${button('{{reviewLink}}', 'Review the request')}
+        `),
+    },
+    {
+        // The decision, to the requester (2026-11-01). Also sent when an
+        // administrator grants access without a request.
+        key: 'access.remote-decision',
+        name: 'Remote access decided',
+        description: 'Sent to a staff member when their request to sign in from outside the premises is approved, declined, or granted in advance.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The requester's name." },
+            { name: 'approved', description: 'true when access was granted.' },
+            { name: 'validUntil', description: 'When the grant ends (ISO timestamp; empty when declined).' },
+            { name: 'note', description: 'The note the approver left (may be empty).' },
+            { name: 'decidedBy', description: 'Who decided.' },
+            { name: 'loginLink', description: 'Link to the login page.' },
+        ],
+        sample: { userName: 'Alice Tan', approved: true, validUntil: '2026-11-08T09:30:00.000Z', note: 'Until the clubhouse reopens.', decidedBy: 'Yap Soon Kum', loginLink: 'https://app.example.com/login' },
+        fromName: null,
+        subject: '{{#if approved}}Remote access approved{{else}}Remote access request declined{{/if}}',
+        bodyHtml: card(`
+            <p>Hi {{userName}},</p>
+            {{#if approved}}
+            <p>{{decidedBy}} has approved your request. You may sign in from outside the premises until <strong>{{validUntil}}</strong>. Your password and two-factor code are still required.</p>
+            {{#if note}}<p>Note: {{note}}</p>{{/if}}
+            ${button('{{loginLink}}', 'Sign in')}
+            {{else}}
+            <p>{{decidedBy}} has declined your request to sign in from outside the premises.</p>
+            {{#if note}}<p>Note: {{note}}</p>{{/if}}
+            <p>You can still sign in from a registered workstation. Speak to your administrator if you need access from elsewhere.</p>
+            {{/if}}
+        `),
+    },
+    {
         key: 'user.activation',
         name: 'User account activation',
         description: 'Sent to a new local (email/password) user to verify their address.',

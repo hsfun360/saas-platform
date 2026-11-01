@@ -86,6 +86,18 @@ export class LoginComponent implements OnInit {
     rememberDevice: [true],
   });
 
+  // Registered-workstation lock refused this browser (2026-11-01): the
+  // outcome card offers to ask the administrator for remote access, with the
+  // purpose-scoped token the refusal handed out. Nothing is stored.
+  readonly isRemoteAccessStep = signal(false);
+  readonly remoteAccessMessage = signal('');
+  readonly remoteAccessPending = signal(false);
+  readonly remoteAccessSent = signal('');
+  private remoteAccessToken: string | null = null;
+  readonly remoteAccessForm = this.fb.nonNullable.group({
+    reason: ['', [Validators.maxLength(500)]],
+  });
+
   // Switch the login UI language. Persists via I18nService (localStorage), so the
   // choice carries into the app after sign-in.
   switchLoginLanguage(code: string): void {
@@ -271,11 +283,17 @@ export class LoginComponent implements OnInit {
     }
     if (res.workstationRequired) {
       // A role locked to registered workstations, and this browser is not
-      // one: refused before any code step (2026-11-01). The message says to
-      // ask the administrator; nothing is stored.
+      // one: refused before any code step (2026-11-01). The outcome card
+      // explains and, with a token, offers to ask for remote access.
       this.signingIn.set(false);
       this.isMfaStep.set(false);
-      this.errorMessage.set(res.message || 'Your role signs in only from a registered workstation.');
+      this.errorMessage.set('');
+      this.remoteAccessMessage.set(res.message || 'Your role signs in only from a registered workstation.');
+      this.remoteAccessPending.set(res.remoteAccessPending === true);
+      this.remoteAccessSent.set('');
+      this.remoteAccessToken = res.remoteAccessToken || null;
+      this.remoteAccessForm.reset({ reason: '' });
+      this.isRemoteAccessStep.set(true);
       return;
     }
     if (res.mfaRequired && res.mfaToken) {
@@ -368,6 +386,34 @@ export class LoginComponent implements OnInit {
     this.isMfaStep.set(false);
     this.pendingMfaToken = null;
     this.mfaForm.reset({ code: '', rememberDevice: true });
+    this.errorMessage.set('');
+  }
+
+  // Ask the administrator for a time-boxed remote-access grant. Asynchronous:
+  // the person does not wait here; they are emailed the decision.
+  submitRemoteAccessRequest(): void {
+    if (!this.remoteAccessToken) return;
+    const reason = this.remoteAccessForm.getRawValue().reason.trim() || null;
+    this.loading.set(true);
+    this.errorMessage.set('');
+    this.authService.requestRemoteAccess(this.remoteAccessToken, reason)
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: (res) => {
+          this.remoteAccessSent.set(res.message || 'Your request has been sent to your administrator.');
+          this.remoteAccessPending.set(true);
+        },
+        error: (err) => {
+          this.errorMessage.set(err?.error?.message || 'The request could not be sent. Please try again.');
+        },
+      });
+  }
+
+  cancelRemoteAccess(): void {
+    this.isRemoteAccessStep.set(false);
+    this.remoteAccessToken = null;
+    this.remoteAccessSent.set('');
+    this.remoteAccessForm.reset({ reason: '' });
     this.errorMessage.set('');
   }
 

@@ -4,6 +4,8 @@ const router = require('express').Router();
 const authController = require('./auth.controller'); // We will create this next
 const trustedDeviceController = require('./trustedDevice.controller');
 const registeredWorkstationController = require('./registeredWorkstation.controller');
+const remoteAccessController = require('./remoteAccessGrant.controller');
+const remoteAccessSchemas = require('./remoteAccess.schemas');
 const User = require('./user.model'); // Use your existing Sequelize model
 const jwt = require('jsonwebtoken');
 const OutboxMessage = require('../../platform/outboxMessage.model');
@@ -182,6 +184,9 @@ router.post('/microsoft-login', loginLimiter(), validate(schemas.microsoftLogin)
 // --- MFA (TOTP) + SESSIONS ---
 // Step-up: exchange the 'mfa' token + a code for the full login payload.
 router.post('/mfa/verify', loginLimiter(), validate(schemas.mfaVerify), authController.mfaVerify);
+// Remote-access request from the sign-in screen (2026-11-01): the
+// purpose-scoped token the lock refusal handed out stands in for a session.
+router.post('/remote-access/request', loginLimiter(), validate(remoteAccessSchemas.request), remoteAccessController.request);
 // Enrollment (full session OR the forced 'mfa-enroll' token).
 router.post('/mfa/setup', authenticateMfaEnrollment, authController.mfaSetup);
 router.post('/mfa/enable', authenticateMfaEnrollment, validate(schemas.mfaCode), authController.mfaEnable);
@@ -361,6 +366,13 @@ router.put('/account/security-policy', authenticateToken, requireTenant, require
 router.get('/account/workstations', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), registeredWorkstationController.list);
 router.post('/account/workstations', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.registerWorkstation), registeredWorkstationController.register);
 router.delete('/account/workstations/:id', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.workstationId), registeredWorkstationController.revoke);
+// Remote-access grants (2026-11-01): System Setup -> Access Requests. Whoever
+// holds that menu's action decides; a Tenant Admin always does.
+router.get('/account/remote-access', authenticateToken, requireTenant, requireMenuAction('/admin/access-requests'), remoteAccessController.list);
+router.post('/account/remote-access/grants', authenticateToken, requireTenant, requireMenuAction('/admin/access-requests'), validate(remoteAccessSchemas.grant), remoteAccessController.grant);
+router.post('/account/remote-access/:id/approve', authenticateToken, requireTenant, requireMenuAction('/admin/access-requests'), validate(remoteAccessSchemas.approve), remoteAccessController.approve);
+router.post('/account/remote-access/:id/reject', authenticateToken, requireTenant, requireMenuAction('/admin/access-requests'), validate(remoteAccessSchemas.reject), remoteAccessController.reject);
+router.delete('/account/remote-access/:id', authenticateToken, requireTenant, requireMenuAction('/admin/access-requests'), validate(remoteAccessSchemas.grantId), remoteAccessController.revoke);
 
 // --- PER-USER PREFERRED LANGUAGE (any authenticated user) ---
 // The languages the user may pick from (their active account's set) + their pick.

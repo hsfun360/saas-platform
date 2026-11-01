@@ -23,11 +23,12 @@ function state(over: Partial<SecurityPolicyState> = {}): SecurityPolicyState {
     mfaAvailable: true, mfaPolicy: 'optional', mfaRequiredFrom: null, effective: false, users: 12, enrolled: 4, notEnrolled: 8,
     trustedDevicesAllowed: true, trustedDeviceDays: 30, trustedDevices: 3,
     workstationTrustEnabled: false, workstations: 0, lockedRoles: 0,
+    remoteAccessGrantMaxDays: 30, activeGrants: 0, pendingRequests: 0,
     ...over,
   };
 }
 
-const pristineForm = { mfaRequired: false, mfaRequiredFrom: '', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false };
+const pristineForm = { mfaRequired: false, mfaRequiredFrom: '', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 };
 
 describe('SecurityPolicyComponent', () => {
   let http: HttpTestingController;
@@ -86,7 +87,7 @@ describe('SecurityPolicyComponent', () => {
     c.save();
     const req = http.expectOne(URL);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...state() });
     expect(c.form.dirty).toBe(false);
     expect(c.successMessage()).toBe('Security policy updated.');
@@ -108,7 +109,7 @@ describe('SecurityPolicyComponent', () => {
     c.form.controls.mfaRequiredFrom.setValue('2026-11-01');
     c.save();
     const req = http.expectOne(URL);
-    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false });
+    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...state({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', notEnrolled: 8 }) });
     expect(c.form.getRawValue()).toEqual({ ...pristineForm, mfaRequired: true, mfaRequiredFrom: '2026-11-01' });
     expect(c.hasUnsavedChanges()).toBe(false);
@@ -128,7 +129,7 @@ describe('SecurityPolicyComponent', () => {
     c.save();
     const req = http.expectOne(URL);
     // The stored window travels with the switch so turning it back on later restores it.
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: false, trustedDeviceDays: 30, workstationTrustEnabled: false });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: false, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...state({ trustedDevicesAllowed: false, trustedDevices: 0 }) });
     expect(c.expectedTrust()).toBe('Trusted devices are off: every sign-in asks for a code.');
   });
@@ -143,7 +144,7 @@ describe('SecurityPolicyComponent', () => {
     c.form.controls.trustedDeviceDays.setValue(1);
     expect(c.expectedTrust()).toContain('more than 1 day ago');
     c.save();
-    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 1, workstationTrustEnabled: false });
+    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 1, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
   });
 
   it('refuses to save a window outside 1 to 90 days and says so on the field', () => {
@@ -187,7 +188,7 @@ describe('SecurityPolicyComponent', () => {
     expect(c.expectedWorkstations()).toContain('administrators confirm one everywhere');
     c.save();
     const req = http.expectOne(URL);
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: true });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...state({ workstationTrustEnabled: true, workstations: 1 }) });
     expect(c.form.getRawValue().workstationTrustEnabled).toBe(true);
     // Switching it off again says the registrations are kept.
@@ -202,6 +203,24 @@ describe('SecurityPolicyComponent', () => {
     const two = mount(state({ lockedRoles: 2 }), [station()]);
     expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('2 roles sign in only from a registered workstation');
     expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('shut those roles out');
+  });
+
+  it('the remote-access ceiling states what is in force and refuses a window outside 1 to 90', () => {
+    const fixture = mount(state({ activeGrants: 2, pendingRequests: 1, remoteAccessGrantMaxDays: 30 }));
+    const c = fixture.componentInstance;
+    expect(c.expectedGrants()).toContain('2 grants are in force, 1 request waits for a decision; an approver may give at most 30 days');
+    c.form.controls.remoteAccessGrantMaxDays.setValue(7);
+    expect(c.expectedGrants()).toContain('they keep their windows. From now on an approver may give at most 7 days');
+    c.form.controls.remoteAccessGrantMaxDays.setValue(91);
+    fixture.detectChanges();
+    expect(c.grantDaysInvalid()).toBe(true);
+    expect(host(fixture).querySelector('#spGrantDaysErr')).not.toBeNull();
+    c.save();
+    http.expectNone(URL);
+    expect(c.errorMessage()).toContain('from 1 to 90');
+    c.form.controls.remoteAccessGrantMaxDays.setValue(14);
+    c.save();
+    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 14 });
   });
 
   it('with no station the note points at "Register this workstation"', () => {

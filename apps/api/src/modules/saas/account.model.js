@@ -84,6 +84,15 @@ const Account = sequelize.define('Account', {
         allowNull: false,
         defaultValue: false,
     },
+    // Remote-access grants (approved 2026-11-01): the ceiling, in days, an
+    // approver may give a staff member locked to registered workstations for
+    // signing in from elsewhere (1-90, platform default 30). Read when a
+    // request is approved or a grant is made.
+    remoteAccessGrantMaxDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30,
+    },
 }, {
     tableName: 'Account',
     timestamps: true,

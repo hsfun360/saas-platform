@@ -295,5 +295,8 @@
   },
   "admin-security-policy": {
     "title": "Security Policy"
+  },
+  "admin-access-requests": {
+    "title": "Access Requests"
   }
 }

@@ -173,6 +173,26 @@
                 Register this workstation
               </button>
             </div>
+
+            <!-- Remote-access grants (2026-11-01): the ceiling an approver may give. -->
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Remote access<app-field-info label="Remote access" [text]="hint.grants" /></h3>
+              <p class="settings-sub__hint">For roles locked to registered workstations: the longest a grant to sign in from elsewhere may last. Requests are decided under Access Requests.</p>
+              <div class="form-group form-group--narrow">
+                <label for="spGrantDays">Longest grant, in days</label>
+                <input id="spGrantDays" type="number" inputmode="numeric" min="1" max="90" step="1" formControlName="remoteAccessGrantMaxDays"
+                       [attr.aria-invalid]="grantDaysInvalid() ? 'true' : null" [attr.aria-describedby]="grantDaysInvalid() ? 'spGrantDaysErr' : null" />
+                @if (grantDaysInvalid()) {
+                  <div id="spGrantDaysErr" class="field-error" role="alert">Enter a whole number from 1 to 90.</div>
+                } @else {
+                  <p class="cell-subtle field-hint">1 to 90; the platform default is 30.</p>
+                }
+              </div>
+              <div class="flash flash-info flash--static" role="status" aria-live="polite">
+                <span class="flash-icon material-icons" aria-hidden="true">info</span>
+                <span>{{ expectedGrants() }}</span>
+              </div>
+            </div>
           </div>
         }
       </section>

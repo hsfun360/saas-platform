@@ -26,6 +26,7 @@ Staff come here when management decides that a password alone is no longer enoug
 - A second blue note states how many devices currently skip the code and what your change will do to them.
 - In the **Registered workstations** card, a switch, **Registered workstations skip the two-factor code for staff**, with its (i), a blue note stating what Save will do, then the list of registered workstations (name, device, who registered it, dates, a **This workstation** tag on the computer you are sitting at) each with a **Revoke** button, and a **Register this workstation** button.
   When a role is locked to registered workstations under Role Management, a line above the list says how many roles depend on the stations.
+- Below the stations, a **Remote access** block with **Longest grant, in days** and a blue note stating how many grants are in force and how many requests wait.
 - A **Save** bar docks at the bottom of the screen as soon as you change something, with **Discard changes** beside it; it disappears again once you save.
 - The Book icon at the top right opens this guide.
 
@@ -107,6 +108,14 @@ Revoking takes effect at the next sign-in from that computer.
 Turning the switch off instead keeps every registration and stops all of them skipping the code at once; turning it back on later restores them.
 If any role is locked to registered workstations (see **Role Management**), revoking the last station shuts those people out until a station is registered again; the line above the list warns you.
 
+### Set the longest remote-access grant
+
+1. Under **Remote access**, change **Longest grant, in days**, for example from 30 to 7.
+   The note states how many grants are in force; they keep their windows.
+2. Click **Save**.
+
+From then on an approver under **Access Requests** can give at most that many days to a person locked to registered workstations who asks to sign in from elsewhere.
+
 ### Discard unsaved changes
 
 - Click **Discard changes** in the save bar to put the screen back to what is saved.
@@ -129,6 +138,7 @@ If any role is locked to registered workstations (see **Role Management**), revo
 | --- | --- | --- | --- |
 | **Registered workstations skip the two-factor code for staff** | No | On = staff who sign in from a registered workstation give their password only; off = every sign-in asks for the code and the registrations below are kept. | Administrators are asked for a code everywhere whatever this switch says; nobody is excused from setting up an authenticator. Off by default. |
 | **Workstation name** (in the register drawer) | Yes | A name staff recognise, for example `Front Desk 1`, up to 100 characters. | Must be unique among your registered workstations; the registration is tied to the browser you register from and lasts one year. |
+| **Longest grant, in days** | Yes | The most days an approver may give someone locked to registered workstations to sign in from elsewhere, for example `7`. The platform default is 30. | A whole number from 1 to 90; shortening it does not cut grants already in force. |
 
 ## Tips & troubleshooting
 
@@ -156,3 +166,4 @@ If any role is locked to registered workstations (see **Role Management**), revo
 - **Profile → Security** - where each user sets up, and if the policy allows, turns off two-factor authentication, sees whether it is required for them, and reviews and removes their own trusted devices.
 - **System Setup → User Management** - reset a user's two-factor authentication when they lose their authenticator.
 - **System Setup → Role Management** - which roles may open this screen, and which roles are locked to registered workstations.
+- **System Setup → Access Requests** - approve, decline, grant and revoke remote access for people in locked roles.

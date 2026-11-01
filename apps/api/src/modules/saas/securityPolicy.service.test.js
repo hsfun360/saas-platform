@@ -18,6 +18,7 @@ const User = require('../identity/user.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
 const RegisteredWorkstation = require('../identity/registeredWorkstation.model');
 const Role = require('./role.model');
+const RemoteAccessGrant = require('../identity/remoteAccessGrant.model');
 const policy = require('./securityPolicy.service');
 const mfa = require('../identity/mfa.service');
 
@@ -102,7 +103,7 @@ test('trustedDevicePolicyForAccount reads only the two columns and defaults with
 // ---- getSecurityPolicyState: the expected result the screen shows ----
 
 beforeEach(() => {
-    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14, workstationTrustEnabled: true }));
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 7 }));
     Company.findAll = fn(async () => [{ id: 'c-1' }, { id: 'c-2' }]);
     // The owner also holds a membership row - counted once.
     CompanyUser.findAll = fn(async () => [{ userId: 'owner-1' }, { userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-2' }]);
@@ -110,6 +111,8 @@ beforeEach(() => {
     TrustedDevice.count = fn(async () => 2);
     RegisteredWorkstation.count = fn(async () => 1);
     Role.count = fn(async () => 2);
+    // First call = grants in force, second = requests waiting.
+    RemoteAccessGrant.count = fn(async ({ where }) => (where.status === 'approved' ? 1 : 3));
 });
 
 test('state counts each user once and reports how many have not enrolled and how many devices skip the code', async () => {
@@ -128,6 +131,9 @@ test('state counts each user once and reports how many have not enrolled and how
         workstationTrustEnabled: true,
         workstations: 1,
         lockedRoles: 2,
+        remoteAccessGrantMaxDays: 7,
+        activeGrants: 1,
+        pendingRequests: 3,
     });
     // Locked roles are counted for the account only.
     assert.deepStrictEqual(Role.count.calls[0][0].where, { accountId: 'acct-X', signInLockedToWorkstations: true });
@@ -210,6 +216,22 @@ test('workstationTrustEnabled is off unless the account stored true, and the Sys
     assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X' }), false);
     assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X', workstationTrustEnabled: false }), false);
     assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X', workstationTrustEnabled: true }), true);
+});
+
+test('the remote-access ceiling defaults to 30 and refuses anything outside 1-90, keeping the stored value when omitted', async () => {
+    assert.deepStrictEqual(policy.remoteAccessPolicy(null), { maxDays: 30 });
+    assert.deepStrictEqual(policy.remoteAccessPolicy({ remoteAccessGrantMaxDays: 500 }), { maxDays: 30 });
+    assert.deepStrictEqual(policy.remoteAccessPolicy({ remoteAccessGrantMaxDays: 14 }), { maxDays: 14 });
+    const saves = [];
+    const row = { id: 'acct-X', mfaPolicy: 'optional', mfaRequiredFrom: null, mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 30, remoteAccessGrantMaxDays: 14, save: async () => saves.push(1) };
+    Account.findByPk = fn(async () => row);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional' }), { ok: true });
+    assert.strictEqual(row.remoteAccessGrantMaxDays, 14);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', remoteAccessGrantMaxDays: 90 }), { ok: true });
+    assert.strictEqual(row.remoteAccessGrantMaxDays, 90);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', remoteAccessGrantMaxDays: 91 }), { error: 400, message: 'remoteAccessGrantMaxDays must be a whole number from 1 to 90.' });
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', remoteAccessGrantMaxDays: 0 }), { error: 400, message: 'remoteAccessGrantMaxDays must be a whole number from 1 to 90.' });
+    assert.strictEqual(saves.length, 2);
 });
 
 test('apply keeps the stored workstation switch when omitted, stores a boolean, and refuses anything else', async () => {

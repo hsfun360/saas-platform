@@ -1,0 +1,262 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">how_to_reg</span>
+      <div>
+        <h1>{{ 'Access Requests' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Staff locked to registered workstations who ask to sign in from elsewhere; approve for a number of days, decline, or grant access in advance.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading access requests…</p></div>
+  } @else {
+
+    <!-- Requests waiting -->
+    <section class="settings-card">
+      <button type="button" class="settings-header settings-header--button"
+              (click)="toggleSection('pending')" [attr.aria-expanded]="isExpanded('pending')">
+        <span class="settings-header__text">
+          <span class="settings-header__title">Requests waiting <span class="ar-count">{{ pending().length }}</span></span>
+          <span class="settings-header__sub">Phone the person if the device or address looks unfamiliar; approving lifts only the workstation rule.</span>
+        </span>
+        <span class="material-icons settings-header__chevron"
+              [class.settings-header__chevron--open]="isExpanded('pending')" aria-hidden="true">chevron_right</span>
+      </button>
+      @if (isExpanded('pending')) {
+        <div class="settings-body">
+          @if (pending().length === 0) {
+            <div class="empty-state">
+              <span class="material-icons empty-icon" aria-hidden="true">celebration</span>
+              <p>Nothing is waiting for a decision.</p>
+            </div>
+          } @else {
+            <div class="data-list">
+              @for (g of pending(); track g.id) {
+                <div class="data-card ar-request">
+                  <div class="data-row data-row--with-badge">
+                    <div class="data-row__main">
+                      <div class="data-card__title">{{ g.userName || g.userEmail }}</div>
+                      <div class="data-card__subline">
+                        <span class="data-card__reg">{{ g.userEmail }}</span>
+                        @if (g.device) { <span class="data-card__reg">{{ g.device }}</span> }
+                        @if (g.ip) { <span class="data-card__reg">{{ g.ip }}</span> }
+                      </div>
+                      @if (g.reason) { <div class="data-card__desc">{{ g.reason }}</div> }
+                      <dl class="data-card__meta">
+                        <div class="meta"><dt>Asked</dt><dd>{{ g.requestedAt | localDate:'datetime' }}</dd></div>
+                      </dl>
+                    </div>
+                    <div class="data-row__badge">
+                      <span class="status-chip" [class]="'status-chip ' + statusChip(g).cls">{{ statusChip(g).label }}</span>
+                    </div>
+                    <div class="data-row__actions" *appCan="'edit'">
+                      <button type="button" class="btn btn--success btn--sm" (click)="openDecision(g, 'approve')" [disabled]="busyId() === g.id">
+                        <span class="material-icons" aria-hidden="true">check</span> Approve
+                      </button>
+                      <button type="button" class="btn btn--danger btn--sm" (click)="openDecision(g, 'reject')" [disabled]="busyId() === g.id">
+                        <span class="material-icons" aria-hidden="true">close</span> Decline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Grants in force -->
+    <section class="settings-card">
+      <button type="button" class="settings-header settings-header--button"
+              (click)="toggleSection('active')" [attr.aria-expanded]="isExpanded('active')">
+        <span class="settings-header__text">
+          <span class="settings-header__title">Grants in force <span class="ar-count">{{ active().length }}</span></span>
+          <span class="settings-header__sub">People who may sign in from anywhere until the date shown; revoke to end a grant early.</span>
+        </span>
+        <span class="material-icons settings-header__chevron"
+              [class.settings-header__chevron--open]="isExpanded('active')" aria-hidden="true">chevron_right</span>
+      </button>
+      @if (isExpanded('active')) {
+        <div class="settings-body">
+          @if (active().length === 0) {
+            <p class="cell-subtle">No grant is in force. Everyone in a locked role signs in from registered workstations only.</p>
+          } @else {
+            <div class="data-list">
+              @for (g of active(); track g.id) {
+                <div class="data-card ar-grant">
+                  <div class="data-row data-row--with-badge">
+                    <div class="data-row__main">
+                      <div class="data-card__title">{{ g.userName || g.userEmail }}</div>
+                      <div class="data-card__subline">
+                        <span class="data-card__reg">{{ g.userEmail }}</span>
+                        @if (g.decidedBy) { <span class="data-card__reg">by {{ g.decidedBy }}</span> }
+                      </div>
+                      @if (g.decisionNote) { <div class="data-card__desc">{{ g.decisionNote }}</div> }
+                      <dl class="data-card__meta">
+                        <div class="meta"><dt>From</dt><dd>{{ g.validFrom | localDate:'datetime' }}</dd></div>
+                        <div class="meta"><dt>Until</dt><dd>{{ g.validUntil | localDate:'datetime' }}</dd></div>
+                      </dl>
+                    </div>
+                    <div class="data-row__badge">
+                      <span class="status-chip" [class]="'status-chip ' + statusChip(g).cls">{{ statusChip(g).label }}</span>
+                    </div>
+                    <div class="data-row__actions" *appCan="'edit'">
+                      <button type="button" class="btn btn--danger btn--sm" (click)="askRevoke(g)" [disabled]="busyId() === g.id" [attr.aria-label]="'Revoke remote access for ' + (g.userName || g.userEmail)">Revoke</button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- History -->
+    <section class="settings-card">
+      <button type="button" class="settings-header settings-header--button"
+              (click)="toggleSection('history')" [attr.aria-expanded]="isExpanded('history')">
+        <span class="settings-header__text">
+          <span class="settings-header__title">History</span>
+          <span class="settings-header__sub">Declined, revoked and expired - the most recent fifty.</span>
+        </span>
+        <span class="material-icons settings-header__chevron"
+              [class.settings-header__chevron--open]="isExpanded('history')" aria-hidden="true">chevron_right</span>
+      </button>
+      @if (isExpanded('history')) {
+        <div class="settings-body">
+          @if (history().length === 0) {
+            <p class="cell-subtle">Nothing yet.</p>
+          } @else {
+            <div class="data-list">
+              @for (g of history(); track g.id) {
+                <div class="data-card ar-history">
+                  <div class="data-row data-row--with-badge">
+                    <div class="data-row__main">
+                      <div class="data-card__title">{{ g.userName || g.userEmail }}</div>
+                      <div class="data-card__subline">
+                        @if (g.decidedBy) { <span class="data-card__reg">by {{ g.decidedBy }}</span> }
+                        @if (g.decisionNote) { <span class="data-card__reg">{{ g.decisionNote }}</span> }
+                      </div>
+                      <dl class="data-card__meta">
+                        <div class="meta"><dt>Asked</dt><dd>{{ g.requestedAt | localDate:'datetime' }}</dd></div>
+                        @if (g.validUntil) { <div class="meta"><dt>Until</dt><dd>{{ g.validUntil | localDate:'datetime' }}</dd></div> }
+                      </dl>
+                    </div>
+                    <div class="data-row__badge">
+                      <span class="status-chip" [class]="'status-chip ' + statusChip(g).cls">{{ statusChip(g).label }}</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <button type="button" class="btn btn--primary saas-fab" (click)="openGrant()" aria-label="Grant remote access" *appCan="'create'">
+      <span class="material-icons" aria-hidden="true">add</span>
+      Grant remote access
+    </button>
+  }
+
+  <!-- Decision: a short interrupting decision stays centred. -->
+  @if (decisionTarget(); as t) {
+    <app-dialog #decDlg [title]="decisionMode() === 'approve' ? 'Approve remote access' : 'Decline the request'" [busy]="deciding()" (close)="closeDecision()">
+      <form id="decisionForm" [formGroup]="decisionForm" (ngSubmit)="submitDecision()" class="saas-form saas-form--dialog">
+        <p class="ar-who"><strong>{{ t.userName || t.userEmail }}</strong>@if (t.device) { from {{ t.device }}}@if (t.ip) { ({{ t.ip }})}, asked {{ t.requestedAt | localDate:'datetime' }}.</p>
+        @if (t.reason) { <p class="ar-reason">"{{ t.reason }}"</p> }
+        @if (decisionMode() === 'approve') {
+          <div class="form-group form-group--narrow">
+            <label for="arDays">Days</label>
+            <input id="arDays" type="number" inputmode="numeric" min="1" [max]="maxDays()" step="1" formControlName="days"
+                   [attr.aria-invalid]="daysInvalid(decisionValue().days) ? 'true' : null" aria-describedby="arDaysHint" />
+            <p id="arDaysHint" class="cell-subtle field-hint">1 to {{ maxDays() }}, the ceiling set under Security Policy.</p>
+          </div>
+        }
+        <div class="form-group">
+          <label for="arNote">Note to the person</label>
+          <textarea id="arNote" rows="2" wrap="off" formControlName="note" maxlength="500" placeholder="Optional"></textarea>
+        </div>
+        <div class="flash flash-info flash--static" role="status" aria-live="polite">
+          <span class="flash-icon material-icons" aria-hidden="true">info</span>
+          <span>{{ decisionExpected() }}</span>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="decDlg.requestClose()" [disabled]="deciding()">Cancel</button>
+        @if (decisionMode() === 'approve') {
+          <button type="submit" form="decisionForm" class="btn btn--success" [disabled]="deciding() || daysInvalid(decisionValue().days)">{{ deciding() ? 'Saving…' : approveLabel() }}</button>
+        } @else {
+          <button type="submit" form="decisionForm" class="btn btn--danger" [disabled]="deciding()">{{ deciding() ? 'Saving…' : 'Decline' }}</button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- Grant in advance: a form, so a drawer. -->
+  @if (grantOpen()) {
+    <app-dialog #grantDlg variant="drawer" title="Grant remote access" [busy]="granting()" [dirty]="grantForm.dirty"
+                discardTitle="Discard this grant?"
+                discardMessage="Nothing has been granted yet. Leaving now discards what you typed."
+                (close)="closeGrant()">
+      <form id="grantForm" [formGroup]="grantForm" (ngSubmit)="submitGrant()" class="saas-form saas-form--dialog">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="arUser">Person <span class="required">*</span></label>
+            <app-combobox inputId="arUser" [options]="userOptions()" [value]="grantValue().userId ?? ''" (valueChange)="setGrantUser($event)"
+                          [allowEmpty]="false" placeholder="Type a name or email"
+                          [invalid]="grantForm.controls.userId.touched && grantForm.controls.userId.invalid" describedBy="arUserErr" />
+            @if (grantForm.controls.userId.touched && grantForm.controls.userId.invalid) {
+              <p id="arUserErr" class="field-error" role="alert">Pick the person.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="arGrantDays">Days <span class="required">*</span></label>
+            <input id="arGrantDays" type="number" inputmode="numeric" min="1" [max]="maxDays()" step="1" formControlName="days"
+                   [attr.aria-invalid]="daysInvalid(grantValue().days) ? 'true' : null" aria-describedby="arGrantDaysHint" />
+            <p id="arGrantDaysHint" class="cell-subtle field-hint">1 to {{ maxDays() }}, the ceiling set under Security Policy.</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="arGrantNote">Note to the person</label>
+          <textarea id="arGrantNote" rows="2" wrap="off" formControlName="note" maxlength="500" placeholder="Optional, e.g. Conference week"></textarea>
+        </div>
+        <div class="flash flash-info flash--static" role="status" aria-live="polite">
+          <span class="flash-icon material-icons" aria-hidden="true">info</span>
+          <span>{{ grantExpected() }}</span>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="grantDlg.requestClose()" [disabled]="granting()">Cancel</button>
+        <button type="submit" form="grantForm" class="btn btn--primary" [disabled]="granting()">{{ granting() ? 'Saving…' : grantLabel() }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

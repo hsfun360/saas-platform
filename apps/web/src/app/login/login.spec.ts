@@ -41,6 +41,44 @@ describe('LoginComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  // ---- Registered-workstation lock (2026-11-01) ----
+
+  it('a workstation refusal shows the outcome card and sends the remote-access request with the token and reason', () => {
+    component.loginForm.patchValue({ email: 'alice@acme.test', password: 'correct horse battery' });
+    component.onSubmit();
+    http.expectOne((r) => r.url.endsWith('/auth/login')).flush({ message: 'Your role signs in only from a registered workstation at your organisation.', workstationRequired: true, email: 'alice@acme.test', remoteAccessToken: 'ra-token', remoteAccessPending: false });
+    fixture.detectChanges();
+    expect(component.isRemoteAccessStep()).toBe(true);
+    expect(component.isMfaStep()).toBe(false);
+    expect(localStorage.getItem('token')).toBeNull();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.auth-lead')?.textContent).toContain('registered workstation');
+    expect(el.querySelector('button[type=submit]')?.textContent).toContain('Request remote access');
+
+    component.remoteAccessForm.controls.reason.setValue('  Working from home  ');
+    component.submitRemoteAccessRequest();
+    const req = http.expectOne((r) => r.url.endsWith('/auth/remote-access/request'));
+    expect(req.request.body).toEqual({ token: 'ra-token', reason: 'Working from home' });
+    req.flush({ message: 'Your request has been sent to your administrator.', pending: true });
+    fixture.detectChanges();
+    expect(el.querySelector('.auth-alert--success')?.textContent).toContain('sent to your administrator');
+    expect(el.querySelector('#ra-reason')).toBeNull();
+  });
+
+  it('a refusal with a request already waiting says so and offers a reminder', () => {
+    component.loginForm.patchValue({ email: 'alice@acme.test', password: 'correct horse battery' });
+    component.onSubmit();
+    http.expectOne((r) => r.url.endsWith('/auth/login')).flush({ message: 'locked', workstationRequired: true, email: 'alice@acme.test', remoteAccessToken: 'ra-token', remoteAccessPending: true });
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.auth-alert--neutral')?.textContent).toContain('already waiting');
+    expect(el.querySelector('button[type=submit]')?.textContent).toContain('Remind my administrator');
+    component.cancelRemoteAccess();
+    fixture.detectChanges();
+    expect(component.isRemoteAccessStep()).toBe(false);
+    expect(el.querySelector('#ra-reason')).toBeNull();
+  });
+
   // Password accepted, code needed: the API's challenge payload carries the
   // account's trusted-device rule.
   function challenge(extra: Partial<AuthResponse>) {

@@ -123,6 +123,7 @@ const mfa = require('./mfa.service');
 const sessions = require('./session.service');
 const trustedDevices = require('./trustedDevice.service');
 const workstations = require('./registeredWorkstation.service');
+const remoteAccess = require('./remoteAccessGrant.service');
 
 // Short-lived, purpose-scoped token that carries the login context ACROSS the
 // MFA step ('mfa' = enter your code; 'mfa-enroll' = admin role must enroll
@@ -166,6 +167,10 @@ const generateMfaToken = (user, purpose, ctx) => jwt.sign(
 //     including a workspace switch; administrators are never locked. The
 //     refusal is a 200 with workstationRequired, like the other "more is
 //     needed" outcomes, and no token.
+//   - a live remote-access grant (RemoteAccessGrant, 2026-11-01) lifts that
+//     lock for one person for a window; the refusal carries a purpose-scoped
+//     'remote-access' token so the sign-in screen can ask for one, and says
+//     whether a request already waits.
 const WORKSTATION_REQUIRED_MESSAGE = 'Your role signs in only from a registered workstation at your organisation. Ask your administrator if you need to sign in from somewhere else.';
 
 async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
@@ -173,9 +178,20 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
 
     if (context.accountId && workstations.workstationLockApplies({ roleLocked: context.roleLocked, isSystemAdmin, roleName: context.roleName })) {
         const station = await workstations.presentedWorkstation(req, context.accountId);
-        if (!station) {
-            console.warn('[AUTH] login refused', JSON.stringify({ reason: 'workstation-required', userId: user.id, companyId: ctx.companyId, ip: req.ip }));
-            return { workstationRequired: true, message: WORKSTATION_REQUIRED_MESSAGE, email: user.email };
+        const grant = station ? null : await remoteAccess.liveGrantFor(context.accountId, user.id);
+        if (!station && !grant) {
+            const pending = await remoteAccess.pendingRequestFor(context.accountId, user.id);
+            console.warn('[AUTH] login refused', JSON.stringify({ reason: 'workstation-required', userId: user.id, companyId: ctx.companyId, pendingRequest: !!pending, ip: req.ip }));
+            return {
+                workstationRequired: true,
+                message: WORKSTATION_REQUIRED_MESSAGE,
+                email: user.email,
+                remoteAccessToken: generateMfaToken(user, 'remote-access', ctx),
+                remoteAccessPending: !!pending,
+            };
+        }
+        if (grant) {
+            console.warn('[AUTH] remote access grant used', JSON.stringify({ userId: user.id, companyId: ctx.companyId, grantId: grant.id, validUntil: grant.validUntil, ip: req.ip }));
         }
     }
 

@@ -139,8 +139,12 @@ export interface AuthResponse {
   mfaToken?: string;
   // The role is locked to registered workstations and this browser is not
   // one: refused before any code step, no token (2026-11-01). `message` says
-  // what to do.
+  // what to do. `remoteAccessToken` lets the sign-in screen ask for a
+  // time-boxed remote-access grant; `remoteAccessPending` says one already
+  // waits for a decision.
   workstationRequired?: boolean;
+  remoteAccessToken?: string;
+  remoteAccessPending?: boolean;
   // With mfaRequired: whether this account offers "Don't ask again on this
   // device" and for how many days (the subscriber's trusted-device rule).
   rememberDeviceAllowed?: boolean;
@@ -206,6 +210,11 @@ export interface SecurityPolicyState {
   workstations: number;
   // Roles whose holders may sign in only from a registered workstation.
   lockedRoles: number;
+  // Remote-access grants: the ceiling in days an approver may give, how many
+  // grants are in force and how many requests wait for a decision.
+  remoteAccessGrantMaxDays: number;
+  activeGrants: number;
+  pendingRequests: number;
 }
 
 export interface SecurityPolicyUpdate {
@@ -214,6 +223,36 @@ export interface SecurityPolicyUpdate {
   trustedDevicesAllowed: boolean;
   trustedDeviceDays: number;
   workstationTrustEnabled: boolean;
+  remoteAccessGrantMaxDays: number;
+}
+
+// A remote-access request or grant (System Setup -> Access Requests,
+// 2026-11-01): the time-boxed exception to the registered-workstation lock.
+export type RemoteAccessStatus = 'pending' | 'approved' | 'rejected' | 'revoked' | 'expired';
+
+export interface RemoteAccessGrant {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  status: RemoteAccessStatus;
+  reason: string | null;
+  requestedAt: string;
+  device: string | null;        // "Chrome on Windows", from the request
+  ip: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  revokedAt: string | null;
+}
+
+export interface RemoteAccessList {
+  pending: RemoteAccessGrant[];
+  active: RemoteAccessGrant[];
+  history: RemoteAccessGrant[];
+  maxDays: number;
 }
 
 // One shared browser an administrator registered for the organisation

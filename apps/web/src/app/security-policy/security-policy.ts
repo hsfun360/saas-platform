@@ -59,7 +59,9 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     trustedDevicesAllowed: [true],
     trustedDeviceDays: [30],
     workstationTrustEnabled: [false],
+    remoteAccessGrantMaxDays: [30],
   });
+  static readonly GRANT_DAYS = { min: 1, max: 90 };
   static readonly TRUST_DAYS = { min: 1, max: 90 };
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
@@ -67,6 +69,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
   readonly hint = {
     required: 'When on, every user of your subscription must set up an authenticator app: anyone without it is taken to the setup screen at their next sign-in (password or single sign-on alike, and when they switch into one of your companies) and cannot turn it off afterwards. Administrator roles are always required, whatever this switch says. Give a start date to announce the change first; leave it blank to start now.',
     trusted: 'When on, a user who enters their two-factor code may tick "Don\'t ask again on this device"; that browser then skips the code for the number of days set here, while the password is still required at every sign-in. Turning it off hides the option and every device already trusted is asked for a code again at its next sign-in. Shortening the days also applies to devices already trusted: any device trusted longer ago than the new window is asked again. Users see and remove their own trusted devices under Profile, Security.',
+    grants: 'A person whose role signs in only from registered workstations may ask, from the sign-in screen, to sign in from somewhere else; whoever holds the Access Requests screen approves it for a number of days, declines, or grants access in advance. This number is the longest window an approver may give. A grant lifts only the workstation rule: the password and the two-factor code still apply. Shortening it does not cut grants already in force.',
     workstations: 'A registered workstation is a shared browser, such as a front-desk computer, that an administrator registered for your organisation from that very browser. When this switch is on, staff who sign in from a registered workstation give their password only; the two-factor code is skipped because the workstation itself, standing on your premises, is the second factor. Administrators (the Tenant Admin role and the platform\'s system administrators) still confirm a code everywhere, and nobody is excused from setting up an authenticator: a staff member who signs in from home or a phone is asked for the code as usual. A registered workstation never offers "Don\'t ask again on this device". Registrations last one year, can be revoked here at any time, and are kept while the switch is off. A role can also be locked to registered workstations under Role Management, so its holders cannot sign in from anywhere else; that lock works whether or not this switch is on.',
   };
 
@@ -156,6 +159,34 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     }
     if (!n) return 'No workstation is registered yet. Use "Register this workstation" below from the browser you want to register; staff who sign in from it then give their password only.';
     return `Staff signing in from the ${stations} give their password only; everyone still confirms a code from any other device, and administrators confirm one everywhere.`;
+  });
+
+  // The remote-access ceiling as typed; NaN when blank or not a whole number.
+  private grantDays(): number {
+    const n = Number(this.formValue().remoteAccessGrantMaxDays);
+    return Number.isInteger(n) ? n : NaN;
+  }
+
+  grantDaysInvalid(): boolean {
+    const n = this.grantDays();
+    return !(n >= SecurityPolicyComponent.GRANT_DAYS.min && n <= SecurityPolicyComponent.GRANT_DAYS.max);
+  }
+
+  // What Save will do to remote-access grants, stated before it is pressed.
+  readonly expectedGrants = computed(() => {
+    const s = this.state();
+    if (!s) return '';
+    const n = this.grantDays();
+    if (!(n >= SecurityPolicyComponent.GRANT_DAYS.min && n <= SecurityPolicyComponent.GRANT_DAYS.max)) {
+      return `Enter a whole number of days from ${SecurityPolicyComponent.GRANT_DAYS.min} to ${SecurityPolicyComponent.GRANT_DAYS.max}.`;
+    }
+    const grants = `${s.activeGrants} ${s.activeGrants === 1 ? 'grant is' : 'grants are'} in force`;
+    const waiting = s.pendingRequests ? `, ${s.pendingRequests} ${s.pendingRequests === 1 ? 'request waits' : 'requests wait'} for a decision` : '';
+    const ceiling = `an approver may give at most ${n} ${n === 1 ? 'day' : 'days'}`;
+    if (n < s.remoteAccessGrantMaxDays && s.activeGrants) {
+      return `${grants}${waiting}; they keep their windows. From now on ${ceiling}.`;
+    }
+    return `${grants}${waiting}; ${ceiling}.`;
   });
 
   // Roles locked to registered workstations (Role Management), stated beside
@@ -324,6 +355,10 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       this.errorMessage.set(`Days a device stays trusted must be a whole number from ${SecurityPolicyComponent.TRUST_DAYS.min} to ${SecurityPolicyComponent.TRUST_DAYS.max}.`);
       return;
     }
+    if (this.grantDaysInvalid()) {
+      this.errorMessage.set(`The longest remote-access grant must be a whole number of days from ${SecurityPolicyComponent.GRANT_DAYS.min} to ${SecurityPolicyComponent.GRANT_DAYS.max}.`);
+      return;
+    }
     this.saving.set(true);
     this.service.update({
       mfaPolicy: v.mfaRequired ? 'required' : 'optional',
@@ -333,6 +368,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       // restores the chosen days; a blank field while off falls back to stored.
       trustedDeviceDays: v.trustedDevicesAllowed ? Number(v.trustedDeviceDays) : (this.state()?.trustedDeviceDays ?? 30),
       workstationTrustEnabled: v.workstationTrustEnabled,
+      remoteAccessGrantMaxDays: Number(v.remoteAccessGrantMaxDays),
     }).subscribe({
       next: (s) => {
         this.applyState(s);
@@ -354,6 +390,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       trustedDevicesAllowed: s.trustedDevicesAllowed,
       trustedDeviceDays: s.trustedDeviceDays,
       workstationTrustEnabled: s.workstationTrustEnabled === true,
+      remoteAccessGrantMaxDays: s.remoteAccessGrantMaxDays ?? 30,
     });
   }
 }

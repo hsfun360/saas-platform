@@ -123,6 +123,13 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/mfa/verify`, { mfaToken, code, rememberDevice });
   }
 
+  // Ask for a time-boxed remote-access grant after the workstation lock
+  // refused the sign-in (2026-11-01). The token is the purpose-scoped one
+  // from the refusal; no session exists yet.
+  requestRemoteAccess(token: string, reason: string | null): Observable<{ message: string; pending: boolean }> {
+    return this.http.post<{ message: string; pending: boolean }>(`${this.apiBaseUrl}/auth/remote-access/request`, { token, reason });
+  }
+
   getMfaStatus(): Observable<MfaStatus> {
     return this.http.get<MfaStatus>(`${this.apiBaseUrl}/auth/mfa/status`);
   }

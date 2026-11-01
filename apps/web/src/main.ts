@@ -96,6 +96,7 @@ const routes: Routes = [
       { path: 'admin/account-currencies', loadComponent: () => import('./app/account-currencies/account-currencies').then((m) => m.AccountCurrenciesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Security Policy - the subscriber's account-wide MFA policy (2026-10-30).
       { path: 'admin/security-policy', loadComponent: () => import('./app/security-policy/security-policy').then((m) => m.SecurityPolicyComponent), canActivate: [systemAccessGuard], canDeactivate: [unsavedChangesGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/access-requests', loadComponent: () => import('./app/access-requests/access-requests').then((m) => m.AccessRequestsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Subscriber-owned shared reference data (consumed across products).
       { path: 'admin/industry-types', loadComponent: () => import('./app/industry-types/industry-types').then((m) => m.IndustryTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       { path: 'admin/departments', loadComponent: () => import('./app/departments/departments').then((m) => m.DepartmentsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },

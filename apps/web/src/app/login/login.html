@@ -18,6 +18,45 @@
       </div>
     </div>
   </div>
+} @else if (isRemoteAccessStep()) {
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1 class="auth-title">Registered workstations only</h1>
+      <p class="auth-lead">{{ remoteAccessMessage() }}</p>
+
+      @if (errorMessage()) {
+        <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
+      }
+
+      @if (remoteAccessSent()) {
+        <div class="auth-alert auth-alert--success" role="status" aria-live="polite">
+          <span class="auth-alert__icon material-icons" aria-hidden="true">mark_email_read</span>
+          {{ remoteAccessSent() }}
+        </div>
+      } @else {
+        @if (remoteAccessPending()) {
+          <div class="auth-alert auth-alert--neutral" role="status">
+            <span class="auth-alert__icon material-icons" aria-hidden="true">hourglass_top</span>
+            A request from you is already waiting for your administrator. You will be emailed when it is decided; asking again reminds them.
+          </div>
+        }
+        <form [formGroup]="remoteAccessForm" (ngSubmit)="submitRemoteAccessRequest()">
+          <div class="form-group">
+            <label for="ra-reason">Why you need to sign in from here</label>
+            <textarea id="ra-reason" rows="3" formControlName="reason" maxlength="500" placeholder="Optional, e.g. Working from home while the clubhouse is closed"></textarea>
+          </div>
+          <button type="submit" class="btn btn--primary btn--block" [disabled]="loading()">
+            {{ loading() ? 'Sending…' : (remoteAccessPending() ? 'Remind my administrator' : 'Request remote access') }}
+          </button>
+        </form>
+        <p class="auth-lead login-ra-note">Your administrator is notified now and decides for a number of days. Your password and two-factor code still apply from here once approved.</p>
+      }
+
+      <div class="auth-links">
+        <button type="button" class="btn btn--link" (click)="cancelRemoteAccess()">&larr; Back to login</button>
+      </div>
+    </div>
+  </div>
 } @else if (isMfaStep()) {
   <div class="auth-page">
     <div class="auth-card">

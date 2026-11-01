@@ -75,7 +75,7 @@ A role still held by anyone cannot be deleted; change those people's role on Use
 
 ## Tips & troubleshooting
 
-- A person in a locked role who reports "Your role signs in only from a registered workstation" is signing in from an unregistered browser: either register that browser under Security Policy (from that browser), or turn the lock off for the role, or move them to a role without the lock.
+- A person in a locked role who reports "Your role signs in only from a registered workstation" is signing in from an unregistered browser: they can ask for remote access from that screen, which you decide under **System Setup → Access Requests**; otherwise register that browser under Security Policy (from that browser), turn the lock off for the role, or move them to a role without the lock.
 - Before revoking the last registered workstation under Security Policy, check that no role is locked to workstations; the Security Policy screen says how many are.
 
 - If you see "Please select at least one menu permission." or "Select at least one menu permission." tick at least one menu before saving.
