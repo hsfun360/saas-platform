@@ -40,10 +40,12 @@
           }
         </div>
 
-        <label class="login-check">
-          <input type="checkbox" formControlName="rememberDevice">
-          <span>Don't ask again on this device for 30 days</span>
-        </label>
+        @if (rememberDeviceAllowed()) {
+          <label class="login-check">
+            <input type="checkbox" formControlName="rememberDevice">
+            <span>Don't ask again on this device for {{ rememberDeviceDays() }} {{ rememberDeviceDays() === 1 ? 'day' : 'days' }}</span>
+          </label>
+        }
 
         <button type="submit" class="btn btn--primary btn--block" [disabled]="loading()">
           {{ loading() ? 'Verifying…' : 'Verify' }}

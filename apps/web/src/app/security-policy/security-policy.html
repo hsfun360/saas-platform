@@ -45,7 +45,7 @@
                 (click)="toggleSection('mfa')" [attr.aria-expanded]="isExpanded('mfa')">
           <span class="settings-header__text">
             <span class="settings-header__title">Two-factor authentication</span>
-            <span class="settings-header__sub">Whether every user must sign in with an authenticator app, and from when.</span>
+            <span class="settings-header__sub">Whether every user must sign in with an authenticator app and from when; whether a trusted device may skip the code and for how long.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('mfa')" aria-hidden="true">chevron_right</span>
@@ -77,6 +77,35 @@
             <div class="flash flash-info flash--static" role="status" aria-live="polite">
               <span class="flash-icon material-icons" aria-hidden="true">info</span>
               <span>{{ expected() }}</span>
+            </div>
+
+            <!-- Trusted devices (2026-11-01): a sub-group of the same card. -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="trustedDevicesAllowed" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Allow "Don't ask again on this device"<app-field-info label="Trusted devices" [text]="hint.trusted" /></span>
+                  <span class="switch-row__hint">Off = every sign-in asks for the code, and devices already trusted stop skipping it.</span>
+                </span>
+              </label>
+
+              @if (formValue().trustedDevicesAllowed) {
+                <div class="form-group form-group--narrow">
+                  <label for="spTrustDays">Days a device stays trusted</label>
+                  <input id="spTrustDays" type="number" inputmode="numeric" min="1" max="90" step="1" formControlName="trustedDeviceDays"
+                         [attr.aria-invalid]="trustDaysInvalid() ? 'true' : null" [attr.aria-describedby]="trustDaysInvalid() ? 'spTrustDaysErr' : null" />
+                  @if (trustDaysInvalid()) {
+                    <div id="spTrustDaysErr" class="field-error" role="alert">Enter a whole number from 1 to 90.</div>
+                  } @else {
+                    <p class="cell-subtle field-hint">1 to 90; the platform default is 30.</p>
+                  }
+                </div>
+              }
+
+              <div class="flash flash-info flash--static" role="status" aria-live="polite">
+                <span class="flash-icon material-icons" aria-hidden="true">info</span>
+                <span>{{ expectedTrust() }}</span>
+              </div>
             </div>
           </div>
         }

@@ -151,19 +151,29 @@ const generateMfaToken = (user, purpose, ctx) => jwt.sign(
 //     (2026-10-30). skipMfaGates skips only the code CHALLENGE (a session that
 //     already proved its code, e.g. a workspace switch); enrollment is checked
 //     on every grant, so switching into an account that requires MFA enrols.
+//   - a trusted-device cookie skips the code step only when the account's
+//     policy allows trusted devices and the device is inside the account's
+//     window (2026-11-01); the challenge payload tells the login page whether
+//     to offer "don't ask again" and for how many days.
 async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
     const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
 
     if (mfa.isMfaConfigured()) {
         // A live trusted-device cookie ("don't ask again on this device")
         // stands in for the code - the password/SSO step above already ran.
-        if (!skipMfaGates && user.mfaEnabled && !mfaVerified && !(await trustedDevices.hasValidTrust(req, user.id))) {
-            return {
-                message: 'Enter the 6-digit code from your authenticator app.',
-                mfaRequired: true,
-                mfaToken: generateMfaToken(user, 'mfa', ctx),
-                email: user.email,
-            };
+        if (!skipMfaGates && user.mfaEnabled && !mfaVerified) {
+            const trust = await securityPolicy.trustedDevicePolicyForAccount(context.accountId);
+            const trusted = trust.allowed && await trustedDevices.hasValidTrust(req, user.id, { maxAgeDays: trust.days });
+            if (!trusted) {
+                return {
+                    message: 'Enter the 6-digit code from your authenticator app.',
+                    mfaRequired: true,
+                    mfaToken: generateMfaToken(user, 'mfa', ctx),
+                    email: user.email,
+                    rememberDeviceAllowed: trust.allowed,
+                    rememberDeviceDays: trust.days,
+                };
+            }
         }
         const enrol = securityPolicy.enrolmentRequiredFor({
             mfaEnabled: user.mfaEnabled === true,
@@ -1775,8 +1785,9 @@ exports.provisionOnboarding = async (req, res) => {
 
 // POST /api/auth/mfa/verify  { mfaToken, code, rememberDevice? } - the login
 // step-up. `code` is a 6-digit TOTP or an XXXX-XXXX recovery code. On success:
-// full login payload; with rememberDevice, this browser also gets a 30-day
-// trusted-device cookie so later logins skip the code step.
+// full login payload; with rememberDevice, this browser also gets a
+// trusted-device cookie so later logins skip the code step - only when the
+// account's policy allows it, and for the account's window (2026-11-01).
 exports.mfaVerify = async (req, res) => {
     try {
         const { mfaToken, code, rememberDevice } = req.body || {};
@@ -1820,7 +1831,10 @@ exports.mfaVerify = async (req, res) => {
         }
 
         if (rememberDevice === true) {
-            await trustedDevices.issueTrust(res, { userId: user.id, req });
+            const trust = await securityPolicy.trustedDevicePolicyForAccount(context.accountId);
+            if (trust.allowed) {
+                await trustedDevices.issueTrust(res, { userId: user.id, req, ttlDays: trust.days });
+            }
         }
 
         const out = await completeLogin(req, res, user, context, {
@@ -1847,8 +1861,11 @@ exports.mfaStatus = async (req, res) => {
         // and says which (2026-10-30).
         const adminRole = await isUserSystemAdmin(user.id, user.email)
             || (req.user.companyId ? await hasTenantAdminRole(user.id, req.user.companyId) : false);
-        const policyRequires = !adminRole
-            && await securityPolicy.accountRequiresMfa(await securityPolicy.accountIdForCompany(req.user.companyId));
+        const accountId = await securityPolicy.accountIdForCompany(req.user.companyId);
+        const policyRequires = !adminRole && await securityPolicy.accountRequiresMfa(accountId);
+        // Whether this workspace's account honours trusted devices, so the
+        // Trusted devices list can say when its entries are not in use.
+        const trust = await securityPolicy.trustedDevicePolicyForAccount(accountId);
         res.status(200).json({
             available: mfa.isMfaConfigured(),
             enabled: user.mfaEnabled === true,
@@ -1856,6 +1873,8 @@ exports.mfaStatus = async (req, res) => {
             recoveryCodesLeft: Array.isArray(user.mfaRecoveryCodes) ? user.mfaRecoveryCodes.length : 0,
             required: adminRole || policyRequires,
             requiredBy: adminRole ? 'role' : (policyRequires ? 'organisation' : null),
+            trustedDevicesAllowed: trust.allowed,
+            trustedDeviceDays: trust.days,
         });
     } catch (error) {
         console.error('MFA status error:', error);

@@ -58,6 +58,21 @@ const Account = sequelize.define('Account', {
     mfaRequiredFrom: {
         type: DataTypes.DATEONLY,
         allowNull: true,
+    },
+    // Trusted devices ("don't ask again on this device", approved 2026-11-01):
+    // whether the account's users may skip the two-factor code on a browser
+    // they marked as trusted, and for how many days (1-90; the platform default
+    // is 30). Read at login through securityPolicy.service: switching this off
+    // or shortening the window takes effect at the next sign-in.
+    mfaTrustedDevicesAllowed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    mfaTrustedDeviceDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30,
     }
 }, {
     tableName: 'Account',

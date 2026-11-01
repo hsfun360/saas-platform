@@ -26,6 +26,7 @@ import {
   MfaStatus,
   MfaSetupResponse,
   MfaEnableResponse,
+  TrustedDevice,
   AuditLogPage,
   SsoConfig,
 } from './models/auth.models';
@@ -136,6 +137,19 @@ export class AuthService {
 
   mfaDisable(code: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/mfa/disable`, { code });
+  }
+
+  // The user's own trusted devices ("Don't ask again on this device").
+  getTrustedDevices(): Observable<{ devices: TrustedDevice[] }> {
+    return this.http.get<{ devices: TrustedDevice[] }>(`${this.apiBaseUrl}/auth/mfa/trusted-devices`);
+  }
+
+  revokeTrustedDevice(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/auth/mfa/trusted-devices/${encodeURIComponent(id)}`);
+  }
+
+  revokeAllTrustedDevices(): Observable<{ message: string; revoked: number }> {
+    return this.http.delete<{ message: string; revoked: number }>(`${this.apiBaseUrl}/auth/mfa/trusted-devices`);
   }
 
   // Revoke the server-side session (the interceptor clears local state).

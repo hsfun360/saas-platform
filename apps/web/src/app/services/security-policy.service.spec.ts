@@ -14,6 +14,9 @@ const STATE: SecurityPolicyState = {
   users: 12,
   enrolled: 4,
   notEnrolled: 8,
+  trustedDevicesAllowed: true,
+  trustedDeviceDays: 30,
+  trustedDevices: 3,
 };
 
 describe('SecurityPolicyService', () => {
@@ -37,18 +40,18 @@ describe('SecurityPolicyService', () => {
     expect(got).toEqual(STATE);
   });
 
-  it('writes the policy with PUT carrying exactly mfaPolicy and mfaRequiredFrom', () => {
-    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01' }).subscribe();
+  it('writes the policy with PUT carrying the MFA rule and the trusted-device rule', () => {
+    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7 }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01' });
+    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7 });
     req.flush({ message: 'Security policy updated.', ...STATE });
   });
 
   it('sends null for the date when the policy is optional', () => {
-    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null }).subscribe();
+    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 });
     req.flush({ message: 'Security policy updated.', ...STATE, mfaPolicy: 'optional', mfaRequiredFrom: null });
   });
 });

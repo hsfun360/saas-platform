@@ -1,7 +1,8 @@
-// Unit tests for the tenant-level MFA policy rules (securityPolicy.service):
-// when a 'required' policy is in force, who the login gate must send to
-// enrolment, and what the Security Policy screen is told. Pure helpers run
-// without a DB; the state/apply helpers run against stubbed models.
+// Unit tests for the tenant-level security policy rules (securityPolicy.service):
+// when a 'required' MFA policy is in force, who the login gate must send to
+// enrolment, the trusted-device rule, and what the Security Policy screen is
+// told. Pure helpers run without a DB; the state/apply helpers run against
+// stubbed models.
 //
 // Runs on Node's built-in test runner (no external deps):  node --test
 
@@ -14,6 +15,7 @@ const Account = require('./account.model');
 const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
+const TrustedDevice = require('../identity/trustedDevice.model');
 const policy = require('./securityPolicy.service');
 const mfa = require('../identity/mfa.service');
 
@@ -72,17 +74,41 @@ test('an ordinary user is forced only when the organisation policy is in force',
     );
 });
 
+// ---- trustedDevicePolicy: the "don't ask again" rule ----
+
+test('no account (System Administration) and a fresh account both get the platform default', () => {
+    assert.deepStrictEqual(policy.trustedDevicePolicy(null), { allowed: true, days: 30 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 30 }), { allowed: true, days: 30 });
+});
+
+test('the account may switch trusted devices off or shorten the window; out-of-range values fall back to the default', () => {
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: false, mfaTrustedDeviceDays: 7 }), { allowed: false, days: 7 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 1 }), { allowed: true, days: 1 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 90 }), { allowed: true, days: 90 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 0 }), { allowed: true, days: 30 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 91 }), { allowed: true, days: 30 });
+    assert.deepStrictEqual(policy.trustedDevicePolicy({ mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 'x' }), { allowed: true, days: 30 });
+});
+
+test('trustedDevicePolicyForAccount reads only the two columns and defaults without an account id', async () => {
+    assert.deepStrictEqual(await policy.trustedDevicePolicyForAccount(null), { allowed: true, days: 30 });
+    Account.findByPk = fn(async () => ({ id: 'acct-X', mfaTrustedDevicesAllowed: false, mfaTrustedDeviceDays: 14 }));
+    assert.deepStrictEqual(await policy.trustedDevicePolicyForAccount('acct-X'), { allowed: false, days: 14 });
+    assert.deepStrictEqual(Account.findByPk.calls[0], ['acct-X', { attributes: ['id', 'mfaTrustedDevicesAllowed', 'mfaTrustedDeviceDays'] }]);
+});
+
 // ---- getSecurityPolicyState: the expected result the screen shows ----
 
 beforeEach(() => {
-    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01' }));
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14 }));
     Company.findAll = fn(async () => [{ id: 'c-1' }, { id: 'c-2' }]);
     // The owner also holds a membership row - counted once.
     CompanyUser.findAll = fn(async () => [{ userId: 'owner-1' }, { userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-2' }]);
     User.count = fn(async () => 1);
+    TrustedDevice.count = fn(async () => 2);
 });
 
-test('state counts each user once and reports how many have not enrolled', async () => {
+test('state counts each user once and reports how many have not enrolled and how many devices skip the code', async () => {
     const state = await policy.getSecurityPolicyState('acct-X', '2026-10-30');
     assert.deepStrictEqual(state, {
         mfaAvailable: mfa.isMfaConfigured(), // mirrors the process env (a local .env may carry MFA_ENCRYPTION_KEY)
@@ -92,10 +118,27 @@ test('state counts each user once and reports how many have not enrolled', async
         users: 3,
         enrolled: 1,
         notEnrolled: 2,
+        trustedDevicesAllowed: true,
+        trustedDeviceDays: 14,
+        trustedDevices: 2,
     });
     // The enrolled count was asked for exactly the distinct policy users.
     const where = User.count.calls[0][0].where;
     assert.deepStrictEqual([...where.id[Object.getOwnPropertySymbols(where.id)[0]]].sort(), ['owner-1', 'u-2', 'u-3']);
+    // The device count is bounded by the CURRENT window (createdAt within 14 days), not the stored expiry alone.
+    const tdWhere = TrustedDevice.count.calls[0][0].where;
+    assert.strictEqual(tdWhere.revokedAt, null);
+    const since = tdWhere.createdAt[Object.getOwnPropertySymbols(tdWhere.createdAt)[0]];
+    const ageDays = (Date.now() - since.getTime()) / (24 * 60 * 60 * 1000);
+    assert.ok(ageDays > 13.99 && ageDays < 14.01, `window edge ~14 days ago, got ${ageDays}`);
+});
+
+test('with trusted devices switched off the state reports zero honoured devices without counting', async () => {
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'optional', mfaRequiredFrom: null, mfaTrustedDevicesAllowed: false, mfaTrustedDeviceDays: 30 }));
+    const state = await policy.getSecurityPolicyState('acct-X', '2026-10-30');
+    assert.strictEqual(state.trustedDevicesAllowed, false);
+    assert.strictEqual(state.trustedDevices, 0);
+    assert.strictEqual(TrustedDevice.count.calls.length, 0);
 });
 
 // ---- applySecurityPolicy: validation + the date-clearing rule ----
@@ -116,4 +159,29 @@ test('apply stores the date only while required, and clears it when optional', a
     assert.strictEqual(row.mfaRequiredFrom, null);
     assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'required', mfaRequiredFrom: '2026-12-01' }), { ok: true });
     assert.strictEqual(row.mfaRequiredFrom, '2026-12-01');
+});
+
+test('apply refuses a trusted-device window outside 1-90 days or a non-boolean switch, and saves nothing', async () => {
+    const saves = [];
+    Account.findByPk = fn(async () => ({ id: 'acct-X', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 30, save: async () => saves.push(1) }));
+    const bad = 'trustedDeviceDays must be a whole number from 1 to 90.';
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDeviceDays: 0 }), { error: 400, message: bad });
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDeviceDays: 91 }), { error: 400, message: bad });
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDeviceDays: 7.5 }), { error: 400, message: bad });
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDevicesAllowed: 'no' }), { error: 400, message: 'trustedDevicesAllowed must be true or false.' });
+    assert.strictEqual(saves.length, 0);
+});
+
+test('apply keeps the stored trusted-device rule when the keys are omitted, and stores them when given', async () => {
+    const row = { id: 'acct-X', mfaPolicy: 'optional', mfaRequiredFrom: null, mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 30, save: async () => {} };
+    Account.findByPk = fn(async () => row);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional' }), { ok: true });
+    assert.strictEqual(row.mfaTrustedDevicesAllowed, true);
+    assert.strictEqual(row.mfaTrustedDeviceDays, 30);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDevicesAllowed: false, trustedDeviceDays: 7 }), { ok: true });
+    assert.strictEqual(row.mfaTrustedDevicesAllowed, false);
+    assert.strictEqual(row.mfaTrustedDeviceDays, 7);
+    // The window is kept even while the switch is off, so turning it back on restores the chosen days.
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDevicesAllowed: true }), { ok: true });
+    assert.strictEqual(row.mfaTrustedDeviceDays, 7);
 });

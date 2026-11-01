@@ -179,7 +179,53 @@
             </form>
           }
         }
+
+        <!-- Trusted devices: the browsers that skip the code (2026-11-01).
+             Rows exist only while MFA is on (disable revokes them all). -->
+        @if (mfaS.enabled && mfaMode() === 'idle') {
+          <div class="pf-devices">
+            <div class="pf-row">
+              <div class="pf-row__main">
+                <div class="pf-row__title">Trusted devices</div>
+                <div class="pf-row__sub">
+                  Browsers where you ticked "Don't ask again on this device". Each skips the code for {{ mfaS.trustedDeviceDays || 30 }} days after you trust it; your password is still required every time.
+                  @if (mfaS.trustedDevicesAllowed === false) {
+                    Your organisation has switched trusted devices off, so these are not used when signing in to its companies.
+                  }
+                </div>
+              </div>
+              @if (trustedDevices().length > 1) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="askRemoveAllDevices()" [disabled]="trustedBusy()">Remove all</button>
+              }
+            </div>
+            @if (trustedDevices().length === 0) {
+              <p class="pf-row__sub pf-devices__empty">No trusted devices. Every sign-in asks for a code.</p>
+            } @else {
+              <ul class="pf-devices__list" role="list">
+                @for (d of trustedDevices(); track d.id) {
+                  <li class="pf-device">
+                    <div class="pf-device__main">
+                      <div class="pf-device__title">
+                        <span class="material-icons" aria-hidden="true">{{ deviceIcon(d) }}</span>
+                        <span>{{ d.device }}</span>
+                        @if (d.current) { <span class="status-chip status-chip--info">This device</span> }
+                      </div>
+                      <div class="pf-row__sub">
+                        Trusted {{ d.createdAt | localDate }}, expires {{ d.expiresAt | localDate }}@if (d.lastUsedAt) {, last used {{ d.lastUsedAt | localDate:'datetime' }}}@if (d.ip) {, from {{ d.ip }}}.
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="askRemoveDevice(d)" [disabled]="trustedBusy()" [attr.aria-label]="'Remove ' + d.device">Remove</button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
       </div>
     }
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 </section>

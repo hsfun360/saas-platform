@@ -2,6 +2,7 @@
 
 const router = require('express').Router();
 const authController = require('./auth.controller'); // We will create this next
+const trustedDeviceController = require('./trustedDevice.controller');
 const User = require('./user.model'); // Use your existing Sequelize model
 const jwt = require('jsonwebtoken');
 const OutboxMessage = require('../../platform/outboxMessage.model');
@@ -186,6 +187,11 @@ router.post('/mfa/enable', authenticateMfaEnrollment, validate(schemas.mfaCode),
 // Status + disable need a full session.
 router.get('/mfa/status', authenticateToken, authController.mfaStatus);
 router.post('/mfa/disable', authenticateToken, validate(schemas.mfaCode), authController.mfaDisable);
+// The user's own trusted devices ("don't ask again on this device"): list,
+// remove one, remove all (2026-11-01). Full session only.
+router.get('/mfa/trusted-devices', authenticateToken, trustedDeviceController.list);
+router.delete('/mfa/trusted-devices', authenticateToken, trustedDeviceController.revokeAll);
+router.delete('/mfa/trusted-devices/:id', authenticateToken, validate(schemas.trustedDeviceId), trustedDeviceController.revoke);
 // Refresh (httpOnly cookie -> fresh 1h access token) + sign out.
 router.post('/refresh', loginLimiter(), authController.refreshSession);
 router.post('/logout', loginLimiter(), authController.logout);

@@ -13,10 +13,12 @@ import { SecurityPolicyService } from '../services/security-policy.service';
 import { SecurityPolicyState } from '../models/auth.models';
 
 // System Setup -> Security Policy (approved 2026-10-30). The subscriber's
-// account-wide security settings; today one: whether two-factor
-// authentication is required for EVERY user of the subscription, optionally
-// from a date so staff can be told first. Administrator roles are forced
-// regardless - this extends the same login gate to everyone else.
+// account-wide security settings: whether two-factor authentication is
+// required for EVERY user of the subscription, optionally from a date so staff
+// can be told first (administrator roles are forced regardless - this extends
+// the same login gate to everyone else), and the trusted-device rule
+// (2026-11-01): whether "Don't ask again on this device" is offered and for
+// how many days a device stays trusted.
 //
 // Show-expected-results: the card states how many users have not enrolled
 // and exactly what will happen to them, before Save.
@@ -44,12 +46,16 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
   readonly form = this.fb.nonNullable.group({
     mfaRequired: [false],
     mfaRequiredFrom: [''],
+    trustedDevicesAllowed: [true],
+    trustedDeviceDays: [30],
   });
+  static readonly TRUST_DAYS = { min: 1, max: 90 };
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
   // The long explanation behind the (i); the inline hint stays one line.
   readonly hint = {
     required: 'When on, every user of your subscription must set up an authenticator app: anyone without it is taken to the setup screen at their next sign-in (password or single sign-on alike, and when they switch into one of your companies) and cannot turn it off afterwards. Administrator roles are always required, whatever this switch says. Give a start date to announce the change first; leave it blank to start now.',
+    trusted: 'When on, a user who enters their two-factor code may tick "Don\'t ask again on this device"; that browser then skips the code for the number of days set here, while the password is still required at every sign-in. Turning it off hides the option and every device already trusted is asked for a code again at its next sign-in. Shortening the days also applies to devices already trusted: any device trusted longer ago than the new window is asked again. Users see and remove their own trusted devices under Profile, Security.',
   };
 
   // What Save will do, stated before it is pressed.
@@ -65,6 +71,47 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       return `All ${s.users} users already have two-factor authentication on - nobody will be interrupted${starts ? ', and the policy takes effect' + starts : ''}.`;
     }
     return `${s.notEnrolled} of ${s.users} users have not set up two-factor authentication. Each will be asked to set it up at their next sign-in${starts}, and none can turn it off while the policy is on.`;
+  });
+
+  // The trusted-device window as typed; NaN when blank or not a whole number.
+  private trustDays(): number {
+    const raw = this.formValue().trustedDeviceDays;
+    const n = Number(raw);
+    return Number.isInteger(n) ? n : NaN;
+  }
+
+  trustDaysInvalid(): boolean {
+    if (!this.formValue().trustedDevicesAllowed) return false;
+    const n = this.trustDays();
+    return !(n >= SecurityPolicyComponent.TRUST_DAYS.min && n <= SecurityPolicyComponent.TRUST_DAYS.max);
+  }
+
+  // What Save will do to trusted devices, stated before it is pressed.
+  readonly expectedTrust = computed(() => {
+    const s = this.state();
+    const v = this.formValue();
+    if (!s) return '';
+    const n = s.trustedDevices;
+    const devices = `${n} trusted ${n === 1 ? 'device' : 'devices'}`;
+    if (!v.trustedDevicesAllowed) {
+      if (!s.trustedDevicesAllowed) return 'Trusted devices are off: every sign-in asks for a code.';
+      return n
+        ? `Users will no longer be offered "Don't ask again on this device", and the ${devices} currently skipping the code will be asked for one at their next sign-in.`
+        : 'Users will no longer be offered "Don\'t ask again on this device". No device skips the code today.';
+    }
+    const days = Number(v.trustedDeviceDays);
+    if (!Number.isInteger(days) || days < SecurityPolicyComponent.TRUST_DAYS.min || days > SecurityPolicyComponent.TRUST_DAYS.max) {
+      return `Enter a whole number of days from ${SecurityPolicyComponent.TRUST_DAYS.min} to ${SecurityPolicyComponent.TRUST_DAYS.max}.`;
+    }
+    const dayWord = days === 1 ? 'day' : 'days';
+    if (!s.trustedDevicesAllowed) return `Users who enter their code may skip it on that browser for ${days} ${dayWord}; the password is still required every time.`;
+    if (days < s.trustedDeviceDays) {
+      return `${devices} currently skip the code. Any device trusted more than ${days} ${dayWord} ago will be asked for a code at its next sign-in; devices trusted from now on skip it for ${days} ${dayWord}.`;
+    }
+    if (days > s.trustedDeviceDays) {
+      return `${devices} currently skip the code and keep their ${s.trustedDeviceDays}-day window; devices trusted from now on skip it for ${days} ${dayWord}.`;
+    }
+    return `${devices} currently skip the code, each for ${days} ${dayWord} after being trusted.`;
   });
 
   // ---- Route-leave guard (unsavedChangesGuard on the route) ----
@@ -142,10 +189,18 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     this.successMessage.set('');
     this.errorMessage.set('');
     const v = this.form.getRawValue();
+    if (this.trustDaysInvalid()) {
+      this.errorMessage.set(`Days a device stays trusted must be a whole number from ${SecurityPolicyComponent.TRUST_DAYS.min} to ${SecurityPolicyComponent.TRUST_DAYS.max}.`);
+      return;
+    }
     this.saving.set(true);
     this.service.update({
       mfaPolicy: v.mfaRequired ? 'required' : 'optional',
       mfaRequiredFrom: v.mfaRequired && v.mfaRequiredFrom ? v.mfaRequiredFrom : null,
+      trustedDevicesAllowed: v.trustedDevicesAllowed,
+      // The window is kept while the switch is off, so turning it back on
+      // restores the chosen days; a blank field while off falls back to stored.
+      trustedDeviceDays: v.trustedDevicesAllowed ? Number(v.trustedDeviceDays) : (this.state()?.trustedDeviceDays ?? 30),
     }).subscribe({
       next: (s) => {
         this.applyState(s);
@@ -164,6 +219,8 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     this.form.reset({
       mfaRequired: s.mfaPolicy === 'required',
       mfaRequiredFrom: s.mfaRequiredFrom || '',
+      trustedDevicesAllowed: s.trustedDevicesAllowed,
+      trustedDeviceDays: s.trustedDeviceDays,
     });
   }
 }

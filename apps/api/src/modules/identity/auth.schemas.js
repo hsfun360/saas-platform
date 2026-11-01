@@ -102,6 +102,11 @@ const mfaCode = {
     body: z.object({ code: fields.otpCode }),
 };
 
+// DELETE /mfa/trusted-devices/:id - one of the caller's own trusted devices.
+const trustedDeviceId = {
+    params: z.object({ id: fields.uuid }),
+};
+
 const changePassword = {
     body: z.object({
         currentPassword: fields.existingPassword,
@@ -131,6 +136,7 @@ module.exports = {
     microsoftLogin,
     mfaVerify,
     mfaCode,
+    trustedDeviceId,
     changePassword,
     provisionOnboarding,
 };

@@ -75,9 +75,14 @@ export class LoginComponent implements OnInit {
   // MFA step-up: password/SSO succeeded, now the 6-digit (or recovery) code.
   readonly isMfaStep = signal(false);
   private pendingMfaToken: string | null = null;
+  // The account's trusted-device rule, from the challenge payload: the
+  // checkbox is hidden when the organisation does not allow trusted devices,
+  // and its label states the organisation's window.
+  readonly rememberDeviceAllowed = signal(true);
+  readonly rememberDeviceDays = signal(30);
   readonly mfaForm = this.fb.nonNullable.group({
     code: ['', [Validators.required]],
-    // "Don't ask again on this device for 30 days" (trusted-device cookie).
+    // "Don't ask again on this device for N days" (trusted-device cookie).
     rememberDevice: [true],
   });
 
@@ -268,7 +273,10 @@ export class LoginComponent implements OnInit {
       this.signingIn.set(false);
       this.isMfaStep.set(true);
       this.pendingMfaToken = res.mfaToken;
-      this.mfaForm.reset({ code: '', rememberDevice: true });
+      const allowed = res.rememberDeviceAllowed !== false;
+      this.rememberDeviceAllowed.set(allowed);
+      this.rememberDeviceDays.set(res.rememberDeviceDays || 30);
+      this.mfaForm.reset({ code: '', rememberDevice: allowed });
       this.errorMessage.set('');
       return;
     }
@@ -332,7 +340,7 @@ export class LoginComponent implements OnInit {
     this.loading.set(true);
     this.signingIn.set(true);
     this.errorMessage.set('');
-    this.authService.mfaVerify(this.pendingMfaToken, code.trim(), rememberDevice)
+    this.authService.mfaVerify(this.pendingMfaToken, code.trim(), rememberDevice && this.rememberDeviceAllowed())
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {

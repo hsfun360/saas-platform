@@ -137,6 +137,10 @@ export interface AuthResponse {
   mfaEnrollReason?: 'role' | 'organisation';
   // Short-lived purpose token carrying the login context across the MFA step.
   mfaToken?: string;
+  // With mfaRequired: whether this account offers "Don't ask again on this
+  // device" and for how many days (the subscriber's trusted-device rule).
+  rememberDeviceAllowed?: boolean;
+  rememberDeviceDays?: number;
   companyName?: string | null;
 }
 
@@ -157,6 +161,21 @@ export interface MfaStatus {
   // security policy (System Setup -> Security Policy). Disable is refused.
   required?: boolean;
   requiredBy?: 'role' | 'organisation' | null;
+  // The workspace's trusted-device rule (System Setup -> Security Policy):
+  // whether "Don't ask again on this device" counts here, and for how long.
+  trustedDevicesAllowed?: boolean;
+  trustedDeviceDays?: number;
+}
+
+// One browser the user asked not to be challenged on (GET /mfa/trusted-devices).
+export interface TrustedDevice {
+  id: string;
+  device: string;           // "Chrome on Windows"
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string | null;
+  ip: string | null;
+  current: boolean;         // the browser making the request
 }
 
 // System Setup -> Security Policy: the subscriber's account-wide MFA policy
@@ -171,11 +190,19 @@ export interface SecurityPolicyState {
   users: number;                  // everyone the policy reaches
   enrolled: number;
   notEnrolled: number;
+  // Trusted devices ("Don't ask again on this device"): whether the option is
+  // offered, the window in days (1-90), and how many devices currently skip
+  // the code under the stored rule.
+  trustedDevicesAllowed: boolean;
+  trustedDeviceDays: number;
+  trustedDevices: number;
 }
 
 export interface SecurityPolicyUpdate {
   mfaPolicy: MfaPolicy;
   mfaRequiredFrom: string | null;
+  trustedDevicesAllowed: boolean;
+  trustedDeviceDays: number;
 }
 
 export interface MfaSetupResponse {

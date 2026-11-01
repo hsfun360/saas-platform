@@ -30,6 +30,8 @@
 - TOTP MFA is available to all users (self-service enrollment under Profile, Security).
 - MFA is **mandatory** for privileged roles (System Admin and Tenant Admin); self-disable is refused for them and enrollment is forced at login.
 - A subscriber may extend that requirement to **every user of its account** (tenant-level MFA policy, optionally from a start date, set by its Tenant Admin under System Setup, Security Policy); enforcement is the same forced enrolment at sign-in and self-disable refusal (control added 2026-10-30).
+- "Remember this device" (trusted devices) skips only the second factor, never the password: the trust is a hashed httpOnly cookie bound to one user, bounded in time (platform default 30 days, never extended by use), revoked server-side on MFA disable, MFA reset, password change and password reset, and visible to and revocable by the user under Profile, Security (control added 2026-11-01).
+- A subscriber may switch trusted devices off for its account or shorten the window (1 to 90 days) under System Setup, Security Policy; the rule in force applies at every sign-in, including to devices trusted earlier (control added 2026-11-01).
 - TOTP secrets are stored encrypted (AES, key in Secret Manager); recovery codes are stored hashed.
 - MFA reset is a deliberate administrative action (tenant-admin and system-admin endpoints), and is audit-logged.
 

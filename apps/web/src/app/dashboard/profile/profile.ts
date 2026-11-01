@@ -2,17 +2,20 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../auth.service';
 import { PhoneInputComponent } from '../../shared/phone-input/phone-input';
-import { MfaStatus } from '../../models/auth.models';
+import { ConfirmDialogComponent, ConfirmRequest } from '../../shared/confirm-dialog/confirm-dialog';
+import { LocalDatePipe } from '../../shared/local-date.pipe';
+import { MfaStatus, TrustedDevice } from '../../models/auth.models';
 
-// The signed-in user's own profile (name, phone, bio, photo) and their
-// two-factor authentication. Everything the template reads is a signal or a
-// form control (zoneless + OnPush): no manual change detection.
+// The signed-in user's own profile (name, phone, bio, photo), their
+// two-factor authentication and the browsers they trusted to skip the code.
+// Everything the template reads is a signal or a form control (zoneless +
+// OnPush): no manual change detection.
 @Component({
   selector: 'app-profile',
   standalone: true,
   templateUrl: './profile.html',
   styleUrl: './profile.css',
-  imports: [ReactiveFormsModule, PhoneInputComponent],
+  imports: [ReactiveFormsModule, PhoneInputComponent, ConfirmDialogComponent, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileComponent implements OnInit {
@@ -48,8 +51,14 @@ export class ProfileComponent implements OnInit {
   // <form (ngSubmit)> submits natively and reloads the page (see mfa-setup.ts).
   readonly mfaForm = new FormGroup({ code: this.mfaCode });
 
+  // --- Trusted devices ("Don't ask again on this device") ---
+  readonly trustedDevices = signal<TrustedDevice[]>([]);
+  readonly trustedBusy = signal(false);
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
+
   ngOnInit(): void {
     this.loadMfaStatus();
+    this.loadTrustedDevices();
     this.authService.getProfile().subscribe({
       next: (response) => {
         this.isLoading.set(false);
@@ -80,6 +89,79 @@ export class ProfileComponent implements OnInit {
     this.authService.getMfaStatus().subscribe({
       next: (s) => this.mfaStatus.set(s),
       error: () => {}, // the card simply stays hidden when the status cannot load
+    });
+  }
+
+  loadTrustedDevices(): void {
+    this.authService.getTrustedDevices().subscribe({
+      next: (res) => this.trustedDevices.set(res.devices || []),
+      error: () => {}, // the list simply stays empty when it cannot load
+    });
+  }
+
+  deviceIcon(d: TrustedDevice): string {
+    if (/iPhone|Android/.test(d.device)) return 'smartphone';
+    if (/iPad/.test(d.device)) return 'tablet_mac';
+    if (/unknown/i.test(d.device)) return 'devices';
+    return 'laptop';
+  }
+
+  // Removing a device cannot be undone for that browser (it is asked for a
+  // code again), so it confirms through the shared card like every revoke.
+  askRemoveDevice(d: TrustedDevice): void {
+    this.confirmAction.set({
+      title: d.current ? 'Remove this device?' : `Remove ${d.device}?`,
+      message: d.current
+        ? 'This browser will be asked for a two-factor code at your next sign-in.'
+        : `${d.device} will be asked for a two-factor code at its next sign-in.`,
+      confirmLabel: 'Remove device',
+      run: () => this.removeDevice(d.id),
+    });
+  }
+
+  askRemoveAllDevices(): void {
+    const n = this.trustedDevices().length;
+    this.confirmAction.set({
+      title: 'Remove all trusted devices?',
+      message: `All ${n} trusted devices will be asked for a two-factor code at their next sign-in, this browser included.`,
+      confirmLabel: `Remove ${n} devices`,
+      run: () => this.removeAllDevices(),
+    });
+  }
+
+  private removeDevice(id: string): void {
+    this.confirmAction.set(null);
+    this.mfaError.set('');
+    this.trustedBusy.set(true);
+    this.authService.revokeTrustedDevice(id).subscribe({
+      next: (res) => {
+        this.trustedBusy.set(false);
+        this.successMessage.set(res.message || 'Device removed.');
+        this.loadTrustedDevices();
+      },
+      error: (err) => {
+        this.trustedBusy.set(false);
+        this.mfaError.set(err?.error?.message || 'Could not remove the device.');
+        this.loadTrustedDevices();
+      },
+    });
+  }
+
+  private removeAllDevices(): void {
+    this.confirmAction.set(null);
+    this.mfaError.set('');
+    this.trustedBusy.set(true);
+    this.authService.revokeAllTrustedDevices().subscribe({
+      next: (res) => {
+        this.trustedBusy.set(false);
+        this.successMessage.set(res.message || 'Trusted devices removed.');
+        this.loadTrustedDevices();
+      },
+      error: (err) => {
+        this.trustedBusy.set(false);
+        this.mfaError.set(err?.error?.message || 'Could not remove the devices.');
+        this.loadTrustedDevices();
+      },
     });
   }
 
