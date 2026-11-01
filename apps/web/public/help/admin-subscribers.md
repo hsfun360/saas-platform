@@ -73,6 +73,21 @@ If you try to leave either dialog with unsaved changes (Cancel, ✕, Esc or the 
 
 Only people who are already users of that company can be chosen; adding someone to a company is done by the subscriber under User Management.
 
+### Reset a user's two-factor authentication
+
+[Screenshot: the ⋮ menu on a user row inside the Manage Admin panel]
+
+A Tenant Admin who has lost their authenticator phone and used up their recovery codes cannot be helped from the tenant side, because nobody there outranks them.
+This is the one place a platform administrator can clear it for them.
+
+1. Open the ⋮ menu on the subscriber card, click **Manage Admin**, and pick the company if it has more than one.
+2. Open the ⋮ menu on the user's row (it appears only for users who have two-factor authentication on) and click **Reset two-factor authentication**.
+3. A confirmation states "Reset two-factor authentication for name@example.com? Their authenticator, recovery codes and trusted devices are cleared; they sign in with their password alone and are asked to set it up again if their role requires it."; click **Reset**.
+4. A green message confirms "Two-factor authentication has been reset for this user." and the row's menu disappears.
+
+Tell the user to sign in with their password; a Tenant Admin, or any user under a subscriber that requires two-factor authentication, is taken straight to the setup screen to scan a new QR code.
+Other users may set it up again under Profile, Security when they wish.
+
 ### Find a subscriber
 
 - Type part of a name, plan, status or registration number in the search box.
@@ -120,6 +135,7 @@ Only people who are already users of that company can be chosen; adding someone 
 | **Company buttons** | Shown when the subscriber has several companies; pick the company whose Tenant Admin to manage. |
 | **User rows** | Each user of the chosen company with their current role; the current Tenant Admin is ticked. |
 | **Set as Admin** | Transfers the Tenant Admin role to that user after confirmation. |
+| **⋮ Reset two-factor authentication** | Clears the user's authenticator, recovery codes and trusted devices after confirmation; shown only on users who have two-factor authentication on. |
 
 ## Tips & troubleshooting
 
@@ -130,6 +146,8 @@ Only people who are already users of that company can be chosen; adding someone 
 - If you see "This subscriber has no company to manage." there is nothing to recover; the subscriber has no company yet.
 - If you see "No users in this company yet." nobody can be made Tenant Admin until the subscriber adds users under their own User Management.
 - If you see "User is not a member of this company." the person was removed from the company before you clicked; reopen the panel.
+- If you see "You cannot reset your own two-factor authentication" you picked your own account; use a recovery code, or ask another administrator.
+- A Tenant Admin who still has their password but has lost their authenticator needs **Reset two-factor authentication** in the Manage Admin panel, not a transfer of the role.
 - If you see "Failed to create subscriber.", "Failed to update subscriber." or "Failed to set Tenant Admin." something went wrong on the server; try again, and contact support if it persists.
 - Module entitlements after provisioning are edited per company by the Tenant Admin under System Setup → Companies, not here.
 - Suspending a subscriber is the right way to pause a non-paying customer; nothing is deleted and reinstating is one edit.

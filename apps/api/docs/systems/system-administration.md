@@ -109,7 +109,8 @@ Authorization is two layers, mirroring the tenant side: `verifyToken` + `isPlatf
 - Roles: `POST|GET /roles`, `GET|PUT|DELETE /roles/:id` (`/admin/system-roles`), `GET /menus` (the platform-audience permission catalogue).
 - Modules & Menus: `GET /modules`, `POST /modules`, `PUT|DELETE /modules/:moduleId`, `GET /modules/:moduleId/menus`, `PUT /modules/:moduleId/menus/order`, `POST /menus`, `PUT|DELETE /menus/:menuId` - gated by the screen matching the TARGET's audience (`/admin/modules-menus` for tenant modules, `/admin/platform-menus` for platform ones), so a role granted one side can never reach the other.
 - Users: `GET|POST /users`, `PATCH /users/:id`, `PATCH /users/:id/status`, `POST /users/assign-role`, `POST /users/:userId/mfa/reset` (the platform arm of the MFA recovery exception), `GET /unverified-users` + `POST /unverified-users/delete`.
-- Subscribers: `POST|GET /subscriptions`, `PATCH /subscriptions/:id`, `GET /companies/:companyId/users`, `POST /companies/:companyId/tenant-admin` (the Tenant Admin recovery exception).
+- Subscribers: `POST|GET /subscriptions`, `PATCH /subscriptions/:id`, `GET /companies/:companyId/users` (carries `mfaEnabled`), `POST /companies/:companyId/tenant-admin` (the Tenant Admin recovery exception).
+  The Subscriber Management screen's Manage Admin panel is also where the System Admin reaches `POST /users/:userId/mfa/reset` for a tenant user (the "Reset two-factor authentication" row action, shown only for users with it on), since a locked-out Tenant Admin has nobody on the tenant side who can reset them.
 - `GET /audit-log` - the read-only viewer over `audit.AuditLog`.
 - Email templates: `GET /email-templates`, `GET|PUT /email-templates/:key`, `POST /email-templates/:key/reset|preview|test`.
 - Platform tax: `/tax/*` (see tax.md) and `GET|PUT /platform-profile`, `POST /platform-profile/logo`, `POST /platform-profile/quote`.

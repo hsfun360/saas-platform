@@ -1578,6 +1578,9 @@ export interface TenantUser {
   authMethod?: string;
   roleId?: string | null;
   roleName?: string | null;
+  // Set by the platform's company-users listing so Subscriber Management can
+  // offer "Reset two-factor" only where there is something to reset.
+  mfaEnabled?: boolean;
 }
 
 export interface CreateTenantUserData {

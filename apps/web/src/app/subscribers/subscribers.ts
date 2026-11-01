@@ -125,11 +125,13 @@ export class SubscribersComponent implements OnInit {
   // companies, each with its own Tenant Admin, so the panel carries a company
   // picker (it used to hardwire the account's first company, hiding users who
   // belong only to the others).
-  managingAccountId: string | null = null;
-  adminCompanyId: string | null = null;
-  companyUsers: TenantUser[] = [];
+  readonly managingAccountId = signal<string | null>(null);
+  readonly adminCompanyId = signal<string | null>(null);
+  readonly companyUsers = signal<TenantUser[]>([]);
   readonly companyUsersLoading = signal(false);
-  settingAdminUserId: string | null = null;
+  readonly settingAdminUserId = signal<string | null>(null);
+  // The user whose two-factor reset is in flight (disables the menu item).
+  readonly resettingMfaUserId = signal<string | null>(null);
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -304,21 +306,21 @@ export class SubscribersComponent implements OnInit {
       this.errorMessage.set('This subscriber has no company to manage.');
       return;
     }
-    if (this.managingAccountId === sub.id) {
-      this.managingAccountId = null;
-      this.adminCompanyId = null;
-      this.companyUsers = [];
+    if (this.managingAccountId() === sub.id) {
+      this.managingAccountId.set(null);
+      this.adminCompanyId.set(null);
+      this.companyUsers.set([]);
       return;
     }
-    this.managingAccountId = sub.id;
+    this.managingAccountId.set(sub.id);
     const first = companies.find((c) => c.isActive !== false) || companies[0];
     this.selectAdminCompany(first.id);
   }
 
   selectAdminCompany(companyId: string): void {
-    if (this.adminCompanyId === companyId && this.companyUsers.length > 0) return;
-    this.adminCompanyId = companyId;
-    this.companyUsers = [];
+    if (this.adminCompanyId() === companyId && this.companyUsers().length > 0) return;
+    this.adminCompanyId.set(companyId);
+    this.companyUsers.set([]);
     this.loadCompanyUsers(companyId);
   }
 
@@ -326,7 +328,7 @@ export class SubscribersComponent implements OnInit {
     this.companyUsersLoading.set(true);
     this.adminService.getCompanyUsers(companyId).subscribe({
       next: (users) => {
-        this.companyUsers = users;
+        this.companyUsers.set(users);
         this.companyUsersLoading.set(false);
       },
       error: () => this.companyUsersLoading.set(false),
@@ -335,7 +337,7 @@ export class SubscribersComponent implements OnInit {
 
   setTenantAdmin(companyId: string, userId: string): void {
     this.clearMessages();
-    const target = this.companyUsers.find((u) => u.id === userId);
+    const target = this.companyUsers().find((u) => u.id === userId);
     const email = target?.email || 'this user';
     this.confirmAction.set({
       title: 'Transfer Tenant Admin',
@@ -347,16 +349,45 @@ export class SubscribersComponent implements OnInit {
   }
 
   private performSetTenantAdmin(companyId: string, userId: string): void {
-    this.settingAdminUserId = userId;
+    this.settingAdminUserId.set(userId);
     this.adminService.setTenantAdmin(companyId, userId).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || 'Tenant Admin updated.');
-        this.settingAdminUserId = null;
+        this.settingAdminUserId.set(null);
         this.loadCompanyUsers(companyId);
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to set Tenant Admin.');
-        this.settingAdminUserId = null;
+        this.settingAdminUserId.set(null);
+      },
+    });
+  }
+
+  // Reset a tenant user's two-factor authentication - the platform arm of the
+  // MFA recovery exception (a locked-out Tenant Admin has no tenant-side admin
+  // who can reset them). The confirm states the concrete outcome.
+  resetMfa(user: TenantUser): void {
+    this.clearMessages();
+    this.confirmAction.set({
+      title: 'Reset two-factor authentication',
+      message: `Reset two-factor authentication for ${user.email}? Their authenticator, recovery codes and trusted devices are cleared; they sign in with their password alone and are asked to set it up again if their role requires it.`,
+      confirmLabel: 'Reset',
+      run: () => { this.confirmAction.set(null); this.performResetMfa(user.id); },
+    });
+  }
+
+  private performResetMfa(userId: string): void {
+    this.resettingMfaUserId.set(userId);
+    this.adminService.resetUserMfa(userId).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || 'Two-factor authentication has been reset for this user.');
+        this.resettingMfaUserId.set(null);
+        const companyId = this.adminCompanyId();
+        if (companyId) this.loadCompanyUsers(companyId);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to reset two-factor authentication.');
+        this.resettingMfaUserId.set(null);
       },
     });
   }

@@ -90,13 +90,13 @@
               <app-overflow-menu [label]="'More actions for ' + sub.subscriberName">
                 <button type="button" appMenuItem (click)="manageAdmin(sub)">
                   <span class="material-icons" aria-hidden="true">admin_panel_settings</span>
-                  {{ managingAccountId === sub.id ? 'Close' : 'Manage Admin' }}
+                  {{ managingAccountId() === sub.id ? 'Close' : 'Manage Admin' }}
                 </button>
               </app-overflow-menu>
             </div>
           </div>
 
-          @if (managingAccountId === sub.id) {
+          @if (managingAccountId() === sub.id) {
             <div class="admin-panel">
               <div class="admin-panel-title">Set the Tenant Admin for {{ sub.subscriberName }}</div>
               <!-- Each company has its OWN Tenant Admin - pick which one to recover. -->
@@ -104,32 +104,44 @@
                 <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-sm);" role="group" [attr.aria-label]="'Choose a company of ' + sub.subscriberName">
                   @for (c of sub.Companies; track c.id) {
                     <button type="button" class="btn btn--sm"
-                            [class.btn--primary]="adminCompanyId === c.id"
-                            [class.btn--secondary]="adminCompanyId !== c.id"
+                            [class.btn--primary]="adminCompanyId() === c.id"
+                            [class.btn--secondary]="adminCompanyId() !== c.id"
                             (click)="selectAdminCompany(c.id)">{{ c.name }}</button>
                   }
                 </div>
               }
               @if (companyUsersLoading()) {
                 <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading users…</p></div>
-              } @else if (companyUsers.length === 0) {
+              } @else if (companyUsers().length === 0) {
                 <p class="cell-subtle">No users in this company yet. Users join a company via the tenant's own User Management; once someone is in it, you can make them its Tenant Admin here.</p>
               } @else {
-                @for (cu of companyUsers; track cu.id) {
+                @for (cu of companyUsers(); track cu.id) {
                   <div class="admin-user-row">
                     <span class="admin-user-info">
                       {{ cu.email }}
                       @if (cu.roleName) { <span class="role-pill">{{ cu.roleName }}</span> }
                     </span>
-                    @if (cu.roleName === 'Tenant Admin') {
-                      <span class="admin-current"><span class="material-icons inline-icon" aria-hidden="true">check</span> Tenant Admin</span>
-                    } @else {
-                      <button type="button" class="btn btn--primary btn--sm"
-                              [disabled]="settingAdminUserId === cu.id"
-                              (click)="setTenantAdmin(adminCompanyId!, cu.id)">
-                        Set as Admin
-                      </button>
-                    }
+                    <span class="admin-user-actions">
+                      @if (cu.roleName === 'Tenant Admin') {
+                        <span class="admin-current"><span class="material-icons inline-icon" aria-hidden="true">check</span> Tenant Admin</span>
+                      } @else {
+                        <button type="button" class="btn btn--primary btn--sm"
+                                [disabled]="settingAdminUserId() === cu.id"
+                                (click)="setTenantAdmin(adminCompanyId()!, cu.id)">
+                          Set as Admin
+                        </button>
+                      }
+                      <!-- The platform arm of the MFA recovery exception: a locked-out
+                           Tenant Admin has nobody on the tenant side who can reset them. -->
+                      @if (cu.mfaEnabled) {
+                        <app-overflow-menu [label]="'More actions for ' + cu.email">
+                          <button type="button" appMenuItem [disabled]="resettingMfaUserId() === cu.id" (click)="resetMfa(cu)">
+                            <span class="material-icons" aria-hidden="true">phonelink_erase</span>
+                            Reset two-factor authentication
+                          </button>
+                        </app-overflow-menu>
+                      }
+                    </span>
                   </div>
                 }
               }

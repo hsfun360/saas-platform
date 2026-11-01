@@ -15,7 +15,8 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   MANDATORY for System Admin and Tenant Admin roles (forced enrollment at login; self-disable refused); opt-in for everyone else via Profile -> Security.
   **Tenant-level policy (2026-10-30):** a Tenant Admin can make it mandatory for EVERY user of the subscription (System Setup -> Security Policy, `Account.mfaPolicy` = required, optionally from a date so staff can be told first); the same forced-enrolment gate then applies to all of them at login, SSO login and workspace switch, self-disable is refused, and the Profile card says why.
   The TOTP secret is AES-256-GCM encrypted under its own `MFA_ENCRYPTION_KEY`.
-  Recovery path: Tenant Admin resets a managed user's MFA; System Admin resets anyone's (never their own).
+  Recovery path: Tenant Admin resets a managed user's MFA (System Setup -> User Management); System Admin resets anyone's (never their own) from SaaS Administration -> Subscriber Management -> Manage Admin, the row action "Reset two-factor authentication" (2026-11-01).
+  Both resets clear the secret, the recovery codes AND the user's trusted devices.
 - **Trusted devices ("don't ask again on this device")**: passing the MFA code with the checkbox ticked sets a second httpOnly cookie (`td`, path `/api/auth`) whose SHA-256 is stored in the `TrustedDevice` table; later logins from that browser skip only the code step (`trustedDevice.service.js`).
   The cookie is NOT an authenticator - the password/SSO factor is still required every login - so it deliberately survives sign-out.
   Trust is never extended by use, and is revoked server-side on MFA disable, admin MFA reset, password change, and password reset (same events that revoke sessions).

@@ -163,4 +163,11 @@ export class AdminService {
   setTenantAdmin(companyId: string, userId: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/companies/${companyId}/tenant-admin`, { userId });
   }
+
+  // The platform arm of the MFA recovery exception: clears ANY user's
+  // two-factor authentication (secret, recovery codes and trusted devices) so
+  // a locked-out Tenant Admin can sign in with their password again.
+  resetUserMfa(userId: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/users/${encodeURIComponent(userId)}/mfa/reset`, {});
+  }
 }

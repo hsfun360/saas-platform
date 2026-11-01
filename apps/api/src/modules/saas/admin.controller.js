@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
 const { provisionTenant } = require('./provisioning.service');
+const trustedDevices = require('../identity/trustedDevice.service');
 
 // Merge a partial localized-names patch (keyed by language code) into an existing
 // map: a non-empty value sets/updates that language, an empty value clears it.
@@ -1020,6 +1021,9 @@ exports.resetUserMfa = async (req, res) => {
         target.mfaEnrolledAt = null;
         target.mfaRecoveryCodes = null;
         await target.save();
+        // The factor can no longer be presumed intact, so the device trust
+        // derived from it goes with it (same as the tenant-side reset).
+        await trustedDevices.revokeAllTrust(target.id);
         console.log(`[SECURITY] MFA reset for user ${target.id} by system admin ${req.user.id}`);
         res.status(200).json({ message: "Two-factor authentication has been reset for this user." });
     } catch (error) {
@@ -1208,7 +1212,7 @@ exports.listCompanyUsers = async (req, res) => {
         const userIds = memberships.map(m => m.userId);
         const users = await User.findAll({
             where: { id: userIds },
-            attributes: ['id', 'email', 'full_name', 'authMethod'],
+            attributes: ['id', 'email', 'full_name', 'authMethod', 'mfaEnabled'],
         });
         const userById = new Map(users.map(u => [u.id, u]));
 
@@ -1219,6 +1223,9 @@ exports.listCompanyUsers = async (req, res) => {
                 email: u ? u.email : null,
                 full_name: u ? u.full_name : null,
                 authMethod: u ? u.authMethod : null,
+                // Lets Subscriber Management offer "Reset two-factor" only
+                // where there is something to reset.
+                mfaEnabled: u ? u.mfaEnabled === true : false,
                 roleId: m.roleId,
                 roleName: m.Role ? m.Role.name : null,
             };
