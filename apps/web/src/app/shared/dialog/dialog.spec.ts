@@ -45,6 +45,17 @@ describe('DialogComponent', () => {
 
   // Let afterNextRender (initial focus) and the async history.back() -> popstate
   // cycle run before asserting.
+  // Poll for a condition instead of sleeping a fixed time: jsdom's
+  // history.back() -> popstate is async and, under a loaded test run (the
+  // whole suite beside a production build), a fixed 100ms wait was flaky.
+  async function waitUntil(cond: () => boolean, timeoutMs = 2000): Promise<void> {
+    const start = Date.now();
+    while (!cond()) {
+      if (Date.now() - start > timeoutMs) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
   async function settle(ms = 50): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
     await fixture.whenStable();
@@ -115,7 +126,7 @@ describe('DialogComponent', () => {
     expect((history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard).toBe(true);
 
     keydown('Escape');
-    await settle(100);
+    await waitUntil(() => (history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard !== true);
 
     expect((history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard).not.toBe(true);
   });
