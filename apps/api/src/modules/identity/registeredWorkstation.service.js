@@ -80,6 +80,17 @@ function workstationSkipsCode({ enabled, station, isSystemAdmin, roleName }) {
     return true;
 }
 
+// The per-role lock (Role.signInLockedToWorkstations): does it bind THIS
+// sign-in? Administrators are never locked, so an organisation cannot lock
+// itself out of its own system. Independent of the "skip the code" switch:
+// a locked role must present a live station even when stations do not skip
+// the code; the station then only proves the place.
+function workstationLockApplies({ roleLocked, isSystemAdmin, roleName }) {
+    if (!roleLocked) return false;
+    if (isSystemAdmin || roleName === 'Tenant Admin') return false;
+    return true;
+}
+
 // The live station this request presents for the account, or null. Does not
 // stamp anything; the gate calls touchWorkstation when it relies on it.
 async function presentedWorkstation(req, accountId) {
@@ -190,6 +201,7 @@ module.exports = {
     NAME_MAX,
     workstationIsLive,
     workstationSkipsCode,
+    workstationLockApplies,
     presentedWorkstation,
     touchWorkstation,
     registerWorkstation,

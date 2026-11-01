@@ -255,7 +255,7 @@ exports.listAccountRoles = async (req, res) => {
 
         const roles = await Role.findAll({
             where: { accountId },
-            attributes: ['id', 'name', 'description', 'dataScope'],
+            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'],
             include: [{ model: Menu, as: 'PermittedMenus', attributes: ['id', 'name'], through: { attributes: [] } }],
             order: [['name', 'ASC']],
         });
@@ -274,7 +274,7 @@ exports.getAccountRole = async (req, res) => {
 
         const role = await Role.findOne({
             where: { id: req.params.roleId, accountId },
-            attributes: ['id', 'name', 'description', 'dataScope'],
+            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'],
         });
         if (!role) return res.status(404).json({ message: "Role not found." });
 
@@ -287,6 +287,7 @@ exports.getAccountRole = async (req, res) => {
             name: role.name,
             description: role.description,
             dataScope: role.dataScope || 'all',
+            signInLockedToWorkstations: role.signInLockedToWorkstations === true,
             menuIds: grants.map(g => g.menuId), // legacy shape, kept for older clients
             permissions: grants.map(g => ({
                 menuId: g.menuId,
@@ -328,8 +329,19 @@ function normalizeGrants(body) {
 
 const DATA_SCOPES = ['own', 'department', 'all'];
 
+// The registered-workstation lock on a role body: undefined = not sent (keep
+// what is stored), a boolean = the value, anything else = refused. The Tenant
+// Admin role never reaches here (its update is refused above), so the "never
+// lock the Tenant Admin" rule holds by construction.
+function readWorkstationLock(body) {
+    const v = body ? body.signInLockedToWorkstations : undefined;
+    if (v === undefined || v === null) return { value: undefined };
+    if (typeof v !== 'boolean') return { error: 'signInLockedToWorkstations must be true or false.' };
+    return { value: v };
+}
+
 // POST /api/auth/account/roles
-// Body: { roleName, description?, dataScope?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// Body: { roleName, description?, dataScope?, signInLockedToWorkstations?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
 // (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.createAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -368,15 +380,20 @@ exports.createAccountRole = async (req, res) => {
             await transaction.rollback();
             return res.status(400).json({ message: "Data scope must be one of: own, department, all." });
         }
+        const lock = readWorkstationLock(req.body);
+        if (lock.error) {
+            await transaction.rollback();
+            return res.status(400).json({ message: lock.error });
+        }
 
         const role = await Role.create(
-            { accountId, name, description: (req.body.description || '').trim() || null, dataScope },
+            { accountId, name, description: (req.body.description || '').trim() || null, dataScope, signInLockedToWorkstations: lock.value === true },
             { transaction },
         );
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope } });
+        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope, signInLockedToWorkstations: role.signInLockedToWorkstations === true } });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();
         console.error("Error creating account role:", error);
@@ -427,6 +444,12 @@ exports.updateAccountRole = async (req, res) => {
             }
             updates.dataScope = req.body.dataScope;
         }
+        const lock = readWorkstationLock(req.body);
+        if (lock.error) {
+            await transaction.rollback();
+            return res.status(400).json({ message: lock.error });
+        }
+        if (lock.value !== undefined) updates.signInLockedToWorkstations = lock.value;
         if (updates.name && updates.name !== role.name) {
             const clash = await Role.findOne({ where: { accountId, name: updates.name }, transaction });
             if (clash) {
@@ -442,7 +465,7 @@ exports.updateAccountRole = async (req, res) => {
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description', 'dataScope'] });
+        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'] });
         res.status(200).json({ message: "Role updated.", role: updated });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();

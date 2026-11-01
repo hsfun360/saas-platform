@@ -10,6 +10,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 import { CanDirective } from '../shared/can.directive';
+import { FieldInfoComponent } from '../shared/field-info/field-info';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
@@ -27,7 +28,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-role-management',
   standalone: true,
-  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective, FieldInfoComponent],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })
@@ -48,7 +49,15 @@ export class RoleManagementComponent implements OnInit {
     roleName: ['', [Validators.required, Validators.maxLength(100)]],
     roleDescription: ['', [Validators.maxLength(255)]],
     dataScope: ['all' as RoleDataScope],
+    // Registered-workstation lock (2026-11-01): holders sign in only from a
+    // browser the organisation registered under Security Policy.
+    lockedToWorkstations: [false],
   });
+
+  // The long explanation behind the (i) on the lock switch.
+  readonly hint = {
+    lock: 'When on, people holding this role can sign in only from a registered workstation, that is a shared browser an administrator registered for your organisation under System Setup, Security Policy. From any other computer or phone their password is refused before any two-factor step, with a message to ask their administrator. The Tenant Admin role is never locked, and the platform\'s system administrators are not affected. Switch it off, or register the browser they are using, to let them in from elsewhere.',
+  };
 
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
@@ -133,7 +142,7 @@ export class RoleManagementComponent implements OnInit {
   openCreate() {
     this.clearMessages();
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false });
     this.selectedGrants.set(new Map<string, GrantFlags>());
     this.roleDialogOpen.set(true);
   }
@@ -144,13 +153,13 @@ export class RoleManagementComponent implements OnInit {
     this.clearMessages();
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
-    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all' });
+    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all', lockedToWorkstations: role.signInLockedToWorkstations === true });
     this.selectedGrants.set(new Map<string, GrantFlags>());
 
     this.editLoading.set(true);
     this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
-        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all' });
+        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all', lockedToWorkstations: detail.signInLockedToWorkstations === true });
         const next = new Map<string, GrantFlags>();
         if (detail.permissions) {
           for (const p of detail.permissions) {
@@ -174,7 +183,7 @@ export class RoleManagementComponent implements OnInit {
   cancelEdit() {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false });
     this.selectedGrants.set(new Map<string, GrantFlags>());
   }
 
@@ -193,14 +202,14 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    const { roleName, roleDescription, dataScope } = this.roleForm.getRawValue();
+    const { roleName, roleDescription, dataScope, lockedToWorkstations } = this.roleForm.getRawValue();
     const editingId = this.editingRoleId();
 
     this.isLoading.set(true);
 
     if (editingId) {
       this.authService
-        .updateRole(editingId, { roleName, description: roleDescription, dataScope, permissions })
+        .updateRole(editingId, { roleName, description: roleDescription, dataScope, signInLockedToWorkstations: lockedToWorkstations, permissions })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
@@ -217,7 +226,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    this.authService.createRole(roleName, roleDescription, permissions, dataScope).subscribe({
+    this.authService.createRole(roleName, roleDescription, permissions, dataScope, lockedToWorkstations).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);

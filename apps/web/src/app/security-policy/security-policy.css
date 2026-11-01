@@ -40,6 +40,9 @@
 .sp-stations__empty {
   margin: var(--space-md) 0 0;
 }
+.sp-stations__locked {
+  margin: var(--space-sm) 0 0;
+}
 .sp-stations__register {
   margin-top: var(--space-md);
 }

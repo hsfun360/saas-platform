@@ -71,6 +71,16 @@ test('a station skips the code for staff roles only, and only when the account s
     assert.strictEqual(svc.workstationSkipsCode({ enabled: true, station: null, isSystemAdmin: false, roleName: 'Front Desk' }), false);
 });
 
+// ---- workstationLockApplies: the per-role lock ----
+
+test('a locked role binds staff only; administrators are never locked, and an unlocked role never is', () => {
+    assert.strictEqual(svc.workstationLockApplies({ roleLocked: true, isSystemAdmin: false, roleName: 'Front Desk' }), true);
+    assert.strictEqual(svc.workstationLockApplies({ roleLocked: true, isSystemAdmin: false, roleName: 'Tenant Admin' }), false);
+    assert.strictEqual(svc.workstationLockApplies({ roleLocked: true, isSystemAdmin: true, roleName: 'System Admin' }), false);
+    assert.strictEqual(svc.workstationLockApplies({ roleLocked: false, isSystemAdmin: false, roleName: 'Front Desk' }), false);
+    assert.strictEqual(svc.workstationLockApplies({ roleLocked: undefined, isSystemAdmin: false, roleName: 'Front Desk' }), false);
+});
+
 // ---- presentedWorkstation + touchWorkstation ----
 
 test('presentedWorkstation finds the live row by the cookie hash and never for another account; touch is a static update', async () => {

@@ -22,7 +22,7 @@ function state(over: Partial<SecurityPolicyState> = {}): SecurityPolicyState {
   return {
     mfaAvailable: true, mfaPolicy: 'optional', mfaRequiredFrom: null, effective: false, users: 12, enrolled: 4, notEnrolled: 8,
     trustedDevicesAllowed: true, trustedDeviceDays: 30, trustedDevices: 3,
-    workstationTrustEnabled: false, workstations: 0,
+    workstationTrustEnabled: false, workstations: 0, lockedRoles: 0,
     ...over,
   };
 }
@@ -193,6 +193,15 @@ describe('SecurityPolicyComponent', () => {
     // Switching it off again says the registrations are kept.
     c.form.controls.workstationTrustEnabled.setValue(false);
     expect(c.expectedWorkstations()).toContain('asked for a code again at their next sign-in; the registration is kept');
+  });
+
+  it('says how many roles are locked to registered workstations, and nothing when none is', () => {
+    const none = mount(state());
+    expect(none.componentInstance.lockedRolesNote()).toBe('');
+    expect(host(none).querySelector('.sp-stations__locked')).toBeNull();
+    const two = mount(state({ lockedRoles: 2 }), [station()]);
+    expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('2 roles sign in only from a registered workstation');
+    expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('shut those roles out');
   });
 
   it('with no station the note points at "Register this workstation"', () => {

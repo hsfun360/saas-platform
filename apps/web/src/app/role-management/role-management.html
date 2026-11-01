@@ -69,6 +69,7 @@
                 {{ role.PermittedMenus?.length || 0 }} menus
                 @if (role.dataScope === 'own') { · own records only }
                 @else if (role.dataScope === 'department') { · department scope }
+                @if (role.signInLockedToWorkstations) { · registered workstations only }
               </span>
             </span>
           </span>
@@ -169,6 +170,16 @@
           </span>
         </label>
       </fieldset>
+
+      <!-- Registered-workstation lock (2026-11-01): a standalone on/off rule,
+           so a switch (settings-chrome standard). -->
+      <label class="switch-row switch">
+        <input id="roleLock" type="checkbox" role="switch" formControlName="lockedToWorkstations" />
+        <span class="switch-row__text">
+          <span class="switch-row__title">Sign in only from registered workstations<app-field-info label="Registered workstations only" [text]="hint.lock" /></span>
+          <span class="switch-row__hint">On = refused from any other computer or phone; register workstations under Security Policy.</span>
+        </span>
+      </label>
 
       <div>
         <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--font-h3);">Assign Permissions</label>

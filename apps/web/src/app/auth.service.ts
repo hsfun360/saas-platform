@@ -208,8 +208,8 @@ export class AuthService {
     return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/account/menus`);
   }
 
-  createRole(roleName: string, description: string, permissions: RoleMenuPermission[], dataScope: RoleDataScope): Observable<{ message: string; role: Role }> {
-    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope });
+  createRole(roleName: string, description: string, permissions: RoleMenuPermission[], dataScope: RoleDataScope, signInLockedToWorkstations = false): Observable<{ message: string; role: Role }> {
+    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope, signInLockedToWorkstations });
   }
 
   // A single role with the exact menu grants (+ action flags) - prefills the edit form.
@@ -219,7 +219,7 @@ export class AuthService {
 
   updateRole(
     roleId: string,
-    data: { roleName?: string; description?: string; dataScope?: RoleDataScope; permissions: RoleMenuPermission[] },
+    data: { roleName?: string; description?: string; dataScope?: RoleDataScope; signInLockedToWorkstations?: boolean; permissions: RoleMenuPermission[] },
   ): Observable<{ message: string; role: Role }> {
     return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`, data);
   }

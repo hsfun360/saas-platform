@@ -32,7 +32,7 @@ All control-plane tables live in `public` (they move to their own schema when th
   Known codes: `MEMBERSHIP`, `GOLF`, `FACILITY`, `AR`, `POS`, `TENANT_ADMIN` (System Setup), `PLATFORM_ADMIN` (SaaS Administration); legacy rows derived a code from their name once by the 2026-09-04 boot backfill.
 - `Menu` - `moduleId`, `name` + `names`, `description` + `descriptions` (localized), `parentId` (adjacency list), `sequence`, `route`, `icon`.
 - `CompanyModule` - subscriptions: `companyId`, `moduleId`, `isActive`.
-- `Role` - ACCOUNT-level named set of menu permissions: `accountId` (NULL = a PLATFORM role such as System Admin), `name` (unique per account; a partial unique keeps platform names unique too), `description`, `dataScope`.
+- `Role` - ACCOUNT-level named set of menu permissions: `accountId` (NULL = a PLATFORM role such as System Admin), `name` (unique per account; a partial unique keeps platform names unique too), `description`, `dataScope`, `signInLockedToWorkstations` (holders sign in only from a registered workstation; never the Tenant Admin role, 2026-11-01).
   Roles are not tied to a company; ASSIGNMENT is per company through `CompanyUser.roleId`.
   The legacy per-company `companyId` column was retired 2026-07-10.
 - `RoleMenu` - the grants: `roleId`, `menuId`, `canCreate`, `canEdit`, `canDelete`.
@@ -95,6 +95,7 @@ Both are assigned per company membership - `CompanyUser.departmentId` / `positio
 Unassigned = no placement; Phase 3 treats that as "own records only".
 
 **Data scope (Phase 3 of the CRUD/permission roadmap)**: `Role.dataScope` (STRING(20) NOT NULL DEFAULT 'all'; own / department / all) bounds whose records the role may Edit/Delete (viewing untouched); a radio in the role dialog sets it.
+**Registered-workstation lock (2026-11-01)**: `Role.signInLockedToWorkstations` (BOOLEAN NOT NULL DEFAULT false) makes the role's holders sign in only from a browser the organisation registered under Security Policy (identity's `RegisteredWorkstation`); a switch in the role dialog sets it, the listing captions "registered workstations only", and the login gate enforces it on every session grant (see identity-auth.md). The Tenant Admin role cannot carry it (its edit is refused), so an organisation cannot lock itself out.
 The rule: `own` = records the caller created; `department` = own, plus records stamped with the caller's CURRENT department whose owner's current rank is STRICTLY lower (senior over junior; peers cannot; an owner without a position counts as most junior; a caller without placement falls back to own-only); `all` = everything including legacy unowned rows (which own/department can NEVER touch).
 Records carry `createdBy` + `createdByDepartmentId` (stamped at creation) + `updatedBy` (every save; workflow groundwork) - reference implementation: the three membership masters, which enforce via `canModifyRecord()` on update paths and return a per-row `canModify` flag (from `annotateCanModify()`) so the UI hides Edit/Enable/Disable on untouchable rows.
 Seam: `getAccessContext` / `getCallerPlacement` / `canModifyRecord` / `annotateCanModify` in `platform/serviceContext.js`.

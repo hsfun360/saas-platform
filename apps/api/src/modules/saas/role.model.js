@@ -38,6 +38,17 @@ const Role = sequelize.define('Role', {
         allowNull: false,
         defaultValue: 'all',
         validate: { isIn: [['own', 'department', 'all']] }
+    },
+    // Registered-workstation lock (approved 2026-11-01): holders of this role
+    // sign in ONLY from a browser the organisation registered as a workstation
+    // (identity's RegisteredWorkstation). Enforced by the login gate on every
+    // session grant, including a workspace switch; never applies to the
+    // Tenant Admin role or a System Admin, so an organisation cannot lock
+    // itself out. Platform roles (accountId NULL) ignore it.
+    signInLockedToWorkstations: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
     }
 }, {
     indexes: [

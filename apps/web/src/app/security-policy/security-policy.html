@@ -142,6 +142,9 @@
             <div class="settings-sub">
               <h3 class="settings-sub__title">Workstations</h3>
               <p class="settings-sub__hint">Register a station from the browser standing at that desk; the registration lasts one year.</p>
+              @if (lockedRolesNote()) {
+                <p class="cell-subtle sp-stations__locked">{{ lockedRolesNote() }}</p>
+              }
 
               @if (workstations().length === 0) {
                 <p class="cell-subtle sp-stations__empty">No workstation is registered.</p>

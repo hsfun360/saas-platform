@@ -106,6 +106,54 @@ test('updateTenantRole rejects an empty permission set (400)', async () => {
     assert.strictEqual(tx.rollback.calls.length, 1);
 });
 
+// ---- The registered-workstation lock on account roles (2026-11-01) ----
+
+test('createAccountRole stores the workstation lock when sent, defaults it off, and refuses a non-boolean', async () => {
+    Menu.count = fn(async () => 1);
+    Role.findOne = fn(async () => null);
+    RoleMenu.bulkCreate = fn(async () => {});
+    const created = [];
+    Role.create = fn(async (values) => { created.push(values); return { id: 'role-new', ...values }; });
+
+    let res = mockRes();
+    await controller.createAccountRole(REQ({ body: { roleName: 'Front Desk', menuIds: ['m1'], signInLockedToWorkstations: true } }), res);
+    assert.strictEqual(res.statusCode, 201);
+    assert.strictEqual(created[0].signInLockedToWorkstations, true);
+    assert.strictEqual(res.body.role.signInLockedToWorkstations, true);
+
+    res = mockRes();
+    await controller.createAccountRole(REQ({ body: { roleName: 'Pro Shop', menuIds: ['m1'] } }), res);
+    assert.strictEqual(res.statusCode, 201);
+    assert.strictEqual(created[1].signInLockedToWorkstations, false, 'off unless asked for');
+
+    res = mockRes();
+    await controller.createAccountRole(REQ({ body: { roleName: 'Caddy Master', menuIds: ['m1'], signInLockedToWorkstations: 'yes' } }), res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.match(res.body.message, /true or false/);
+    assert.strictEqual(created.length, 2, 'nothing created on refusal');
+});
+
+test('updateAccountRole changes the lock only when the flag is sent, and keeps it otherwise', async () => {
+    const updates = [];
+    const role = { id: 'role-fd', accountId: 'acct-X', name: 'Front Desk', signInLockedToWorkstations: false, update: fn(async (u) => { updates.push(u); }) };
+    Role.findOne = fn(async () => role);
+    Role.findByPk = fn(async () => ({ id: 'role-fd', name: 'Front Desk', signInLockedToWorkstations: true }));
+    Menu.count = fn(async () => 1);
+    RoleMenu.destroy = fn(async () => {});
+    RoleMenu.bulkCreate = fn(async () => {});
+
+    let res = mockRes();
+    await controller.updateAccountRole(REQ({ params: { roleId: 'role-fd' }, body: { menuIds: ['m1'], signInLockedToWorkstations: true } }), res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(updates[0], { signInLockedToWorkstations: true });
+    assert.strictEqual(res.body.role.signInLockedToWorkstations, true);
+
+    res = mockRes();
+    await controller.updateAccountRole(REQ({ params: { roleId: 'role-fd' }, body: { menuIds: ['m1'], description: 'Counter staff' } }), res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(updates[1], { description: 'Counter staff' }, 'the lock is untouched when not sent');
+});
+
 test('deleteTenantRole blocks deletion while users still hold the role (409)', async () => {
     Role.findOne = fn(async () => ({ id: 'role-2', companyId: 'company-A', name: 'Cashier', destroy: fn() }));
     CompanyUser.count = fn(async () => 3);

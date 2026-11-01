@@ -510,6 +510,14 @@ export class Dashboard implements OnInit, OnDestroy {
     this.switchingWorkspace.set(true);
     this.authService.switchWorkspace(companyId).subscribe({
       next: (res) => {
+        if (res.workstationRequired) {
+          // The target workspace's role is locked to registered workstations
+          // and this browser is not one: the switch is refused, the current
+          // session stays (2026-11-01).
+          this.switchingWorkspace.set(false);
+          this.shellError.set(res.message || 'That workspace can only be entered from a registered workstation.');
+          return;
+        }
         if (res.mfaEnrollRequired && res.mfaToken) {
           // The target workspace requires MFA (its account policy, or a Tenant
           // Admin role there) and this user has none: the old session is gone,

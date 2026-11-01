@@ -19,6 +19,7 @@ const STATE: SecurityPolicyState = {
   trustedDevices: 3,
   workstationTrustEnabled: false,
   workstations: 0,
+  lockedRoles: 0,
 };
 
 const STATION = { id: 'ws-1', name: 'Front Desk 1', device: 'Chrome on Windows', registeredBy: 'Yap Soon Kum', createdAt: '2026-11-01T01:00:00.000Z', expiresAt: '2027-11-01T01:00:00.000Z', lastUsedAt: null, ip: '203.0.113.9', current: true };

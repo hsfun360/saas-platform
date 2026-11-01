@@ -32,6 +32,7 @@ Staff come here when a new job function needs access, when a role should gain or
 1. Click **New role**.
 2. Enter the **Role Name**, for example `Front Desk Cashier`, and optionally a **Description**.
 3. Choose the **Data scope**: Own records, Department (senior over junior), or All records.
+   Turn on **Sign in only from registered workstations** if people in this role must work from the registered front-desk computers only.
 4. Under **Assign Permissions**, tick the menus the role may open.
    - One collapsible card per module shows "x of y selected"; the tick box in its header selects or clears the whole module.
    - Grouping sections inside a module have their own tick box to select everything beneath them.
@@ -68,10 +69,14 @@ A role still held by anyone cannot be deleted; change those people's role on Use
 | **Role Name** | Yes | A name staff will recognise, e.g. `Golf Pro` or `Front Desk Cashier`. | Up to 100 characters; must be unique within your organization. |
 | **Description** | No | What the role is for, e.g. `Handles front-desk check-in and payments`. | Up to 255 characters. |
 | **Data scope** | Yes | Whose records the role may amend on the screens it can edit (viewing is not affected): **Own records** = only records the person created; **Department (senior over junior)** = own records plus records created in the person's department by someone of a lower position rank; **All records** = everything in the company. | Defaults to All records. Department scope relies on each person's department and position set on User Management. |
+| **Sign in only from registered workstations** | No | On = people holding this role can sign in only from a shared browser an administrator registered under **System Setup → Security Policy**; from any other computer or phone they are refused with a message to ask their administrator. | Off by default. The Tenant Admin role is never locked. Works whether or not Security Policy lets registered workstations skip the two-factor code. The listing shows "registered workstations only" on a locked role. |
 | **Assign Permissions** | Yes (at least one menu) | Tick each menu the role may open; the module and section tick boxes select many at once. | At least one menu must be ticked to save. Grouping sections themselves are not permissions - they open automatically when a menu inside them is granted. |
 | **Create / Edit / Delete** (per ticked menu) | No | Untick an action the role should not have on that screen; the screen then hides the matching buttons for the role's holders. | All three are on for a newly ticked menu. |
 
 ## Tips & troubleshooting
+
+- A person in a locked role who reports "Your role signs in only from a registered workstation" is signing in from an unregistered browser: either register that browser under Security Policy (from that browser), or turn the lock off for the role, or move them to a role without the lock.
+- Before revoking the last registered workstation under Security Policy, check that no role is locked to workstations; the Security Policy screen says how many are.
 
 - If you see "Please select at least one menu permission." or "Select at least one menu permission." tick at least one menu before saving.
 - If you see "A role with that name already exists." choose a different name or edit the existing role.

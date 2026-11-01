@@ -269,6 +269,15 @@ export class LoginComponent implements OnInit {
       this.router.navigate(['/mfa-setup']);
       return;
     }
+    if (res.workstationRequired) {
+      // A role locked to registered workstations, and this browser is not
+      // one: refused before any code step (2026-11-01). The message says to
+      // ask the administrator; nothing is stored.
+      this.signingIn.set(false);
+      this.isMfaStep.set(false);
+      this.errorMessage.set(res.message || 'Your role signs in only from a registered workstation.');
+      return;
+    }
     if (res.mfaRequired && res.mfaToken) {
       this.signingIn.set(false);
       this.isMfaStep.set(true);

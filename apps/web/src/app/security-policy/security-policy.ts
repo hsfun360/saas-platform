@@ -67,7 +67,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
   readonly hint = {
     required: 'When on, every user of your subscription must set up an authenticator app: anyone without it is taken to the setup screen at their next sign-in (password or single sign-on alike, and when they switch into one of your companies) and cannot turn it off afterwards. Administrator roles are always required, whatever this switch says. Give a start date to announce the change first; leave it blank to start now.',
     trusted: 'When on, a user who enters their two-factor code may tick "Don\'t ask again on this device"; that browser then skips the code for the number of days set here, while the password is still required at every sign-in. Turning it off hides the option and every device already trusted is asked for a code again at its next sign-in. Shortening the days also applies to devices already trusted: any device trusted longer ago than the new window is asked again. Users see and remove their own trusted devices under Profile, Security.',
-    workstations: 'A registered workstation is a shared browser, such as a front-desk computer, that an administrator registered for your organisation from that very browser. When this switch is on, staff who sign in from a registered workstation give their password only; the two-factor code is skipped because the workstation itself, standing on your premises, is the second factor. Administrators (the Tenant Admin role and the platform\'s system administrators) still confirm a code everywhere, and nobody is excused from setting up an authenticator: a staff member who signs in from home or a phone is asked for the code as usual. A registered workstation never offers "Don\'t ask again on this device". Registrations last one year, can be revoked here at any time, and are kept while the switch is off.',
+    workstations: 'A registered workstation is a shared browser, such as a front-desk computer, that an administrator registered for your organisation from that very browser. When this switch is on, staff who sign in from a registered workstation give their password only; the two-factor code is skipped because the workstation itself, standing on your premises, is the second factor. Administrators (the Tenant Admin role and the platform\'s system administrators) still confirm a code everywhere, and nobody is excused from setting up an authenticator: a staff member who signs in from home or a phone is asked for the code as usual. A registered workstation never offers "Don\'t ask again on this device". Registrations last one year, can be revoked here at any time, and are kept while the switch is off. A role can also be locked to registered workstations under Role Management, so its holders cannot sign in from anywhere else; that lock works whether or not this switch is on.',
   };
 
   // What Save will do, stated before it is pressed.
@@ -156,6 +156,16 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     }
     if (!n) return 'No workstation is registered yet. Use "Register this workstation" below from the browser you want to register; staff who sign in from it then give their password only.';
     return `Staff signing in from the ${stations} give their password only; everyone still confirms a code from any other device, and administrators confirm one everywhere.`;
+  });
+
+  // Roles locked to registered workstations (Role Management), stated beside
+  // the station list so an administrator revoking the last station knows who
+  // it shuts out.
+  readonly lockedRolesNote = computed(() => {
+    const s = this.state();
+    if (!s || !s.lockedRoles) return '';
+    const n = s.lockedRoles;
+    return `${n} ${n === 1 ? 'role signs' : 'roles sign'} in only from a registered workstation (set under Role Management). Revoking every station would shut ${n === 1 ? 'that role' : 'those roles'} out until a station is registered again.`;
   });
 
   loadWorkstations(): void {

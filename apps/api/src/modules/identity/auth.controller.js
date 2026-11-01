@@ -161,8 +161,23 @@ const generateMfaToken = (user, purpose, ctx) => jwt.sign(
 //     switched stations on; administrator roles still confirm a code there,
 //     and a station never offers "don't ask again" - trust belongs to the
 //     place, not to whoever last sat at it.
+//   - a role locked to registered workstations (Role.signInLockedToWorkstations,
+//     2026-11-01) is refused off-station BEFORE any code step, on every grant
+//     including a workspace switch; administrators are never locked. The
+//     refusal is a 200 with workstationRequired, like the other "more is
+//     needed" outcomes, and no token.
+const WORKSTATION_REQUIRED_MESSAGE = 'Your role signs in only from a registered workstation at your organisation. Ask your administrator if you need to sign in from somewhere else.';
+
 async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
     const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
+
+    if (context.accountId && workstations.workstationLockApplies({ roleLocked: context.roleLocked, isSystemAdmin, roleName: context.roleName })) {
+        const station = await workstations.presentedWorkstation(req, context.accountId);
+        if (!station) {
+            console.warn('[AUTH] login refused', JSON.stringify({ reason: 'workstation-required', userId: user.id, companyId: ctx.companyId, ip: req.ip }));
+            return { workstationRequired: true, message: WORKSTATION_REQUIRED_MESSAGE, email: user.email };
+        }
+    }
 
     if (mfa.isMfaConfigured()) {
         // A live trusted-device cookie ("don't ask again on this device")
@@ -540,6 +555,9 @@ function withAncestors(visible, allById) {
 async function buildWorkspaceMenus(roleId, companyId) {
     let roleName = 'User';
     let permitted = [];
+    // Registered-workstation lock on the role (2026-11-01); the login gate
+    // reads it from the context on every session grant.
+    let roleLocked = false;
     if (roleId) {
         const role = await Role.findByPk(roleId, {
             include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
@@ -547,6 +565,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
         if (role) {
             roleName = role.name;
             permitted = role.PermittedMenus || [];
+            roleLocked = role.signInLockedToWorkstations === true;
         }
     }
 
@@ -561,7 +580,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             const all = await Menu.findAll({
                 include: [{ model: Module, as: 'Module', where: { audience: 'platform' } }],
             });
-            return { roleName, menus: all.map(m => mapMenuItem(m, true)) };
+            return { roleName, roleLocked, menus: all.map(m => mapMenuItem(m, true)) };
         }
 
         const platformPermitted = permitted.filter(m => m.Module && m.Module.audience === 'platform');
@@ -570,7 +589,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
             : [];
         const allById = new Map(all.map(m => [m.id, m]));
-        return { roleName, menus: withAncestors(platformPermitted, allById).map(m => mapMenuItem(m)) };
+        return { roleName, roleLocked, menus: withAncestors(platformPermitted, allById).map(m => mapMenuItem(m)) };
     }
 
     const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
@@ -582,14 +601,14 @@ async function buildWorkspaceMenus(roleId, companyId) {
     if (roleName === 'Tenant Admin') {
         // All entitled menus with implicit full access - parent sections are
         // already part of the set.
-        return { roleName, menus: entitled.map(m => mapMenuItem(m, true)) };
+        return { roleName, roleLocked, menus: entitled.map(m => mapMenuItem(m, true)) };
     }
 
     // A normal role: its granted menus ∩ the company's entitled menus, plus the
     // ancestor sections of those grants (resolved from the entitled set).
     const entitledById = new Map(entitled.map(m => [m.id, m]));
     const granted = permitted.filter(m => entitledById.has(m.id));
-    return { roleName, menus: withAncestors(granted, entitledById).map(m => mapMenuItem(m)) };
+    return { roleName, roleLocked, menus: withAncestors(granted, entitledById).map(m => mapMenuItem(m)) };
 }
 
 // Resolve the role name + effective menus for a user within one workspace.
@@ -624,8 +643,8 @@ async function resolveWorkspaceContext(userId, companyId) {
         roleId = adminRole ? adminRole.id : null;
     }
 
-    const { roleName, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
-    return { companyId: resolvedCompanyId, companyName, roleName, menus, accountId };
+    const { roleName, roleLocked, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
+    return { companyId: resolvedCompanyId, companyName, roleName, roleLocked, menus, accountId };
 }
 
 // Persist the workspace a user just entered, so the NEXT login can skip the

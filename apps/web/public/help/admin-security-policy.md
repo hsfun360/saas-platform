@@ -25,6 +25,7 @@ Staff come here when management decides that a password alone is no longer enoug
 - Below a divider, a second switch, **Allow "Don't ask again on this device"**, with its own (i); when it is on, a **Days a device stays trusted** field appears.
 - A second blue note states how many devices currently skip the code and what your change will do to them.
 - In the **Registered workstations** card, a switch, **Registered workstations skip the two-factor code for staff**, with its (i), a blue note stating what Save will do, then the list of registered workstations (name, device, who registered it, dates, a **This workstation** tag on the computer you are sitting at) each with a **Revoke** button, and a **Register this workstation** button.
+  When a role is locked to registered workstations under Role Management, a line above the list says how many roles depend on the stations.
 - A **Save** bar docks at the bottom of the screen as soon as you change something, with **Discard changes** beside it; it disappears again once you save.
 - The Book icon at the top right opens this guide.
 
@@ -104,6 +105,7 @@ A registration lasts one year; registering the same browser again replaces its e
 
 Revoking takes effect at the next sign-in from that computer.
 Turning the switch off instead keeps every registration and stops all of them skipping the code at once; turning it back on later restores them.
+If any role is locked to registered workstations (see **Role Management**), revoking the last station shuts those people out until a station is registered again; the line above the list warns you.
 
 ### Discard unsaved changes
 
@@ -140,6 +142,7 @@ Turning the switch off instead keeps every registration and stops all of them sk
 - If staff at a registered workstation are still asked for a code, check that the switch in **Registered workstations** is on and saved, that the station is still in the list (registrations expire after a year), and that the person is not an administrator, who is always asked.
   If the browser's cookies were cleared or the staff use a different browser on the same computer, register it again from that browser.
 - "Don't ask again on this device" is not offered on a registered workstation; that is intended.
+- To keep a role on the premises altogether, lock it under **System Setup → Role Management** with **Sign in only from registered workstations**; its holders are then refused from any other computer or phone, whether or not the switch here is on.
 - If you see "A workstation named ... is already registered", pick another name or revoke the old station first.
 - If a user says they cannot turn two-factor authentication off under Profile → Security, that is the policy working: the Disable button is replaced by a **Required** tag and the system refuses with "Your organisation requires two-factor authentication for every user, so it cannot be disabled."
 - If a user says the "Don't ask again on this device" box is missing from the sign-in screen, trusted devices are switched off here for your organization.
@@ -152,4 +155,4 @@ Turning the switch off instead keeps every registration and stops all of them sk
 
 - **Profile → Security** - where each user sets up, and if the policy allows, turns off two-factor authentication, sees whether it is required for them, and reviews and removes their own trusted devices.
 - **System Setup → User Management** - reset a user's two-factor authentication when they lose their authenticator.
-- **System Setup → Role Management** - which roles may open this screen.
+- **System Setup → Role Management** - which roles may open this screen, and which roles are locked to registered workstations.

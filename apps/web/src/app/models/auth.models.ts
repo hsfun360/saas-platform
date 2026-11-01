@@ -137,6 +137,10 @@ export interface AuthResponse {
   mfaEnrollReason?: 'role' | 'organisation';
   // Short-lived purpose token carrying the login context across the MFA step.
   mfaToken?: string;
+  // The role is locked to registered workstations and this browser is not
+  // one: refused before any code step, no token (2026-11-01). `message` says
+  // what to do.
+  workstationRequired?: boolean;
   // With mfaRequired: whether this account offers "Don't ask again on this
   // device" and for how many days (the subscriber's trusted-device rule).
   rememberDeviceAllowed?: boolean;
@@ -200,6 +204,8 @@ export interface SecurityPolicyState {
   // front-desk browsers let staff roles skip the code, and how many are live.
   workstationTrustEnabled: boolean;
   workstations: number;
+  // Roles whose holders may sign in only from a registered workstation.
+  lockedRoles: number;
 }
 
 export interface SecurityPolicyUpdate {
@@ -293,6 +299,9 @@ export interface Role {
   name: string;
   description?: string;
   dataScope?: RoleDataScope;
+  // Holders sign in only from a registered workstation (2026-11-01); never
+  // applies to the Tenant Admin role.
+  signInLockedToWorkstations?: boolean;
   PermittedMenus?: PermittedMenu[];
 }
 
@@ -313,6 +322,7 @@ export interface RoleDetail {
   name: string;
   description?: string | null;
   dataScope?: RoleDataScope;
+  signInLockedToWorkstations?: boolean;
   menuIds: string[]; // legacy shape (grant existing = full access)
   permissions?: RoleMenuPermission[];
 }

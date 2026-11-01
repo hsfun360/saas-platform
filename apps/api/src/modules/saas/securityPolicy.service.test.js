@@ -17,6 +17,7 @@ const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
 const RegisteredWorkstation = require('../identity/registeredWorkstation.model');
+const Role = require('./role.model');
 const policy = require('./securityPolicy.service');
 const mfa = require('../identity/mfa.service');
 
@@ -108,6 +109,7 @@ beforeEach(() => {
     User.count = fn(async () => 1);
     TrustedDevice.count = fn(async () => 2);
     RegisteredWorkstation.count = fn(async () => 1);
+    Role.count = fn(async () => 2);
 });
 
 test('state counts each user once and reports how many have not enrolled and how many devices skip the code', async () => {
@@ -125,7 +127,10 @@ test('state counts each user once and reports how many have not enrolled and how
         trustedDevices: 2,
         workstationTrustEnabled: true,
         workstations: 1,
+        lockedRoles: 2,
     });
+    // Locked roles are counted for the account only.
+    assert.deepStrictEqual(Role.count.calls[0][0].where, { accountId: 'acct-X', signInLockedToWorkstations: true });
     // The station count is the account's live rows (not revoked, not expired).
     const wsWhere = RegisteredWorkstation.count.calls[0][0].where;
     assert.strictEqual(wsWhere.accountId, 'acct-X');

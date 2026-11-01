@@ -28,6 +28,7 @@ const Account = require('./account.model');
 const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
+const Role = require('./role.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
 const workstations = require('../identity/registeredWorkstation.service');
 const mfa = require('../identity/mfa.service');
@@ -153,6 +154,7 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
     const trust = trustedDevicePolicy(account);
     const trustedDevices = await honouredTrustedDevices(userIds, trust);
     const liveWorkstations = await workstations.countLiveWorkstations(account.id);
+    const lockedRoles = await Role.count({ where: { accountId: account.id, signInLockedToWorkstations: true } });
     return {
         // Without MFA_ENCRYPTION_KEY the platform cannot enrol anyone, so the
         // login gate is dormant and a 'required' policy has no effect yet -
@@ -170,6 +172,8 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
         // Registered workstations: whether they count, and how many are live.
         workstationTrustEnabled: workstationTrustEnabled(account),
         workstations: liveWorkstations,
+        // Roles whose holders may sign in only from a registered workstation.
+        lockedRoles,
     };
 }
 
