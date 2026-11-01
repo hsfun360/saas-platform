@@ -73,6 +73,15 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
 - **Standing rule**: every NEW endpoint that reads a body/query/params mounts `validate()` with a schema, exactly like the rate-limiter rule above.
   The rollout completed on 2026-10-12: the identity-hosted tenant-admin routes (`/api/auth/company/*`, `/account/*`, `/companies/*`), the `/api/admin` routes, the shared numbering router (`platform/numberingController.js`) and the `/api/notifications` id routes all mount it; the only bare routes left read no request part or take a multipart upload bounded by multer.
 
+## Real client IP through the web proxy (2026-10-31)
+
+- On dev/staging the SPA reaches the API through nginx (`/api/` reverse proxy), and Cloud Run's front end appends the PROXY's egress address as the last X-Forwarded-For entry - so `trust proxy 1` resolved `req.ip` to one address for every browser user: the per-IP rate limits, the login backoff, session and trusted-device records, the audit context and the login-failure alert all pooled on it (found when a failed-login probe logged a Google egress IP).
+- nginx now forwards the browser's address as `X-Client-IP` (a `map` takes the LAST entry of the X-Forwarded-For it received) plus `X-Proxy-Token`, a shared secret rendered at startup by `docker-entrypoint.d/10-proxy-token.sh` from `PROXY_TOKEN`.
+- `platform/clientIp.js` (mounted first in `app.js`) believes `X-Client-IP` ONLY when the token matches `PROXY_SHARED_TOKEN` (constant-time compare, value must be an IP); it then shadows `req.ip` for every later reader and tags `req.clientIpSource` proxy|direct.
+  A direct caller of the API host sending `X-Client-IP` gets the usual trust-proxy-1 resolution: no spoofing.
+  No secret on either side = unchanged behaviour (the future load balancer serves `/api` itself and sends no token).
+- One Secret Manager secret per environment, `PROXY_SHARED_TOKEN`, attached as `PROXY_SHARED_TOKEN` on platform-api and as `PROXY_TOKEN` on platform-web; rotate by creating a new version and redeploying both.
+
 ## HTTP security headers and the dependency audit gate (2026-10-30)
 
 - The SPA sends a Content-Security-Policy, HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy and COOP from nginx.

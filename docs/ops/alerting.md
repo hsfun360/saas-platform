@@ -35,6 +35,7 @@ Every refused sign-in logs exactly one line from `auth.controller.js`:
 
 `reason` is `bad-credentials` (unknown email or wrong password - deliberately the same, no enumeration) or `bad-mfa-code`.
 The email is never logged.
+The IP is the real browser address when the request came through the web proxy with the shared token (`X-Client-IP`, 2026-10-31); without `PROXY_TOKEN` on the web service it is the proxy's own egress address, which is the 2026-10-30 probe's `34.96.53.12`.
 The log-based metric counts these lines; renaming the prefix silently empties the metric, so the comment above the backoff helper in the controller points here.
 
 ## Testing an alert

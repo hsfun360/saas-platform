@@ -81,6 +81,12 @@ function createApp() {
     // req.ip resolve to that entry (earlier entries are client-supplied junk),
     // which the per-IP rate limiters key on. Do not raise this blindly.
     app.set('trust proxy', 1);
+    // ...except when the request came through the web app's nginx /api proxy
+    // with the shared token: then X-Client-IP (the browser's address, which
+    // that proxy read from ITS last X-Forwarded-For entry) replaces req.ip for
+    // every later reader. Mounted first so limiters, audit context and session
+    // records all see the same address. See platform/clientIp.js.
+    app.use(require('./platform/clientIp').clientIpMiddleware);
 
     // CORS: locked to the deployed frontend (FRONTEND_BASE_URL) plus the local
     // dev servers. Not real protection against scripts (curl has no origin) -

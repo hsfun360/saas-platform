@@ -37,5 +37,11 @@ ENV PORT=8080
 COPY docker-entrypoint.d/05-require-api-host.sh /docker-entrypoint.d/05-require-api-host.sh
 RUN chmod +x /docker-entrypoint.d/05-require-api-host.sh
 
+# Renders /etc/nginx/proxy-token.conf (the X-Proxy-Token header for the /api/
+# proxy) from PROXY_TOKEN at startup; an empty default keeps the config valid
+# even if the hook never runs.
+COPY docker-entrypoint.d/10-proxy-token.sh /docker-entrypoint.d/10-proxy-token.sh
+RUN chmod +x /docker-entrypoint.d/10-proxy-token.sh && : > /etc/nginx/proxy-token.conf
+
 EXPOSE 8080
 # (Default nginx entrypoint runs /docker-entrypoint.d/*, then envsubst, then nginx.)

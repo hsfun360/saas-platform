@@ -21,6 +21,7 @@ Commands are **PowerShell** (the shell on this machine).
 | URL | https://platform-web-855636431759.asia-southeast3.run.app | https://platform-web-640963543517.asia-southeast3.run.app |
 | Registry | `asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps` | **the same one** |
 | `API_HOST` | `platform-api-855636431759.asia-southeast3.run.app` | `platform-api-640963543517.asia-southeast3.run.app` |
+| `PROXY_TOKEN` (secret) | Secret Manager `PROXY_SHARED_TOKEN:latest` | Secret Manager `PROXY_SHARED_TOKEN:latest` (its own value) - attach with `--update-secrets PROXY_TOKEN=PROXY_SHARED_TOKEN:latest`; the same secret is on `platform-api` as `PROXY_SHARED_TOKEN`, so nginx forwards the real browser IP in `X-Client-IP` and the API believes it (2026-10-31, apps/api/docs/security-hardening.md). Unset = valid config, but every user shares the proxy's IP in the API's per-IP limits. |
 
 The old `membership-project-199610` / `asia-southeast1` / `login-web` environment was **decommissioned 2026-08-01**.
 
