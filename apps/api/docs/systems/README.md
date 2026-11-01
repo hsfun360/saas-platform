@@ -11,7 +11,7 @@ Owns identity, tenancy, RBAC, subscriptions, provisioning, notifications.
 
 | Service | Module folder | Owns | Doc |
 | --- | --- | --- | --- |
-| Identity / Auth | `src/modules/identity` | `User`, `RefreshToken`, `TrustedDevice`; mints the JWT | [identity-auth.md](identity-auth.md) |
+| Identity / Auth | `src/modules/identity` | `User`, `RefreshToken`, `TrustedDevice`, `RegisteredWorkstation`; mints the JWT | [identity-auth.md](identity-auth.md) |
 | System Administration (Control Plane) | `src/modules/saas` | `Account, Company, CompanyUser, CompanyModule, CompanySmtpConfig, Module, Menu, Role, RoleMenu, Invitation, RegistrationLead, UserFavorite, PlatformProfile`; platform reference data (`Country, Currency, Language, AccountCurrency, AccountLanguage`, the seven `EInvoice*` LHDN tables); subscriber-owned reference data (`IndustryType, Salutation, Nationality, Race, Title, PublicHoliday, Department, Position`); company setup (`CompanyWeekendDay`) | [system-administration.md](system-administration.md) |
 | Notification | `src/modules/notification` | Outbox -> email (templated, per-company SMTP) + in-app `Notification` bell; Pub/Sub is a future transport | [notification.md](notification.md) |
 

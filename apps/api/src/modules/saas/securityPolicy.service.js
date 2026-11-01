@@ -15,6 +15,12 @@
 // shortening the window takes effect at the next sign-in without touching the
 // stored rows.
 //
+// Registered workstations (2026-11-01): the same row says whether a browser
+// an administrator registered for the organisation lets staff roles skip the
+// code (workstationTrustEnabled, off by default). The stations are identity's
+// RegisteredWorkstation rows; the switch is read at login, so turning it off
+// bites at the next sign-in without touching them.
+//
 // The decision helpers are pure so the rules are unit-tested without a DB.
 
 const { Op } = require('sequelize');
@@ -23,6 +29,7 @@ const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
+const workstations = require('../identity/registeredWorkstation.service');
 const mfa = require('../identity/mfa.service');
 
 const MFA_POLICIES = ['optional', 'required'];
@@ -71,6 +78,18 @@ async function accountRequiresMfa(accountId, today = todayIso()) {
     if (!accountId) return false;
     const account = await Account.findByPk(accountId, { attributes: ['id', 'mfaPolicy', 'mfaRequiredFrom'] });
     return policyRequiresMfa(account, today);
+}
+
+// Does the account let registered workstations stand in for the code? No
+// account (the System Administration workspace) = no.
+function workstationTrustEnabled(account) {
+    return !!account && account.workstationTrustEnabled === true;
+}
+
+async function workstationTrustEnabledForAccount(accountId) {
+    if (!accountId) return false;
+    const account = await Account.findByPk(accountId, { attributes: ['id', 'workstationTrustEnabled'] });
+    return workstationTrustEnabled(account);
 }
 
 async function trustedDevicePolicyForAccount(accountId) {
@@ -124,7 +143,7 @@ async function honouredTrustedDevices(userIds, trust, now = new Date()) {
 // the show-expected-results principle.
 async function getSecurityPolicyState(accountId, today = todayIso()) {
     const account = await Account.findByPk(accountId, {
-        attributes: ['id', 'ownerUserId', 'mfaPolicy', 'mfaRequiredFrom', 'mfaTrustedDevicesAllowed', 'mfaTrustedDeviceDays'],
+        attributes: ['id', 'ownerUserId', 'mfaPolicy', 'mfaRequiredFrom', 'mfaTrustedDevicesAllowed', 'mfaTrustedDeviceDays', 'workstationTrustEnabled'],
     });
     if (!account) return null;
     const userIds = await policyUserIds(account);
@@ -133,6 +152,7 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
         : 0;
     const trust = trustedDevicePolicy(account);
     const trustedDevices = await honouredTrustedDevices(userIds, trust);
+    const liveWorkstations = await workstations.countLiveWorkstations(account.id);
     return {
         // Without MFA_ENCRYPTION_KEY the platform cannot enrol anyone, so the
         // login gate is dormant and a 'required' policy has no effect yet -
@@ -147,6 +167,9 @@ async function getSecurityPolicyState(accountId, today = todayIso()) {
         trustedDevicesAllowed: trust.allowed,
         trustedDeviceDays: trust.days,
         trustedDevices,
+        // Registered workstations: whether they count, and how many are live.
+        workstationTrustEnabled: workstationTrustEnabled(account),
+        workstations: liveWorkstations,
     };
 }
 
@@ -186,10 +209,19 @@ async function applySecurityPolicy(accountId, body) {
         trustedDays = n;
     }
 
+    let stationsEnabled = workstationTrustEnabled(account);
+    if (body.workstationTrustEnabled !== undefined && body.workstationTrustEnabled !== null) {
+        if (typeof body.workstationTrustEnabled !== 'boolean') {
+            return { error: 400, message: 'workstationTrustEnabled must be true or false.' };
+        }
+        stationsEnabled = body.workstationTrustEnabled;
+    }
+
     account.mfaPolicy = policy;
     account.mfaRequiredFrom = from;
     account.mfaTrustedDevicesAllowed = trustedAllowed;
     account.mfaTrustedDeviceDays = trustedDays;
+    account.workstationTrustEnabled = stationsEnabled;
     await account.save();
     return { ok: true };
 }
@@ -201,8 +233,10 @@ module.exports = {
     policyRequiresMfa,
     enrolmentRequiredFor,
     trustedDevicePolicy,
+    workstationTrustEnabled,
     accountRequiresMfa,
     trustedDevicePolicyForAccount,
+    workstationTrustEnabledForAccount,
     accountIdForCompany,
     getSecurityPolicyState,
     applySecurityPolicy,

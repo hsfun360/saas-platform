@@ -17,7 +17,11 @@ const STATE: SecurityPolicyState = {
   trustedDevicesAllowed: true,
   trustedDeviceDays: 30,
   trustedDevices: 3,
+  workstationTrustEnabled: false,
+  workstations: 0,
 };
+
+const STATION = { id: 'ws-1', name: 'Front Desk 1', device: 'Chrome on Windows', registeredBy: 'Yap Soon Kum', createdAt: '2026-11-01T01:00:00.000Z', expiresAt: '2027-11-01T01:00:00.000Z', lastUsedAt: null, ip: '203.0.113.9', current: true };
 
 describe('SecurityPolicyService', () => {
   let service: SecurityPolicyService;
@@ -40,18 +44,44 @@ describe('SecurityPolicyService', () => {
     expect(got).toEqual(STATE);
   });
 
-  it('writes the policy with PUT carrying the MFA rule and the trusted-device rule', () => {
-    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7 }).subscribe();
+  it('writes the policy with PUT carrying the MFA rule, the trusted-device rule and the workstation switch', () => {
+    service.update({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: false, trustedDeviceDays: 7, workstationTrustEnabled: true });
     req.flush({ message: 'Security policy updated.', ...STATE });
   });
 
   it('sends null for the date when the policy is optional', () => {
-    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 }).subscribe();
+    service.update({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false }).subscribe();
     const req = http.expectOne(`${environment.apiUrl}/auth/account/security-policy`);
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false });
     req.flush({ message: 'Security policy updated.', ...STATE, mfaPolicy: 'optional', mfaRequiredFrom: null });
+  });
+
+  // ---- Registered workstations ----
+
+  it('lists the organisation\'s workstations from GET /auth/account/workstations', () => {
+    let got: unknown;
+    service.listWorkstations().subscribe((r) => (got = r.workstations));
+    const req = http.expectOne(`${environment.apiUrl}/auth/account/workstations`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ workstations: [STATION] });
+    expect(got).toEqual([STATION]);
+  });
+
+  it('registers this browser with a POST carrying only the name', () => {
+    service.registerWorkstation('Front Desk 1').subscribe();
+    const req = http.expectOne(`${environment.apiUrl}/auth/account/workstations`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ name: 'Front Desk 1' });
+    req.flush({ message: 'ok', workstations: [STATION] });
+  });
+
+  it('revokes a workstation with DELETE on its id', () => {
+    service.revokeWorkstation('ws-1').subscribe();
+    const req = http.expectOne(`${environment.apiUrl}/auth/account/workstations/ws-1`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ message: 'ok', workstations: [] });
   });
 });

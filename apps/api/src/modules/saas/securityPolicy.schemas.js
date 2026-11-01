@@ -1,11 +1,12 @@
-// Request schema for the SECURITY POLICY route (the Zod boundary seam,
-// platform/validate.js): the subscriber's MFA policy and its trusted-device
-// rule (PUT /account/security-policy). The service keeps the meaning checks
-// (the enum, a date only while required, the 1-90 day window); this bounds
-// shape and size and strips unknown keys, so every key the service reads is
-// listed here.
+// Request schemas for the SECURITY POLICY routes (the Zod boundary seam,
+// platform/validate.js): the subscriber's MFA policy, its trusted-device rule
+// and its registered-workstation switch (PUT /account/security-policy), and
+// the registered-workstation management routes. The service keeps the meaning
+// checks (the enum, a date only while required, the 1-90 day window, the
+// unique station name); this bounds shape and size and strips unknown keys,
+// so every key the service reads is listed here.
 
-const { z } = require('../../platform/validate');
+const { z, fields } = require('../../platform/validate');
 
 module.exports = {
     update: {
@@ -18,6 +19,17 @@ module.exports = {
             // Omitted = keep the stored value.
             trustedDevicesAllowed: z.boolean().optional(),
             trustedDeviceDays: z.number().int().nullable().optional(),
+            // Registered workstations (2026-11-01): whether a registered
+            // station lets staff roles skip the code. Omitted = keep stored.
+            workstationTrustEnabled: z.boolean().optional(),
         }),
+    },
+    // POST /account/workstations - register THIS browser under a name.
+    registerWorkstation: {
+        body: z.object({ name: fields.requiredText(100) }),
+    },
+    // DELETE /account/workstations/:id
+    workstationId: {
+        params: z.object({ id: fields.uuid }),
     },
 };

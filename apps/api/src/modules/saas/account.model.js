@@ -73,7 +73,17 @@ const Account = sequelize.define('Account', {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 30,
-    }
+    },
+    // Registered workstations (approved 2026-11-01): whether a shared browser
+    // an administrator registered for the organisation lets its STAFF roles
+    // skip the two-factor code (never the password, never enrolment, never
+    // administrator roles). Off by default; the stations themselves live in
+    // identity's RegisteredWorkstation and are listed on the same screen.
+    workstationTrustEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
 }, {
     tableName: 'Account',
     timestamps: true,

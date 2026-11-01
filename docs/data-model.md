@@ -35,7 +35,7 @@ Last refreshed: 2026-10-17.
 
 | Module folder | Postgres schema | Service doc | Entities |
 | --- | --- | --- | --- |
-| `src/modules/identity` | `public` | [identity-auth.md](../apps/api/docs/systems/identity-auth.md) | User. Standalone: RefreshToken (session store), TrustedDevice (MFA skip) |
+| `src/modules/identity` | `public` | [identity-auth.md](../apps/api/docs/systems/identity-auth.md) | User. Standalone: RefreshToken (session store), TrustedDevice (per-user MFA skip), RegisteredWorkstation (per-organisation MFA skip for staff on a shared browser) |
 | `src/modules/saas` (Control Plane) | `public` | [system-administration.md](../apps/api/docs/systems/system-administration.md) | Account, Company, CompanyUser, Module, Menu, CompanyModule, Role, RoleMenu, Invitation, RegistrationLead, Language, Currency, AccountLanguage, AccountCurrency. Standalone: Country, IndustryType, Salutation, Nationality, Race, Title, PublicHoliday, CompanySmtpConfig, CompanyWeekendDay, UserFavorite, Department, Position, PlatformProfile (singleton), EInvoiceClassificationCode, EInvoiceMsicCode, EInvoiceTaxType, EInvoiceUnitType, EInvoiceStateCode, EInvoicePaymentMethod, EInvoiceDocumentType |
 | `src/modules/notification` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: EmailTemplate, Notification (in-app bell) |
 | `src/platform` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: OutboxMessage (transactional outbox queue) |
@@ -55,7 +55,7 @@ Numbering Control is split per module: `membership.NumberingScheme`, `ar.Numberi
 The golf table serves six `golf-*` purposes (booking, registration, bill, rain check, proforma, refund request).
 The old `public."NumberingScheme"` table is the already-copied migration source and stays until dropped manually.
 
-Eight models are not registered in `associations.js`: `TrustedDevice` (loaded by `trustedDevice.service.js`), `Department`, `Position` and `PlatformProfile` (loaded by their controllers and `platform/serviceContext.js`), `MembershipSetting` (loaded by `membershipSetting.service.js`), and the two import staging pairs, whose batch/row association is declared inside the row model file and loaded by the import services/controllers.
+Nine models are not registered in `associations.js`: `TrustedDevice` and `RegisteredWorkstation` (loaded by their services), `Department`, `Position` and `PlatformProfile` (loaded by their controllers and `platform/serviceContext.js`), `MembershipSetting` (loaded by `membershipSetting.service.js`), and the two import staging pairs, whose batch/row association is declared inside the row model file and loaded by the import services/controllers.
 They still sync with the rest of the models because `app.js` requires every routes module at load time, before `sequelize.sync` runs at boot, and those routes pull in the controllers and services that define them.
 
 ## ERDs
@@ -87,7 +87,7 @@ erDiagram
     Company }o..o| Currency : "defaultCurrencyCode - base currency (value ref)"
 ```
 
-`RefreshToken` and `TrustedDevice` hang off `User.userId` by value only (identity-service session store and MFA trusted browsers); `UserFavorite` and `Notification` hang off `userId + companyId` the same way.
+`RefreshToken` and `TrustedDevice` hang off `User.userId` by value only (identity-service session store and MFA trusted browsers), and `RegisteredWorkstation` hangs off `Account.accountId` the same way (the organisation's shared front-desk browsers, `registeredByUserId` a value ref to User); `UserFavorite` and `Notification` hang off `userId + companyId` the same way.
 `Module.code` (added 2026-09-04) is the frozen machine identity (`MEMBERSHIP`, `GOLF`, `FACILITY`, `AR`, `POS`, `TENANT_ADMIN`, `PLATFORM_ADMIN`): entitlement checks, boot seeds, the dimension consumer registry and the web route guards key on it, never on the renamable names.
 
 ### Membership

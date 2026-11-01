@@ -196,6 +196,10 @@ export interface SecurityPolicyState {
   trustedDevicesAllowed: boolean;
   trustedDeviceDays: number;
   trustedDevices: number;
+  // Registered workstations (2026-11-01): whether the organisation's shared
+  // front-desk browsers let staff roles skip the code, and how many are live.
+  workstationTrustEnabled: boolean;
+  workstations: number;
 }
 
 export interface SecurityPolicyUpdate {
@@ -203,6 +207,22 @@ export interface SecurityPolicyUpdate {
   mfaRequiredFrom: string | null;
   trustedDevicesAllowed: boolean;
   trustedDeviceDays: number;
+  workstationTrustEnabled: boolean;
+}
+
+// One shared browser an administrator registered for the organisation
+// (GET /auth/account/workstations). Staff signing in from it give their
+// password only; administrators always confirm a code.
+export interface RegisteredWorkstation {
+  id: string;
+  name: string;              // "Front Desk 1"
+  device: string;            // "Chrome on Windows"
+  registeredBy: string | null;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string | null;
+  ip: string | null;
+  current: boolean;          // the browser making the request
 }
 
 export interface MfaSetupResponse {

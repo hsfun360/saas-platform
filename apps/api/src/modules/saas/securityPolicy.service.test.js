@@ -16,6 +16,7 @@ const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const User = require('../identity/user.model');
 const TrustedDevice = require('../identity/trustedDevice.model');
+const RegisteredWorkstation = require('../identity/registeredWorkstation.model');
 const policy = require('./securityPolicy.service');
 const mfa = require('../identity/mfa.service');
 
@@ -100,12 +101,13 @@ test('trustedDevicePolicyForAccount reads only the two columns and defaults with
 // ---- getSecurityPolicyState: the expected result the screen shows ----
 
 beforeEach(() => {
-    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14 }));
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14, workstationTrustEnabled: true }));
     Company.findAll = fn(async () => [{ id: 'c-1' }, { id: 'c-2' }]);
     // The owner also holds a membership row - counted once.
     CompanyUser.findAll = fn(async () => [{ userId: 'owner-1' }, { userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-2' }]);
     User.count = fn(async () => 1);
     TrustedDevice.count = fn(async () => 2);
+    RegisteredWorkstation.count = fn(async () => 1);
 });
 
 test('state counts each user once and reports how many have not enrolled and how many devices skip the code', async () => {
@@ -121,7 +123,13 @@ test('state counts each user once and reports how many have not enrolled and how
         trustedDevicesAllowed: true,
         trustedDeviceDays: 14,
         trustedDevices: 2,
+        workstationTrustEnabled: true,
+        workstations: 1,
     });
+    // The station count is the account's live rows (not revoked, not expired).
+    const wsWhere = RegisteredWorkstation.count.calls[0][0].where;
+    assert.strictEqual(wsWhere.accountId, 'acct-X');
+    assert.strictEqual(wsWhere.revokedAt, null);
     // The enrolled count was asked for exactly the distinct policy users.
     const where = User.count.calls[0][0].where;
     assert.deepStrictEqual([...where.id[Object.getOwnPropertySymbols(where.id)[0]]].sort(), ['owner-1', 'u-2', 'u-3']);
@@ -136,6 +144,10 @@ test('state counts each user once and reports how many have not enrolled and how
 test('with trusted devices switched off the state reports zero honoured devices without counting', async () => {
     Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'optional', mfaRequiredFrom: null, mfaTrustedDevicesAllowed: false, mfaTrustedDeviceDays: 30 }));
     const state = await policy.getSecurityPolicyState('acct-X', '2026-10-30');
+    // Stations default to OFF for an account that never set the switch; the
+    // live count is still reported so the screen can say what Save enables.
+    assert.strictEqual(state.workstationTrustEnabled, false);
+    assert.strictEqual(state.workstations, 1);
     assert.strictEqual(state.trustedDevicesAllowed, false);
     assert.strictEqual(state.trustedDevices, 0);
     assert.strictEqual(TrustedDevice.count.calls.length, 0);
@@ -184,4 +196,26 @@ test('apply keeps the stored trusted-device rule when the keys are omitted, and 
     // The window is kept even while the switch is off, so turning it back on restores the chosen days.
     assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', trustedDevicesAllowed: true }), { ok: true });
     assert.strictEqual(row.mfaTrustedDeviceDays, 7);
+});
+
+// ---- Registered workstations: the switch on the same row ----
+
+test('workstationTrustEnabled is off unless the account stored true, and the System Administration workspace never has it', () => {
+    assert.strictEqual(policy.workstationTrustEnabled(null), false);
+    assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X' }), false);
+    assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X', workstationTrustEnabled: false }), false);
+    assert.strictEqual(policy.workstationTrustEnabled({ id: 'acct-X', workstationTrustEnabled: true }), true);
+});
+
+test('apply keeps the stored workstation switch when omitted, stores a boolean, and refuses anything else', async () => {
+    const saves = [];
+    const row = { id: 'acct-X', mfaPolicy: 'optional', mfaRequiredFrom: null, mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 30, workstationTrustEnabled: true, save: async () => saves.push(1) };
+    Account.findByPk = fn(async () => row);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional' }), { ok: true });
+    assert.strictEqual(row.workstationTrustEnabled, true);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', workstationTrustEnabled: false }), { ok: true });
+    assert.strictEqual(row.workstationTrustEnabled, false);
+    assert.strictEqual(saves.length, 2);
+    assert.deepStrictEqual(await policy.applySecurityPolicy('acct-X', { mfaPolicy: 'optional', workstationTrustEnabled: 'yes' }), { error: 400, message: 'workstationTrustEnabled must be true or false.' });
+    assert.strictEqual(saves.length, 2);
 });

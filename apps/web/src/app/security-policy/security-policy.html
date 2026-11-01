@@ -111,6 +111,69 @@
         }
       </section>
 
+      <!-- Registered workstations (2026-11-01): the organisation's shared
+           front-desk browsers. The switch is part of the policy form; the
+           stations are registered and revoked on the spot. -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('workstations')" [attr.aria-expanded]="isExpanded('workstations')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Registered workstations</span>
+            <span class="settings-header__sub">Shared front-desk browsers where staff give their password only; administrators always confirm a code.</span>
+          </span>
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('workstations')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('workstations')) {
+          <div class="settings-body">
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="workstationTrustEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Registered workstations skip the two-factor code for staff<app-field-info label="Registered workstations" [text]="hint.workstations" /></span>
+                <span class="switch-row__hint">Off = every sign-in asks for the code; the registrations below are kept.</span>
+              </span>
+            </label>
+
+            <div class="flash flash-info flash--static" role="status" aria-live="polite">
+              <span class="flash-icon material-icons" aria-hidden="true">info</span>
+              <span>{{ expectedWorkstations() }}</span>
+            </div>
+
+            <div class="settings-sub">
+              <h3 class="settings-sub__title">Workstations</h3>
+              <p class="settings-sub__hint">Register a station from the browser standing at that desk; the registration lasts one year.</p>
+
+              @if (workstations().length === 0) {
+                <p class="cell-subtle sp-stations__empty">No workstation is registered.</p>
+              } @else {
+                <ul class="sp-stations" role="list">
+                  @for (w of workstations(); track w.id) {
+                    <li class="sp-station" [attr.data-return-id]="w.id">
+                      <div class="sp-station__main">
+                        <div class="sp-station__title">
+                          <span class="material-icons" aria-hidden="true">{{ stationIcon(w) }}</span>
+                          <span>{{ w.name }}</span>
+                          @if (w.current) { <span class="status-chip status-chip--info">This workstation</span> }
+                        </div>
+                        <div class="sp-station__sub">
+                          {{ w.device }}, registered {{ w.createdAt | localDate }}@if (w.registeredBy) { by {{ w.registeredBy }}}, expires {{ w.expiresAt | localDate }}@if (w.lastUsedAt) {, last used {{ w.lastUsedAt | localDate:'datetime' }}}@if (w.ip) {, from {{ w.ip }}}.
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn--danger btn--sm" (click)="askRevoke(w)" [disabled]="workstationsBusy()" [attr.aria-label]="'Revoke ' + w.name" *appCan="'edit'">Revoke</button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <button type="button" class="btn btn--secondary sp-stations__register" (click)="openRegister()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">add_to_queue</span>
+                Register this workstation
+              </button>
+            </div>
+          </div>
+        }
+      </section>
+
       <!-- Sticky save bar (settings-chrome standard): exists only while the
            form is dirty, docked at the viewport bottom. -->
       @if (form.dirty) {
@@ -123,6 +186,48 @@
         </div>
       }
     </form>
+
+    <!-- Register THIS browser as a workstation: one field, a drawer like
+         every create form. The cookie lands on the browser making the call. -->
+    @if (registerOpen()) {
+      <app-dialog #regDlg variant="drawer" title="Register this workstation" [busy]="registering()" [dirty]="registerForm.dirty"
+                  discardTitle="Discard this registration?"
+                  discardMessage="The workstation has not been registered yet. Leaving now discards the name you typed."
+                  (close)="closeRegister()">
+        <form id="registerWorkstationForm" [formGroup]="registerForm" (ngSubmit)="register()" class="saas-form saas-form--dialog">
+          <div class="flash flash-info flash--static" role="status">
+            <span class="flash-icon material-icons" aria-hidden="true">info</span>
+            <span>The browser you are using right now becomes a registered workstation of your organisation for one year. Staff who sign in from it give their password only; administrators still confirm a code, and everyone is still asked for one from any other device.</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="wsName">Workstation name <span class="required">*</span></label>
+              <input id="wsName" type="text" formControlName="name" placeholder="e.g. Front Desk 1"
+                     autocomplete="off" maxlength="100"
+                     [attr.aria-invalid]="showError(registerForm.controls.name)" aria-describedby="wsNameErr" />
+              @if (showError(registerForm.controls.name)) {
+                <p id="wsNameErr" class="field-error" role="alert">
+                  @if (registerForm.controls.name.errors?.['required']) { Give the workstation a name. }
+                  @else { Use 100 characters or fewer. }
+                </p>
+              }
+            </div>
+          </div>
+        </form>
+
+        <ng-container dialogFooter>
+          <button type="button" class="btn btn--secondary" (click)="regDlg.requestClose()" [disabled]="registering()">Cancel</button>
+          <button type="submit" form="registerWorkstationForm" class="btn btn--primary" [disabled]="registering()">
+            {{ registering() ? 'Registering…' : 'Register' }}
+          </button>
+        </ng-container>
+      </app-dialog>
+    }
+
+    <!-- Revoke confirmation. -->
+    @if (confirmAction(); as c) {
+      <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+    }
 
     <!-- Route-leave confirmation (unsavedChangesGuard). -->
     @if (leaveConfirm(); as c) {

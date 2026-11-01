@@ -1,0 +1,49 @@
+/* Registered workstations (2026-11-01): one row per station inside the
+   Security Policy card - name and device left, Revoke right; stacked on
+   mobile. Same shape as the Profile card's trusted-device rows. */
+.sp-stations {
+  list-style: none;
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+.sp-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+.sp-station__main {
+  min-width: 0;
+}
+.sp-station__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.sp-station__title .material-icons {
+  font-size: var(--icon-md);
+  color: var(--text-muted);
+}
+.sp-station__sub {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.sp-stations__empty {
+  margin: var(--space-md) 0 0;
+}
+.sp-stations__register {
+  margin-top: var(--space-md);
+}
+@media (max-width: 767px) {
+  .sp-station { grid-template-columns: 1fr; }
+  .sp-station .btn { justify-self: end; }
+}

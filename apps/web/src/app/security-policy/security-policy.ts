@@ -1,16 +1,17 @@
 import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { DialogComponent } from '../shared/dialog/dialog';
 import { UnsavedChangesAware } from '../shared/unsaved-changes.guard';
 import { FieldInfoComponent } from '../shared/field-info/field-info';
 import { CanDirective } from '../shared/can.directive';
-import { formatLocalDate, localDateOnly } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate, localDateOnly } from '../shared/local-date.pipe';
 import { SecurityPolicyService } from '../services/security-policy.service';
-import { SecurityPolicyState } from '../models/auth.models';
+import { RegisteredWorkstation, SecurityPolicyState } from '../models/auth.models';
 
 // System Setup -> Security Policy (approved 2026-10-30). The subscriber's
 // account-wide security settings: whether two-factor authentication is
@@ -20,14 +21,23 @@ import { SecurityPolicyState } from '../models/auth.models';
 // (2026-11-01): whether "Don't ask again on this device" is offered and for
 // how many days a device stays trusted.
 //
+// Registered workstations (approved 2026-11-01): a second card. A shared
+// front-desk browser is nobody's device, so "don't ask again" is the wrong
+// tool there; instead an administrator registers the station for the
+// ORGANISATION, and staff signing in from it give their password only
+// (administrators still confirm a code; enrolment is never skipped, so a
+// clerk sent home still has an authenticator). The switch is part of the
+// policy form; registering and revoking stations are immediate actions.
+//
 // Show-expected-results: the card states how many users have not enrolled
 // and exactly what will happen to them, before Save.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-security-policy',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, ConfirmDialogComponent, FieldInfoComponent, CanDirective],
+  imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, ConfirmDialogComponent, DialogComponent, FieldInfoComponent, CanDirective, LocalDatePipe],
   templateUrl: './security-policy.html',
+  styleUrl: './security-policy.css',
   host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
@@ -48,6 +58,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     mfaRequiredFrom: [''],
     trustedDevicesAllowed: [true],
     trustedDeviceDays: [30],
+    workstationTrustEnabled: [false],
   });
   static readonly TRUST_DAYS = { min: 1, max: 90 };
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
@@ -56,6 +67,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
   readonly hint = {
     required: 'When on, every user of your subscription must set up an authenticator app: anyone without it is taken to the setup screen at their next sign-in (password or single sign-on alike, and when they switch into one of your companies) and cannot turn it off afterwards. Administrator roles are always required, whatever this switch says. Give a start date to announce the change first; leave it blank to start now.',
     trusted: 'When on, a user who enters their two-factor code may tick "Don\'t ask again on this device"; that browser then skips the code for the number of days set here, while the password is still required at every sign-in. Turning it off hides the option and every device already trusted is asked for a code again at its next sign-in. Shortening the days also applies to devices already trusted: any device trusted longer ago than the new window is asked again. Users see and remove their own trusted devices under Profile, Security.',
+    workstations: 'A registered workstation is a shared browser, such as a front-desk computer, that an administrator registered for your organisation from that very browser. When this switch is on, staff who sign in from a registered workstation give their password only; the two-factor code is skipped because the workstation itself, standing on your premises, is the second factor. Administrators (the Tenant Admin role and the platform\'s system administrators) still confirm a code everywhere, and nobody is excused from setting up an authenticator: a staff member who signs in from home or a phone is asked for the code as usual. A registered workstation never offers "Don\'t ask again on this device". Registrations last one year, can be revoked here at any time, and are kept while the switch is off.',
   };
 
   // What Save will do, stated before it is pressed.
@@ -115,6 +127,113 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     return `${devices} currently ${skipVerb} the code, each for ${days} ${dayWord} after being trusted.`;
   });
 
+  // ---- Registered workstations ----
+  readonly workstations = signal<RegisteredWorkstation[]>([]);
+  readonly workstationsBusy = signal(false);
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
+  readonly registerOpen = signal(false);
+  readonly registering = signal(false);
+  readonly registerForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+  });
+
+  // What Save will do to registered workstations, stated before it is pressed.
+  readonly expectedWorkstations = computed(() => {
+    const s = this.state();
+    const v = this.formValue();
+    if (!s) return '';
+    const n = this.workstations().length;
+    const stations = `${n} registered ${n === 1 ? 'workstation' : 'workstations'}`;
+    if (!v.workstationTrustEnabled) {
+      if (!s.workstationTrustEnabled) {
+        return n
+          ? `Registered workstations are off: staff are asked for a code wherever they sign in. The ${stations} below ${n === 1 ? 'is' : 'are'} kept and ${n === 1 ? 'starts' : 'start'} skipping the code when you switch this on.`
+          : 'Registered workstations are off: staff are asked for a code wherever they sign in.';
+      }
+      return n
+        ? `Staff signing in from the ${stations} will be asked for a code again at their next sign-in; the ${n === 1 ? 'registration is' : 'registrations are'} kept.`
+        : 'Registered workstations will be off. None is registered today.';
+    }
+    if (!n) return 'No workstation is registered yet. Use "Register this workstation" below from the browser you want to register; staff who sign in from it then give their password only.';
+    return `Staff signing in from the ${stations} give their password only; everyone still confirms a code from any other device, and administrators confirm one everywhere.`;
+  });
+
+  loadWorkstations(): void {
+    this.service.listWorkstations().subscribe({
+      next: (res) => this.workstations.set(res.workstations || []),
+      error: (err) => this.errorMessage.set(err?.error?.message || 'Failed to load the registered workstations.'),
+    });
+  }
+
+  stationIcon(w: RegisteredWorkstation): string {
+    if (/iPhone|Android/.test(w.device)) return 'smartphone';
+    if (/iPad/.test(w.device)) return 'tablet_mac';
+    return 'desktop_windows';
+  }
+
+  showError(control: AbstractControl): boolean {
+    return control.invalid && (control.touched || control.dirty);
+  }
+
+  openRegister(): void {
+    this.registerForm.reset({ name: '' });
+    this.registerOpen.set(true);
+  }
+
+  closeRegister(): void {
+    this.registerOpen.set(false);
+  }
+
+  register(): void {
+    if (this.registerForm.invalid) {
+      this.registerForm.markAllAsTouched();
+      return;
+    }
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.registering.set(true);
+    this.service.registerWorkstation(this.registerForm.getRawValue().name.trim()).subscribe({
+      next: (res) => {
+        this.registering.set(false);
+        this.registerOpen.set(false);
+        this.workstations.set(res.workstations || []);
+        this.successMessage.set(res.message || 'This browser is now a registered workstation.');
+      },
+      error: (err) => {
+        this.registering.set(false);
+        this.errorMessage.set(err?.error?.message || 'Failed to register this workstation.');
+      },
+    });
+  }
+
+  askRevoke(w: RegisteredWorkstation): void {
+    this.confirmAction.set({
+      title: 'Revoke this workstation?',
+      message: `Revoke "${w.name}"? Staff signing in from it are asked for a two-factor code again at their next sign-in.${w.current ? ' This is the browser you are using now.' : ''}`,
+      confirmLabel: 'Revoke',
+      run: () => this.performRevoke(w.id),
+    });
+  }
+
+  private performRevoke(id: string): void {
+    this.confirmAction.set(null);
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.workstationsBusy.set(true);
+    this.service.revokeWorkstation(id).subscribe({
+      next: (res) => {
+        this.workstationsBusy.set(false);
+        this.workstations.set(res.workstations || []);
+        this.successMessage.set(res.message || 'Workstation revoked.');
+      },
+      error: (err) => {
+        this.workstationsBusy.set(false);
+        this.errorMessage.set(err?.error?.message || 'Failed to revoke the workstation.');
+        this.loadWorkstations();
+      },
+    });
+  }
+
   // ---- Route-leave guard (unsavedChangesGuard on the route) ----
   readonly leaveConfirm = signal<ConfirmRequest | null>(null);
   private leaveResolve: ((leave: boolean) => void) | null = null;
@@ -163,6 +282,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
 
   ngOnInit(): void {
     this.load();
+    this.loadWorkstations();
   }
 
   load(): void {
@@ -202,6 +322,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       // The window is kept while the switch is off, so turning it back on
       // restores the chosen days; a blank field while off falls back to stored.
       trustedDeviceDays: v.trustedDevicesAllowed ? Number(v.trustedDeviceDays) : (this.state()?.trustedDeviceDays ?? 30),
+      workstationTrustEnabled: v.workstationTrustEnabled,
     }).subscribe({
       next: (s) => {
         this.applyState(s);
@@ -222,6 +343,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       mfaRequiredFrom: s.mfaRequiredFrom || '',
       trustedDevicesAllowed: s.trustedDevicesAllowed,
       trustedDeviceDays: s.trustedDeviceDays,
+      workstationTrustEnabled: s.workstationTrustEnabled === true,
     });
   }
 }

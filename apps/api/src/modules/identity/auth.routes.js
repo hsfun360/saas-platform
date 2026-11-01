@@ -3,6 +3,7 @@
 const router = require('express').Router();
 const authController = require('./auth.controller'); // We will create this next
 const trustedDeviceController = require('./trustedDevice.controller');
+const registeredWorkstationController = require('./registeredWorkstation.controller');
 const User = require('./user.model'); // Use your existing Sequelize model
 const jwt = require('jsonwebtoken');
 const OutboxMessage = require('../../platform/outboxMessage.model');
@@ -354,6 +355,12 @@ router.put('/account/languages', authenticateToken, requireTenant, requireMenuAc
 // The account's MFA policy: optional, or required for every user (from a date).
 router.get('/account/security-policy', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), securityPolicyController.getSecurityPolicy);
 router.put('/account/security-policy', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.update), securityPolicyController.updateSecurityPolicy);
+// Registered workstations (2026-11-01): the organisation's shared front-desk
+// browsers that let staff roles skip the two-factor code. Same gate as the
+// policy; the cookie lands on the browser making the register call.
+router.get('/account/workstations', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), registeredWorkstationController.list);
+router.post('/account/workstations', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.registerWorkstation), registeredWorkstationController.register);
+router.delete('/account/workstations/:id', authenticateToken, requireTenant, requireMenuAction('/admin/security-policy'), validate(securityPolicySchemas.workstationId), registeredWorkstationController.revoke);
 
 // --- PER-USER PREFERRED LANGUAGE (any authenticated user) ---
 // The languages the user may pick from (their active account's set) + their pick.

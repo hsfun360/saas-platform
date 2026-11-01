@@ -122,6 +122,7 @@ const buildOnboardingResponse = (user) => ({
 const mfa = require('./mfa.service');
 const sessions = require('./session.service');
 const trustedDevices = require('./trustedDevice.service');
+const workstations = require('./registeredWorkstation.service');
 
 // Short-lived, purpose-scoped token that carries the login context ACROSS the
 // MFA step ('mfa' = enter your code; 'mfa-enroll' = admin role must enroll
@@ -155,6 +156,11 @@ const generateMfaToken = (user, purpose, ctx) => jwt.sign(
 //     policy allows trusted devices and the device is inside the account's
 //     window (2026-11-01); the challenge payload tells the login page whether
 //     to offer "don't ask again" and for how many days.
+//   - a registered workstation (the organisation's shared front-desk browser,
+//     2026-11-01) skips the code step for STAFF roles when the account has
+//     switched stations on; administrator roles still confirm a code there,
+//     and a station never offers "don't ask again" - trust belongs to the
+//     place, not to whoever last sat at it.
 async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
     const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
 
@@ -162,15 +168,21 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
         // A live trusted-device cookie ("don't ask again on this device")
         // stands in for the code - the password/SSO step above already ran.
         if (!skipMfaGates && user.mfaEnabled && !mfaVerified) {
+            const stationsEnabled = await securityPolicy.workstationTrustEnabledForAccount(context.accountId);
+            const station = stationsEnabled ? await workstations.presentedWorkstation(req, context.accountId) : null;
+            let trusted = workstations.workstationSkipsCode({ enabled: stationsEnabled, station, isSystemAdmin, roleName: context.roleName });
+            if (trusted) await workstations.touchWorkstation(station);
             const trust = await securityPolicy.trustedDevicePolicyForAccount(context.accountId);
-            const trusted = trust.allowed && await trustedDevices.hasValidTrust(req, user.id, { maxAgeDays: trust.days });
+            if (!trusted) {
+                trusted = trust.allowed && await trustedDevices.hasValidTrust(req, user.id, { maxAgeDays: trust.days });
+            }
             if (!trusted) {
                 return {
                     message: 'Enter the 6-digit code from your authenticator app.',
                     mfaRequired: true,
                     mfaToken: generateMfaToken(user, 'mfa', ctx),
                     email: user.email,
-                    rememberDeviceAllowed: trust.allowed,
+                    rememberDeviceAllowed: trust.allowed && !station,
                     rememberDeviceDays: trust.days,
                 };
             }
@@ -1832,7 +1844,13 @@ exports.mfaVerify = async (req, res) => {
 
         if (rememberDevice === true) {
             const trust = await securityPolicy.trustedDevicePolicyForAccount(context.accountId);
-            if (trust.allowed) {
+            // A registered workstation never takes personal trust: the browser
+            // is the organisation's, not the person's (the challenge payload
+            // already hid the checkbox there).
+            const onStation = trust.allowed
+                && await securityPolicy.workstationTrustEnabledForAccount(context.accountId)
+                && !!(await workstations.presentedWorkstation(req, context.accountId));
+            if (trust.allowed && !onStation) {
                 await trustedDevices.issueTrust(res, { userId: user.id, req, ttlDays: trust.days });
             }
         }
