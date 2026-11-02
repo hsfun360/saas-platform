@@ -81,7 +81,7 @@ Lengthening the window does the opposite only for new trust: devices already tru
    The days field disappears and the note says how many devices currently skipping the code will be asked for one at their next sign-in.
 2. Click **Save**.
 
-From then on the checkbox is not shown on the sign-in screen, and every sign-in to your companies asks for the code.
+From then on the "Don't ask again on this device" box is no longer shown on the verification-code step, the step after the password where the code is entered, and every sign-in to your companies asks for the code.
 The number of days you had chosen is kept, so turning the switch back on later restores it.
 
 ### Register a shared front-desk computer
@@ -131,7 +131,7 @@ From then on an approver under **Access Requests** can give at most that many da
 | --- | --- | --- | --- |
 | **Require two-factor authentication for all users** | No | On = every user of your organization must sign in with an authenticator code and cannot turn it off; off = each user decides for themselves. | Administrators are required regardless of this switch. |
 | **Required from** | No | The date the requirement starts, so staff can be told first, for example `2026-11-01`. Blank = from the next sign-in. | Only shown while the switch is on; pick from the calendar; a date in the past behaves like "now"; it is cleared automatically when you turn the switch off. |
-| **Allow "Don't ask again on this device"** | No | On = a user who enters their code may tick the box on the sign-in screen, and that browser then skips the code for the number of days below; off = the box is not offered and every sign-in asks for the code. | The password is always required; only the code is skipped. Turning it off also stops devices trusted earlier from skipping the code. |
+| **Allow "Don't ask again on this device"** | No | On = a user who enters their code may tick the box under the code field on the verification-code step, and that browser then skips the code for the number of days below; off = the box is not offered and every sign-in asks for the code. | The password is always required; only the code is skipped. Turning it off also stops devices trusted earlier from skipping the code. |
 | **Days a device stays trusted** | Yes, while the switch is on | A whole number of days from 1 to 90, for example `7`. The platform default is 30. | Only shown while the switch is on; shortening it applies to devices already trusted; the value is kept while the switch is off. |
 | **Registered workstations skip the two-factor code for staff** | No | On = staff who sign in from a registered workstation give their password only; off = staff confirm a code at the desk too and the registrations are kept. | Administrators are asked for a code everywhere whatever this switch says; nobody is excused from setting up an authenticator; the registrations still count for locked roles while it is off. Off by default. |
 
@@ -159,7 +159,7 @@ From then on an approver under **Access Requests** can give at most that many da
   The intended front-desk setup uses both: require two-factor authentication, let registered workstations skip the code, and lock the front-desk role, so the desk needs a password only and home needs the password, the code and a grant.
 - If you see "A workstation named ... is already registered", pick another name or revoke the old station first.
 - If a user says they cannot turn two-factor authentication off under Profile → Security, that is the policy working: the Disable button is replaced by a **Required** tag and the system refuses with "Your organisation requires two-factor authentication for every user, so it cannot be disabled."
-- If a user says the "Don't ask again on this device" box is missing from the sign-in screen, trusted devices are switched off here for your organization.
+- If a user says the "Don't ask again on this device" box is missing from the verification-code step, trusted devices are switched off here for your organization, or they are signing in from a registered workstation, which never offers it. The password page has no such box; "Keep me signed in" there is about the session, not the code.
 - If a red note says two-factor authentication is not available on this platform yet, the platform has not been set up for it; you can still save the policy, but nobody is asked to enrol until your platform administrator enables two-factor authentication.
 - If you see "Your account could not be resolved", you opened the screen from the System Administration workspace; switch to one of your companies and try again.
 - If you see "mfaRequiredFrom must be a date (YYYY-MM-DD)", the date was not picked from the calendar; clear the field and pick the date again.
