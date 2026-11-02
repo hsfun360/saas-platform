@@ -2,17 +2,17 @@
 
 > **Where:** System Setup → Security Policy
 >
-> **Who can use it:** users whose role includes the System Setup module (your organization's administrators, including the Tenant Admin).
+> **Who can use it:** users whose role includes this screen (your organization's administrators, including the Tenant Admin).
 
 ## What this option is for
 
 The Security Policy screen holds the security rules that apply to every user of your organization, across all of your companies.
-It has three rules today.
-The first is whether every user must sign in with two-factor authentication, that is a 6-digit code from an authenticator app on their phone in addition to their password or single sign-on.
+It answers two questions.
+The first is about the code: whether every user must sign in with two-factor authentication, that is a 6-digit code from an authenticator app on their phone in addition to their password or single sign-on, and where that code may be skipped.
 Without a policy, two-factor authentication is a personal choice each user makes under their own Profile, and only administrators (the Tenant Admin role and the platform's system administrators) are obliged to use it.
-The second is whether a user who has entered their code may tick "Don't ask again on this device", and for how many days that browser then skips the code.
-The third is whether your registered workstations, the shared front-desk computers an administrator has registered here, let staff give their password only, so a receptionist is not asked for a code at every shift change.
-Staff come here when management decides that a password alone is no longer enough for anyone, typically before an audit or after a security review, when they want to announce that change with a start date, when they want to tighten how long a trusted browser may skip the code, and when they set up or retire a shared front-desk computer.
+The code may be skipped in two places: on a browser whose user ticked "Don't ask again on this device" after entering a code, for the number of days you allow, and on a registered workstation, a shared front-desk computer an administrator registered here, so a receptionist is not asked for a code at every shift change.
+The second is about the place: the registered workstations themselves, the roles locked to them under Role Management so their holders cannot sign in from anywhere else, and the longest remote-access exception an approver may grant such a person under Access Requests.
+Staff come here when management decides that a password alone is no longer enough for anyone, typically before an audit or after a security review, when they want to announce that change with a start date, when they want to tighten how long a trusted browser may skip the code, when they set up or retire a shared front-desk computer, and when they cap how long a locked person may work from elsewhere.
 
 ## The screen at a glance
 
@@ -81,7 +81,7 @@ Lengthening the window does the opposite only for new trust: devices already tru
    The days field disappears and the note says how many devices currently skipping the code will be asked for one at their next sign-in.
 2. Click **Save**.
 
-From then on the "Don't ask again on this device" box is no longer shown on the verification-code step, the step after the password where the code is entered, and every sign-in to your companies asks for the code.
+From then on the "Don't ask again on this device" box is no longer shown on the verification-code step, the step after the password where the code is entered, and every sign-in to your companies asks for the code, except on a registered workstation while that switch is on.
 The number of days you had chosen is kept, so turning the switch back on later restores it.
 
 ### Register a shared front-desk computer
@@ -131,7 +131,7 @@ From then on an approver under **Access Requests** can give at most that many da
 | --- | --- | --- | --- |
 | **Require two-factor authentication for all users** | No | On = every user of your organization must sign in with an authenticator code and cannot turn it off; off = each user decides for themselves. | Administrators are required regardless of this switch. |
 | **Required from** | No | The date the requirement starts, so staff can be told first, for example `2026-11-01`. Blank = from the next sign-in. | Only shown while the switch is on; pick from the calendar; a date in the past behaves like "now"; it is cleared automatically when you turn the switch off. |
-| **Allow "Don't ask again on this device"** | No | On = a user who enters their code may tick the box under the code field on the verification-code step, and that browser then skips the code for the number of days below; off = the box is not offered and every sign-in asks for the code. | The password is always required; only the code is skipped. Turning it off also stops devices trusted earlier from skipping the code. |
+| **Allow "Don't ask again on this device"** | No | On = a user who enters their code may tick the box under the code field on the verification-code step, and that browser then skips the code for the number of days below; off = the box is not offered and devices trusted earlier stop skipping the code. | The password is always required; only the code is skipped. A registered workstation skips the code under its own switch, not this one. |
 | **Days a device stays trusted** | Yes, while the switch is on | A whole number of days from 1 to 90, for example `7`. The platform default is 30. | Only shown while the switch is on; shortening it applies to devices already trusted; the value is kept while the switch is off. |
 | **Registered workstations skip the two-factor code for staff** | No | On = staff who sign in from a registered workstation give their password only; off = staff confirm a code at the desk too and the registrations are kept. | Administrators are asked for a code everywhere whatever this switch says; nobody is excused from setting up an authenticator; the registrations still count for locked roles while it is off. Off by default. |
 
@@ -147,14 +147,15 @@ From then on an approver under **Access Requests** can give at most that many da
 - Read the blue notes before you save.
   The first is the number of people who will be stopped at their next sign-in and asked to set up an authenticator app, so announce it, give a start date, and have your help desk ready for recovery questions.
   The second is the number of browsers that will start asking for a code again.
-- A user who loses their phone uses a recovery code to get in, or asks you to reset their two-factor authentication under **User Management**; the policy then asks them to set it up again at their next sign-in.
+- A user who loses their phone signs in with one of the recovery codes they saved when they set two-factor authentication up, then sets it up again under **Profile → Security**.
+  If the recovery codes are gone too, ask your platform administrator to reset the user's two-factor authentication; the policy then asks them to set it up again at their next sign-in.
 - A user who no longer recognises a trusted browser, or who used a shared computer, removes it themselves under **Profile → Security → Trusted devices**; you do not need to change the policy for one person.
 - Do not ask staff to tick "Don't ask again on this device" on a shared front-desk computer: that trusts the computer for one person and lets anyone who learns their password sign in as them from that desk.
   Register the computer as a workstation instead; the station, not the person, is then trusted.
 - If staff at a registered workstation are still asked for a code, check that the switch **Registered workstations skip the two-factor code for staff** under **Two-factor authentication** is on and saved, that the station is still in the list (registrations expire after a year), and that the person is not an administrator, who is always asked.
   If the browser's cookies were cleared or the staff use a different browser on the same computer, register it again from that browser.
 - "Don't ask again on this device" is not offered on a registered workstation; that is intended.
-- To keep a role on the premises altogether, lock it under **System Setup → Role Management** with **Sign in only from registered workstations**; its holders are then refused from any other computer or phone, whether or not the skip switch is on.
+- To keep a role on the premises altogether, lock it under **System Setup → Role Management** with **Sign in only from registered workstations**; its holders are then refused from any other computer or phone, whether or not the skip switch is on, unless an approver grants them remote access under **Access Requests**.
 - The two cards are two different questions: **Two-factor authentication** decides who must sign in with a code and where it may be skipped; **Registered workstations** decides where locked roles may sign in from and how long an exception may last.
   The intended front-desk setup uses both: require two-factor authentication, let registered workstations skip the code, and lock the front-desk role, so the desk needs a password only and home needs the password, the code and a grant.
 - If you see "A workstation named ... is already registered", pick another name or revoke the old station first.
@@ -168,6 +169,5 @@ From then on an approver under **Access Requests** can give at most that many da
 ## Related options
 
 - **Profile → Security** - where each user sets up, and if the policy allows, turns off two-factor authentication, sees whether it is required for them, and reviews and removes their own trusted devices.
-- **System Setup → User Management** - reset a user's two-factor authentication when they lose their authenticator.
 - **System Setup → Role Management** - which roles may open this screen, and which roles are locked to registered workstations.
 - **System Setup → Access Requests** - approve, decline, grant and revoke remote access for people in locked roles.
