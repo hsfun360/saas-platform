@@ -18,6 +18,7 @@
   Boot runs `sequelize.sync({ alter: true })` only when the model fingerprint changed (`src/platform/schemaFingerprint.js`, stored in `public."SchemaMeta"`; `FORCE_SCHEMA_SYNC=1` overrides after manual DDL).
   "Skipping sync (fingerprint match)" in the log is the normal case.
   Renames and drops that the alter-sync cannot express go in a guarded boot block in `src/app.js` or a `scripts/migrate-*.js` run before deploy.
+  The alter-sync re-adds every foreign-key and unique constraint it touches (Sequelize numbers the copies `X_fkey1`, `X_key2`, ...), so boot drops the exact duplicates before and after the sync (`src/platform/constraintDedupe.js`); "Dropped N duplicate constraint(s)" in the log is expected after a sync, and the sync lock is held on a dedicated connection so the pool cannot evict it mid-sync.
 - **Build the container:** `docker build -t platform-api apps/api` (multi-stage `node:24-slim`, production dependencies only, `CMD ["node", "server.js"]`).
 - **Run the container locally:** `docker run -p 8080:8080 --env-file .env platform-api`.
 - **Deploy:** the CI pipeline builds and deploys `platform-api` and `platform-api-outboxworker` from the same image on push to `dev` (see `docs/ops/cicd.md` at the repo root); the manual runbooks are the `deploy-api` and `deploy-worker` skills under `.claude/skills/`.

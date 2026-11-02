@@ -160,6 +160,24 @@ Recipe (serverless, no Cloud Run job, about 15 minutes end to end):
 10. Remove the two bucket grants, delete the bucket and dump, delete the local secret file, stop the proxy. The on-demand backup stays.
 
 Side effects: every staging user and record becomes dev's (dev passwords work on staging until changed); refresh tokens and trusted devices fail staging's own JWT keys, so everyone logs in fresh; avatar and logo URLs still point at the dev assets bucket.
+## Boot schema sync: duplicate constraints and the lost lock (found 2026-11-02)
+
+Staging's api never logged `Database schema synced successfully` after the 2026-11-02 promotion: every instance started the alter-sync, went quiet, and the next instance started it again.
+Two causes, both fixed in code the same day:
+
+- **Sequelize's alter-sync duplicates constraints.**
+  `sync({ alter: true })` re-emits `ADD FOREIGN KEY` / `ADD UNIQUE` for every column it alters and only drops the old foreign key first when the model's `references.model` is a plain string equal to the table name, which the schema-scoped models never satisfy.
+  Postgres numbers the copies (`Address_memberId_fkey103`), so dev and staging had grown to 8,000+ constraints for about 170 real ones.
+  The sync's own per-table information_schema introspection joins the whole catalog, so each sync got slower as the pile grew, until on staging (slower catalog, same tier) a single table's lookup took 10 seconds and the sync outlived the instance.
+  Boot now drops exact duplicates before the fingerprint gate (one catalog query when clean) and again after the sync (`apps/api/src/platform/constraintDedupe.js`).
+  Expect `Dropped N duplicate constraint(s)` once per environment on the first boot with this code, then zero.
+- **The sync lock was silently released.**
+  The advisory lock was taken through `sequelize.query()`, so it lived on a pooled connection that the pool evicts after 10 idle seconds; a few seconds into a multi-minute sync the lock was gone and a second instance could start a competing sync (the staging logs show exactly that).
+  The lock now lives on one dedicated connection checked out for the whole initialization.
+
+Reading the catalog over the proxy (the recipe under "Re-copying the staging database from dev"): `SELECT count(*) FROM pg_constraint WHERE conname ~ '_(key|fkey)[0-9]+$'` should be 0 on a healthy environment.
+If a stuck sync is still running when the fixed image rolls out, terminate its backend first (`pg_terminate_backend` on the pid running the `information_schema.table_constraints` query) so the dedupe's `DROP CONSTRAINT` locks do not queue behind it.
+
 ## Still to do for the environment split
 
 - CI/CD: DONE 2026-08-01 - see [`cicd.md`](cicd.md) (push to `dev` -> build + deploy dev; manual "Promote to staging" redeploys the same digests).

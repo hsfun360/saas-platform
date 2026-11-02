@@ -217,7 +217,13 @@ function start() {
 
 // --- Database Initialization with Advisory Locks ---
 async function initializeDB() {
-    let lockAcquired = false;
+    // The advisory lock lives on ONE dedicated connection checked out of the
+    // pool for the whole initialization: pg advisory locks are per session,
+    // and the pool evicts an idle connection after 10s (platform/db.js), so a
+    // lock taken through sequelize.query() was silently released a few
+    // seconds into a multi-minute sync and a second instance could start a
+    // competing sync (seen on staging 2026-11-02).
+    let lockConnection = null;
 
     try {
         await sequelize.authenticate();
@@ -226,8 +232,15 @@ async function initializeDB() {
         // Grab the PostgreSQL Advisory Lock (ID: 999999) so only one Cloud Run
         // container syncs the schema at a time.
         console.log('Waiting for Database Sync Lock...');
-        await sequelize.query('SELECT pg_advisory_lock(999999)');
-        lockAcquired = true;
+        lockConnection = await sequelize.connectionManager.getConnection({ type: 'write' });
+        await lockConnection.query('SELECT pg_advisory_lock(999999)');
+
+        // Duplicate-constraint hygiene BEFORE the fingerprint gate, every boot:
+        // one catalog query when clean. The alter-sync re-adds every foreign
+        // key / unique constraint it touches (see platform/constraintDedupe.js),
+        // and the pile makes the sync's own introspection slower each time.
+        const { dropDuplicateConstraints } = require('./platform/constraintDedupe');
+        await dropDuplicateConstraints(sequelize);
 
         // Schema-fingerprint gate: the full alter-sync is minutes of
         // information_schema interrogation, but the models only change on the
@@ -629,6 +642,8 @@ async function initializeDB() {
             }
 
             await sequelize.sync({ alter: true });
+            // ... and again AFTER it, for the copies this sync just added.
+            await dropDuplicateConstraints(sequelize);
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries
             // its currency. Accounts from before the column existed are in the
@@ -985,12 +1000,14 @@ async function initializeDB() {
         // Log the error but DO NOT crash the process
         console.error('Database initialization failed:', error);
     } finally {
-        if (lockAcquired) {
+        if (lockConnection) {
             try {
-                await sequelize.query('SELECT pg_advisory_unlock(999999)');
+                await lockConnection.query('SELECT pg_advisory_unlock(999999)');
                 console.log('Database Sync Lock released.');
             } catch (unlockError) {
                 console.error('Failed to release database lock:', unlockError);
+            } finally {
+                sequelize.connectionManager.releaseConnection(lockConnection);
             }
         }
     }
