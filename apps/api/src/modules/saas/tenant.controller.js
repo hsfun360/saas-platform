@@ -975,7 +975,7 @@ exports.listAccountUsers = async (req, res) => {
             ? await CompanyUser.findAll({ where: { companyId: companyIds }, include: [{ model: Role, as: 'Role', attributes: ['id', 'name'] }] })
             : [];
         const userIds = [...new Set(memberships.map(m => m.userId))];
-        const users = userIds.length ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'email', 'full_name', 'phone', 'bio'] }) : [];
+        const users = userIds.length ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'email', 'full_name', 'phone', 'bio', 'mfaEnabled'] }) : [];
         const userById = new Map(users.map(u => [u.id, u]));
 
         // A person's GLOBAL profile is editable here only if ALL their memberships
@@ -1009,6 +1009,10 @@ exports.listAccountUsers = async (req, res) => {
                 peopleMap.set(m.userId, {
                     id: u.id, email: u.email, full_name: u.full_name, phone: u.phone, bio: u.bio,
                     profileEditable: !externalUserIds.has(u.id),
+                    // Whether the person signs in with a code today: User
+                    // Management offers "Reset two-factor authentication"
+                    // only to them (lost phone + used-up recovery codes).
+                    mfaEnabled: u.mfaEnabled === true,
                     memberships: [],
                 });
             }

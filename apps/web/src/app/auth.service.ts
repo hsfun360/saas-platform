@@ -281,6 +281,13 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/revoke`, { userId, companyId });
   }
 
+  // The tenant arm of the MFA recovery exception: clears a managed user's
+  // authenticator, recovery codes and trusted devices so they sign in with
+  // their password again (and re-enrol if the policy or their role demands).
+  resetCompanyUserMfa(userId: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/${encodeURIComponent(userId)}/mfa/reset`, {});
+  }
+
   // --- Company (business entity) management (Tenant Admin within their account) ---
   getAvailableModules(): Observable<ModuleOption[]> {
     return this.http.get<ModuleOption[]>(`${this.apiBaseUrl}/auth/company/available-modules`);

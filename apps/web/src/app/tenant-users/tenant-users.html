@@ -80,6 +80,14 @@
                     <span class="material-icons" aria-hidden="true">badge</span>
                     Companies &amp; placement
                   </button>
+                  <!-- Lost phone recovery: only for people who sign in with a
+                       code, never for oneself (the API refuses that too). -->
+                  @if (person.mfaEnabled && person.id !== myUserId) {
+                    <button *appCan="'edit'" type="button" appMenuItem (click)="resetMfa(person)">
+                      <span class="material-icons" aria-hidden="true">phonelink_erase</span>
+                      Reset two-factor authentication
+                    </button>
+                  }
                 </app-overflow-menu>
               </div>
             </div>

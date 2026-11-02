@@ -16,6 +16,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { tokenIdentity } from '../shared/user-identity';
 
 // Per-membership placement form: role + org placement within one company.
 type PlacementForm = FormGroup<{
@@ -115,6 +116,9 @@ export class TenantUsersComponent implements OnInit {
   readonly confirmRemove = signal<{ person: AccountPerson; companyId: string; companyName?: string } | null>(null);
   // Page-level destructive confirm (shared <app-confirm-dialog>): revoking a pending invitation.
   readonly confirmAction = signal<ConfirmRequest | null>(null);
+  // The signed-in user's id: their own two-factor reset is never offered here
+  // (the API refuses it too - a recovery code or another administrator).
+  readonly myUserId = tokenIdentity()?.userId ?? null;
 
   // Subscriber org masters for the assignment dropdowns (active only).
   readonly departments = signal<Department[]>([]);
@@ -349,6 +353,35 @@ export class TenantUsersComponent implements OnInit {
   onRemove(person: AccountPerson, companyId: string, companyName?: string): void {
     this.clearMessages();
     this.confirmRemove.set({ person, companyId, companyName });
+  }
+
+  // Lost phone + used-up recovery codes: clear the person's authenticator so
+  // they sign in with their password again. Offered only for people with
+  // two-factor on, never for oneself; confirmed with the concrete outcome.
+  resetMfa(person: AccountPerson): void {
+    this.clearMessages();
+    this.confirmAction.set({
+      title: 'Reset two-factor authentication',
+      message: `Reset two-factor authentication for ${person.email}? Their authenticator, recovery codes and trusted devices are cleared; they sign in with their password alone and are asked to set it up again if your security policy or their role requires it.`,
+      confirmLabel: 'Reset',
+      run: () => { this.confirmAction.set(null); this.performResetMfa(person); },
+    });
+  }
+
+  private performResetMfa(person: AccountPerson): void {
+    this.pendingKey.set(`mfa:${person.id}`);
+    this.authService.resetCompanyUserMfa(person.id).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || 'Two-factor authentication has been reset for this user.');
+        this.pendingKey.set(null);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to reset two-factor authentication.');
+        this.pendingKey.set(null);
+      },
+    });
   }
 
   performRemove(): void {

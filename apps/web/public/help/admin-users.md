@@ -19,7 +19,7 @@ Staff come here when someone joins or leaves, changes job, or needs access to an
 
 - **People (N)** - a search box that filters as you type (email, name, company or role), followed by one card per person.
 - Each person card shows the email as the title, the full name, and one line per company with the role held there (or **No role**); a person with no company shows **No company access**.
-- Each card has an **Edit** button (opens the profile) and a **⋮** menu (More actions) holding **Companies & placement**.
+- Each card has an **Edit** button (opens the profile) and a **⋮** menu (More actions) holding **Companies & placement** and, for a person who signs in with a two-factor code, **Reset two-factor authentication**.
 - **Pending Invitations (N)** - cards for invitations that have been sent but not yet accepted, showing the email, company, role and expiry date, each with a red **Revoke** button.
 - Two floating buttons sit at the bottom right: **Invite collaborator** and **Create user**.
 
@@ -89,6 +89,18 @@ Each company row is saved separately with its own Update button.
 
 The last Tenant Admin of a company cannot be removed; assign another Tenant Admin first.
 
+### Reset a person's two-factor authentication
+
+Use this when someone has lost the phone with their authenticator app and has no recovery codes left, so they cannot sign in at all.
+
+1. Open the person's **⋮** menu and click **Reset two-factor authentication**.
+   The item appears only for people who have two-factor authentication on, and never for yourself: your own reset needs a recovery code or another administrator.
+2. Read the confirmation: their authenticator, recovery codes and trusted devices are cleared, and they sign in with their password alone.
+   Click **Reset**.
+
+From their next sign-in, the person is asked to set two-factor authentication up again if your Security Policy requires it for everyone or they hold an administrator role; otherwise it stays off until they turn it on themselves under Profile → Security.
+Phone the person before you reset: a reset on request from a stranger who knows a password is exactly what two-factor authentication exists to stop.
+
 If you leave any of these drawers with unsaved changes (Cancel, ✕, Esc, or the browser back button), the system asks whether to discard your changes or keep editing.
 
 ## Field reference
@@ -145,10 +157,13 @@ If you leave any of these drawers with unsaved changes (Cancel, ✕, Esc, or the
 - If you see "Selected role / department / position does not belong to your account." reload the screen - the item was removed while the drawer was open.
 - Invitations expire after 7 days; if someone did not accept in time, revoke the old invitation and send a new one.
 - A person's role, department and position are per company: the same person can be a Manager in one club and a Supervisor in another.
+- If you see "You cannot reset your own two-factor authentication - use a recovery code, or ask another administrator." sign in with one of your recovery codes, or have another Tenant Admin reset yours from their account.
+- If **Reset two-factor authentication** is missing from a person's menu, they do not have two-factor authentication on, so there is nothing to reset; a person who cannot sign in for another reason has forgotten their password (point them to **Forgot password?** on the sign-in screen).
 
 ## Related options
 
 - **Role Management** (System Setup → Role Management) - defines the roles offered here.
+- **Security Policy** (System Setup → Security Policy) - whether everyone must sign in with a two-factor code, which decides whether a reset person must set it up again.
 - **Departments** and **Positions** (System Setup) - the placement lists offered here.
 - **Companies** (System Setup → Companies) - the companies a person can be placed in.
 - **Email Templates** (System Setup → Email Templates) - the wording of the collaborator invitation email.

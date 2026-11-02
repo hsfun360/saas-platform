@@ -88,6 +88,7 @@ export interface AccountPerson {
   phone?: string;
   bio?: string;
   profileEditable?: boolean;
+  mfaEnabled?: boolean;           // signs in with an authenticator code today
   memberships: PersonMembership[];
 }
 

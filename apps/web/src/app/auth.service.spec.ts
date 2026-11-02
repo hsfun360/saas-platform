@@ -175,3 +175,27 @@ describe('AuthService', () => {
     });
   });
 });
+
+describe('AuthService company users', () => {
+  let service: AuthService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(AuthService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('resetCompanyUserMfa POSTs an empty body to the user\'s mfa/reset route', () => {
+    service.resetCompanyUserMfa('u-7').subscribe();
+
+    const req = http.expectOne('/api/auth/company/users/u-7/mfa/reset');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({});
+    req.flush({ message: 'Two-factor authentication has been reset for this user.' });
+  });
+});

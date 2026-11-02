@@ -148,7 +148,7 @@ From then on an approver under **Access Requests** can give at most that many da
   The first is the number of people who will be stopped at their next sign-in and asked to set up an authenticator app, so announce it, give a start date, and have your help desk ready for recovery questions.
   The second is the number of browsers that will start asking for a code again.
 - A user who loses their phone signs in with one of the recovery codes they saved when they set two-factor authentication up, then sets it up again under **Profile → Security**.
-  If the recovery codes are gone too, ask your platform administrator to reset the user's two-factor authentication; the policy then asks them to set it up again at their next sign-in.
+  If the recovery codes are gone too, reset their two-factor authentication under **User Management** (the person's ⋮ menu); the policy then asks them to set it up again at their next sign-in.
 - A user who no longer recognises a trusted browser, or who used a shared computer, removes it themselves under **Profile → Security → Trusted devices**; you do not need to change the policy for one person.
 - Do not ask staff to tick "Don't ask again on this device" on a shared front-desk computer: that trusts the computer for one person and lets anyone who learns their password sign in as them from that desk.
   Register the computer as a workstation instead; the station, not the person, is then trusted.
@@ -169,5 +169,6 @@ From then on an approver under **Access Requests** can give at most that many da
 ## Related options
 
 - **Profile → Security** - where each user sets up, and if the policy allows, turns off two-factor authentication, sees whether it is required for them, and reviews and removes their own trusted devices.
+- **System Setup → User Management** - reset a user's two-factor authentication when they lose their authenticator.
 - **System Setup → Role Management** - which roles may open this screen, and which roles are locked to registered workstations.
 - **System Setup → Access Requests** - approve, decline, grant and revoke remote access for people in locked roles.
