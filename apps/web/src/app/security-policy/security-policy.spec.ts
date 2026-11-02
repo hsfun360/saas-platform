@@ -220,10 +220,31 @@ describe('SecurityPolicyComponent', () => {
     expect(c.expectedWorkstations()).toContain('asked for a code again at their next sign-in; the registration is kept');
   });
 
-  it('says how many roles are locked to registered workstations, and nothing when none is', () => {
+  it('groups the code rules under Two-factor and the place rules under Registered workstations', () => {
+    const el = host(mount(state()));
+    const cards = Array.from(el.querySelectorAll('.settings-card')) as HTMLElement[];
+    expect(cards.length).toBe(2);
+    // The workstation skip switch is the third code rule, beside trusted devices.
+    expect(cards[0].querySelector('.settings-header__title')?.textContent).toBe('Two-factor authentication');
+    expect(cards[0].querySelector('input[formControlName="workstationTrustEnabled"]')).not.toBeNull();
+    expect(cards[0].querySelector('input[formControlName="trustedDevicesAllowed"]')).not.toBeNull();
+    expect(cards[0].querySelector('.switch-row__hint')?.textContent).toContain('administrator roles are always required');
+    expect(cards[0].textContent).toContain('still count for roles locked to them');
+    // The place card holds the stations, then the lock with its exception's ceiling.
+    expect(cards[1].querySelector('.settings-header__title')?.textContent).toBe('Registered workstations');
+    expect(cards[1].querySelector('input[formControlName="workstationTrustEnabled"]')).toBeNull();
+    const subs = Array.from(cards[1].querySelectorAll('.settings-sub__title')).map(h => h.textContent?.trim());
+    expect(subs[0]).toBe('Workstations');
+    expect(subs[1]).toContain('Roles locked to these workstations');
+    expect(cards[1].querySelector('.sp-stations__register')).not.toBeNull();
+    expect(cards[1].querySelector('#spGrantDays')).not.toBeNull();
+    expect(cards[1].querySelector('label[for="spGrantDays"]')?.textContent).toBe('Longest remote-access grant, in days');
+  });
+
+  it('says how many roles are locked to registered workstations, and that none is', () => {
     const none = mount(state());
     expect(none.componentInstance.lockedRolesNote()).toBe('');
-    expect(host(none).querySelector('.sp-stations__locked')).toBeNull();
+    expect(host(none).querySelector('.sp-stations__locked')?.textContent).toContain('No role is locked to the workstations yet.');
     const two = mount(state({ lockedRoles: 2 }), [station()]);
     expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('2 roles sign in only from a registered workstation');
     expect(host(two).querySelector('.sp-stations__locked')?.textContent).toContain('shut those roles out');

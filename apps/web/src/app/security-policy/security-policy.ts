@@ -221,7 +221,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     const s = this.state();
     if (!s || !s.lockedRoles) return '';
     const n = s.lockedRoles;
-    return `${n} ${n === 1 ? 'role signs' : 'roles sign'} in only from a registered workstation (set under Role Management). Revoking every station would shut ${n === 1 ? 'that role' : 'those roles'} out until a station is registered again.`;
+    return `${n} ${n === 1 ? 'role signs' : 'roles sign'} in only from a registered workstation. Revoking every station would shut ${n === 1 ? 'that role' : 'those roles'} out until a station is registered again.`;
   });
 
   loadWorkstations(): void {

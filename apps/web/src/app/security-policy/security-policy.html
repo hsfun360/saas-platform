@@ -39,13 +39,15 @@
 
     <form [formGroup]="form" (ngSubmit)="save()" class="saas-form">
 
-      <!-- Two-factor authentication -->
+      <!-- Two-factor authentication: the card about the CODE - who must
+           sign in with one, and the two places where it is skipped (a trusted
+           device, a registered workstation). -->
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button"
                 (click)="toggleSection('mfa')" [attr.aria-expanded]="isExpanded('mfa')">
           <span class="settings-header__text">
             <span class="settings-header__title">Two-factor authentication</span>
-            <span class="settings-header__sub">Whether every user must sign in with an authenticator app and from when; whether a trusted device may skip the code and for how long.</span>
+            <span class="settings-header__sub">Whether every user must sign in with an authenticator app and from when; whether a trusted device or a registered workstation may skip the code.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('mfa')" aria-hidden="true">chevron_right</span>
@@ -79,7 +81,7 @@
               <span>{{ expected() }}</span>
             </div>
 
-            <!-- Trusted devices (2026-11-01): a sub-group of the same card. -->
+            <!-- Trusted devices (2026-11-01): the first exception to the code. -->
             <div class="settings-sub">
               <label class="switch-row switch">
                 <input type="checkbox" role="switch" formControlName="trustedDevicesAllowed" />
@@ -107,44 +109,47 @@
                 <span>{{ expectedTrust() }}</span>
               </div>
             </div>
+
+            <!-- Registered workstations skip the code (moved here 2026-11-02):
+                 the second exception to the code, beside the first. The
+                 stations themselves are registered in the card below. -->
+            <div class="settings-sub">
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="workstationTrustEnabled" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Registered workstations skip the two-factor code for staff<app-field-info label="Registered workstations" [text]="hint.workstations" /></span>
+                  <span class="switch-row__hint">Off = staff confirm a code at the desk too; the workstations registered below are kept and still count for roles locked to them.</span>
+                </span>
+              </label>
+
+              <div class="flash flash-info flash--static" role="status" aria-live="polite">
+                <span class="flash-icon material-icons" aria-hidden="true">info</span>
+                <span>{{ expectedWorkstations() }}</span>
+              </div>
+            </div>
           </div>
         }
       </section>
 
-      <!-- Registered workstations (2026-11-01): the organisation's shared
-           front-desk browsers. The switch is part of the policy form; the
-           stations are registered and revoked on the spot. -->
+      <!-- Registered workstations: the card about the PLACE - the front-desk
+           browsers an administrator registered (on the spot, outside the
+           form), the roles locked to them, and the remote-access exception
+           whose ceiling is part of the form. -->
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button"
                 (click)="toggleSection('workstations')" [attr.aria-expanded]="isExpanded('workstations')">
           <span class="settings-header__text">
             <span class="settings-header__title">Registered workstations</span>
-            <span class="settings-header__sub">Shared front-desk browsers where staff give their password only; administrators always confirm a code.</span>
+            <span class="settings-header__sub">Where staff may sign in: the front-desk browsers you register, the roles locked to them, and the remote-access exception.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('workstations')" aria-hidden="true">chevron_right</span>
         </button>
         @if (isExpanded('workstations')) {
           <div class="settings-body">
-            <label class="switch-row switch">
-              <input type="checkbox" role="switch" formControlName="workstationTrustEnabled" />
-              <span class="switch-row__text">
-                <span class="switch-row__title">Registered workstations skip the two-factor code for staff<app-field-info label="Registered workstations" [text]="hint.workstations" /></span>
-                <span class="switch-row__hint">Off = every sign-in asks for the code; the registrations below are kept.</span>
-              </span>
-            </label>
-
-            <div class="flash flash-info flash--static" role="status" aria-live="polite">
-              <span class="flash-icon material-icons" aria-hidden="true">info</span>
-              <span>{{ expectedWorkstations() }}</span>
-            </div>
-
             <div class="settings-sub">
               <h3 class="settings-sub__title">Workstations</h3>
-              <p class="settings-sub__hint">Register a station from the browser standing at that desk; the registration lasts one year.</p>
-              @if (lockedRolesNote()) {
-                <p class="cell-subtle sp-stations__locked">{{ lockedRolesNote() }}</p>
-              }
+              <p class="settings-sub__hint">Register a station from the browser standing at that desk; the registration lasts one year. A station lets staff skip the code while the switch under Two-factor authentication is on, and counts as your premises for the roles locked below.</p>
 
               @if (workstations().length === 0) {
                 <p class="cell-subtle sp-stations__empty">No workstation is registered.</p>
@@ -174,12 +179,18 @@
               </button>
             </div>
 
-            <!-- Remote-access grants (2026-11-01): the ceiling an approver may give. -->
+            <!-- The lock (set per role under Role Management) and its
+                 exception: the ceiling an approver may give (2026-11-01). -->
             <div class="settings-sub">
-              <h3 class="settings-sub__title">Remote access<app-field-info label="Remote access" [text]="hint.grants" /></h3>
-              <p class="settings-sub__hint">For roles locked to registered workstations: the longest a grant to sign in from elsewhere may last. Requests are decided under Access Requests.</p>
+              <h3 class="settings-sub__title">Roles locked to these workstations<app-field-info label="Remote access" [text]="hint.grants" /></h3>
+              <p class="settings-sub__hint">Set per role under Role Management: holders sign in only from a workstation above, unless an approver grants them remote access for a window. Requests are decided under Access Requests.</p>
+              @if (lockedRolesNote()) {
+                <p class="cell-subtle sp-stations__locked">{{ lockedRolesNote() }}</p>
+              } @else {
+                <p class="cell-subtle sp-stations__locked">No role is locked to the workstations yet.</p>
+              }
               <div class="form-group form-group--narrow">
-                <label for="spGrantDays">Longest grant, in days</label>
+                <label for="spGrantDays">Longest remote-access grant, in days</label>
                 <input id="spGrantDays" type="number" inputmode="numeric" min="1" max="90" step="1" formControlName="remoteAccessGrantMaxDays"
                        [attr.aria-invalid]="grantDaysInvalid() ? 'true' : null" [attr.aria-describedby]="grantDaysInvalid() ? 'spGrantDaysErr' : null" />
                 @if (grantDaysInvalid()) {
