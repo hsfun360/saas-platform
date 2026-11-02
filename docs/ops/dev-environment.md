@@ -131,7 +131,7 @@ Differences from dev are deliberate and few:
 | Database | Cloud SQL `platform-db-staging` (PG18, db-g1-small, zonal), database `platformDB`, seeded 2026-08-01 as a COPY OF DEV (db-copy job pattern with BOTH Cloud SQL connectors attached; the temporary cross-project `cloudsql.client` grant and `SRC_DATABASE_URL` secret were removed after); RE-COPIED FROM DEV 2026-10-29 with the serverless export/import recipe below |
 | Secrets | Own `DATABASE_URL` + FRESH JWT keypair + own `MFA_ENCRYPTION_KEY` (2026-10-30; TOTP secrets enrolled on staging are encrypted under it, so a DB re-copy from dev makes dev-enrolled secrets undecryptable on staging - those users re-enrol); `SMTP_ENCRYPTION_KEY` and `EMAIL_PASS` copied from dev (the SMTP key MUST match wherever the data came from) |
 | Admin | `admin@myeasysoft.com` via the staging `seed-users` job (its own password, printed once to job logs - same rotate/recover procedure as dev) |
-| SSO | Google NOT configured yet (needs a staging OAuth client + `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, same steps as dev); Microsoft hidden (`MICROSOFT_SSO_ENABLED=false`) - to enable, set it `true` and register the staging web URL + `/login` as an SPA redirect URI on the shared Entra app (see the dev Microsoft SSO row) |
+| SSO | Google CONFIGURED 2026-11-02: own OAuth client in the staging project (`640963543517-d5snotbfrr7456ttjsjq12u9ndle1d77`), `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` as Secret Manager secrets attached to `platform-api` (per-secret `secretAccessor` grant for the compute SA added by hand; without the id the api falls back to the LEGACY prod client = `redirect_uri_mismatch`); Microsoft hidden (`MICROSOFT_SSO_ENABLED=false`) - to enable, set it `true` and register the staging web URL + `/login` as an SPA redirect URI on the shared Entra app (see the dev Microsoft SSO row) |
 | Org policy | Same project-level `allUsers` exception as dev |
 
 Verified 2026-08-01: browser login as staging admin, full catalogue present (5 modules / 41 menus / 24 users), forgot-password email delivered in 4s via ping-driven drain, sweep firing.
@@ -183,4 +183,4 @@ If a stuck sync is still running when the fixed image rolls out, terminate its b
 - CI/CD: DONE 2026-08-01 - see [`cicd.md`](cicd.md) (push to `dev` -> build + deploy dev; manual "Promote to staging" redeploys the same digests).
 - Cloud SQL automated backups: DONE 2026-08-02 for dev + staging (see Backups section); prod will additionally need the pg_dump-to-GCS long-retention job.
 - Prod project + Cloud SQL, LB + Cloud Armor + myeasysoft.com cutover (region decision at that point: asia-southeast1, or asia-southeast4 if Cloud Run is available there by then).
-- Staging Google OAuth client when SSO testing on staging is needed.
+- Staging assets bucket (`my-easy-software-staging-app-assets` + `ASSETS_BUCKET` on `platform-api`): every image upload 500s on staging until it exists (found 2026-11-03).
