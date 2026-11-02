@@ -115,6 +115,30 @@ describe('SecurityPolicyComponent', () => {
     expect(c.hasUnsavedChanges()).toBe(false);
   });
 
+  // ---- Scope while two-factor is optional ----
+
+  it('while two-factor is optional, the trusted-device and workstation notes say whom they reach', () => {
+    const fixture = mount(state({ enrolled: 4 }));
+    const c = fixture.componentInstance;
+    expect(c.expectedTrust()).toMatch(/^Two-factor is optional, so this covers only the 4 users who sign in with a code \(administrators always do\)\. 3 trusted devices/);
+    expect(c.expectedWorkstations()).toMatch(/Staff without two-factor are not affected, since there is no code to skip; roles locked to workstations and remote access apply regardless\.$/);
+    // One enrolled user reads in the singular; none at all says it takes effect as users set it up.
+    const one = mount(state({ enrolled: 1 }));
+    expect(one.componentInstance.expectedTrust()).toContain('covers only the 1 user who signs in with a code');
+    const none = mount(state({ enrolled: 0 }));
+    expect(none.componentInstance.expectedTrust()).toContain('nobody signs in with a code yet');
+    // Requiring two-factor for everyone drops the scope line from both notes.
+    c.form.controls.mfaRequired.setValue(true);
+    fixture.detectChanges();
+    expect(c.expectedTrust()).toMatch(/^3 trusted devices/);
+    expect(c.expectedWorkstations()).not.toContain('Staff without two-factor');
+    // The validation message carries no scope line.
+    c.form.controls.mfaRequired.setValue(false);
+    c.form.controls.trustedDeviceDays.setValue(0);
+    fixture.detectChanges();
+    expect(c.expectedTrust()).toBe('Enter a whole number of days from 1 to 90.');
+  });
+
   // ---- Trusted devices ("Don't ask again on this device") ----
 
   it('states how many devices skip the code today, and what switching the option off does to them', () => {
@@ -131,7 +155,7 @@ describe('SecurityPolicyComponent', () => {
     // The stored window travels with the switch so turning it back on later restores it.
     expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: false, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
     req.flush({ message: 'Security policy updated.', ...state({ trustedDevicesAllowed: false, trustedDevices: 0 }) });
-    expect(c.expectedTrust()).toBe('Trusted devices are off: every sign-in asks for a code.');
+    expect(c.expectedTrust()).toContain('Trusted devices are off: every sign-in asks for a code.');
   });
 
   it('shortening the window says which devices will be asked again; lengthening it keeps existing windows', () => {

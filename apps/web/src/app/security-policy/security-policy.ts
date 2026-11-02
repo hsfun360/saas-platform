@@ -101,8 +101,27 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     return !(n >= SecurityPolicyComponent.TRUST_DAYS.min && n <= SecurityPolicyComponent.TRUST_DAYS.max);
   }
 
+  // Who the code-related settings reach while two-factor is optional: only the
+  // users who sign in with a code (administrators always do). Stated in front
+  // of the trusted-device and workstation notes so neither reads as if it
+  // covered staff who never set up an authenticator.
+  private optionalScope(): string {
+    const s = this.state();
+    if (!s || this.formValue().mfaRequired) return '';
+    const n = s.enrolled;
+    if (!n) return 'Two-factor is optional and nobody signs in with a code yet, so this takes effect as users set it up (administrators always must).';
+    return `Two-factor is optional, so this covers only the ${n} ${n === 1 ? 'user' : 'users'} who ${n === 1 ? 'signs' : 'sign'} in with a code (administrators always do).`;
+  }
+
   // What Save will do to trusted devices, stated before it is pressed.
   readonly expectedTrust = computed(() => {
+    const outcome = this.trustOutcome();
+    if (!outcome || this.trustDaysInvalid()) return outcome;
+    const scope = this.optionalScope();
+    return scope ? `${scope} ${outcome}` : outcome;
+  });
+
+  private trustOutcome(): string {
     const s = this.state();
     const v = this.formValue();
     if (!s) return '';
@@ -128,7 +147,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       return `${devices} currently ${skipVerb} the code and keep their ${s.trustedDeviceDays}-day window; devices trusted from now on skip it for ${days} ${dayWord}.`;
     }
     return `${devices} currently ${skipVerb} the code, each for ${days} ${dayWord} after being trusted.`;
-  });
+  }
 
   // ---- Registered workstations ----
   readonly workstations = signal<RegisteredWorkstation[]>([]);
@@ -142,6 +161,12 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
 
   // What Save will do to registered workstations, stated before it is pressed.
   readonly expectedWorkstations = computed(() => {
+    const outcome = this.workstationOutcome();
+    if (!outcome || this.formValue().mfaRequired) return outcome;
+    return `${outcome} Staff without two-factor are not affected, since there is no code to skip; roles locked to workstations and remote access apply regardless.`;
+  });
+
+  private workstationOutcome(): string {
     const s = this.state();
     const v = this.formValue();
     if (!s) return '';
@@ -159,7 +184,7 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     }
     if (!n) return 'No workstation is registered yet. Use "Register this workstation" below from the browser you want to register; staff who sign in from it then give their password only.';
     return `Staff signing in from the ${stations} give their password only; everyone still confirms a code from any other device, and administrators confirm one everywhere.`;
-  });
+  }
 
   // The remote-access ceiling as typed; NaN when blank or not a whole number.
   private grantDays(): number {
