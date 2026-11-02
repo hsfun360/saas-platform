@@ -111,7 +111,8 @@ After a release that changed menu routes, **log out and back in** so the cached 
 
 Sign-in validates the page's **JavaScript origin** against the OAuth client, so a new Cloud Run URL fails with **`Error 400: origin_mismatch`** until registered.
 Each environment has its OWN client (dev: `855636431759-7dktsf4ls0iq5h6e5gsu9abeeo8gd5q6`; the client ID reaches the app as the API's `GOOGLE_CLIENT_ID`, surfaced via `GET /api/auth/sso-config`).
-Staging has no client configured yet.
+Staging has its own client in `my-easy-software-staging` (`640963543517-d5snotbfrr7456ttjsjq12u9ndle1d77`, wired 2026-11-02): the id and secret live in that project's Secret Manager as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, attached to `platform-api` with `--update-secrets`, and the client's per-secret `secretAccessor` grant for the compute service account is a manual step (the pipeline does not add it).
+Without `GOOGLE_CLIENT_ID` the api falls back to the LEGACY prod client, which shows up as `redirect_uri_mismatch` on the new host rather than a missing button.
 
 In the Google Cloud Console (not doable via gcloud) for the environment's project: **APIs & Services -> Credentials -> the OAuth 2.0 Client ID -> Authorized JavaScript origins -> Add URI**, plus the redirect URI `<origin>/login`.
 
