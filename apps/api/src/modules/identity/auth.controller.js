@@ -1,6 +1,7 @@
 // src/controllers/auth.controller.js
 const User = require('./user.model'); // <--- ADD THIS LINE
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { readSsoConfig, googleOAuthClient } = require('./ssoConfig');
 const { enqueueEmail } = require('../notification/emailOutbox');
 const { resolveIdentityScope } = require('../../platform/identityScope');
 const RegistrationLead = require('../saas/registrationLead.model');
@@ -1044,11 +1045,15 @@ exports.googleExchangeCode = async (req, res) => {
     if (!code || !redirectUri) {
         return res.status(400).json({ message: "Authorization code and redirect URI are required." });
     }
+    const client = googleOAuthClient();
+    if (!client) {
+        return res.status(503).json({ message: "Google sign-in is not configured for this environment." });
+    }
     try {
         const params = new URLSearchParams({
             code,
-            client_id: process.env.GOOGLE_CLIENT_ID || '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
-            client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+            client_id: client.clientId,
+            client_secret: client.clientSecret,
             redirect_uri: redirectUri,
             grant_type: 'authorization_code',
         });
@@ -1069,15 +1074,12 @@ exports.googleExchangeCode = async (req, res) => {
 // GET /api/auth/sso-config   Public, read-only.
 // Per-environment SSO wiring for the login screen: the Google OAuth client the
 // SPA must start the redirect flow with (it has to match the client whose
-// secret THIS api uses in the code exchange above), and whether the Microsoft
-// button is offered at all. Keeps client ids out of the web bundle so ONE web
-// image serves every environment; the hardcoded id is the legacy prod client,
-// kept as the fallback so environments without the env vars behave as before.
+// secret THIS api uses in the code exchange above; null = no Google sign-in
+// here, the login screen hides the button), and whether the Microsoft button
+// is offered at all. Keeps client ids out of the web bundle so ONE web image
+// serves every environment. See ssoConfig.js for why there is no fallback.
 exports.ssoConfig = (req, res) => {
-    res.status(200).json({
-        googleClientId: process.env.GOOGLE_CLIENT_ID || '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
-        microsoftEnabled: process.env.MICROSOFT_SSO_ENABLED !== 'false',
-    });
+    res.status(200).json(readSsoConfig());
 };
 
 exports.microsoftLogin = async (req, res) => {

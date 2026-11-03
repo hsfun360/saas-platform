@@ -41,6 +41,32 @@ describe('LoginComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  // ---- Per-environment SSO buttons (2026-11-03: no built-in Google client) ----
+
+  const ssoButtons = () => Array.from(fixture.nativeElement.querySelectorAll('.btn-sso') as NodeListOf<HTMLElement>).map((b) => b.textContent?.trim());
+
+  it('shows the Google button only when the environment serves a Google client', () => {
+    http.expectOne((r) => r.url.endsWith('/auth/sso-config')).flush({ googleClientId: '123-abc.apps.googleusercontent.com', microsoftEnabled: true });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.btn-sso--google').length).toBe(1);
+    expect(ssoButtons().length).toBe(2);
+  });
+
+  it('hides the Google button, and the whole "or" block when Microsoft is off too, without a Google client', () => {
+    http.expectOne((r) => r.url.endsWith('/auth/sso-config')).flush({ googleClientId: null, microsoftEnabled: false });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.btn-sso').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('.divider')).toBeNull();
+  });
+
+  it('keeps the Microsoft button alone when only Google is unavailable', () => {
+    http.expectOne((r) => r.url.endsWith('/auth/sso-config')).flush({ googleClientId: null, microsoftEnabled: true });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.btn-sso--google').length).toBe(0);
+    expect(ssoButtons().length).toBe(1);
+    expect(fixture.nativeElement.querySelector('.divider')).not.toBeNull();
+  });
+
   // ---- Registered-workstation lock (2026-11-01) ----
 
   it('a workstation refusal shows the outcome card and sends the remote-access request with the token and reason', () => {

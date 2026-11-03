@@ -66,6 +66,11 @@ export class LoginComponent implements OnInit {
   readonly ssoConfig = signal<SsoConfig | null>(null);
   // Microsoft stays visible unless the environment explicitly disables it.
   readonly microsoftEnabled = computed(() => this.ssoConfig()?.microsoftEnabled !== false);
+  // Google needs the environment's own OAuth client: no client, no button
+  // (there is no built-in fallback client on purpose).
+  readonly googleEnabled = computed(() => !!this.ssoConfig()?.googleClientId);
+  // The "or" divider and the SSO block only exist when at least one method is offered.
+  readonly ssoOffered = computed(() => this.googleEnabled() || this.microsoftEnabled());
 
   readonly isWorkspaceSelection = signal(false);
   readonly availableWorkspaces = signal<Workspace[]>([]);
