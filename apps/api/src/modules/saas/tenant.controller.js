@@ -255,7 +255,7 @@ exports.listAccountRoles = async (req, res) => {
 
         const roles = await Role.findAll({
             where: { accountId },
-            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'],
+            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations', 'sessionLimitExempt'],
             include: [{ model: Menu, as: 'PermittedMenus', attributes: ['id', 'name'], through: { attributes: [] } }],
             order: [['name', 'ASC']],
         });
@@ -274,7 +274,7 @@ exports.getAccountRole = async (req, res) => {
 
         const role = await Role.findOne({
             where: { id: req.params.roleId, accountId },
-            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'],
+            attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations', 'sessionLimitExempt'],
         });
         if (!role) return res.status(404).json({ message: "Role not found." });
 
@@ -288,6 +288,7 @@ exports.getAccountRole = async (req, res) => {
             description: role.description,
             dataScope: role.dataScope || 'all',
             signInLockedToWorkstations: role.signInLockedToWorkstations === true,
+            sessionLimitExempt: role.sessionLimitExempt === true,
             menuIds: grants.map(g => g.menuId), // legacy shape, kept for older clients
             permissions: grants.map(g => ({
                 menuId: g.menuId,
@@ -340,8 +341,18 @@ function readWorkstationLock(body) {
     return { value: v };
 }
 
+// The session-limit exemption on a role body (2026-11-05), same contract. The
+// Tenant Admin role never reaches here either, so the organisation's
+// administrators are always governed by the limit.
+function readSessionLimitExemption(body) {
+    const v = body ? body.sessionLimitExempt : undefined;
+    if (v === undefined || v === null) return { value: undefined };
+    if (typeof v !== 'boolean') return { error: 'sessionLimitExempt must be true or false.' };
+    return { value: v };
+}
+
 // POST /api/auth/account/roles
-// Body: { roleName, description?, dataScope?, signInLockedToWorkstations?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// Body: { roleName, description?, dataScope?, signInLockedToWorkstations?, sessionLimitExempt?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
 // (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.createAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -385,15 +396,20 @@ exports.createAccountRole = async (req, res) => {
             await transaction.rollback();
             return res.status(400).json({ message: lock.error });
         }
+        const exempt = readSessionLimitExemption(req.body);
+        if (exempt.error) {
+            await transaction.rollback();
+            return res.status(400).json({ message: exempt.error });
+        }
 
         const role = await Role.create(
-            { accountId, name, description: (req.body.description || '').trim() || null, dataScope, signInLockedToWorkstations: lock.value === true },
+            { accountId, name, description: (req.body.description || '').trim() || null, dataScope, signInLockedToWorkstations: lock.value === true, sessionLimitExempt: exempt.value === true },
             { transaction },
         );
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope, signInLockedToWorkstations: role.signInLockedToWorkstations === true } });
+        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope, signInLockedToWorkstations: role.signInLockedToWorkstations === true, sessionLimitExempt: role.sessionLimitExempt === true } });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();
         console.error("Error creating account role:", error);
@@ -450,6 +466,12 @@ exports.updateAccountRole = async (req, res) => {
             return res.status(400).json({ message: lock.error });
         }
         if (lock.value !== undefined) updates.signInLockedToWorkstations = lock.value;
+        const exempt = readSessionLimitExemption(req.body);
+        if (exempt.error) {
+            await transaction.rollback();
+            return res.status(400).json({ message: exempt.error });
+        }
+        if (exempt.value !== undefined) updates.sessionLimitExempt = exempt.value;
         if (updates.name && updates.name !== role.name) {
             const clash = await Role.findOne({ where: { accountId, name: updates.name }, transaction });
             if (clash) {
@@ -465,7 +487,7 @@ exports.updateAccountRole = async (req, res) => {
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations'] });
+        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description', 'dataScope', 'signInLockedToWorkstations', 'sessionLimitExempt'] });
         res.status(200).json({ message: "Role updated.", role: updated });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();

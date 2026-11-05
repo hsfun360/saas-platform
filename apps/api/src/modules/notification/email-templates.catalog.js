@@ -29,6 +29,33 @@ const button = (url, label) =>
 
 module.exports = [
     {
+        // Session ended by a newer sign-in (2026-11-05): the account's limit
+        // on devices signed in at once ended one of the user's sessions. Sent
+        // to the user, naming both devices, so a sign-in they did not make
+        // stands out.
+        key: 'security.session-ended',
+        name: 'Session ended by a new sign-in',
+        description: "Sent to a user when a sign-in on another device ended one of their sessions under the organisation's limit on devices signed in at once.",
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The user's name." },
+            { name: 'endedDevices', description: 'The device(s) whose session ended, e.g. "Chrome on Windows".' },
+            { name: 'newDevice', description: 'The device that signed in, e.g. "Safari on iPhone".' },
+            { name: 'ip', description: 'The IP address the new sign-in came from.' },
+            { name: 'at', description: 'When it happened (ISO timestamp).' },
+            { name: 'sessionsLink', description: "Link to the user's Profile, where active sessions are listed." },
+        ],
+        sample: { userName: 'Alice Tan', endedDevices: 'Chrome on Windows', newDevice: 'Safari on iPhone', ip: '203.0.113.9', at: '2026-11-05T09:30:00.000Z', sessionsLink: 'https://app.example.com/profile' },
+        fromName: null,
+        subject: 'Your session on {{endedDevices}} was ended by a new sign-in',
+        bodyHtml: card(`
+            <p>Hi {{userName}},</p>
+            <p>Your account signed in from <strong>{{newDevice}}</strong>{{#if ip}} ({{ip}}){{/if}} at {{at}}. Your organisation allows a limited number of devices signed in at once, so your session on <strong>{{endedDevices}}</strong> was ended.</p>
+            <p>If this was you, nothing else is needed. If it was not, change your password now and review where you are signed in.</p>
+            ${button('{{sessionsLink}}', 'Review your sessions')}
+        `),
+    },
+    {
         // Remote-access request (2026-11-01): a staff member whose role is
         // locked to registered workstations asked, from the sign-in screen,
         // to sign in from elsewhere. Sent to every approver.

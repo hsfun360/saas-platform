@@ -17,8 +17,8 @@ describe('RoleManagementComponent', () => {
   let http: HttpTestingController;
 
   const roles = [
-    { id: 'role-fd', name: 'Front Desk', description: 'Counter staff', dataScope: 'own', signInLockedToWorkstations: true, PermittedMenus: [{ id: 'm1', name: 'Tee Sheet' }] },
-    { id: 'role-ps', name: 'Pro Shop', description: '', dataScope: 'all', signInLockedToWorkstations: false, PermittedMenus: [] },
+    { id: 'role-fd', name: 'Front Desk', description: 'Counter staff', dataScope: 'own', signInLockedToWorkstations: true, sessionLimitExempt: false, PermittedMenus: [{ id: 'm1', name: 'Tee Sheet' }] },
+    { id: 'role-ps', name: 'Pro Shop', description: '', dataScope: 'all', signInLockedToWorkstations: false, sessionLimitExempt: true, PermittedMenus: [] },
   ];
 
   function host(): HTMLElement {
@@ -47,6 +47,30 @@ describe('RoleManagementComponent', () => {
     expect(cards.length).toBe(2);
     expect(cards[0].textContent).toContain('registered workstations only');
     expect(cards[1].textContent).not.toContain('registered workstations only');
+    // The session-limit exemption (2026-11-05) captions the same way.
+    expect(cards[1].textContent).toContain('exempt from the session limit');
+    expect(cards[0].textContent).not.toContain('exempt from the session limit');
+  });
+
+  it('the new-role dialog starts with the session-limit exemption off and sends it when switched on', () => {
+    component.openCreate();
+    fixture.detectChanges();
+    const exempt = host().querySelector<HTMLInputElement>('#roleSessionExempt')!;
+    expect(exempt).not.toBeNull();
+    expect(exempt.checked).toBe(false);
+    exempt.click();
+    fixture.detectChanges();
+    expect(component.roleForm.getRawValue().sessionLimitExempt).toBe(true);
+  });
+
+  it('editing prefills the exemption from the role detail', () => {
+    component.startEdit(roles[1] as never);
+    fixture.detectChanges();
+    expect(component.roleForm.getRawValue().sessionLimitExempt).toBe(true);
+    http.expectOne(`${BASE}/roles/role-ps`).flush({ id: 'role-ps', name: 'Pro Shop', description: '', dataScope: 'all', signInLockedToWorkstations: false, sessionLimitExempt: false, menuIds: [], permissions: [] });
+    fixture.detectChanges();
+    expect(component.roleForm.getRawValue().sessionLimitExempt).toBe(false);
+    expect(host().querySelector<HTMLInputElement>('#roleSessionExempt')!.checked).toBe(false);
   });
 
   it('the new-role dialog starts with the lock off and sends it when switched on', () => {

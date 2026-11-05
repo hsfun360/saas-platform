@@ -309,6 +309,14 @@
           <button type="button" class="flash-close" (click)="shellError.set('')" aria-label="Dismiss">✕</button>
         </div>
       }
+      <!-- What this sign-in ended elsewhere under the session limit (2026-11-05). -->
+      @if (shellNotice()) {
+        <div class="flash flash-info" role="status" aria-live="polite">
+          <span class="flash-icon material-icons" aria-hidden="true">devices</span>
+          <span>{{ shellNotice() }}</span>
+          <button type="button" class="flash-close" (click)="shellNotice.set('')" aria-label="Dismiss">✕</button>
+        </div>
+      }
 
       @if (myInvitations().length > 0) {
         <!-- Accept / Decline is a decision pair (like Approvals), not record CRUD - both stay visible. -->

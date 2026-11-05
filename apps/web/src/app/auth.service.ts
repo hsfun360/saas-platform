@@ -27,6 +27,7 @@ import {
   MfaSetupResponse,
   MfaEnableResponse,
   TrustedDevice,
+  ActiveSession,
   AuditLogPage,
   SsoConfig,
 } from './models/auth.models';
@@ -164,6 +165,20 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/logout`, {});
   }
 
+  // --- Active sessions (Profile -> Security, 2026-11-05): where the account
+  // is signed in right now; sign one device out, or everywhere but here. ---
+  getSessions(): Observable<{ sessions: ActiveSession[] }> {
+    return this.http.get<{ sessions: ActiveSession[] }>(`${this.apiBaseUrl}/auth/sessions`);
+  }
+
+  revokeSession(id: string): Observable<{ message: string; sessions: ActiveSession[] }> {
+    return this.http.delete<{ message: string; sessions: ActiveSession[] }>(`${this.apiBaseUrl}/auth/sessions/${encodeURIComponent(id)}`);
+  }
+
+  revokeOtherSessions(): Observable<{ message: string; ended: number; sessions: ActiveSession[] }> {
+    return this.http.delete<{ message: string; ended: number; sessions: ActiveSession[] }>(`${this.apiBaseUrl}/auth/sessions`);
+  }
+
   // --- Self-service onboarding (verified user, no workspace yet; uses the
   // onboarding-scoped token issued by the login limbo outcome) ---
   getOnboardingModules(): Observable<OnboardingModule[]> {
@@ -215,8 +230,8 @@ export class AuthService {
     return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/account/menus`);
   }
 
-  createRole(roleName: string, description: string, permissions: RoleMenuPermission[], dataScope: RoleDataScope, signInLockedToWorkstations = false): Observable<{ message: string; role: Role }> {
-    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope, signInLockedToWorkstations });
+  createRole(roleName: string, description: string, permissions: RoleMenuPermission[], dataScope: RoleDataScope, signInLockedToWorkstations = false, sessionLimitExempt = false): Observable<{ message: string; role: Role }> {
+    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope, signInLockedToWorkstations, sessionLimitExempt });
   }
 
   // A single role with the exact menu grants (+ action flags) - prefills the edit form.
@@ -226,7 +241,7 @@ export class AuthService {
 
   updateRole(
     roleId: string,
-    data: { roleName?: string; description?: string; dataScope?: RoleDataScope; signInLockedToWorkstations?: boolean; permissions: RoleMenuPermission[] },
+    data: { roleName?: string; description?: string; dataScope?: RoleDataScope; signInLockedToWorkstations?: boolean; sessionLimitExempt?: boolean; permissions: RoleMenuPermission[] },
   ): Observable<{ message: string; role: Role }> {
     return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`, data);
   }

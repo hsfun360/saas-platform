@@ -11,7 +11,8 @@ import { NotificationService, AppNotification } from '../services/notification.s
 import { RecentScreensService } from '../services/recent-screens.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { HelpButtonComponent } from '../shared/help-button/help-button';
-import { MenuItem, WorkspaceOption, MyInvitation, Language } from '../models/auth.models';
+import { MenuItem, WorkspaceOption, MyInvitation, Language, EndedSession } from '../models/auth.models';
+import { formatLocalDate } from '../shared/local-date.pipe';
 
 // Translation keys for nav labels whose DB row has no localized `names` entry
 // for the active language (e.g. the boot-seeded SaaS Administration menus ship
@@ -108,6 +109,9 @@ export class Dashboard implements OnInit, OnDestroy {
   });
   // Shell-level error (switch workspace / invitations) shown by the global flash snackbar.
   readonly shellError = signal('');
+  // One-time notice after sign-in: the sessions this sign-in ended elsewhere
+  // under the organisation's limit on devices signed in at once (2026-11-05).
+  readonly shellNotice = signal('');
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   activeCompanyName = 'Loading...';
   allowedMenus: MenuItem[] = [];
@@ -179,6 +183,22 @@ export class Dashboard implements OnInit, OnDestroy {
   isNotifDropdownOpen = false;
   private notifTimer: ReturnType<typeof setInterval> | null = null;
 
+  // The login screen stashes what the sign-in ended (AuthResponse.endedSessions);
+  // the shell states it once the app is up, then forgets it.
+  private showEndedSessionsNotice(): void {
+    let ended: EndedSession[] = [];
+    try {
+      const raw = sessionStorage.getItem('endedSessions');
+      if (raw) ended = JSON.parse(raw) as EndedSession[];
+      sessionStorage.removeItem('endedSessions');
+    } catch { return; }
+    if (!Array.isArray(ended) || ended.length === 0) return;
+    const names = ended.map((e) => e.device);
+    const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    const last = ended.length === 1 && ended[0].lastSeenAt ? ` (last active ${formatLocalDate(ended[0].lastSeenAt, 'datetime')})` : '';
+    this.shellNotice.set(`Signing in here ended your session on ${list}${last}: your organisation allows ${ended.length === 1 ? 'one device' : 'a limited number of devices'} signed in at once.`);
+  }
+
   ngOnInit(): void {
     // Mobile drawer: choosing a DESTINATION closes the overlay (user request
     // 2026-10-27) - the drawer covers the content, so after navigating the
@@ -201,6 +221,8 @@ export class Dashboard implements OnInit, OnDestroy {
       this.isSystemAdmin = payload.isSystemAdmin || false;
       this.currentCompanyId = payload.companyId || 'SYSTEM';
     }
+
+    this.showEndedSessionsNotice();
 
     this.loadWorkspaces();
     this.loadMyInvitations();

@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { of } from 'rxjs';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { LoginComponent } from './login';
 import { AuthResponse } from '../models/auth.models';
@@ -39,6 +39,38 @@ describe('LoginComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  // ---- Signed out by a newer sign-in elsewhere (2026-11-05) ----
+
+  it('arriving with ?reason=session_superseded explains the sign-out and what signing in here does', () => {
+    window.history.replaceState({}, '', '/login?reason=session_superseded');
+    try {
+      const second = TestBed.createComponent(LoginComponent);
+      second.detectChanges();
+      const notice = second.nativeElement.querySelector('.auth-alert--notice') as HTMLElement;
+      expect(notice).not.toBeNull();
+      expect(notice.textContent).toContain('signed in on another device');
+      expect(notice.textContent).toContain('Signing in here will end that session');
+    } finally {
+      window.history.replaceState({}, '', '/');
+    }
+  });
+
+  it('a successful sign-in hands the sessions it ended to the shell through sessionStorage', () => {
+    sessionStorage.removeItem('endedSessions');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    component.loginForm.setValue({ email: 'a@b.c', password: 'secret12', rememberMe: false });
+    component.onSubmit();
+    http.expectOne((r) => r.url.endsWith('/auth/login')).flush({
+      token: 'eyJ.' + btoa(JSON.stringify({ companyName: 'X', exp: Math.floor(Date.now() / 1000) + 3600 })) + '.sig',
+      message: 'ok', email: 'a@b.c', menus: [], roleName: 'User', fullName: 'A',
+      endedSessions: [{ device: 'Chrome on Windows', lastSeenAt: '2026-11-05T01:00:00Z', ip: null }],
+    } as AuthResponse);
+    expect(JSON.parse(sessionStorage.getItem('endedSessions') || '[]')).toEqual([{ device: 'Chrome on Windows', lastSeenAt: '2026-11-05T01:00:00Z', ip: null }]);
+    expect(navigate).toHaveBeenCalledWith(['/home']);
+    sessionStorage.removeItem('endedSessions');
+    localStorage.clear();
   });
 
   // ---- Per-environment SSO buttons (2026-11-03: no built-in Google client) ----

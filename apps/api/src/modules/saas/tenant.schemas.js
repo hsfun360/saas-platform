@@ -45,6 +45,7 @@ const roleBody = {
     description: str(255),
     dataScope: str(20),
     signInLockedToWorkstations: bool,
+    sessionLimitExempt: bool,
     permissions: z.array(grant).max(2000).optional(),
     menuIds: z.array(id).max(2000).optional(), // legacy shape = full access per menu
 };

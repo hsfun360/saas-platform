@@ -70,6 +70,7 @@
                 @if (role.dataScope === 'own') { · own records only }
                 @else if (role.dataScope === 'department') { · department scope }
                 @if (role.signInLockedToWorkstations) { · registered workstations only }
+                @if (role.sessionLimitExempt) { · exempt from the session limit }
               </span>
             </span>
           </span>
@@ -178,6 +179,15 @@
         <span class="switch-row__text">
           <span class="switch-row__title">Sign in only from registered workstations<app-field-info label="Registered workstations only" [text]="hint.lock" /></span>
           <span class="switch-row__hint">On = refused from any other computer or phone; register workstations under Security Policy.</span>
+        </span>
+      </label>
+
+      <!-- Session-limit exemption (2026-11-05): a standalone on/off rule, so a switch. -->
+      <label class="switch-row switch">
+        <input id="roleSessionExempt" type="checkbox" role="switch" formControlName="sessionLimitExempt" />
+        <span class="switch-row__text">
+          <span class="switch-row__title">Exempt from the limit on devices signed in at once<app-field-info label="Session limit exemption" [text]="hint.exempt" /></span>
+          <span class="switch-row__hint">On = holders may stay signed in on several devices; the limit itself is set under Security Policy.</span>
         </span>
       </label>
 

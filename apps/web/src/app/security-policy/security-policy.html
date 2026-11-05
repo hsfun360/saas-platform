@@ -208,6 +208,50 @@
         }
       </section>
 
+      <!-- Sign-in sessions (approved 2026-11-05): the card about HOW MANY
+           DEVICES a user may be signed in on at once; the newest sign-in wins. -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('sessions')" [attr.aria-expanded]="isExpanded('sessions')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Sign-in sessions</span>
+            <span class="settings-header__sub">How many devices a user may be signed in on at once; a sign-in beyond that ends the idlest session.</span>
+          </span>
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('sessions')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('sessions')) {
+          <div class="settings-body">
+            <label class="switch-row switch">
+              <input type="checkbox" role="switch" formControlName="sessionLimitEnabled" />
+              <span class="switch-row__text">
+                <span class="switch-row__title">Limit how many devices a user may be signed in on at once<app-field-info label="Sign-in sessions" [text]="sessionsHint" /></span>
+                <span class="switch-row__hint">Off = any number of devices; nobody is signed out when they sign in elsewhere.</span>
+              </span>
+            </label>
+
+            @if (formValue().sessionLimitEnabled) {
+              <div class="form-group form-group--narrow">
+                <label for="spSessions">Devices signed in at once</label>
+                <input id="spSessions" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="maxConcurrentSessions"
+                       [attr.aria-invalid]="sessionMaxInvalid() ? 'true' : null" [attr.aria-describedby]="sessionMaxInvalid() ? 'spSessionsErr' : null" />
+                @if (sessionMaxInvalid()) {
+                  <div id="spSessionsErr" class="field-error" role="alert">Enter a whole number from 1 to 10.</div>
+                } @else {
+                  <p class="cell-subtle field-hint">1 to 10; the platform default is 1 (one device at a time).</p>
+                }
+              </div>
+            }
+
+            <!-- The expected result, stated before Save (never a surprise). -->
+            <div class="flash flash-info flash--static" role="status" aria-live="polite">
+              <span class="flash-icon material-icons" aria-hidden="true">info</span>
+              <span>{{ expectedSessions() }}</span>
+            </div>
+          </div>
+        }
+      </section>
+
       <!-- Sticky save bar (settings-chrome standard): exists only while the
            form is dirty, docked at the viewport bottom. -->
       @if (form.dirty) {

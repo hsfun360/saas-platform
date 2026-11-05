@@ -121,24 +121,28 @@
   gap: var(--space-sm);
   margin: var(--space-md) 0;
 }
-/* Trusted devices: a divider under the status row, then one row per browser
+/* Trusted devices and active sessions (2026-11-05): a divider under the status row, then one row per browser
    (content left, Remove right; stacked on mobile). */
-.pf-devices {
+.pf-devices,
+.pf-sessions {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
 }
-.pf-devices__empty {
+.pf-devices__empty,
+.pf-sessions__empty {
   margin: var(--space-md) 0 0;
 }
-.pf-devices__list {
+.pf-devices__list,
+.pf-sessions__list {
   list-style: none;
   margin: var(--space-md) 0 0;
   padding: 0;
   display: grid;
   gap: var(--space-sm);
 }
-.pf-device {
+.pf-device,
+.pf-session {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -148,10 +152,12 @@
   border-radius: 8px;
   background: var(--surface-sunken);
 }
-.pf-device__main {
+.pf-device__main,
+.pf-session__main {
   min-width: 0;
 }
-.pf-device__title {
+.pf-device__title,
+.pf-session__title {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -159,13 +165,14 @@
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
-.pf-device__title .material-icons {
+.pf-device__title .material-icons,
+.pf-session__title .material-icons {
   font-size: var(--icon-md);
   color: var(--text-muted);
 }
 @media (max-width: 767px) {
-  .pf-device { grid-template-columns: 1fr; }
-  .pf-device .btn { justify-self: end; }
+  .pf-device, .pf-session { grid-template-columns: 1fr; }
+  .pf-device .btn, .pf-session .btn { justify-self: end; }
 }
 
 .pf-recovery code {

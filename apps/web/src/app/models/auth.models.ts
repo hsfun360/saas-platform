@@ -151,6 +151,28 @@ export interface AuthResponse {
   rememberDeviceAllowed?: boolean;
   rememberDeviceDays?: number;
   companyName?: string | null;
+  // The sessions THIS sign-in ended under the organisation's limit on devices
+  // signed in at once (2026-11-05); empty or absent when none.
+  endedSessions?: EndedSession[];
+}
+
+// A session a new sign-in ended ("newest wins"), as the login payload reports it.
+export interface EndedSession {
+  device: string;            // "Chrome on Windows"
+  lastSeenAt: string | null;
+  ip: string | null;
+}
+
+// One of the user's own live sign-in sessions (Profile -> Security, GET
+// /api/auth/sessions, 2026-11-05). `id` is the session (refresh family) id.
+export interface ActiveSession {
+  id: string;
+  device: string;            // "Chrome on Windows"
+  workspace: string;         // the company, or "System Administration"
+  signedInAt: string;
+  lastSeenAt: string;
+  ip: string | null;
+  current: boolean;          // the browser making the request
 }
 
 // Per-environment SSO wiring served by GET /api/auth/sso-config: the Google
@@ -217,6 +239,17 @@ export interface SecurityPolicyState {
   remoteAccessGrantMaxDays: number;
   activeGrants: number;
   pendingRequests: number;
+  // Concurrent sessions (2026-11-05): whether a user may be signed in on a
+  // limited number of devices at once in the account's companies and how
+  // many (1-10), the roles exempt from it, and who is signed in right now -
+  // users, sessions, and users holding more sessions than the limit (their
+  // next sign-in ends one).
+  sessionLimitEnabled: boolean;
+  maxConcurrentSessions: number;
+  exemptRoles: number;
+  signedInUsers: number;
+  liveSessions: number;
+  usersOverLimit: number;
 }
 
 export interface SecurityPolicyUpdate {
@@ -226,6 +259,8 @@ export interface SecurityPolicyUpdate {
   trustedDeviceDays: number;
   workstationTrustEnabled: boolean;
   remoteAccessGrantMaxDays: number;
+  sessionLimitEnabled: boolean;
+  maxConcurrentSessions: number;
 }
 
 // A remote-access request or grant (System Setup -> Access Requests,
@@ -343,6 +378,9 @@ export interface Role {
   // Holders sign in only from a registered workstation (2026-11-01); never
   // applies to the Tenant Admin role.
   signInLockedToWorkstations?: boolean;
+  // Holders are not counted against, nor ended by, the organisation's limit
+  // on devices signed in at once (2026-11-05); never the Tenant Admin role.
+  sessionLimitExempt?: boolean;
   PermittedMenus?: PermittedMenu[];
 }
 
@@ -364,6 +402,7 @@ export interface RoleDetail {
   description?: string | null;
   dataScope?: RoleDataScope;
   signInLockedToWorkstations?: boolean;
+  sessionLimitExempt?: boolean;
   menuIds: string[]; // legacy shape (grant existing = full access)
   permissions?: RoleMenuPermission[];
 }

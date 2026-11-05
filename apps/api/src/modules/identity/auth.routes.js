@@ -3,6 +3,8 @@
 const router = require('express').Router();
 const authController = require('./auth.controller'); // We will create this next
 const trustedDeviceController = require('./trustedDevice.controller');
+const sessionController = require('./session.controller');
+const sessions = require('./session.service');
 const registeredWorkstationController = require('./registeredWorkstation.controller');
 const remoteAccessController = require('./remoteAccessGrant.controller');
 const remoteAccessSchemas = require('./remoteAccess.schemas');
@@ -53,8 +55,18 @@ const authenticateToken = (req, res, next) => {
         if (user.purpose) {
             return res.status(403).json({ message: "Please finish signing in first." });
         }
-        req.user = user;
-        next();
+        // The session behind the token must still be live (2026-11-05): a
+        // session ended by a newer sign-in under the account's session limit
+        // is signed out on its next request, with the reason.
+        if (!user.sid) {
+            req.user = user;
+            return next();
+        }
+        sessions.sessionIsLive(user.sid).then((verdict) => {
+            if (!verdict.live) return sessions.endedSessionResponse(res, verdict.reason);
+            req.user = user;
+            next();
+        }).catch(next);
     });
 };
 
@@ -201,6 +213,12 @@ router.delete('/mfa/trusted-devices/:id', authenticateToken, validate(schemas.tr
 // Refresh (httpOnly cookie -> fresh 1h access token) + sign out.
 router.post('/refresh', loginLimiter(), authController.refreshSession);
 router.post('/logout', loginLimiter(), authController.logout);
+
+// Active sessions (Profile -> Security, 2026-11-05): the user's own live
+// sign-in sessions, sign one out, or sign out everywhere else.
+router.get('/sessions', authenticateToken, sessionController.list);
+router.delete('/sessions', authenticateToken, sessionController.revokeOthers);
+router.delete('/sessions/:familyId', authenticateToken, validate(schemas.sessionFamilyId), sessionController.revoke);
 
 // --- Updated Profile Route with Transactional Outbox ---
 router.put('/profile', authenticateToken, validate(profileSchemas.update), async (req, res) => {

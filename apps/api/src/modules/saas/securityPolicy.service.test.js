@@ -19,6 +19,7 @@ const TrustedDevice = require('../identity/trustedDevice.model');
 const RegisteredWorkstation = require('../identity/registeredWorkstation.model');
 const Role = require('./role.model');
 const RemoteAccessGrant = require('../identity/remoteAccessGrant.model');
+const RefreshToken = require('../identity/refreshToken.model');
 const policy = require('./securityPolicy.service');
 const mfa = require('../identity/mfa.service');
 
@@ -103,16 +104,22 @@ test('trustedDevicePolicyForAccount reads only the two columns and defaults with
 // ---- getSecurityPolicyState: the expected result the screen shows ----
 
 beforeEach(() => {
-    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 7 }));
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'owner-1', mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', mfaTrustedDevicesAllowed: true, mfaTrustedDeviceDays: 14, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 7, sessionLimitEnabled: true, maxConcurrentSessions: 1 }));
     Company.findAll = fn(async () => [{ id: 'c-1' }, { id: 'c-2' }]);
     // The owner also holds a membership row - counted once.
     CompanyUser.findAll = fn(async () => [{ userId: 'owner-1' }, { userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-2' }]);
     User.count = fn(async () => 1);
     TrustedDevice.count = fn(async () => 2);
     RegisteredWorkstation.count = fn(async () => 1);
-    Role.count = fn(async () => 2);
+    // First call = roles locked to workstations, second = roles exempt from the session limit.
+    Role.count = fn(async ({ where }) => (where.sessionLimitExempt ? 1 : 2));
     // First call = grants in force, second = requests waiting.
     RemoteAccessGrant.count = fn(async ({ where }) => (where.status === 'approved' ? 1 : 3));
+    // Live sessions: u-2 holds two families (over a limit of 1), u-3 one.
+    RefreshToken.findAll = fn(async () => [
+        { userId: 'u-2', familyId: 'f-1' }, { userId: 'u-2', familyId: 'f-1' }, { userId: 'u-2', familyId: 'f-2' },
+        { userId: 'u-3', familyId: 'f-3' },
+    ]);
 });
 
 test('state counts each user once and reports how many have not enrolled and how many devices skip the code', async () => {
@@ -134,9 +141,20 @@ test('state counts each user once and reports how many have not enrolled and how
         remoteAccessGrantMaxDays: 7,
         activeGrants: 1,
         pendingRequests: 3,
+        sessionLimitEnabled: true,
+        maxConcurrentSessions: 1,
+        exemptRoles: 1,
+        signedInUsers: 2,
+        liveSessions: 3,
+        usersOverLimit: 1,
     });
     // Locked roles are counted for the account only.
     assert.deepStrictEqual(Role.count.calls[0][0].where, { accountId: 'acct-X', signInLockedToWorkstations: true });
+    assert.deepStrictEqual(Role.count.calls[1][0].where, { accountId: 'acct-X', sessionLimitExempt: true });
+    // Live sessions are the policy users' unrevoked, unexpired families in the account's companies.
+    const rtWhere = RefreshToken.findAll.calls[0][0].where;
+    assert.strictEqual(rtWhere.revokedAt, null);
+    assert.deepStrictEqual([...rtWhere.userId[Object.getOwnPropertySymbols(rtWhere.userId)[0]]].sort(), ['owner-1', 'u-2', 'u-3']);
     // The station count is the account's live rows (not revoked, not expired).
     const wsWhere = RegisteredWorkstation.count.calls[0][0].where;
     assert.strictEqual(wsWhere.accountId, 'acct-X');
@@ -162,6 +180,28 @@ test('with trusted devices switched off the state reports zero honoured devices 
     assert.strictEqual(state.trustedDevicesAllowed, false);
     assert.strictEqual(state.trustedDevices, 0);
     assert.strictEqual(TrustedDevice.count.calls.length, 0);
+});
+
+// ---- sessionLimitPolicy / sessionLimitFor: the concurrent-session rule ----
+
+test('the session rule defaults to ON with one device, and an out-of-range count falls back to one', () => {
+    assert.deepStrictEqual(policy.sessionLimitPolicy({ sessionLimitEnabled: true, maxConcurrentSessions: 3 }), { enabled: true, max: 3 });
+    assert.deepStrictEqual(policy.sessionLimitPolicy({ sessionLimitEnabled: false, maxConcurrentSessions: 2 }), { enabled: false, max: 2 });
+    assert.deepStrictEqual(policy.sessionLimitPolicy({ maxConcurrentSessions: 99 }), { enabled: true, max: 1 });
+    assert.deepStrictEqual(policy.sessionLimitPolicy({}), { enabled: true, max: 1 });
+    // No account = the System Administration workspace: no limit.
+    assert.deepStrictEqual(policy.sessionLimitPolicy(null), { enabled: false, max: 1 });
+});
+
+test('the limit applies to tenant sessions only, not to exempt roles, platform admins or the platform workspace', () => {
+    const account = { sessionLimitEnabled: true, maxConcurrentSessions: 2 };
+    assert.deepStrictEqual(policy.sessionLimitFor({ account, companyId: 'c-1' }), { max: 2 });
+    // The Tenant Admin role is governed like everyone else (only the role flag exempts).
+    assert.deepStrictEqual(policy.sessionLimitFor({ account, companyId: 'c-1', roleExempt: false }), { max: 2 });
+    assert.strictEqual(policy.sessionLimitFor({ account, companyId: 'c-1', roleExempt: true }), null);
+    assert.strictEqual(policy.sessionLimitFor({ account, companyId: 'c-1', isSystemAdmin: true }), null);
+    assert.strictEqual(policy.sessionLimitFor({ account, companyId: null }), null);
+    assert.strictEqual(policy.sessionLimitFor({ account: { sessionLimitEnabled: false }, companyId: 'c-1' }), null);
 });
 
 // ---- applySecurityPolicy: validation + the date-clearing rule ----

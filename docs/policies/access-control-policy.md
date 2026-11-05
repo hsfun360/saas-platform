@@ -23,6 +23,10 @@
 - Refresh tokens are stored hashed, rotate on every use, and a replayed token revokes its whole family.
 - Session horizon is 24 hours by default and 7 days maximum with "remember me" (a deliberate ceiling).
 - Logout, password change, and password reset revoke the user's refresh tokens.
+- Every request checks that the session behind the access token is still live, so a revoked session is signed out at its next request (control added 2026-11-05).
+- **Concurrent sessions are limited per subscriber** (control added 2026-11-05): by default a user may be signed in on one device at a time within the subscriber's companies; a new sign-in ends the idlest existing session, the affected user is notified in-app and by email naming both devices, and the sign-in is logged.
+  The Tenant Admin may raise the limit to at most 10 devices or switch it off, and may exempt specific roles; the Tenant Admin role itself is never exempt.
+  Users can review and end their own sessions under Profile, Security.
 - Signing keys are RS256 key pairs held in Google Secret Manager, never in the container image.
 
 ## 3. Multi-factor authentication

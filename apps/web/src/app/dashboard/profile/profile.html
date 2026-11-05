@@ -180,6 +180,47 @@
           }
         }
 
+        <!-- Active sessions (2026-11-05): where the account is signed in right
+             now; sign one device out, or everywhere but here. -->
+        @if (mfaMode() === 'idle') {
+          <div class="pf-sessions">
+            <div class="pf-row">
+              <div class="pf-row__main">
+                <div class="pf-row__title">Where you're signed in</div>
+                <div class="pf-row__sub">
+                  Every device and browser where your account is signed in right now. Your organisation may limit how many at once; a new sign-in beyond that limit ends the idlest one and tells you here, in the bell and by email.
+                </div>
+              </div>
+              @if (otherSessions().length > 0) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="askSignOutOthers()" [disabled]="sessionsBusy()">Sign out everywhere else</button>
+              }
+            </div>
+            @if (sessions().length === 0) {
+              <p class="pf-row__sub pf-sessions__empty">Your sessions could not be listed right now.</p>
+            } @else {
+              <ul class="pf-sessions__list" role="list">
+                @for (s of sessions(); track s.id) {
+                  <li class="pf-session">
+                    <div class="pf-session__main">
+                      <div class="pf-session__title">
+                        <span class="material-icons" aria-hidden="true">{{ deviceIcon(s) }}</span>
+                        <span>{{ s.device }}</span>
+                        @if (s.current) { <span class="status-chip status-chip--info">This device</span> }
+                      </div>
+                      <div class="pf-row__sub">
+                        {{ s.workspace }}, signed in {{ s.signedInAt | localDate:'datetime' }}, last active {{ s.lastSeenAt | localDate:'datetime' }}@if (s.ip) {, from {{ s.ip }}}.
+                      </div>
+                    </div>
+                    @if (!s.current) {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="askSignOutSession(s)" [disabled]="sessionsBusy()" [attr.aria-label]="'Sign out on ' + s.device">Sign out</button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
         <!-- Trusted devices: the browsers that skip the code (2026-11-01).
              Rows exist only while MFA is on (disable revokes them all). -->
         @if (mfaS.enabled && mfaMode() === 'idle') {

@@ -60,9 +60,13 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     trustedDeviceDays: [30],
     workstationTrustEnabled: [false],
     remoteAccessGrantMaxDays: [30],
+    // Concurrent sessions (2026-11-05): on by default, one device at a time.
+    sessionLimitEnabled: [true],
+    maxConcurrentSessions: [1],
   });
   static readonly GRANT_DAYS = { min: 1, max: 90 };
   static readonly TRUST_DAYS = { min: 1, max: 90 };
+  static readonly SESSIONS = { min: 1, max: 10 };
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
   // The long explanation behind the (i); the inline hint stays one line.
@@ -72,6 +76,9 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
     grants: 'A person whose role signs in only from registered workstations may ask, from the sign-in screen, to sign in from somewhere else; whoever holds the Access Requests screen approves it for a number of days, declines, or grants access in advance. This number is the longest window an approver may give. A grant lifts only the workstation rule: the password and the two-factor code still apply. Shortening it does not cut grants already in force.',
     workstations: 'A registered workstation is a shared browser, such as a front-desk computer, that an administrator registered for your organisation from that very browser. When this switch is on, staff who sign in from a registered workstation give their password only; the two-factor code is skipped because the workstation itself, standing on your premises, is the second factor. Administrators (the Tenant Admin role and the platform\'s system administrators) still confirm a code everywhere, and nobody is excused from setting up an authenticator: a staff member who signs in from home or a phone is asked for the code as usual. A registered workstation never offers "Don\'t ask again on this device". Registrations last one year, can be revoked here at any time, and are kept while the switch is off. A role can also be locked to registered workstations under Role Management, so its holders cannot sign in from anywhere else; that lock works whether or not this switch is on.',
   };
+
+  // The long explanation behind the (i) on the session-limit switch.
+  readonly sessionsHint = 'When on, each user of your organisation may be signed in on at most this many devices at once in your companies. Signing in on one more device ends the session that has been idle the longest - the newest sign-in always wins - and that device is signed out at its next action and told why. The user is also told in-app and by email which device signed in and which was signed out, so a sign-in they did not make stands out. Two browser tabs on the same computer share one session. A role can be exempt under Role Management, for people who legitimately run a phone and a computer together; the Tenant Admin role never is. Sessions in System Administration are not counted. Changing the limit does not sign anyone out by itself: it applies at the next sign-in.';
 
   // What Save will do, stated before it is pressed.
   readonly expected = computed(() => {
@@ -212,6 +219,44 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       return `${grants}${waiting}; they keep their windows. From now on ${ceiling}.`;
     }
     return `${grants}${waiting}; ${ceiling}.`;
+  });
+
+  // ---- Concurrent sessions ----
+
+  // The limit as typed; NaN when blank or not a whole number.
+  private sessionMax(): number {
+    const n = Number(this.formValue().maxConcurrentSessions);
+    return Number.isInteger(n) ? n : NaN;
+  }
+
+  sessionMaxInvalid(): boolean {
+    if (!this.formValue().sessionLimitEnabled) return false;
+    const n = this.sessionMax();
+    return !(n >= SecurityPolicyComponent.SESSIONS.min && n <= SecurityPolicyComponent.SESSIONS.max);
+  }
+
+  // What Save will do to sign-in sessions, stated before it is pressed: who
+  // is signed in right now, and what the limit does to the next sign-in.
+  readonly expectedSessions = computed(() => {
+    const s = this.state();
+    const v = this.formValue();
+    if (!s) return '';
+    const users = `${s.signedInUsers} ${s.signedInUsers === 1 ? 'user is' : 'users are'} signed in right now on ${s.liveSessions} ${s.liveSessions === 1 ? 'session' : 'sessions'}`;
+    if (!v.sessionLimitEnabled) {
+      return `${users}. With the limit off, a user may be signed in on any number of devices; nobody is signed out when they sign in elsewhere.`;
+    }
+    const n = this.sessionMax();
+    if (!(n >= SecurityPolicyComponent.SESSIONS.min && n <= SecurityPolicyComponent.SESSIONS.max)) {
+      return `Enter a whole number of devices from ${SecurityPolicyComponent.SESSIONS.min} to ${SecurityPolicyComponent.SESSIONS.max}.`;
+    }
+    const rule = n === 1
+      ? 'A user who signs in on a second device ends their session on the first.'
+      : `A user who signs in on a ${n + 1}th device ends their idlest session.`;
+    const exempt = s.exemptRoles ? ` ${s.exemptRoles} ${s.exemptRoles === 1 ? 'role is' : 'roles are'} exempt (Role Management).` : '';
+    const over = s.usersOverLimit
+      ? ` ${s.usersOverLimit} ${s.usersOverLimit === 1 ? 'user holds' : 'users hold'} more sessions than that today; nothing changes for them until their next sign-in.`
+      : '';
+    return `${users}. ${rule}${over}${exempt}`;
   });
 
   // Roles locked to registered workstations (Role Management), stated beside
@@ -384,6 +429,10 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       this.errorMessage.set(`The longest remote-access grant must be a whole number of days from ${SecurityPolicyComponent.GRANT_DAYS.min} to ${SecurityPolicyComponent.GRANT_DAYS.max}.`);
       return;
     }
+    if (this.sessionMaxInvalid()) {
+      this.errorMessage.set(`Devices signed in at once must be a whole number from ${SecurityPolicyComponent.SESSIONS.min} to ${SecurityPolicyComponent.SESSIONS.max}.`);
+      return;
+    }
     this.saving.set(true);
     this.service.update({
       mfaPolicy: v.mfaRequired ? 'required' : 'optional',
@@ -394,6 +443,10 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       trustedDeviceDays: v.trustedDevicesAllowed ? Number(v.trustedDeviceDays) : (this.state()?.trustedDeviceDays ?? 30),
       workstationTrustEnabled: v.workstationTrustEnabled,
       remoteAccessGrantMaxDays: Number(v.remoteAccessGrantMaxDays),
+      sessionLimitEnabled: v.sessionLimitEnabled,
+      // The count is kept while the switch is off, so turning it back on
+      // restores the chosen number; a blank field while off falls back to stored.
+      maxConcurrentSessions: v.sessionLimitEnabled ? Number(v.maxConcurrentSessions) : (this.state()?.maxConcurrentSessions ?? 1),
     }).subscribe({
       next: (s) => {
         this.applyState(s);
@@ -416,6 +469,8 @@ export class SecurityPolicyComponent implements OnInit, UnsavedChangesAware {
       trustedDeviceDays: s.trustedDeviceDays,
       workstationTrustEnabled: s.workstationTrustEnabled === true,
       remoteAccessGrantMaxDays: s.remoteAccessGrantMaxDays ?? 30,
+      sessionLimitEnabled: s.sessionLimitEnabled !== false,
+      maxConcurrentSessions: s.maxConcurrentSessions ?? 1,
     });
   }
 }

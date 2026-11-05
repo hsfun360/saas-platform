@@ -52,7 +52,23 @@ const RefreshToken = sequelize.define('RefreshToken', {
         type: DataTypes.DATE,
         allowNull: true,
     },
-    // For a future "active sessions / sign out everywhere" screen.
+    // Set when this session was ENDED BY A NEWER SIGN-IN under the account's
+    // concurrent-session limit (2026-11-05): the familyId of that sign-in.
+    // Distinguishes "signed in elsewhere" from sign-out and expiry - the
+    // ended browser is told why, and the Profile list shows it.
+    supersededByFamilyId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // When the session was last used to mint an access token (set at issue
+    // and at every rotation - never per request). Shows "last active" on the
+    // Profile's active-sessions list and picks the idlest session to end
+    // when a limit above one is exceeded.
+    lastSeenAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // Shown on the Profile's active-sessions list (2026-11-05).
     userAgent: {
         type: DataTypes.STRING(400),
         allowNull: true,
@@ -67,6 +83,10 @@ const RefreshToken = sequelize.define('RefreshToken', {
     indexes: [
         { fields: ['userId'] },
         { fields: ['familyId'] },
+        // The live sessions of a user (the session-limit count at sign-in and
+        // the Profile list): a partial index so the count stays an index read
+        // however many ended rows accumulate.
+        { name: 'IX_RefreshToken_user_live', fields: ['userId'], where: { revokedAt: null } },
     ],
 });
 

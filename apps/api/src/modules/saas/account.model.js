@@ -93,6 +93,24 @@ const Account = sequelize.define('Account', {
         allowNull: false,
         defaultValue: 30,
     },
+    // Concurrent sign-in sessions (approved 2026-11-05): whether a user of the
+    // account may hold only a limited number of live sessions in its
+    // companies, and how many (1-10, default 1 = one device at a time). A new
+    // sign-in beyond the limit ENDS the idlest existing session ("newest
+    // wins"); the ended browser is signed out on its next request. Read at
+    // every session grant through securityPolicy.service; roles may be exempt
+    // (Role.sessionLimitExempt). Platform (System Administration) sessions
+    // are not counted.
+    sessionLimitEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    maxConcurrentSessions: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+    },
 }, {
     tableName: 'Account',
     timestamps: true,

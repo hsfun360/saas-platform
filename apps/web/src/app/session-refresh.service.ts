@@ -31,6 +31,19 @@ export class SessionRefreshService {
   private readonly restoreFailedState = signal(false);
   readonly restoreFailed = this.restoreFailedState.asReadonly();
 
+  // Why the session ended, when the API said so (2026-11-05: a 401 carrying
+  // `reason: 'session_superseded'`). Kept in memory because the API's
+  // Clear-Site-Data wipes both storages before the SPA reads that body, and
+  // the requests already in flight then fail as plain "no token"; the
+  // interceptor hands every sign-out of the same cascade this reason so the
+  // sign-in screen is told why. Cleared when a valid token is seen again.
+  private readonly endedReasonState = signal<string | null>(null);
+  readonly endedReason = this.endedReasonState.asReadonly();
+
+  noteEndedReason(reason: string): void {
+    this.endedReasonState.set(reason);
+  }
+
   // Rotate the cookie and store the new access token. Concurrent callers get
   // the same request; the stored token is written once, before any of them
   // sees the value.
@@ -66,5 +79,6 @@ export class SessionRefreshService {
   // happened since any failed restore, so the next expiry earns one attempt.
   noteValidToken(): void {
     if (this.restoreFailedState()) this.restoreFailedState.set(false);
+    if (this.endedReasonState()) this.endedReasonState.set(null);
   }
 }

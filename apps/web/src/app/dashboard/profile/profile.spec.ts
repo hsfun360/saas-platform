@@ -5,13 +5,14 @@ import { provideRouter } from '@angular/router';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ProfileComponent } from './profile';
 import { environment } from '../../../environments/environment';
-import { MfaStatus, TrustedDevice } from '../../models/auth.models';
+import { ActiveSession, MfaStatus, TrustedDevice } from '../../models/auth.models';
 
 const STATUS_URL = `${environment.apiUrl}/auth/mfa/status`;
 const PROFILE_URL = `${environment.apiUrl}/auth/profile`;
 const ENABLE_URL = `${environment.apiUrl}/auth/mfa/enable`;
 const DISABLE_URL = `${environment.apiUrl}/auth/mfa/disable`;
 const DEVICES_URL = `${environment.apiUrl}/auth/mfa/trusted-devices`;
+const SESSIONS_URL = `${environment.apiUrl}/auth/sessions`;
 
 const mfaOn: MfaStatus = { available: true, enabled: true, enrolledAt: '2026-11-01', recoveryCodesLeft: 8, required: false, requiredBy: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 };
 const mfaOff: MfaStatus = { available: true, enabled: false, enrolledAt: null, recoveryCodesLeft: 0, required: false, requiredBy: null, trustedDevicesAllowed: true, trustedDeviceDays: 30 };
@@ -19,6 +20,12 @@ const mfaOff: MfaStatus = { available: true, enabled: false, enrolledAt: null, r
 const devices: TrustedDevice[] = [
   { id: 'd-1', device: 'Chrome on Windows', createdAt: '2026-10-30T01:00:00Z', expiresAt: '2026-11-29T01:00:00Z', lastUsedAt: '2026-11-01T02:00:00Z', ip: '1.1.1.1', current: true },
   { id: 'd-2', device: 'Safari on iPhone', createdAt: '2026-10-20T01:00:00Z', expiresAt: '2026-11-19T01:00:00Z', lastUsedAt: null, ip: '2.2.2.2', current: false },
+];
+
+const sessions: ActiveSession[] = [
+  { id: 's-1', device: 'Chrome on Windows', workspace: 'Tropicana Golf', signedInAt: '2026-11-05T01:00:00Z', lastSeenAt: '2026-11-05T02:00:00Z', ip: '1.1.1.1', current: true },
+  { id: 's-2', device: 'Safari on iPhone', workspace: 'Tropicana Golf', signedInAt: '2026-11-04T01:00:00Z', lastSeenAt: '2026-11-04T09:00:00Z', ip: '2.2.2.2', current: false },
+  { id: 's-3', device: 'Edge on Windows', workspace: 'System Administration', signedInAt: '2026-11-03T01:00:00Z', lastSeenAt: '2026-11-03T01:00:00Z', ip: null, current: false },
 ];
 
 describe('ProfileComponent', () => {
@@ -38,11 +45,56 @@ describe('ProfileComponent', () => {
     // Boot calls: the MFA status for the Security card, the trusted devices, and the profile itself.
     http.expectOne(STATUS_URL).flush(mfaOff);
     http.expectOne(DEVICES_URL).flush({ devices: [] });
+    http.expectOne(SESSIONS_URL).flush({ sessions });
     http.expectOne(PROFILE_URL).flush({ user: { full_name: 'Test User', phone: '', bio: '', profilePicture: '', authMethod: 'local' } });
     fixture.detectChanges();
   });
 
   afterEach(() => http.verify());
+
+  // ---- Active sessions (2026-11-05) ----
+
+  it('lists where the account is signed in, marks this device, and offers Sign out only on the others', () => {
+    const rows = Array.from(fixture.nativeElement.querySelectorAll('.pf-sessions .pf-session')) as HTMLElement[];
+    expect(rows.length).toBe(3);
+    expect(rows[0].textContent).toContain('Chrome on Windows');
+    expect(rows[0].textContent).toContain('This device');
+    expect(rows[0].textContent).toContain('Tropicana Golf');
+    expect(rows[0].querySelector('button')).toBeNull();
+    expect(rows[1].querySelector('button')?.getAttribute('aria-label')).toBe('Sign out on Safari on iPhone');
+    expect(rows[2].textContent).toContain('System Administration');
+    // "Sign out everywhere else" exists because other sessions exist.
+    expect(fixture.nativeElement.textContent).toContain('Sign out everywhere else');
+  });
+
+  it('signing out one device confirms with the concrete outcome, then deletes that session and shows the fresh list', () => {
+    component.askSignOutSession(sessions[1]);
+    fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('app-confirm-dialog') as HTMLElement;
+    expect(card.textContent).toContain('Sign out on Safari on iPhone?');
+    expect(card.textContent).toContain('signed out at its next action');
+    component.confirmAction()!.run();
+    const req = http.expectOne(`${SESSIONS_URL}/s-2`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ message: 'Signed out on that device.', sessions: [sessions[0], sessions[2]] });
+    fixture.detectChanges();
+    expect(component.sessions().length).toBe(2);
+    expect(component.successMessage()).toBe('Signed out on that device.');
+  });
+
+  it('"Sign out everywhere else" confirms with the count, then deletes every other session', () => {
+    component.askSignOutOthers();
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('app-confirm-dialog') as HTMLElement).textContent).toContain('Your 2 other sessions end now');
+    component.confirmAction()!.run();
+    const req = http.expectOne(SESSIONS_URL);
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ message: 'Signed out on 2 other devices.', ended: 2, sessions: [sessions[0]] });
+    component.confirmAction.set(null);
+    fixture.detectChanges();
+    expect(component.sessions().length).toBe(1);
+    expect(fixture.nativeElement.textContent).not.toContain('Sign out everywhere else');
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();

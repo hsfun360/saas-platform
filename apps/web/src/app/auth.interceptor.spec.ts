@@ -130,6 +130,47 @@ describe('authInterceptor', () => {
     });
   });
 
+  describe('a session ended by a newer sign-in elsewhere (2026-11-05)', () => {
+    it('reaches /login with the reason when the refresh says the session was superseded, and clears both storages', () => {
+      localStorage.setItem('token', 'old');
+      sessionStorage.setItem('endedSessions', '[]');
+      http.get('/api/things').subscribe({ error: () => undefined });
+
+      // The token had expired on its own; the refresh is what learns the family was superseded.
+      backend.expectOne('/api/things').flush(null, { status: 401, statusText: 'Unauthorized' });
+      backend.expectOne('/api/auth/refresh').flush({ message: 'ended', reason: 'session_superseded' }, { status: 401, statusText: 'Unauthorized' });
+
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(sessionStorage.getItem('endedSessions')).toBeNull();
+      expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { reason: 'session_superseded' } });
+    });
+
+    it('a superseded 401 is final: no refresh attempt, and later plain failures in the cascade keep the reason', () => {
+      localStorage.setItem('token', 'old');
+      http.get('/api/a').subscribe({ error: () => undefined });
+      // The API's Clear-Site-Data has already emptied the token by the time the
+      // SPA reads the body; the next request goes out bare and fails plainly.
+      backend.expectOne('/api/a').flush({ message: 'ended', reason: 'session_superseded' }, { status: 401, statusText: 'Unauthorized' });
+      backend.expectNone('/api/auth/refresh');
+      expect(navigate).toHaveBeenLastCalledWith(['/login'], { queryParams: { reason: 'session_superseded' } });
+
+      http.get('/api/b').subscribe({ error: () => undefined });
+      backend.expectOne('/api/b').flush({ message: 'No token provided' }, { status: 401, statusText: 'Unauthorized' });
+      backend.expectOne('/api/auth/refresh').flush({ message: 'Session expired.', reason: 'session_ended' }, { status: 401, statusText: 'Unauthorized' });
+      expect(navigate).toHaveBeenLastCalledWith(['/login'], { queryParams: { reason: 'session_superseded' } });
+    });
+
+    it('a plain expiry still lands on /login without a reason', () => {
+      localStorage.setItem('token', 'old');
+      http.get('/api/things').subscribe({ error: () => undefined });
+
+      backend.expectOne('/api/things').flush(null, { status: 401, statusText: 'Unauthorized' });
+      backend.expectOne('/api/auth/refresh').flush({ message: 'Session expired.', reason: 'session_ended' }, { status: 401, statusText: 'Unauthorized' });
+
+      expect(navigate).toHaveBeenCalledWith(['/login']);
+    });
+  });
+
   describe('errors that are not about the token', () => {
     it('passes a business 403 (no permission) straight to the caller', () => {
       localStorage.setItem('token', 'ok');

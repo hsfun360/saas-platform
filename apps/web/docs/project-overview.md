@@ -6,7 +6,8 @@
 - **Core Functionality:** User authentication UI, registration flow, and JWT token storage.
 
 ## 🛠️ Development Workflows
-- Start dev server: `ng serve`
+- Start dev server: `ng serve` (its `proxy.conf.json` forwards `/api` to the DEPLOYED dev API).
+  To work against an API running locally on port 8080, start it with `ng serve --proxy-config proxy.local.conf.json` instead (the `login-web-local` entry in `.claude/launch.json`, added 2026-11-05).
 - Production build: `ng build --configuration production`
 - Run unit tests: `npx ng test --watch=false` runs the vitest suite (the `@angular/build:unit-test` builder with `src/test-setup.ts` as its setup file).
   The test rules live in coding-standards.md under "Unit tests".

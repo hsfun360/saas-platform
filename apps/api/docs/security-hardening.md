@@ -37,6 +37,10 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   "Keep me signed in" = 30 days, otherwise 24 hours.
   Replaying a rotated-out refresh token is treated as theft and revokes the whole session family.
   Sign-out, password change, and password reset revoke sessions server-side.
+  **Per-request liveness (2026-11-05):** the access token carries its session's family id (`sid`) and every request checks the family is still live, so a revoked session is signed out on its next request instead of when the hour runs out; the 401 names the reason and carries `Clear-Site-Data` for the app's cache and storage.
+- **Concurrent-session limit (approved 2026-11-05):** `Account.sessionLimitEnabled` (ON by default) + `Account.maxConcurrentSessions` (1-10, default 1) cap how many devices a user may be signed in on at once in the account's companies; a sign-in beyond the limit ends the idlest session ("newest wins"), the new device is told what it ended, and the user is told in-app and by email (`security.session-ended`) which device signed in and which was signed out - a sign-in they did not make stands out.
+  Set under System Setup -> Security Policy; `Role.sessionLimitExempt` (Role Management) exempts a role, never the Tenant Admin role; platform administrators and the System Administration workspace are out of scope.
+  Users see and end their own sessions under Profile -> Security ("Where you're signed in", sign out one device or everywhere else).
 - **Breached-password screening at login-adjacent points**: passwords are checked against HaveIBeenPwned wherever they are CHOSEN (see Registration below) - deliberately NOT inline at login (latency + availability).
 - **Unverified accounts cannot log in** at all ("Please verify your email first").
 - **Password-manager friendly**: correct `autocomplete` attributes so users can hold long unique passwords - the users credential stuffing fails against.

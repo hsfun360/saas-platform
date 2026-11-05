@@ -25,6 +25,11 @@ module.exports = {
             // Remote-access grants (2026-11-01): the ceiling in days an
             // approver may give. Omitted = keep stored.
             remoteAccessGrantMaxDays: z.number().int().nullable().optional(),
+            // Concurrent sessions (2026-11-05): whether a user may be signed
+            // in on a limited number of devices at once, and how many (1-10).
+            // Omitted = keep stored.
+            sessionLimitEnabled: z.boolean().optional(),
+            maxConcurrentSessions: z.number().int().nullable().optional(),
         }),
     },
     // POST /account/workstations - register THIS browser under a name.

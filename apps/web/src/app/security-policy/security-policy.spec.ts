@@ -24,11 +24,12 @@ function state(over: Partial<SecurityPolicyState> = {}): SecurityPolicyState {
     trustedDevicesAllowed: true, trustedDeviceDays: 30, trustedDevices: 3,
     workstationTrustEnabled: false, workstations: 0, lockedRoles: 0,
     remoteAccessGrantMaxDays: 30, activeGrants: 0, pendingRequests: 0,
+    sessionLimitEnabled: true, maxConcurrentSessions: 1, exemptRoles: 0, signedInUsers: 5, liveSessions: 6, usersOverLimit: 1,
     ...over,
   };
 }
 
-const pristineForm = { mfaRequired: false, mfaRequiredFrom: '', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 };
+const pristineForm = { mfaRequired: false, mfaRequiredFrom: '', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 };
 
 describe('SecurityPolicyComponent', () => {
   let http: HttpTestingController;
@@ -87,7 +88,7 @@ describe('SecurityPolicyComponent', () => {
     c.save();
     const req = http.expectOne(URL);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
     req.flush({ message: 'Security policy updated.', ...state() });
     expect(c.form.dirty).toBe(false);
     expect(c.successMessage()).toBe('Security policy updated.');
@@ -109,7 +110,7 @@ describe('SecurityPolicyComponent', () => {
     c.form.controls.mfaRequiredFrom.setValue('2026-11-01');
     c.save();
     const req = http.expectOne(URL);
-    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
     req.flush({ message: 'Security policy updated.', ...state({ mfaPolicy: 'required', mfaRequiredFrom: '2026-11-01', notEnrolled: 8 }) });
     expect(c.form.getRawValue()).toEqual({ ...pristineForm, mfaRequired: true, mfaRequiredFrom: '2026-11-01' });
     expect(c.hasUnsavedChanges()).toBe(false);
@@ -153,7 +154,7 @@ describe('SecurityPolicyComponent', () => {
     c.save();
     const req = http.expectOne(URL);
     // The stored window travels with the switch so turning it back on later restores it.
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: false, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: false, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
     req.flush({ message: 'Security policy updated.', ...state({ trustedDevicesAllowed: false, trustedDevices: 0 }) });
     expect(c.expectedTrust()).toContain('Trusted devices are off: every sign-in asks for a code.');
   });
@@ -168,7 +169,7 @@ describe('SecurityPolicyComponent', () => {
     c.form.controls.trustedDeviceDays.setValue(1);
     expect(c.expectedTrust()).toContain('more than 1 day ago');
     c.save();
-    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 1, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30 });
+    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 1, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
   });
 
   it('refuses to save a window outside 1 to 90 days and says so on the field', () => {
@@ -212,7 +213,7 @@ describe('SecurityPolicyComponent', () => {
     expect(c.expectedWorkstations()).toContain('administrators confirm one everywhere');
     c.save();
     const req = http.expectOne(URL);
-    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 30 });
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: true, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
     req.flush({ message: 'Security policy updated.', ...state({ workstationTrustEnabled: true, workstations: 1 }) });
     expect(c.form.getRawValue().workstationTrustEnabled).toBe(true);
     // Switching it off again says the registrations are kept.
@@ -223,7 +224,10 @@ describe('SecurityPolicyComponent', () => {
   it('groups the code rules under Two-factor and the place rules under Registered workstations', () => {
     const el = host(mount(state()));
     const cards = Array.from(el.querySelectorAll('.settings-card')) as HTMLElement[];
-    expect(cards.length).toBe(2);
+    expect(cards.length).toBe(3);
+    // The third card is the session limit (2026-11-05).
+    expect(cards[2].querySelector('.settings-header__title')?.textContent).toBe('Sign-in sessions');
+    expect(cards[2].querySelector('input[formControlName="sessionLimitEnabled"]')).not.toBeNull();
     // The workstation skip switch is the third code rule, beside trusted devices.
     expect(cards[0].querySelector('.settings-header__title')?.textContent).toBe('Two-factor authentication');
     expect(cards[0].querySelector('input[formControlName="workstationTrustEnabled"]')).not.toBeNull();
@@ -265,7 +269,57 @@ describe('SecurityPolicyComponent', () => {
     expect(c.errorMessage()).toContain('from 1 to 90');
     c.form.controls.remoteAccessGrantMaxDays.setValue(14);
     c.save();
-    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 14 });
+    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 14, sessionLimitEnabled: true, maxConcurrentSessions: 1 });
+  });
+
+  // ---- Sign-in sessions (2026-11-05) ----
+
+  it('states who is signed in now and what a limit of one does, and the switch off says nobody is signed out', () => {
+    const fixture = mount(state({ signedInUsers: 5, liveSessions: 6, usersOverLimit: 1, exemptRoles: 2 }));
+    const c = fixture.componentInstance;
+    expect(c.form.getRawValue().sessionLimitEnabled).toBe(true);
+    expect(c.form.getRawValue().maxConcurrentSessions).toBe(1);
+    expect(c.expectedSessions()).toBe('5 users are signed in right now on 6 sessions. A user who signs in on a second device ends their session on the first. 1 user holds more sessions than that today; nothing changes for them until their next sign-in. 2 roles are exempt (Role Management).');
+    expect(host(fixture).querySelector('#spSessions')).not.toBeNull();
+
+    c.form.controls.maxConcurrentSessions.setValue(3);
+    expect(c.expectedSessions()).toContain('A user who signs in on a 4th device ends their idlest session.');
+
+    c.form.controls.sessionLimitEnabled.setValue(false);
+    fixture.detectChanges();
+    expect(c.expectedSessions()).toBe('5 users are signed in right now on 6 sessions. With the limit off, a user may be signed in on any number of devices; nobody is signed out when they sign in elsewhere.');
+    expect(host(fixture).querySelector('#spSessions')).toBeNull();
+  });
+
+  it('refuses a device count outside 1 to 10, and Save sends the chosen limit', () => {
+    const fixture = mount(state());
+    const c = fixture.componentInstance;
+    c.form.controls.maxConcurrentSessions.setValue(0);
+    fixture.detectChanges();
+    expect(c.sessionMaxInvalid()).toBe(true);
+    expect(host(fixture).querySelector('#spSessionsErr')?.textContent).toContain('1 to 10');
+    c.save();
+    http.expectNone(URL);
+    expect(c.errorMessage()).toContain('1 to 10');
+
+    c.form.controls.maxConcurrentSessions.setValue(11);
+    expect(c.sessionMaxInvalid()).toBe(true);
+
+    c.form.controls.maxConcurrentSessions.setValue(2);
+    c.save();
+    const req = http.expectOne(URL);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: true, maxConcurrentSessions: 2 });
+    req.flush({ ...state({ maxConcurrentSessions: 2 }), message: 'Security policy updated.' });
+    expect(c.form.getRawValue().maxConcurrentSessions).toBe(2);
+  });
+
+  it('switching the limit off keeps the stored count in the PUT so turning it back on restores it', () => {
+    const fixture = mount(state({ maxConcurrentSessions: 3 }));
+    const c = fixture.componentInstance;
+    c.form.controls.sessionLimitEnabled.setValue(false);
+    c.save();
+    expect(http.expectOne(URL).request.body).toEqual({ mfaPolicy: 'optional', mfaRequiredFrom: null, trustedDevicesAllowed: true, trustedDeviceDays: 30, workstationTrustEnabled: false, remoteAccessGrantMaxDays: 30, sessionLimitEnabled: false, maxConcurrentSessions: 3 });
   });
 
   it('with no station the note points at "Register this workstation"', () => {

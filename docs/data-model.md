@@ -4,7 +4,7 @@ This doc is a curated map of the platform's database entities and relationships.
 It is maintained by the `/data-model` skill - refresh it there, do not hand-edit it out of sync.
 Sources of truth: `apps/api/src/wiring/associations.js` (all associations), the `*.model.js` files under `apps/api/src/modules/` and `apps/api/src/platform/` (all columns), and `apps/api/src/platform/schemas.js` (physical schemas).
 Business context and golden rules: `apps/api/docs/systems/`.
-Last refreshed: 2026-10-17.
+Last refreshed: 2026-11-05.
 
 ## Conventions
 
@@ -87,7 +87,7 @@ erDiagram
     Company }o..o| Currency : "defaultCurrencyCode - base currency (value ref)"
 ```
 
-`RefreshToken` and `TrustedDevice` hang off `User.userId` by value only (identity-service session store and MFA trusted browsers), and `RegisteredWorkstation` hangs off `Account.accountId` the same way (the organisation's shared front-desk browsers, `registeredByUserId` a value ref to User), as does `RemoteAccessGrant` (`accountId` + `userId` + `decidedByUserId`, all value refs); `UserFavorite` and `Notification` hang off `userId + companyId` the same way.
+`RefreshToken` and `TrustedDevice` hang off `User.userId` by value only (identity-service session store and MFA trusted browsers; since 2026-11-05 a RefreshToken row also carries `supersededByFamilyId`, a value ref to the sibling family that ended it under the account's concurrent-session limit `Account.sessionLimitEnabled` / `maxConcurrentSessions`, with `Role.sessionLimitExempt` opting a role out, and `lastSeenAt` behind the partial live-session index `IX_RefreshToken_user_live`), and `RegisteredWorkstation` hangs off `Account.accountId` the same way (the organisation's shared front-desk browsers, `registeredByUserId` a value ref to User), as does `RemoteAccessGrant` (`accountId` + `userId` + `decidedByUserId`, all value refs); `UserFavorite` and `Notification` hang off `userId + companyId` the same way.
 `Module.code` (added 2026-09-04) is the frozen machine identity (`MEMBERSHIP`, `GOLF`, `FACILITY`, `AR`, `POS`, `TENANT_ADMIN`, `PLATFORM_ADMIN`): entitlement checks, boot seeds, the dimension consumer registry and the web route guards key on it, never on the renamable names.
 
 ### Membership

@@ -4,14 +4,41 @@
     {
       "name": "login-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "apps/web", "start", "--", "--port", "4300"],
+      "runtimeArgs": [
+        "--prefix",
+        "apps/web",
+        "start",
+        "--",
+        "--port",
+        "4300"
+      ],
+      "port": 4300,
+      "autoPort": false
+    },
+    {
+      "name": "login-web-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "apps/web",
+        "start",
+        "--",
+        "--port",
+        "4300",
+        "--proxy-config",
+        "proxy.local.conf.json"
+      ],
       "port": 4300,
       "autoPort": false
     },
     {
       "name": "login-api",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "apps/api", "start"],
+      "runtimeArgs": [
+        "--prefix",
+        "apps/api",
+        "start"
+      ],
       "port": 8080,
       "autoPort": false
     }

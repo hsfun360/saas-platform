@@ -49,7 +49,19 @@ const Role = sequelize.define('Role', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
-    }
+    },
+    // Session-limit exemption (approved 2026-11-05): holders of this role are
+    // neither counted against nor ended by the account's concurrent-session
+    // limit (Account.sessionLimitEnabled / maxConcurrentSessions) - for roles
+    // whose people legitimately run a phone and a computer together. The
+    // Tenant Admin role cannot carry it (its edit is refused), so the policy
+    // always governs the organisation's administrators. Platform roles
+    // (accountId NULL) ignore it.
+    sessionLimitExempt: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
 }, {
     indexes: [
         // One role name per account (tenant roles). accountId leads, so this index also

@@ -50,7 +50,11 @@ const findUserByEmail = (email) => users.find(u => u.email === email);
 // cookie's job (session.service.js - 24h normally, 30d with "Keep me signed
 // in"), which is server-side and revocable. rememberMe rides in the claim only
 // so re-issues (switch-workspace, refresh) know which horizon the user chose.
-const generateToken = (userId, email, companyId=null, companyName=null, isSystemAdmin=false, rememberMe=false) => {
+// `sid` (2026-11-05) is the refresh session's family id: every request checks
+// that family is still live (auth middleware), so a session ended by a newer
+// sign-in under the account's session limit is signed out on its next
+// request rather than when the hour runs out.
+const generateToken = (userId, email, companyId=null, companyName=null, isSystemAdmin=false, rememberMe=false, sid=null) => {
     // We now include BOTH id and email in the payload
     return jwt.sign(
         {
@@ -59,7 +63,8 @@ const generateToken = (userId, email, companyId=null, companyName=null, isSystem
             companyId: companyId,
             companyName: companyName,
             isSystemAdmin: isSystemAdmin,
-            rememberMe: !!rememberMe
+            rememberMe: !!rememberMe,
+            sid: sid || undefined,
          },
          getPrivateKey(),
          {
@@ -122,6 +127,7 @@ const buildOnboardingResponse = (user) => ({
 // ---------------------------------------------------------------------------
 const mfa = require('./mfa.service');
 const sessions = require('./session.service');
+const sessionLimit = require('./sessionLimit.service');
 const trustedDevices = require('./trustedDevice.service');
 const workstations = require('./registeredWorkstation.service');
 const remoteAccess = require('./remoteAccessGrant.service');
@@ -238,9 +244,17 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
         }
     }
 
-    const token = generateToken(user.id, user.email, ctx.companyId, ctx.companyName, isSystemAdmin, rememberMe);
-    await sessions.issueSession(res, { userId: user.id, companyId: ctx.companyId, rememberMe, req });
+    // The session first (its family id rides in the token), under the
+    // account's concurrent-session limit: a sign-in beyond it ends the idlest
+    // existing session(s), which are reported back so the new device knows
+    // what it ended and the user is told in-app and by email.
+    const limit = await securityPolicy.sessionLimitForAccount(context.accountId, { companyId: ctx.companyId, roleExempt: context.roleExempt, isSystemAdmin });
+    const { row: session, superseded } = await sessions.issueSession(res, { userId: user.id, companyId: ctx.companyId, rememberMe, req, limit });
+    const token = generateToken(user.id, user.email, ctx.companyId, ctx.companyName, isSystemAdmin, rememberMe, session.familyId);
     await rememberLastWorkspace(user.id, ctx.companyId);
+    const endedSessions = superseded.length
+        ? await sessionLimit.reportSuperseded({ user, accountId: context.accountId, superseded, req, limit })
+        : [];
 
     return {
         token,
@@ -250,6 +264,9 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
         menus: context.menus || [],
         roleName: context.roleName || 'User',
         companyName: ctx.companyName,
+        // The sessions this sign-in ended under the account's session limit
+        // (empty when none): [{ device, lastSeenAt }].
+        endedSessions,
     };
 }
 
@@ -572,9 +589,11 @@ function withAncestors(visible, allById) {
 async function buildWorkspaceMenus(roleId, companyId) {
     let roleName = 'User';
     let permitted = [];
-    // Registered-workstation lock on the role (2026-11-01); the login gate
-    // reads it from the context on every session grant.
+    // Registered-workstation lock on the role (2026-11-01) and its exemption
+    // from the concurrent-session limit (2026-11-05); the login gate reads
+    // both from the context on every session grant.
     let roleLocked = false;
+    let roleExempt = false;
     if (roleId) {
         const role = await Role.findByPk(roleId, {
             include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
@@ -583,6 +602,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             roleName = role.name;
             permitted = role.PermittedMenus || [];
             roleLocked = role.signInLockedToWorkstations === true;
+            roleExempt = role.sessionLimitExempt === true;
         }
     }
 
@@ -597,7 +617,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             const all = await Menu.findAll({
                 include: [{ model: Module, as: 'Module', where: { audience: 'platform' } }],
             });
-            return { roleName, roleLocked, menus: all.map(m => mapMenuItem(m, true)) };
+            return { roleName, roleLocked, roleExempt, menus: all.map(m => mapMenuItem(m, true)) };
         }
 
         const platformPermitted = permitted.filter(m => m.Module && m.Module.audience === 'platform');
@@ -606,7 +626,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
             : [];
         const allById = new Map(all.map(m => [m.id, m]));
-        return { roleName, roleLocked, menus: withAncestors(platformPermitted, allById).map(m => mapMenuItem(m)) };
+        return { roleName, roleLocked, roleExempt, menus: withAncestors(platformPermitted, allById).map(m => mapMenuItem(m)) };
     }
 
     const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
@@ -618,14 +638,14 @@ async function buildWorkspaceMenus(roleId, companyId) {
     if (roleName === 'Tenant Admin') {
         // All entitled menus with implicit full access - parent sections are
         // already part of the set.
-        return { roleName, roleLocked, menus: entitled.map(m => mapMenuItem(m, true)) };
+        return { roleName, roleLocked, roleExempt, menus: entitled.map(m => mapMenuItem(m, true)) };
     }
 
     // A normal role: its granted menus ∩ the company's entitled menus, plus the
     // ancestor sections of those grants (resolved from the entitled set).
     const entitledById = new Map(entitled.map(m => [m.id, m]));
     const granted = permitted.filter(m => entitledById.has(m.id));
-    return { roleName, roleLocked, menus: withAncestors(granted, entitledById).map(m => mapMenuItem(m)) };
+    return { roleName, roleLocked, roleExempt, menus: withAncestors(granted, entitledById).map(m => mapMenuItem(m)) };
 }
 
 // Resolve the role name + effective menus for a user within one workspace.
@@ -660,8 +680,8 @@ async function resolveWorkspaceContext(userId, companyId) {
         roleId = adminRole ? adminRole.id : null;
     }
 
-    const { roleName, roleLocked, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
-    return { companyId: resolvedCompanyId, companyName, roleName, roleLocked, menus, accountId };
+    const { roleName, roleLocked, roleExempt, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
+    return { companyId: resolvedCompanyId, companyName, roleName, roleLocked, roleExempt, menus, accountId };
 }
 
 // Persist the workspace a user just entered, so the NEXT login can skip the
@@ -2054,11 +2074,15 @@ exports.mfaDisable = async (req, res) => {
 
 // POST /api/auth/refresh - rotate the httpOnly cookie, mint a fresh 1h access
 // token for the SAME workspace. The frontend interceptor calls this on 401.
+// A session ended by a newer sign-in (the account's session limit) answers
+// 401 with reason `session_superseded` and Clear-Site-Data, so the ended
+// browser wipes its state and the sign-in screen can say why (2026-11-05).
 exports.refreshSession = async (req, res) => {
     try {
-        const row = await sessions.rotateSession(req, res);
+        const { row, reason } = await sessions.rotateSession(req, res);
         if (!row) {
-            return res.status(401).json({ message: 'Session expired. Please log in again.' });
+            if (reason === sessions.SESSION_SUPERSEDED) return sessions.endedSessionResponse(res, reason);
+            return res.status(401).json({ message: 'Session expired. Please log in again.', reason: sessions.SESSION_ENDED });
         }
 
         const user = await User.findByPk(row.userId, { attributes: ['id', 'email'] });
@@ -2072,7 +2096,7 @@ exports.refreshSession = async (req, res) => {
         }
 
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
-        const token = generateToken(user.id, user.email, row.companyId, companyName, isSystemAdmin, sessions.isRemembered(row));
+        const token = generateToken(user.id, user.email, row.companyId, companyName, isSystemAdmin, sessions.isRemembered(row), row.familyId);
         res.status(200).json({ token });
     } catch (error) {
         console.error('Refresh error:', error);

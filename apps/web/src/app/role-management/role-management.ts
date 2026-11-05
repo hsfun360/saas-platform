@@ -52,11 +52,15 @@ export class RoleManagementComponent implements OnInit {
     // Registered-workstation lock (2026-11-01): holders sign in only from a
     // browser the organisation registered under Security Policy.
     lockedToWorkstations: [false],
+    // Session-limit exemption (2026-11-05): holders are not counted against,
+    // nor ended by, the organisation's limit on devices signed in at once.
+    sessionLimitExempt: [false],
   });
 
   // The long explanation behind the (i) on the lock switch.
   readonly hint = {
     lock: 'When on, people holding this role can sign in only from a registered workstation, that is a shared browser an administrator registered for your organisation under System Setup, Security Policy. From any other computer or phone their password is refused before any two-factor step, with a message to ask their administrator. The Tenant Admin role is never locked, and the platform\'s system administrators are not affected. Switch it off, or register the browser they are using, to let them in from elsewhere.',
+    exempt: 'Your organisation limits how many devices a user may be signed in on at once (System Setup, Security Policy): signing in on one more device ends the idlest session. When this switch is on, people holding this role are exempt: their sessions are neither counted nor ended, so they may stay signed in on a phone and a computer together. Use it for roles that legitimately work from two devices at once. The Tenant Admin role is never exempt.',
   };
 
   roles = signal<Role[]>([]);
@@ -142,7 +146,7 @@ export class RoleManagementComponent implements OnInit {
   openCreate() {
     this.clearMessages();
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false, sessionLimitExempt: false });
     this.selectedGrants.set(new Map<string, GrantFlags>());
     this.roleDialogOpen.set(true);
   }
@@ -153,13 +157,13 @@ export class RoleManagementComponent implements OnInit {
     this.clearMessages();
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
-    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all', lockedToWorkstations: role.signInLockedToWorkstations === true });
+    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all', lockedToWorkstations: role.signInLockedToWorkstations === true, sessionLimitExempt: role.sessionLimitExempt === true });
     this.selectedGrants.set(new Map<string, GrantFlags>());
 
     this.editLoading.set(true);
     this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
-        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all', lockedToWorkstations: detail.signInLockedToWorkstations === true });
+        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all', lockedToWorkstations: detail.signInLockedToWorkstations === true, sessionLimitExempt: detail.sessionLimitExempt === true });
         const next = new Map<string, GrantFlags>();
         if (detail.permissions) {
           for (const p of detail.permissions) {
@@ -183,7 +187,7 @@ export class RoleManagementComponent implements OnInit {
   cancelEdit() {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all', lockedToWorkstations: false, sessionLimitExempt: false });
     this.selectedGrants.set(new Map<string, GrantFlags>());
   }
 
@@ -202,14 +206,14 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    const { roleName, roleDescription, dataScope, lockedToWorkstations } = this.roleForm.getRawValue();
+    const { roleName, roleDescription, dataScope, lockedToWorkstations, sessionLimitExempt } = this.roleForm.getRawValue();
     const editingId = this.editingRoleId();
 
     this.isLoading.set(true);
 
     if (editingId) {
       this.authService
-        .updateRole(editingId, { roleName, description: roleDescription, dataScope, signInLockedToWorkstations: lockedToWorkstations, permissions })
+        .updateRole(editingId, { roleName, description: roleDescription, dataScope, signInLockedToWorkstations: lockedToWorkstations, sessionLimitExempt, permissions })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
@@ -226,7 +230,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    this.authService.createRole(roleName, roleDescription, permissions, dataScope, lockedToWorkstations).subscribe({
+    this.authService.createRole(roleName, roleDescription, permissions, dataScope, lockedToWorkstations, sessionLimitExempt).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);

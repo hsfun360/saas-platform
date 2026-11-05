@@ -28,8 +28,22 @@ exports.verifyToken = (req, res, next) => {
             return res.status(403).json({ message: "Please finish signing in first." });
         }
 
-        // 4. Attach the decoded user data (like email and companyId) to the request
-        req.user = decoded;
-        next(); // Pass control to the next function (e.g., isSystemAdmin)
+        // 4. The session behind the token must still be live (2026-11-05): a
+        // session ended by a newer sign-in under the account's session limit
+        // is signed out on its next request, with the reason. One indexed
+        // read; tokens without a sid (older, or portal tokens) are not checked.
+        // Identity owns the session table, so the check is its service's
+        // (lazy, like the gateways) - the HTTP form when identity splits.
+        if (!decoded.sid) {
+            req.user = decoded;
+            return next();
+        }
+        const sessions = require('../modules/identity/session.service');
+        sessions.sessionIsLive(decoded.sid).then((verdict) => {
+            if (!verdict.live) return sessions.endedSessionResponse(res, verdict.reason);
+            // 5. Attach the decoded user data (like email and companyId) to the request
+            req.user = decoded;
+            next(); // Pass control to the next function (e.g., isSystemAdmin)
+        }).catch(next);
     });
 };

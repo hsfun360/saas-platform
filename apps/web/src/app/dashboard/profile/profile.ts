@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../auth.service';
 import { PhoneInputComponent } from '../../shared/phone-input/phone-input';
 import { ConfirmDialogComponent, ConfirmRequest } from '../../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../../shared/local-date.pipe';
-import { MfaStatus, TrustedDevice } from '../../models/auth.models';
+import { ActiveSession, MfaStatus, TrustedDevice } from '../../models/auth.models';
 
 // The signed-in user's own profile (name, phone, bio, photo), their
 // two-factor authentication and the browsers they trusted to skip the code.
@@ -56,8 +56,14 @@ export class ProfileComponent implements OnInit {
   readonly trustedBusy = signal(false);
   readonly confirmAction = signal<ConfirmRequest | null>(null);
 
+  // --- Active sessions: where the account is signed in right now (2026-11-05) ---
+  readonly sessions = signal<ActiveSession[]>([]);
+  readonly sessionsBusy = signal(false);
+  readonly otherSessions = computed(() => this.sessions().filter((s) => !s.current));
+
   ngOnInit(): void {
     this.loadMfaStatus();
+    this.loadSessions();
     this.loadTrustedDevices();
     this.authService.getProfile().subscribe({
       next: (response) => {
@@ -99,7 +105,69 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  deviceIcon(d: TrustedDevice): string {
+  // ---- Active sessions ----
+
+  loadSessions(): void {
+    this.authService.getSessions().subscribe({
+      next: (res) => this.sessions.set(res.sessions || []),
+      error: () => {}, // the list simply stays empty when it cannot load
+    });
+  }
+
+  askSignOutSession(s: ActiveSession): void {
+    this.confirmAction.set({
+      title: `Sign out on ${s.device}?`,
+      message: `Your session on ${s.device} (${s.workspace}) ends now; that device is signed out at its next action and must sign in again.`,
+      confirmLabel: 'Sign out there',
+      danger: true,
+      run: () => this.signOutSession(s.id),
+    });
+  }
+
+  askSignOutOthers(): void {
+    const n = this.otherSessions().length;
+    this.confirmAction.set({
+      title: 'Sign out everywhere else?',
+      message: `Your ${n} other ${n === 1 ? 'session ends' : 'sessions end'} now; this browser stays signed in. Each of those devices is signed out at its next action.`,
+      confirmLabel: 'Sign out everywhere else',
+      danger: true,
+      run: () => this.signOutOthers(),
+    });
+  }
+
+  private signOutSession(id: string): void {
+    this.sessionsBusy.set(true);
+    this.authService.revokeSession(id).subscribe({
+      next: (res) => {
+        this.sessionsBusy.set(false);
+        this.successMessage.set(res.message || 'Signed out on that device.');
+        this.sessions.set(res.sessions || []);
+      },
+      error: (err) => {
+        this.sessionsBusy.set(false);
+        this.errorMessage.set(err?.error?.message || 'That session could not be ended.');
+        this.loadSessions();
+      },
+    });
+  }
+
+  private signOutOthers(): void {
+    this.sessionsBusy.set(true);
+    this.authService.revokeOtherSessions().subscribe({
+      next: (res) => {
+        this.sessionsBusy.set(false);
+        this.successMessage.set(res.message || 'Signed out everywhere else.');
+        this.sessions.set(res.sessions || []);
+      },
+      error: (err) => {
+        this.sessionsBusy.set(false);
+        this.errorMessage.set(err?.error?.message || 'The other sessions could not be ended.');
+        this.loadSessions();
+      },
+    });
+  }
+
+  deviceIcon(d: { device: string }): string {
     if (/iPhone|Android/.test(d.device)) return 'smartphone';
     if (/iPad/.test(d.device)) return 'tablet_mac';
     if (/unknown/i.test(d.device)) return 'devices';

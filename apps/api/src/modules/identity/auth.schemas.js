@@ -107,6 +107,11 @@ const trustedDeviceId = {
     params: z.object({ id: fields.uuid }),
 };
 
+// DELETE /sessions/:familyId - one of the caller's own sign-in sessions.
+const sessionFamilyId = {
+    params: z.object({ familyId: fields.uuid }),
+};
+
 const changePassword = {
     body: z.object({
         currentPassword: fields.existingPassword,
@@ -137,6 +142,7 @@ module.exports = {
     mfaVerify,
     mfaCode,
     trustedDeviceId,
+    sessionFamilyId,
     changePassword,
     provisionOnboarding,
 };

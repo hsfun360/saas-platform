@@ -54,6 +54,9 @@ export class LoginComponent implements OnInit {
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
+  // Why the user is back here without asking: their session was ended by a
+  // sign-in on another device (the interceptor arrives with ?reason=...).
+  readonly noticeMessage = signal('');
   readonly showPassword = signal(false);
 
   // True while a sign-in is being completed - an SSO redirect return, a local
@@ -111,8 +114,14 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     // Arriving from the email-verification redirect (legacy GET verify link).
-    if (new URLSearchParams(window.location.search).get('verified') === 'true') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === 'true') {
       this.successMessage.set('Email verified successfully! Please log in.');
+    }
+    // Signed out by a newer sign-in elsewhere (2026-11-05): say so, and what
+    // signing in here will do in turn.
+    if (params.get('reason') === 'session_superseded') {
+      this.noticeMessage.set('You were signed out because your account signed in on another device. Signing in here will end that session in turn. If that sign-in was not you, change your password once you are in.');
     }
 
     // Offer the platform's active languages in the pre-login switcher (falls back
@@ -337,6 +346,13 @@ export class LoginComponent implements OnInit {
       localStorage.setItem('userFullName', res.fullName || 'User');
       localStorage.setItem('userProfilePicture', res.profilePicture || '');
       this.authService.storeUserMenus(res.menus);
+
+      // What this sign-in ended under the organisation's session limit
+      // (2026-11-05): handed to the shell, which shows it once the app is up.
+      try {
+        if (res.endedSessions?.length) sessionStorage.setItem('endedSessions', JSON.stringify(res.endedSessions));
+        else sessionStorage.removeItem('endedSessions');
+      } catch { /* storage unavailable: the in-app bell and the email still tell the user */ }
 
       // Always reflect THIS user's avatar (empty/null -> default), so a previous
       // user's picture (e.g. a Google SSO avatar) never carries into the next login.
