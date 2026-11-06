@@ -20,4 +20,16 @@ if (typeof window.matchMedia !== 'function') {
   });
 }
 
+// ScrollReturnService builds an attribute selector with CSS.escape when a list
+// returns to the row the user came from; jsdom has no CSS namespace at all, so
+// without this the service threw (and logged) under test. A minimal escape:
+// every character outside [A-Za-z0-9_-] is backslash-escaped, which is a
+// superset of what the spec requires and enough for an id.
+if (typeof globalThis.CSS === 'undefined') {
+  Object.defineProperty(globalThis, 'CSS', { writable: true, value: {} });
+}
+if (typeof globalThis.CSS.escape !== 'function') {
+  globalThis.CSS.escape = (value: string): string => String(value).replace(/[^A-Za-z0-9_-]/g, (c) => `\\${c}`);
+}
+
 export {};

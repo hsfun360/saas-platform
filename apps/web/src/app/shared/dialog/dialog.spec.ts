@@ -83,13 +83,25 @@ describe('DialogComponent', () => {
     fixture.detectChanges();
   });
 
+  // Leave jsdom's history exactly as we found it. Two paths leave our guard
+  // entry behind: a test that dispatches a SYNTHETIC popstate (the dialog then
+  // believes Back consumed its entry and never calls history.back()), and a
+  // history.back() from ngOnDestroy that is still in flight when the next test
+  // pushes its own entry on top. Either way the next Escape test pops back onto
+  // a stale guard entry and its "guard gone" wait times out - the flake seen in
+  // CI on 2026-11-06. So: close, then drain every guard entry still on top,
+  // waiting for each async traversal to land.
   afterEach(async () => {
-    // Close any dialog still open so its history trap is consumed before the next test.
     if (host.show()) {
       host.show.set(false);
       fixture.detectChanges();
       await settle();
     }
+    for (let i = 0; i < 5 && (history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard === true; i += 1) {
+      history.back();
+      await waitUntil(() => (history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard !== true);
+    }
+    expect((history.state as { appDialogGuard?: boolean } | null)?.appDialogGuard).not.toBe(true);
   });
 
   it('pushes a same-URL history entry on open so the Back button is trapped', async () => {
