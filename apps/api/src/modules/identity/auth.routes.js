@@ -214,6 +214,14 @@ router.delete('/mfa/trusted-devices/:id', authenticateToken, validate(schemas.tr
 router.post('/refresh', loginLimiter(), authController.refreshSession);
 router.post('/logout', loginLimiter(), authController.logout);
 
+// Session heartbeat (2026-11-06): the shell pings this every 15 s while its tab
+// is visible, and once when the tab regains focus. authenticateToken already
+// checks the session family is live on every request, so a session ended by a
+// newer sign-in elsewhere answers 401 { reason } here within seconds instead of
+// at the user's next click (the gap the user noticed on dev). Nothing to do on
+// success: one indexed read, 204.
+router.get('/session', authenticateToken, (req, res) => res.status(204).end());
+
 // Active sessions (Profile -> Security, 2026-11-05): the user's own live
 // sign-in sessions, sign one out, or sign out everywhere else.
 router.get('/sessions', authenticateToken, sessionController.list);

@@ -8,6 +8,7 @@ import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
 import { ScreenTitleService } from '../i18n/screen-title.service';
 import { NotificationService, AppNotification } from '../services/notification.service';
+import { SessionHeartbeatService } from '../session-heartbeat.service';
 import { RecentScreensService } from '../services/recent-screens.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { HelpButtonComponent } from '../shared/help-button/help-button';
@@ -81,6 +82,9 @@ export class Dashboard implements OnInit, OnDestroy {
   private readonly languageService = inject(LanguageService);
   readonly i18n = inject(I18nService);
   readonly notifications = inject(NotificationService);
+  // Session heartbeat (2026-11-06): learns within seconds that a newer sign-in
+  // elsewhere ended this one, instead of at the user's next click.
+  private readonly heartbeat = inject(SessionHeartbeatService);
   // Instantiated with the shell so screen visits are tracked from the first
   // navigation (feeds My Dashboard's "continue where you left off" row).
   private readonly recentScreens = inject(RecentScreensService);
@@ -229,6 +233,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.loadLanguageOptions();
     this.notifications.load();
     this.notifTimer = setInterval(() => this.notifications.load(), 60 * 1000);
+    this.heartbeat.start();
 
     this.userRoleName = localStorage.getItem('userRole') || 'User';
     this.loggedInUser = localStorage.getItem('userEmail');
@@ -434,6 +439,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.notifTimer) clearInterval(this.notifTimer);
+    this.heartbeat.stop();
   }
 
   // --- Header notification bell ---

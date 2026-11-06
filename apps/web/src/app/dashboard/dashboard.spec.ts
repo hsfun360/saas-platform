@@ -21,7 +21,7 @@ describe('Dashboard', () => {
   });
 
   afterEach(() => {
-    fixture?.destroy(); // clears the notification polling interval
+    fixture?.destroy(); // clears the notification polling interval + the session heartbeat
   });
 
   it('should create', () => {
