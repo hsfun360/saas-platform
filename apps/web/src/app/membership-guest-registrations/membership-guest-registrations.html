@@ -1,0 +1,430 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">how_to_reg</span>
+      <div>
+        <h1>{{ 'Guest Registration' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Register a member\'s guest for a date and hand over the digital day pass - the visit counts against the host\'s monthly guest allowance.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- FILTERS: visit-date range + status (server) · scan · search (client) -->
+  <div class="ggr-filter">
+    <label for="ggrFrom">Visit date from</label>
+    <input #fromInput id="ggrFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(fromInput.value)" />
+    <label for="ggrTo">to</label>
+    <input #toInput id="ggrTo" type="date" [value]="dateTo()" (change)="setDateTo(toInput.value)" />
+    <label for="ggrStatus">Status</label>
+    <select #statusSel id="ggrStatus" [value]="status()" (change)="setStatus(statusSel.value)">
+      <option value="">All</option>
+      @for (s of statuses(); track s.key) {
+        <option [value]="s.key">{{ s.label }}</option>
+      }
+    </select>
+    <button *appCan="'edit'" type="button" class="btn btn--secondary ggr-filter__scan" (click)="openScan()">
+      <span class="material-icons" aria-hidden="true">qr_code_scanner</span>
+      Scan pass
+    </button>
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by registration no, guest, mobile, email or host member…" aria-label="Search guest registrations" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="ggr-count">{{ registrations().length }} registration{{ registrations().length === 1 ? '' : 's' }} · {{ expectedToday() }} expected today · {{ arrivedToday() }} arrived today</p>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading guest registrations…</p></div>
+  } @else if (registrations().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No guests registered in this period. Use "New guest" when a member brings a guest.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No registrations match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of filtered(); track r.id) {
+        <div class="data-card" [attr.data-return-id]="r.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ r.registrationNo }} - {{ r.guest?.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ r.visitDate | localDate:'weekday' }}</span>
+                <span class="data-card__reg">Guest of {{ r.host?.name }} ({{ r.host?.memberNo }})</span>
+              </div>
+              <dl class="data-card__meta">
+                @if (contactLine(r); as contact) {
+                  <div class="meta"><dt>Contact</dt><dd>{{ contact }}</dd></div>
+                }
+                @if (r.status !== 'cancelled') {
+                  <div class="meta"><dt>Pass</dt><dd>{{ r.passSentAt ? 'Sent by ' + viaLabel(r.passSentVia) + ' to ' + r.passSentTo + ' · ' + (r.passSentAt | localDate:'datetime') : 'Not sent yet' }}</dd></div>
+                }
+                @if (r.arrivedAt) {
+                  <div class="meta"><dt>Arrived</dt><dd>{{ r.arrivedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (r.status === 'cancelled') {
+                  <div class="meta"><dt>Cancelled</dt><dd>{{ r.cancelReason }} · {{ r.cancelledAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (r.remarks) {
+                  <div class="meta"><dt>Remarks</dt><dd>{{ r.remarks }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span [class]="'status-chip ' + chipClass(r)">{{ chipLabel(r) }}</span>
+            </div>
+            @if (passLive(r)) {
+              <div class="data-row__actions">
+                @if (canArrive(r)) {
+                  <button *appCan="'edit'" type="button" class="btn btn--primary btn--sm" (click)="arrive(r)" [disabled]="workingId() === r.id">
+                    <span class="material-icons" aria-hidden="true">login</span>
+                    {{ workingId() === r.id ? 'Saving…' : 'Mark arrived' }}
+                  </button>
+                } @else {
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="openPass(r)">
+                    <span class="material-icons" aria-hidden="true">qr_code_2</span>
+                    Pass
+                  </button>
+                }
+                <app-overflow-menu [label]="'More actions for registration ' + r.registrationNo">
+                  @if (canArrive(r)) {
+                    <button type="button" appMenuItem (click)="openPass(r)">
+                      <span class="material-icons" aria-hidden="true">qr_code_2</span>
+                      Pass
+                    </button>
+                  }
+                  @if (r.canModify !== false) {
+                    <button *appCan="'edit'" type="button" appMenuItem (click)="openEdit(r)">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit guest details
+                    </button>
+                    @if (r.status === 'registered') {
+                      <button *appCan="'edit'" type="button" appMenuItem (click)="openCancel(r)">
+                        <span class="material-icons" aria-hidden="true">block</span>
+                        Cancel registration
+                      </button>
+                    }
+                  }
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New guest FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New guest">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New guest</span>
+  </button>
+
+  <!-- ============ THE dialog: one instance, four views (single-dialog standard) ============ -->
+  @if (dialogMode(); as mode) {
+    <app-dialog #dlg [variant]="dialogVariant()" [title]="dialogTitle()" [busy]="saving() || working()" [dirty]="mode === 'form' && form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this guest registration. Leaving now will discard them."
+                (close)="closeDialog()">
+      @switch (mode) {
+
+        <!-- ---- The record form ---- -->
+        @case ('form') {
+          <form id="ggrForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+            <details class="dlg-sec" open>
+              <summary><h3 class="dlg-section">Host member</h3></summary>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ggrMemberNo">Member No <span class="required">*</span></label>
+                  <input id="ggrMemberNo" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" (blur)="lookupHost()"
+                         [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="ggrMemberNoErr ggrHostFacts" />
+                  @if (showError(form.controls.memberNo)) {
+                    <p id="ggrMemberNoErr" class="field-error" role="alert">Key in the host member's number.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ggrDate">Visit date <span class="required">*</span></label>
+                  <input id="ggrDate" type="date" formControlName="visitDate" [min]="today()" (change)="lookupHost()"
+                         [attr.aria-invalid]="showError(form.controls.visitDate)" aria-describedby="ggrDateErr" />
+                  @if (showError(form.controls.visitDate)) {
+                    <p id="ggrDateErr" class="field-error" role="alert">Pick the visit date.</p>
+                  }
+                  @if (!editTarget()) { <p class="cell-subtle field-hint">The pass is valid on this date only.</p> }
+                </div>
+              </div>
+              @if (!editTarget()) {
+                <div id="ggrHostFacts" class="ggr-host" aria-live="polite">
+                  @if (hostLoading()) {
+                    <p class="cell-subtle">Checking the member…</p>
+                  } @else if (hostError(); as herr) {
+                    <p class="field-error" role="alert">{{ herr }}</p>
+                  } @else if (hostFacts(); as facts) {
+                    <p class="ggr-host__name">
+                      <span class="material-icons" aria-hidden="true">badge</span>
+                      {{ facts.host.name }} ({{ facts.host.memberNo }}){{ facts.host.statusLabel ? ' · ' + facts.host.statusLabel : '' }}
+                    </p>
+                    @if (hostBarred()) {
+                      <p class="field-error" role="alert">This member's status is barred - a guest cannot be registered.</p>
+                    } @else {
+                      @if (facts.host.actionControl === 'warning') {
+                        <p class="ggr-host__warn"><span class="material-icons inline-icon" aria-hidden="true">warning</span> This member's status carries a warning - check before registering the guest.</p>
+                      }
+                      <p [class]="allowanceExhausted() ? 'field-error' : 'cell-subtle'">{{ allowanceLine() }}</p>
+                    }
+                  } @else {
+                    <p class="cell-subtle">The member's standing and guest allowance for the month show here.</p>
+                  }
+                </div>
+                @if (numberingMode() === 'manual') {
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="ggrNo">Registration No <span class="required">*</span></label>
+                      <input id="ggrNo" type="text" formControlName="registrationNo" maxlength="50" autocomplete="off" />
+                      <p class="cell-subtle field-hint">The Guest Registration No. series is manual - key in the number.</p>
+                    </div>
+                  </div>
+                }
+                @if (numberingMode() === null) {
+                  <p class="field-error" role="alert">Set up the Guest Registration No. series first (Numbering Control) - saving needs it.</p>
+                }
+              }
+            </details>
+
+            <details class="dlg-sec" open formGroupName="guest">
+              <summary><h3 class="dlg-section">Guest</h3></summary>
+              @if (!editTarget()) {
+                @if (pickedGuest(); as picked) {
+                  <div class="ggr-picked">
+                    <span class="material-icons" aria-hidden="true">person_search</span>
+                    <span>Returning guest - {{ picked.visits }} earlier visit{{ picked.visits === 1 ? '' : 's' }}. Corrections below update their record.</span>
+                    <button type="button" class="btn btn--link btn--sm" (click)="clearPickedGuest()">New guest instead</button>
+                  </div>
+                } @else {
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="ggrFind">Returning guest</label>
+                      <input #findInput id="ggrFind" type="search" [value]="guestQuery()" (input)="guestQuery.set(findInput.value)" (keydown.enter)="$event.preventDefault()" autocomplete="off"
+                             placeholder="Search by name, mobile, email or ID to reuse their details" />
+                      @if (guestSearching()) {
+                        <p class="cell-subtle field-hint">Searching…</p>
+                      } @else if (guestMatches().length) {
+                        <ul class="ggr-matches" aria-label="Matching guests">
+                          @for (g of guestMatches(); track g.id) {
+                            <li>
+                              <button type="button" class="ggr-match" (click)="pickGuest(g)">
+                                <strong>{{ g.name }}</strong>
+                                <span>{{ matchLine(g) }}</span>
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      } @else if (guestQuery().trim().length >= 2) {
+                        <p class="cell-subtle field-hint">No earlier guest matches - key in the details below.</p>
+                      }
+                    </div>
+                  </div>
+                }
+              }
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ggrName">Name <span class="required">*</span></label>
+                  <input id="ggrName" type="text" formControlName="name" maxlength="255" autocomplete="off"
+                         [attr.aria-invalid]="showError(form.controls.guest.controls.name)" aria-describedby="ggrNameErr" />
+                  @if (showError(form.controls.guest.controls.name)) {
+                    <p id="ggrNameErr" class="field-error" role="alert">Key in the guest's name.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ggrIdNo">Identity / Passport No.</label>
+                  <input id="ggrIdNo" type="text" formControlName="identityNo" maxlength="50" autocomplete="off" />
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ggrMobile">Mobile</label>
+                  <app-phone-input formControlName="mobile" inputId="ggrMobile" placeholder="For WhatsApp"></app-phone-input>
+                </div>
+                <div class="form-group">
+                  <label for="ggrEmail">Email</label>
+                  <input id="ggrEmail" type="email" inputmode="email" formControlName="email" maxlength="255" autocomplete="off" (input)="syncSendEmail()"
+                         [attr.aria-invalid]="showError(form.controls.guest.controls.email)" aria-describedby="ggrEmailErr" />
+                  @if (showError(form.controls.guest.controls.email)) {
+                    <p id="ggrEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+                  }
+                </div>
+              </div>
+              @if (showContactError()) {
+                <p id="ggrContactErr" class="field-error" role="alert">Key in a mobile number or an email - the pass is sent to one of them.</p>
+              } @else {
+                <p class="cell-subtle field-hint">A mobile number or an email is required - the pass is sent to one of them.</p>
+              }
+            </details>
+
+            <details class="dlg-sec" open>
+              <summary><h3 class="dlg-section">{{ editTarget() ? 'Remarks' : 'Pass' }}</h3></summary>
+              @if (!editTarget()) {
+                <label class="switch-row switch">
+                  <input type="checkbox" role="switch" formControlName="sendEmail" />
+                  <span class="switch-row__text">
+                    <span class="switch-row__title">Email the pass to the guest</span>
+                    <span class="switch-row__hint">{{ hasEmail() ? 'Sent on save. The pass can also be shared over WhatsApp or shown as a QR code afterwards.' : 'No email keyed in - share the pass over WhatsApp or show its QR code after saving.' }}</span>
+                  </span>
+                </label>
+              }
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ggrRemarks">Remarks</label>
+                  <textarea id="ggrRemarks" formControlName="remarks" rows="2" wrap="off" maxlength="255" placeholder="Anything the desk should know"></textarea>
+                </div>
+              </div>
+            </details>
+          </form>
+        }
+
+        <!-- ---- The pass: hand it over ---- -->
+        @case ('pass') {
+          @if (passTarget(); as target) {
+            <div class="ggr-view">
+              <p><strong>{{ target.guest?.name }}</strong> - guest of {{ target.host?.name }} ({{ target.host?.memberNo }}) on <strong>{{ target.visitDate | localDate:'weekday' }}</strong>. Registration {{ target.registrationNo }}.</p>
+              @if (passError(); as perr) {
+                <p class="field-error" role="alert">{{ perr }}</p>
+              } @else if (passFacts(); as facts) {
+                <div class="ggr-pass">
+                  <img class="ggr-pass__qr" [src]="facts.qrDataUrl" width="220" height="220" alt="QR code of the guest pass" />
+                  <div class="ggr-pass__side">
+                    <p class="cell-subtle">The guest can scan this code with their phone to open the pass, or receive the link:</p>
+                    <div class="ggr-pass__actions">
+                      @if (facts.whatsappUrl) {
+                        <a class="btn btn--primary" [href]="facts.whatsappUrl" target="_blank" rel="noopener" (click)="recordWhatsapp()">
+                          <span class="material-icons" aria-hidden="true">chat</span>
+                          Share via WhatsApp
+                        </a>
+                      }
+                      @if (target.guest?.email) {
+                        <button type="button" class="btn btn--secondary" (click)="emailPass()" [disabled]="working()">
+                          <span class="material-icons" aria-hidden="true">mail</span>
+                          {{ working() ? 'Sending…' : (target.passSentVia === 'email' ? 'Email again' : 'Email pass') }}
+                        </button>
+                      }
+                      <button type="button" class="btn btn--secondary" (click)="copyLink()">
+                        <span class="material-icons" aria-hidden="true">content_copy</span>
+                        {{ copied() ? 'Link copied' : 'Copy link' }}
+                      </button>
+                      <a class="btn btn--link" [href]="facts.passUrl" target="_blank" rel="noopener">Open pass</a>
+                    </div>
+                    <p class="cell-subtle ggr-pass__sent">{{ target.passSentAt ? 'Last sent by ' + viaLabel(target.passSentVia) + ' to ' + target.passSentTo + ' · ' + (target.passSentAt | localDate:'datetime') : 'Not sent yet.' }}</p>
+                  </div>
+                </div>
+              } @else {
+                <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Preparing the pass…</p></div>
+              }
+            </div>
+          }
+        }
+
+        <!-- ---- Scan a pass: verify, then mark arrived ---- -->
+        @case ('scan') {
+          <div class="ggr-view">
+            @if (scanResult(); as r) {
+              <dl class="ggr-verify">
+                <div><dt>Guest</dt><dd>{{ r.guest?.name }}</dd></div>
+                <div><dt>Guest of</dt><dd>{{ r.host?.name }} ({{ r.host?.memberNo }})</dd></div>
+                <div><dt>Visit date</dt><dd>{{ r.visitDate | localDate:'weekday' }}</dd></div>
+                <div><dt>Registration</dt><dd>{{ r.registrationNo }}</dd></div>
+              </dl>
+              <p [class]="canArrive(r) ? 'ggr-verify__ok' : 'field-error'" role="status">
+                <span class="material-icons inline-icon" aria-hidden="true">{{ canArrive(r) ? 'verified' : 'error' }}</span>
+                {{ scanVerdict(r) }}
+              </p>
+            } @else {
+              <app-qr-scanner hint="Point the camera at the QR code on the guest's pass." (scanned)="onScanned($event)" />
+              @if (scanError(); as serr) {
+                <p class="field-error" role="alert">{{ serr }}</p>
+              }
+              <div class="form-group">
+                <label for="ggrScanCode">Or paste the pass link</label>
+                <input #scanInput id="ggrScanCode" type="text" [value]="scanCode()" (input)="scanCode.set(scanInput.value)" (keydown.enter)="onScanned(scanCode())"
+                       autocomplete="off" placeholder="A handheld scanner types it here" />
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ---- Cancel: reason required ---- -->
+        @case ('cancel') {
+          @if (cancelTarget(); as target) {
+            <div class="ggr-view">
+              <p>Cancel registration <strong>{{ target.registrationNo }}</strong> for {{ target.guest?.name }} on {{ target.visitDate | localDate }}? The pass stops working and the visit no longer counts against {{ target.host?.name }}'s guest allowance.</p>
+              <div class="form-group">
+                <label for="ggrReason">Reason <span class="required">*</span></label>
+                <textarea #reasonInput id="ggrReason" rows="2" wrap="off" [value]="cancelReason()" (input)="cancelReason.set(reasonInput.value)"></textarea>
+              </div>
+            </div>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="ggrForm" class="btn btn--primary" [disabled]="saving() || (!editTarget() && hostBarred())">
+              {{ saveLabel() }}
+            </button>
+          }
+          @case ('pass') {
+            <button type="button" class="btn btn--primary" (click)="closeDialog()" [disabled]="working()">Done</button>
+          }
+          @case ('scan') {
+            @if (scanResult(); as r) {
+              <button type="button" class="btn btn--secondary" (click)="scanAgain()" [disabled]="workingId() === r.id">Scan another</button>
+              @if (canArrive(r)) {
+                <button type="button" class="btn btn--primary" (click)="arriveScanned()" [disabled]="workingId() === r.id">
+                  {{ workingId() === r.id ? 'Saving…' : 'Mark ' + (r.guest?.name || 'guest') + ' arrived' }}
+                </button>
+              }
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="closeDialog()">Close</button>
+              <button type="button" class="btn btn--primary" (click)="onScanned(scanCode())" [disabled]="working() || !scanCode().trim()">
+                {{ working() ? 'Checking…' : 'Check pass' }}
+              </button>
+            }
+          }
+          @case ('cancel') {
+            <button type="button" class="btn btn--secondary" (click)="closeDialog()" [disabled]="working()">Keep registration</button>
+            <button type="button" class="btn btn--danger" (click)="runCancel()" [disabled]="working()">
+              {{ working() ? 'Working…' : 'Cancel registration' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

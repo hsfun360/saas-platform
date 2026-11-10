@@ -1,0 +1,87 @@
+/* Guest Visits - the filter toolbar, the count line and the visit lines
+   inside a card; shared listing chrome comes from styles.css. All colours
+   are theme tokens. */
+
+.ggv-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ggv-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.ggv-filter input,
+.ggv-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ggv-filter input:focus,
+.ggv-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+
+.ggv-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The visits of one member or one guest, shown inside its card. */
+.ggv-lines {
+  list-style: none;
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.ggv-line {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  gap: var(--space-md);
+  align-items: baseline;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+}
+.ggv-line__date {
+  color: var(--text-secondary);
+}
+.ggv-line__party {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.ggv-line__source {
+  color: var(--text-muted);
+  text-align: right;
+}
+.ggv-note {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+}
+
+@media (max-width: 767px) {
+  .ggv-filter input,
+  .ggv-filter select {
+    width: 100%;
+  }
+  .ggv-line {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xs);
+  }
+  .ggv-line__source {
+    text-align: left;
+  }
+}

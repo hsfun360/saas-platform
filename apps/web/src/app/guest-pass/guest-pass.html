@@ -1,0 +1,56 @@
+<div class="auth-page">
+  <div class="auth-card">
+
+    <h1 class="auth-title">Guest pass</h1>
+
+    @if (loading()) {
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Opening your pass…</p></div>
+    } @else if (invalidMessage()) {
+      <div class="auth-alert auth-alert--danger" role="alert">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">link_off</span>
+        <h2>Link problem</h2>
+        <p>{{ invalidMessage() }}</p>
+      </div>
+    } @else if (pass(); as p) {
+
+      <div class="auth-greeting">
+        @if (p.clubLogo) {
+          <img class="gp-logo" [src]="p.clubLogo" [alt]="p.clubName + ' logo'" />
+        }
+        @if (p.clubName) {
+          <h2 class="auth-greeting__name">{{ p.clubName }}</h2>
+        }
+        <p class="auth-greeting__hello">{{ p.guestName }}</p>
+        <span class="auth-chip">
+          <span class="material-icons" aria-hidden="true">person</span>Guest of {{ p.hostName }}
+        </span>
+      </div>
+
+      <div [class]="'auth-alert ' + stateClass(p.state)" role="status">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">{{ stateIcon(p.state) }}</span>
+        <h2>{{ p.stateLabel }}</h2>
+        <p>
+          @switch (p.state) {
+            @case ('valid') { This pass is valid today, {{ p.visitDate | localDate:'weekday' }}.{{ p.arrivedAt ? ' Arrival recorded at ' + (p.arrivedAt | localDate:'datetime') + '.' : '' }} }
+            @case ('upcoming') { This pass is for {{ p.visitDate | localDate:'weekday' }}. It becomes valid on that day. }
+            @case ('expired') { This pass was for {{ p.visitDate | localDate:'weekday' }} and can no longer be used. }
+            @default { This registration was cancelled. Please contact your host or the club. }
+          }
+        </p>
+      </div>
+
+      @if (p.qrDataUrl) {
+        <div class="gp-qr">
+          <img [src]="p.qrDataUrl" width="220" height="220" alt="QR code of this guest pass" />
+        </div>
+        <p class="auth-lead gp-lead">Show this code at the front desk and the outlets.</p>
+      }
+
+      <dl class="gp-facts">
+        <div><dt>Date</dt><dd>{{ p.visitDate | localDate:'weekday' }}</dd></div>
+        <div><dt>Registration</dt><dd>{{ p.registrationNo }}</dd></div>
+      </dl>
+    }
+
+  </div>
+</div>

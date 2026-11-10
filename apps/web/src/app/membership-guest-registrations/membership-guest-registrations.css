@@ -1,0 +1,220 @@
+/* Guest Registration - the filter toolbar, the count line, the drawer's host
+   facts and returning-guest list, the pass hand-over and the scan verdict;
+   shared listing/dialog chrome comes from styles.css. All colours are theme
+   tokens. */
+
+.ggr-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ggr-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.ggr-filter input[type='date'],
+.ggr-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ggr-filter input[type='date']:focus,
+.ggr-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+/* The scan button sits at the end of the toolbar on desktop. */
+.ggr-filter__scan {
+  margin-left: auto;
+}
+
+.ggr-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The host's standing and allowance under the Member No / Visit date row. */
+.ggr-host {
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  display: grid;
+  gap: var(--space-xs);
+}
+.ggr-host p {
+  margin: 0;
+}
+.ggr-host__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ggr-host__name .material-icons {
+  font-size: var(--icon-md);
+  color: var(--text-muted);
+}
+.ggr-host__warn {
+  font-size: var(--font-body-2);
+  color: var(--info-text);
+}
+
+/* Returning guests: the matches under the search field. */
+.ggr-matches {
+  list-style: none;
+  margin: var(--space-xs) 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+.ggr-matches li + li {
+  border-top: 1px solid var(--border);
+}
+.ggr-match {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+.ggr-match:hover,
+.ggr-match:focus-visible {
+  background: var(--surface-hover);
+}
+.ggr-match span {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.ggr-picked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  background: var(--info-surface);
+  color: var(--info-text);
+  font-size: var(--font-body-2);
+}
+.ggr-picked .material-icons {
+  font-size: var(--icon-md);
+}
+
+/* The pass hand-over: the QR beside the ways to send it. */
+.ggr-pass {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  margin-top: var(--space-md);
+}
+.ggr-pass__qr {
+  display: block;
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-qr);
+}
+.ggr-pass__side p {
+  margin: 0 0 var(--space-sm);
+}
+.ggr-pass__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.ggr-pass__actions a.btn {
+  text-decoration: none;
+}
+.ggr-pass__sent {
+  font-size: var(--font-body-2);
+}
+
+/* The scan verdict: who the pass is for, then whether it is valid. */
+.ggr-verify {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-md);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.ggr-verify div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+.ggr-verify dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ggr-verify dd {
+  margin: 0;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+.ggr-verify__ok {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+  color: var(--success-text);
+}
+
+@media (max-width: 767px) {
+  .ggr-filter__scan {
+    margin-left: 0;
+    width: 100%;
+  }
+  .ggr-pass {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .ggr-pass__actions .btn {
+    width: 100%;
+  }
+  .ggr-verify {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A non-form view of the one dialog (pass, scan, cancel): the dialog body
+   already pads, the view only spaces its own blocks. */
+.ggr-view {
+  display: grid;
+  gap: var(--space-md);
+}
+.ggr-view > p {
+  margin: 0;
+}
