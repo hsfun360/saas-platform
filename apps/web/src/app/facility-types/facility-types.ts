@@ -190,6 +190,9 @@ export class FacilityTypesComponent implements OnInit {
 
   // --- Slot sets (slot-mode types) ---
   readonly dlgType = signal<FacilityType | null>(null);
+  // A type outside the caller's data scope: its slot sets open view-only (the
+  // API checks every slot-set write against the TYPE row).
+  readonly typeReadOnly = computed(() => this.dlgType()?.canModify === false);
   readonly sets = signal<FacilityTypeSlotSet[]>([]);
   readonly setsLoading = signal(false);
   readonly setTogglingId = signal<string | null>(null);
@@ -698,6 +701,7 @@ export class FacilityTypesComponent implements OnInit {
     this.clearMessages();
     this.slotSet.set(s);
     this.setSlotLines(s.slots || [], false);
+    if (this.typeReadOnly()) this.slotLines.disable({ emitEvent: false });
     this.dlgMode.set('slots');
   }
 
@@ -731,7 +735,7 @@ export class FacilityTypesComponent implements OnInit {
   onSaveSlots(): void {
     const t = this.dlgType();
     const s = this.slotSet();
-    if (!t || !s) return;
+    if (!t || !s || this.typeReadOnly()) return;
     this.clearMessages();
     const slots: FacilityTypeSlot[] = [];
     for (const r of this.slotLines.controls.map((g) => g.getRawValue())) {

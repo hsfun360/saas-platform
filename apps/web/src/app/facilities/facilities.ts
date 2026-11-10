@@ -270,9 +270,14 @@ export class FacilitiesComponent implements OnInit {
   }
 
   // Closures are keyed on their own screen; jump there with this unit preselected.
+  // An amendable unit opens the closure form with the unit preselected; a unit
+  // outside the caller's data scope only LISTS its closure plans (view).
   openClosures(r: Facility): void {
     this.returnScroll.remember(FacilitiesComponent.LIST_PATH, r.id);
-    this.router.navigate(['/facility/closures'], { queryParams: { facilityTypeId: r.facilityTypeId, facilityId: r.id } });
+    const queryParams = r.canModify === false
+      ? { search: r.code }
+      : { facilityTypeId: r.facilityTypeId, facilityId: r.id };
+    this.router.navigate(['/facility/closures'], { queryParams });
   }
 
   clearSearch(): void {

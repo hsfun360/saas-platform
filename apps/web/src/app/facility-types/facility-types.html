@@ -108,6 +108,10 @@
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
                 </button>
+              }
+              <!-- A type outside the caller's data scope keeps Slot sets (opened
+                   view-only); Enable / Disable and Delete go. -->
+              @if (t.canModify !== false || t.usageMode === 'slot') {
                 <ng-container *appCan="'edit'">
                   <app-overflow-menu [label]="'More actions for ' + t.code">
                     @if (t.usageMode === 'slot') {
@@ -116,14 +120,16 @@
                         Slot sets ({{ t.slotSetCount }})
                       </button>
                     }
-                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
-                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
-                    </button>
-                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(t)" [disabled]="togglingId() === t.id">
-                      <span class="material-icons" aria-hidden="true">delete</span>
-                      Delete
-                    </button>
+                    @if (t.canModify !== false) {
+                      <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                        <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                        {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                      </button>
+                      <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(t)" [disabled]="togglingId() === t.id">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                        Delete
+                      </button>
+                    }
                   </app-overflow-menu>
                 </ng-container>
               }
@@ -462,12 +468,22 @@
               The bookable slots of every {{ dlgType()?.description }} facility.
               <app-field-info label="Slot sets" [text]="hint.slotSets" />
             </p>
+            @if (typeReadOnly()) {
+              <div class="flash flash-info flash--static" role="status">
+                <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">lock</span></span>
+                <span>View only - your role's data scope does not allow amending {{ dlgType()?.code }}.</span>
+              </div>
+            }
             @if (setsLoading()) {
               <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading slot sets…</p></div>
             } @else if (sets().length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
-                <p>No slot sets yet. Add one set per day scope - the slots are generated from the first start, the last start and the slot length, then adjusted as needed.</p>
+                @if (typeReadOnly()) {
+                  <p>No slot sets yet.</p>
+                } @else {
+                  <p>No slot sets yet. Add one set per day scope - the slots are generated from the first start, the last start and the slot length, then adjusted as needed.</p>
+                }
               </div>
             } @else {
               @for (s of sets(); track s.id) {
@@ -491,25 +507,27 @@
                   </div>
                   <div class="ft-set__actions">
                     <button type="button" class="btn btn--secondary btn--sm" (click)="openSlots(s)">Slots ({{ slotCount(s) }})</button>
-                    <app-overflow-menu *appCan="'edit'" [label]="'More actions for the ' + scopeLabel(s.dayScope) + ' slot set'">
-                      <button type="button" appMenuItem (click)="openSetForm(s)">
-                        <span class="material-icons" aria-hidden="true">edit</span>
-                        Edit
-                      </button>
-                      <button type="button" appMenuItem (click)="toggleSetActive(s)" [disabled]="setTogglingId() === s.id">
-                        <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
-                        {{ s.isActive === false ? 'Enable' : 'Disable' }}
-                      </button>
-                      <button *appCan="'delete'" type="button" appMenuItem (click)="askDeleteSet(s)" [disabled]="setTogglingId() === s.id">
-                        <span class="material-icons" aria-hidden="true">delete</span>
-                        Delete
-                      </button>
-                    </app-overflow-menu>
+                    @if (!typeReadOnly()) {
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for the ' + scopeLabel(s.dayScope) + ' slot set'">
+                        <button type="button" appMenuItem (click)="openSetForm(s)">
+                          <span class="material-icons" aria-hidden="true">edit</span>
+                          Edit
+                        </button>
+                        <button type="button" appMenuItem (click)="toggleSetActive(s)" [disabled]="setTogglingId() === s.id">
+                          <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
+                          {{ s.isActive === false ? 'Enable' : 'Disable' }}
+                        </button>
+                        <button *appCan="'delete'" type="button" appMenuItem (click)="askDeleteSet(s)" [disabled]="setTogglingId() === s.id">
+                          <span class="material-icons" aria-hidden="true">delete</span>
+                          Delete
+                        </button>
+                      </app-overflow-menu>
+                    }
                   </div>
                 </div>
               }
             }
-            @if (!setsLoading()) {
+            @if (!setsLoading() && !typeReadOnly()) {
               <button type="button" class="btn btn--secondary" (click)="openSetForm()" *appCan="'edit'">
                 <span class="material-icons" aria-hidden="true">add</span>
                 <span>Add slot set</span>
@@ -597,7 +615,11 @@
             @if (slotLines.length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
-                <p>No slots - generate them from this set's times, then untick a break or mark evening slots front-desk-only.</p>
+                @if (typeReadOnly()) {
+                  <p>No slots in this set.</p>
+                } @else {
+                  <p>No slots - generate them from this set's times, then untick a break or mark evening slots front-desk-only.</p>
+                }
               </div>
             } @else {
               <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">On = the slot exists that day (untick a lunch break). Front desk = no advance booking, walk-ins only.</p>
@@ -620,10 +642,12 @@
                 }
               </div>
             }
-            <button type="button" class="btn btn--secondary" (click)="regenerateSlots()" [disabled]="generating()">
-              <span class="material-icons" aria-hidden="true">schedule</span>
-              <span>{{ generating() ? 'Generating…' : (slotLines.length ? 'Regenerate' : 'Generate') + ' slots (' + slotSet()?.firstSlotTime + ' to ' + slotSet()?.lastSlotTime + ', every ' + slotSet()?.slotMinutes + ' min)' }}</span>
-            </button>
+            @if (!typeReadOnly()) {
+              <button type="button" class="btn btn--secondary" (click)="regenerateSlots()" [disabled]="generating()">
+                <span class="material-icons" aria-hidden="true">schedule</span>
+                <span>{{ generating() ? 'Generating…' : (slotLines.length ? 'Regenerate' : 'Generate') + ' slots (' + slotSet()?.firstSlotTime + ' to ' + slotSet()?.lastSlotTime + ', every ' + slotSet()?.slotMinutes + ' min)' }}</span>
+              </button>
+            }
             </form>
           }
         }
@@ -648,9 +672,11 @@
           }
           @case ('slots') {
             <button type="button" class="btn btn--secondary" (click)="backToSets()" [disabled]="slotsSaving()">Back to list</button>
-            <button type="submit" form="ftSlots" class="btn btn--primary" [disabled]="slotsSaving()">
-              {{ slotsSaving() ? 'Saving…' : 'Save ' + slotLines.length + ' slot' + (slotLines.length === 1 ? '' : 's') }}
-            </button>
+            @if (!typeReadOnly()) {
+              <button type="submit" form="ftSlots" class="btn btn--primary" [disabled]="slotsSaving()">
+                {{ slotsSaving() ? 'Saving…' : 'Save ' + slotLines.length + ' slot' + (slotLines.length === 1 ? '' : 's') }}
+              </button>
+            }
           }
         }
       </ng-container>

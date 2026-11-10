@@ -77,11 +77,13 @@
               }
             </div>
             <div class="data-row__actions">
+              <!-- A plan outside the caller's data scope keeps Closure days
+                   (opened view-only); the row menu goes. -->
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
+                <span class="material-icons" aria-hidden="true">event_busy</span>
+                Closure days ({{ dayCount(p) }})
+              </button>
               @if (p.canModify !== false) {
-                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
-                  <span class="material-icons" aria-hidden="true">event_busy</span>
-                  Closure days ({{ dayCount(p) }})
-                </button>
                 <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + p.description">
                   <button type="button" appMenuItem (click)="openEdit(p)">
                     <span class="material-icons" aria-hidden="true">edit</span>
@@ -221,6 +223,12 @@
 
           @case ('days') {
             <form id="fclDays" [formGroup]="daysForm" (ngSubmit)="onSaveDays()">
+            @if (daysReadOnly()) {
+              <div class="flash flash-info flash--static" role="status">
+                <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">lock</span></span>
+                <span>View only - your role's data scope does not allow amending this closure plan.</span>
+              </div>
+            }
             @if (classSessionsHit().length) {
               <div class="flash flash-info flash--static" role="status">
                 <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">school</span></span>
@@ -233,7 +241,11 @@
             @if (dayLines.length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">construction</span>
-                <p>No closure days yet - generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
+                @if (daysReadOnly()) {
+                  <p>No closure days yet.</p>
+                } @else {
+                  <p>No closure days yet - generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
+                }
               </div>
             } @else {
               <div class="fcl-day-scroll" formArrayName="days">
@@ -255,17 +267,23 @@
                     <label class="fcl-day-on">
                       <input type="checkbox" formControlName="isActive" [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closure applies'" />
                     </label>
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeDay(i)" [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
+                    @if (daysReadOnly()) {
+                      <span></span>
+                    } @else {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeDay(i)" [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    }
                   </div>
                 }
               </div>
             }
-            <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
-              <span class="material-icons" aria-hidden="true">event_busy</span>
-              <span>{{ generating() ? 'Generating…' : (dayLines.length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' to ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
-            </button>
+            @if (!daysReadOnly()) {
+              <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
+                <span class="material-icons" aria-hidden="true">event_busy</span>
+                <span>{{ generating() ? 'Generating…' : (dayLines.length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' to ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
+              </button>
+            }
             </form>
           }
         }
@@ -280,10 +298,14 @@
             </button>
           }
           @case ('days') {
-            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
-            <button type="submit" form="fclDays" class="btn btn--primary" [disabled]="daysSaving()">
-              {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + (dayLines.length === 1 ? ' day' : ' days') }}
-            </button>
+            @if (daysReadOnly()) {
+              <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
+              <button type="submit" form="fclDays" class="btn btn--primary" [disabled]="daysSaving()">
+                {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + (dayLines.length === 1 ? ' day' : ' days') }}
+              </button>
+            }
           }
         }
       </ng-container>

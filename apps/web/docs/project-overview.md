@@ -381,6 +381,8 @@ Access is three questions, and the UI reflects two of them per screen (the backe
   A user without the action simply does not see the button - never show a control that will 403.
 - Where the listing endpoint returns a per-row **`canModify`** flag (data scope), hide the row's Edit/Enable/Disable actions when it is `false`: `@if (row.canModify !== false) { …buttons… }`.
   Absent flag = allowed (older endpoints).
+- A row action that is also the only way to SEE something stays on a row the caller may not amend, and opens view-only (2026-11-10): the row loses Edit, Enable/Disable and Delete, keeps the viewing entry point, and the dialog it opens shows a `.flash-info .flash--static` "View only" note, disables its inputs (`formArray.disable()`) and drops Generate / Remove / Save, leaving Close or Back.
+  References: Facility Types "Slot sets" (`typeReadOnly`), Facility Closures "Closure days" (`daysReadOnly`), and Facilities "Closures", which lists that unit's closure plans instead of opening the create form.
 - Defaults are deliberately permissive: system/tenant admins, menus cached before the flags shipped, and screens not in the menu catalogue all resolve to allowed - gating only engages when a grant explicitly withholds an action.
 
 **Role Management (where grants are made)** presents the same model to the admin: one collapsible card per module (tri-state select-all + "x of y selected"), the real menu tree with grouping menus as non-selectable headings, each selected menu's Create/Edit/Delete toggles (new grants start as full access), a menu search, a Data-scope radio (own / department / all in plain language), and a selection summary before Save.

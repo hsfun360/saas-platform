@@ -119,6 +119,9 @@ export class FacilityClosuresComponent implements OnInit {
   readonly daysSaving = signal(false);
   readonly generating = signal(false);
   readonly dayPlan = signal<FacilityClosurePlan | null>(null);
+  // A plan outside the caller's data scope: its days open view-only (the API
+  // refuses the save).
+  readonly daysReadOnly = computed(() => this.dayPlan()?.canModify === false);
   // Slice 5c: the scheduled class sessions the generated days would cover
   // (saving cancels them); cleared with the dialog.
   readonly classSessionsHit = signal<ClosureClassSession[]>([]);
@@ -147,6 +150,13 @@ export class FacilityClosuresComponent implements OnInit {
     const qp = this.route.snapshot.queryParamMap;
     const presetType = qp.get('facilityTypeId');
     const presetUnit = qp.get('facilityId');
+    // Arriving from a Facilities row the caller may not amend: just list that
+    // unit's closure plans.
+    const presetSearch = qp.get('search');
+    if (presetSearch) {
+      this.search.set(presetSearch);
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
     this.load(() => {
       if (presetType) {
         this.openAdd();
@@ -374,6 +384,7 @@ export class FacilityClosuresComponent implements OnInit {
       (p.days || []).map((d) => ({ closureDate: d.closureDate, startTime: d.startTime || '', endTime: d.endTime || '', isActive: d.isActive !== false })),
       false,
     );
+    if (this.daysReadOnly()) this.dayLines.disable({ emitEvent: false });
     this.dlgMode.set('days');
   }
 
@@ -409,7 +420,7 @@ export class FacilityClosuresComponent implements OnInit {
   onSaveDays(): void {
     this.clearMessages();
     const plan = this.dayPlan();
-    if (!plan) return;
+    if (!plan || this.daysReadOnly()) return;
     const days: FacilityClosureDay[] = [];
     for (const r of this.dayLines.controls.map((g) => g.getRawValue())) {
       if (!r.startTime !== !r.endTime) {

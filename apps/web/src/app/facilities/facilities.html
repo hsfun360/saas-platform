@@ -111,12 +111,16 @@
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
                 </button>
-                <ng-container *appCan="'edit'">
-                  <app-overflow-menu [label]="'More actions for ' + r.code">
-                    <button type="button" appMenuItem (click)="openClosures(r)">
-                      <span class="material-icons" aria-hidden="true">event_busy</span>
-                      Closures
-                    </button>
+              }
+              <!-- A facility outside the caller's data scope keeps Closures (it
+                   lists the unit's closure plans); Enable / Disable and Delete go. -->
+              <ng-container *appCan="'edit'">
+                <app-overflow-menu [label]="'More actions for ' + r.code">
+                  <button type="button" appMenuItem (click)="openClosures(r)">
+                    <span class="material-icons" aria-hidden="true">event_busy</span>
+                    Closures
+                  </button>
+                  @if (r.canModify !== false) {
                     <button type="button" appMenuItem (click)="toggleActive(r)" [disabled]="togglingId() === r.id">
                       <span class="material-icons" aria-hidden="true">{{ r.isActive === false ? 'check_circle' : 'block' }}</span>
                       {{ r.isActive === false ? 'Enable' : 'Disable' }}
@@ -125,9 +129,9 @@
                       <span class="material-icons" aria-hidden="true">delete</span>
                       Delete
                     </button>
-                  </app-overflow-menu>
-                </ng-container>
-              }
+                  }
+                </app-overflow-menu>
+              </ng-container>
             </div>
           </div>
         </div>
