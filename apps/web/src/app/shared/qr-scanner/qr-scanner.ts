@@ -4,6 +4,7 @@ import {
   ElementRef,
   OnDestroy,
   afterNextRender,
+  input,
   output,
   signal,
   viewChild,
@@ -34,7 +35,7 @@ type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorL
       } @else if (!ready()) {
         <p class="qrs__hint">Starting the camera…</p>
       } @else {
-        <p class="qrs__hint">Point the camera at the buggy's QR label.</p>
+        <p class="qrs__hint">{{ hint() }}</p>
       }
     </div>
   `,
@@ -47,6 +48,8 @@ type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorL
 })
 export class QrScannerComponent implements OnDestroy {
   readonly scanned = output<string>();
+  // What to point the camera at; each screen passes its own line.
+  readonly hint = input('Point the camera at the QR code.');
   readonly ready = signal(false);
   readonly error = signal('');
 

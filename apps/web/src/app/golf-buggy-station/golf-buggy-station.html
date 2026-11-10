@@ -67,7 +67,7 @@
       <p class="bs-scan__hint">Tap a ready slot then scan the buggy, or scan first and tap the slot. Scanning a buggy that is out opens Return / Swap.</p>
     }
     @if (cameraOn()) {
-      <app-qr-scanner (scanned)="onScanned($event)" />
+      <app-qr-scanner hint="Point the camera at the buggy's QR label." (scanned)="onScanned($event)" />
     }
   </form>
 

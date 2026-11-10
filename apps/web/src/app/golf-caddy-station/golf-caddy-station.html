@@ -71,7 +71,7 @@
       <p class="bs-scan__hint">Tap a ready slot then scan the badge or tap Next up. Scanning a caddy not yet checked in checks them in; scanning one on the course opens Complete / Swap.</p>
     }
     @if (cameraOn()) {
-      <app-qr-scanner (scanned)="onScanned($event)" />
+      <app-qr-scanner hint="Point the camera at the caddy's QR code." (scanned)="onScanned($event)" />
     }
   </form>
 
