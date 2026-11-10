@@ -520,8 +520,9 @@ Opening a bill auto-charges the Facility Type's default fees: the `facility-fee`
 | `companyId` | UUID | no | | |
 | `memberId` | UUID | no | | The HOST member whose allowance the visit draws on. |
 | `visitDate` | DATEONLY | no | | The booking or visit date (the month counted). |
-| `sourceModule` | STRING(20) | no | | `facility` / `golf`. |
-| `sourceRef` | UUID | no | | The producer's line (facility: the BookingParticipant id). |
+| `sourceModule` | STRING(20) | no | | `membership` (a front-desk Guest Registration, 2026-11-10) / `facility` / `golf`. |
+| `sourceRef` | UUID | no | | The producer's line (facility: the BookingParticipant id; membership: the GuestRegistration id). |
+| `guestId` | UUID | yes | | The `membership.Guest`, when the line knows the person (2026-11-10): a known guest counts once per host per day across the modules. |
 | `guestName` | STRING | yes | | Display. |
 | `guestCount` | INTEGER | no | 1 | |
 | `status` | STRING(20) | no | 'confirmed' | `confirmed` / `voided`. |
@@ -530,6 +531,8 @@ Opening a bill auto-charges the Facility Type's default fees: the `facility-fee`
 Gateway (`platform/membershipGateway.js`): `getGuestAllowanceStanding(companyId, memberId, date)` -> `{ allowance, used, remaining }` for the calendar month of `date` (club-local) counting `confirmed` visits; `recordGuestVisit(companyId, { memberId, visitDate, sourceModule, sourceRef, guestName, guestCount, stamps }, { transaction })`; `voidGuestVisit(companyId, sourceModule, sourceRef, { transaction })`.
 Facility records a visit per guest participant when the booking is confirmed (inside the booking transaction, so an exhausted allowance refuses the booking), voids it when the booking or that participant is cancelled, and leaves it when the guest fails to show.
 Golf is wired to the same ledger in a later golf slice; nothing in golf changes now.
+Since 2026-11-10 Membership is a producer itself (Guest Registration) and the ledger counts by the once-per-day rule: `recordGuestVisit` accepts an optional `guestId`, a line that carries it counts once per host per day however many modules write one, and a line without it (every facility line today, which holds only a name) counts its own `guestCount` as before.
+Facility passes nothing new yet; giving its guest lines an identity, and with it the day pass, is a later slice (see "Built: Guest Registration and the day pass" in membership-management.md).
 
 #### Booking rules (binding, enforced in the booking channel; the desk warns where golf's desk warns)
 

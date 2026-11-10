@@ -41,6 +41,8 @@ Every table lives in the `membership` schema; `companyId`, `userId` and the subs
   Statuses: requested -> (pending-approval ->) confirmed | declined -> arrived -> completed (inbound); requested -> issued -> completed (outbound); cancelled / expired from any open state (`affiliatedVisit.constants`).
   `affiliatedVisit.service.js`: `normalize` checks the club is active and the agreement in force, the party and guests, the per-member cap (`visitCapWindow`, unit-tested) and the club-wide annual inbound quota; INBOUND `preview` / `confirm` resolve the golf through `platform/golfGateway.js` (`previewVisitFlight`, `bookForVisit` inside the confirmation transaction - the flight is an ordinary golf booking under the visitor's golfer identity) and route through the `membership-affiliated-visit` Workflow purpose when the club or its player type requires approval (handlers in `wiring/workflowHandlers.js`: approved -> `applyConfirmation`, rejected -> `applyDecline`, cancelled chain -> requested); OUTBOUND `issue` re-checks the member's standing (`getGolfMemberStanding.actionControl`), stamps issuedAt / issuedBy / sentTo and emails `membership.visit.loi` to the partner's contact and the member; `decline` (inbound, reason) emails `membership.visit.declined`; `cancel` (reason) cancels the golf booking through the seam (refused while a player is registered); `scanVisits` on the worker tick expires open visits past their date; the desk reaches `arrive` / `registrationGate` / `completeIfSettled` / `byBooking` through `platform/membershipGateway.js`.
   Emails: `membership.visit.confirmed`, `membership.visit.declined`, `membership.visit.loi`.
+- Guests (the guest-usage ledger 2026-10-25, Guest Registration 2026-11-10): `GuestVisit` (the ledger behind `MembershipType.monthlyGuestAllowance`, written by the producer modules through `platform/membershipGateway.js` and by Guest Registration itself), `Guest` (the guest person) and `GuestRegistration` (one guest, one host member, one date = one day pass).
+  See "Built: Guest Registration and the day pass" below.
 - Settings: `MembershipSetting` (Club Specification singleton), `NumberingScheme` (the `membership` purpose; shared shape from `platform/numberingSchemeDef.js`).
 - Billing: `BillingSchedule`, `BillingScheduleItem` (the fee runs that post into AR).
 - Import staging: `MembershipImportBatch`, `MembershipImportRow`, `MembershipTypeImportBatch`, `MembershipTypeImportRow`.
@@ -48,8 +50,8 @@ Every table lives in the `membership` schema; `companyId`, `userId` and the subs
 
 ## Public API (gateway seam: `/api/membership`)
 
-`GET /health` is unauthenticated; `/portal/*` and `/agent-portal/*` are mounted BEFORE the staff auth wall; everything else sits behind `verifyToken` + `requireModule('MEMBERSHIP')` (the frozen `Module.code`, never the display name) and a per-screen `requireMenuAction`.
-Every route that reads a request part mounts `validate()` with a schema from the `*.schemas.js` file beside its controller (15 files: `membership`, `member`, `membershipStatus`, `membershipFee`, `membershipType`, `membershipSetting`, `membershipTax`, `membershipImport`, `membershipTypeImport`, `salesAgency`, `salesAgent`, `transactionType`, `billing`, `dashboard`, `portal`); upload routes validate after multer.
+`GET /health` is unauthenticated; `/portal/*`, `/agent-portal/*` and `GET /guest-pass/:token` are mounted BEFORE the staff auth wall; everything else sits behind `verifyToken` + `requireModule('MEMBERSHIP')` (the frozen `Module.code`, never the display name) and a per-screen `requireMenuAction`.
+Every route that reads a request part mounts `validate()` with a schema from the `*.schemas.js` file beside its controller (16 files: `membership`, `member`, `membershipStatus`, `membershipFee`, `membershipType`, `membershipSetting`, `membershipTax`, `membershipImport`, `membershipTypeImport`, `salesAgency`, `salesAgent`, `transactionType`, `billing`, `dashboard`, `portal`, `guestRegistration`); upload routes validate after multer.
 
 - `/settings` ('/membership/settings'): `GET /`, `PUT /`, `PUT /numbering`, `GET /numbering/preview`.
 - `/dashboard` (per-endpoint, see Business Insights): `GET /meta`, `/summary`, `/movement`, `/breakdown`, `/agents`, `/drill`.
@@ -62,6 +64,8 @@ Every route that reads a request part mounts `validate()` with a schema from the
 - `/sales-agents` ('/membership/sales-agents'): `GET /meta`, `GET /`, `POST /`, `POST /:id/invite`, `PUT /:id`, `PATCH /:id`.
 - `/affiliated-clubs` ('/membership/affiliated-clubs', 2026-10-16): `GET /meta` (kinds, periods, the affiliate-base golf player types and the miscellaneous golf fee items through the golf seam), `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`, `DELETE /:id` (refused while visits reference the club).
 - `/affiliated-visits` ('/membership/affiliated-visits', 2026-10-16): `GET /meta` · `GET /?status&direction&dateFrom&dateTo&affiliatedClubId` · `POST /` · `POST /letter` (multipart field `letter`, 5 MB) · `GET /:id` · `PUT /:id` (requested only) · `GET /:id/confirm-preview` · `POST /:id/confirm` · `POST /:id/issue` (outbound) · `POST /:id/decline { reason }` · `POST /:id/cancel { reason }` · `POST /:id/arrive { letterSighted, idSighted }` · `POST /:id/complete`.
+- `/guest-registrations` ('/membership/guest-registrations', 2026-11-10): `GET /?status&dateFrom&dateTo` (rows + `today`, the club's own date, + `numberingMode`) · `GET /host?memberNo&visitDate` (the host's standing and the month's allowance) · `GET /guests?q` (returning guests) · `POST /` (register; needs the Create grant) · `GET /:id` · `GET /:id/pass` (link, QR code, WhatsApp link) · and the desk actions, all `PUT` so they need the Edit grant: `PUT /:id` (correct the guest's details or remarks), `PUT /:id/cancel` (reason required), `PUT /:id/arrive`, `PUT /:id/send` (`via` email | whatsapp), `PUT /scan` (the registration behind a scanned pass; the code travels in the body because it holds the pass token).
+- `/guest-visits` ('/membership/guest-visits', 2026-11-10): `GET /?dateFrom&dateTo&memberNo` - the enquiry over the guest-usage ledger, every module, grouped by host member and by known guest.
 - `/imports` ('/membership/import') and `/type-imports` ('/membership/type-import'): `GET /template`, `GET /`, `GET /:id`, `POST /` (multipart `file`), `POST /:id/migrate`, `DELETE /:id`.
 - `/memberships` ('/membership/memberships'): `GET /meta`, `GET /options`, `POST /photo`, `GET /`, `POST /`, `GET /:id`, `PUT /:id`, `GET /:id/ar-credit[?memberId=]`, `GET /:id/members/suggest-no`, `POST /:id/members`, `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
 - `/members` ('/membership/members'): `GET /meta`, `GET /`.
@@ -70,6 +74,7 @@ Every route that reads a request part mounts `validate()` with a schema from the
 - `POST /debtor-backfill` (`requireAnyMenuAction(['/ar/debtors'])` - an AR operations task).
 - `/portal` (public + `verifyToken` on `/me`): `GET /register/context`, `POST /register`, `GET /me`.
 - `/agent-portal` (same shape): `GET /register/context`, `POST /register`, `GET /me`.
+- `GET /guest-pass/:token` (public, mounted before the auth wall; `guestPassLimiter` 300 per 15 minutes per IP and the token shape validated at the boundary): what the guest's day pass shows.
 - Anything else answers `501`.
 
 ## Depends on
@@ -452,6 +457,97 @@ Membership is a PRODUCER into AR: staged runs that post one invoice per member c
 ### Open questions (resolve per file as requirements arrive)
 - Whether Membership Fee is a simple lookup or a richer pricing rule (proration, currency) - may outgrow a plain master file.
 - Default seed sets per file, and whether any are locale-dependent (Salutation, Race).
+
+## Built: Guest Registration and the day pass (2026-11-10)
+
+A member's guest is registered at the front desk for a date and receives a digital day pass.
+It gives guest control to clubs with no Golf or Facility subscription (a social club with a few outlets), and one pass that every module can check.
+Structures approved by the user on 2026-11-10; vocabulary: "Guest Registration".
+
+### Tables
+
+`membership."Guest"` (model `Guest`) - the guest person, one row per person per company.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `id` | UUID | no | uuid v4 | Primary key. |
+| `companyId` | UUID | no | | |
+| `name` | STRING | no | | Mandatory. |
+| `mobile` | STRING(30) | yes | | Dialling code + number (the phone-input standard). |
+| `email` | STRING | yes | | Stored lower-case. |
+| `identityNo` | STRING(50) | yes | | IC or passport, optional. |
+| `remarks` | STRING | yes | | |
+| `createdBy`, `createdByDepartmentId`, `updatedBy` | UUID | yes | | Ownership stamps. |
+
+Mobile OR email is mandatory (the pass must reach the guest) - enforced by `normalizeGuest`, not by the table.
+Indexes `(companyId, mobile)` and `(companyId, email)`, neither unique: a family may share one email address.
+
+`membership."GuestRegistration"` (model `GuestRegistration`) - one guest, one host member, one date = one day pass.
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `id` | UUID | no | uuid v4 | Primary key. |
+| `companyId` | UUID | no | | |
+| `registrationNo` | STRING(50) | no | | From the `membership-guest` series ("Guest Registration No."). |
+| `guestId` | UUID | no | | FK to `Guest` (intra-service, no cascade). |
+| `memberId` | UUID | no | | FK to the host `Member` (intra-service, no cascade). |
+| `visitDate` | DATEONLY | no | | The pass is valid on this date only (club clock). |
+| `status` | STRING(20) | no | 'registered' | `registered` / `arrived` / `cancelled`. |
+| `channel` | STRING(20) | no | 'desk' | `desk` now; `portal`, `facility`, `golf` later. |
+| `passToken` | STRING(64) | no | | 32 random bytes as hex - the key behind the pass link and its QR code. |
+| `passSentAt`, `passSentVia`, `passSentTo` | DATE, STRING(20), STRING | yes | | The last send: `email` or `whatsapp`, and the address or number. |
+| `arrivedAt`, `arrivedBy` | DATE, UUID | yes | | The desk marks the arrival. |
+| `cancelledAt`, `cancelReason` | DATE, STRING | yes | | |
+| `remarks` | STRING | yes | | |
+| `createdBy`, `createdByDepartmentId`, `updatedBy` | UUID | yes | | Ownership stamps. |
+
+Unique `(companyId, registrationNo)`, unique `passToken`, and a partial unique `(companyId, memberId, guestId, visitDate) WHERE status <> 'cancelled'` - one live registration (one pass) per guest per host per day.
+"Expired" is never stored: `passStateOf(status, visitDate, today)` derives `valid` / `upcoming` / `expired` / `cancelled` from the club's own date.
+
+`membership."GuestVisit"` (the ledger, 2026-10-25) gains `guestId` (UUID, nullable, index `(companyId, guestId, visitDate)`), and `sourceModule` gains `membership` (`sourceRef` = the GuestRegistration id).
+
+### The counting rule
+
+A KNOWN guest (a ledger line carrying `guestId`) counts ONCE per host per day, however many lines the modules write for them: registered at the desk, then on a court booking, then on a flight is one visit.
+A line without a guest record (today's facility lines, which carry only a name) counts its own `guestCount`, as before.
+The rule lives in ONE pure function, `countVisits` in `guestVisit.service.js`, used by `usedInMonth` (the allowance) and by the enquiry's groups; `alreadyCounted` tells a producer that a further line for the guest draws nothing more.
+`recordGuestVisit` in `platform/membershipGateway.js` accepts an optional `guestId`, so a producer that knows the guest joins the rule without any other change.
+
+### Registration rules (`guestRegistration.service.js`)
+
+- The host is keyed by member number and resolved through `getGolfMemberStanding`: status Action control `barred` refuses, `warning` warns (in the drawer and in the save message).
+- The visit date is today or later by the club clock (`companyTimezoneById`).
+- The guest: the one picked from the returning-guest search (details corrected from the form), else an exact returning match (same name and the same mobile or email), else a new `Guest`.
+- An exhausted monthly allowance refuses, the same rule as the Facility desk; a guest this host already has on the ledger that day draws nothing more, so they are never refused for the allowance.
+- The host's Member row is locked for the transaction, so two desks cannot both take the last visit.
+- The number is issued inside the transaction (`membership-guest`; a manual series takes the keyed number; no series refuses with a pointer to Numbering Control).
+- Cancel needs a reason, voids the ledger line and stops the pass; an arrived registration cannot be cancelled.
+- Arrive works on the visit date only.
+- Edit corrects the guest's details and the remarks only: the host and the date ARE the registration (cancel and register again).
+
+### The pass
+
+- A public page, `/guest-pass/:token` in the web app, outside the shell and with no login: the club's name and logo, the guest, "Guest of" the host's name, the date, the registration number, the QR code and the LIVE state read from the API on every open, so an old screenshot never passes for a valid pass.
+  It shows no contact details and no member number, and the QR code is drawn only while the pass can still be used.
+- Email: template `membership.guest.pass` (tenant-overridable), queued in the registration's transaction when the desk ticks "Email the pass", or later from the pass view.
+- WhatsApp: the platform has no WhatsApp integration, so the pass view offers a `wa.me` click-to-chat link (`whatsappLink`) that opens the desk user's own WhatsApp with the message prefilled; `PUT /:id/send` with `via: 'whatsapp'` only records that it was shared.
+  Automatic sending needs a WhatsApp Business provider and is a later decision.
+- Verification: the desk marks the arrival from the row, or scans the pass (`PUT /scan` accepts the pass link or the bare token; the shared `<app-qr-scanner>` or a handheld scanner typing into the field).
+
+### Web
+
+- `/membership/guest-registrations` (`membership-guest-registrations`): listing with the date range and status filters, the "Scan pass" button, one chip per row read from the status and the pass date (Expected today / Registered / Arrived / Did not arrive / Cancelled), "Mark arrived" as the visible action on the day and "Pass" otherwise.
+  ONE `<app-dialog>` with four views (form, pass, scan, cancel) per the single-dialog standard: registering moves the same dialog from the form to the pass view.
+- `/membership/guest-visits` (`membership-guest-visits`): the read-only enquiry, grouped by host member or by guest, each card opening to its ledger lines.
+- `/guest-pass/:token` (`guest-pass`): the public pass on the shared auth card.
+- Club setup after deploy: the two menus (`/membership/guest-registrations`, `/membership/guest-visits`) and a "Guest Registration No." series under Membership Numbering Control.
+
+### Not built yet
+
+- A guest fee per visit charged to the host's account.
+- Guest registration by the member in the Member Portal.
+- Passes for the guest lines of Facility bookings and Golf flights (they need the guest's identity on the line, then `recordGuestVisit` with `guestId` and a `GuestRegistration` on channel `facility` / `golf`); golf is not wired to the ledger at all yet.
+- A cap on how often the same guest may visit.
 
 ## Built: Business Insights (analytics, 2026-07-22)
 

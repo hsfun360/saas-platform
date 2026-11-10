@@ -29,6 +29,12 @@ const dashboardRoutes = require('./dashboard.routes');
 // Membership Department's desk, 2026-10-16).
 const affiliatedClubsRoutes = require('./affiliatedClubs.routes');
 const affiliatedVisitsRoutes = require('./affiliatedVisits.routes');
+// Guest Registration + the day pass + the Guest Visits enquiry (2026-11-10).
+const guestRegistrationsRoutes = require('./guestRegistrations.routes');
+const guestRegistrationController = require('./guestRegistration.controller');
+const guestRegistrationSchemas = require('./guestRegistration.schemas');
+const { guestPassLimiter } = require('../../platform/rateLimits');
+const { validate: validateRequest } = require('../../platform/validate');
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
@@ -41,6 +47,10 @@ router.get('/health', (req, res) => res.json({ service: 'membership', status: 'o
 router.use('/portal', memberPortalRoutes);
 // The Sales Agent portal follows the same rules (public register + own /me).
 router.use('/agent-portal', agentPortalRoutes);
+// The guest's digital day pass: public too - the random pass token in the
+// link IS the credential (a guest has no login). Rate-limited and
+// shape-validated before the controller runs.
+router.get('/guest-pass/:token', guestPassLimiter(), validateRequest(guestRegistrationSchemas.publicPass), guestRegistrationController.publicPass);
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);
@@ -80,6 +90,11 @@ router.use('/sales-agents', requireMenuAction('/membership/sales-agents'), sales
 // --- Affiliated / reciprocal clubs + letters of introduction (2026-10-16) ---
 router.use('/affiliated-clubs', requireMenuAction('/membership/affiliated-clubs'), affiliatedClubsRoutes);
 router.use('/affiliated-visits', requireMenuAction('/membership/affiliated-visits'), affiliatedVisitsRoutes);
+
+// --- Guest Registration (a member's guest + the day pass) and the Guest
+// Visits enquiry over the guest-usage ledger, all modules (2026-11-10) ---
+router.use('/guest-registrations', requireMenuAction('/membership/guest-registrations'), guestRegistrationsRoutes);
+router.get('/guest-visits', requireMenuAction('/membership/guest-visits'), validateRequest(guestRegistrationSchemas.visits), guestRegistrationController.visits);
 
 // --- Membership import (Excel -> staging -> selective migration) ---
 router.use('/imports', requireMenuAction('/membership/import'), membershipImportsRoutes);

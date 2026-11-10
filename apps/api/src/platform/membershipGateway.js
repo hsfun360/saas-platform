@@ -394,7 +394,11 @@ async function receiveAffiliatedVisit(req, visitId, body) {
 // The monthly club-wide guest allowance lives on the member's membership
 // type; the usage is Membership's own membership.GuestVisit ledger, written
 // ONLY through these three calls by the producer modules (facility first,
-// golf later) inside their own transactions.
+// golf later) inside their own transactions. Membership's own Guest
+// Registration writes the same ledger (2026-11-10).
+// Counting: a visit that names its membership.Guest (`guestId` on the visit
+// passed to recordGuestVisit, optional) counts ONCE per host per day however
+// many modules record one; a visit without it counts its own guestCount.
 // WHEN SPLIT: GET  {internalServiceUrl('membership')}/internal/guest-allowance?memberId&date
 //             POST {internalServiceUrl('membership')}/internal/guest-visits
 //             POST {internalServiceUrl('membership')}/internal/guest-visits/void

@@ -12,7 +12,11 @@ const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 // guest line is cancelled, and leaves it when the guest fails to show.
 // `memberId` is the HOST whose allowance the visit draws on (intra-service
 // value ref); `sourceRef` is the producer's line id (facility: the
-// BookingParticipant id), unique per module so a retry never double-counts.
+// BookingParticipant id; membership: the GuestRegistration id), unique per
+// module so a retry never double-counts.
+// `guestId` (approved 2026-11-10) names the membership.Guest when the line
+// knows who the guest is: a KNOWN guest counts ONCE per host per day however
+// many lines the modules write for them; a line without it counts on its own.
 const GuestVisit = sequelize.define('GuestVisit', {
     id: {
         type: DataTypes.UUID,
@@ -32,7 +36,7 @@ const GuestVisit = sequelize.define('GuestVisit', {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
-    // 'facility' | 'golf'.
+    // 'membership' (a front-desk Guest Registration) | 'facility' | 'golf'.
     sourceModule: {
         type: DataTypes.STRING(20),
         allowNull: false,
@@ -40,6 +44,11 @@ const GuestVisit = sequelize.define('GuestVisit', {
     sourceRef: {
         type: DataTypes.UUID,
         allowNull: false,
+    },
+    // The membership.Guest, when the line knows the person (see above).
+    guestId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     guestName: {
         type: DataTypes.STRING,
@@ -71,6 +80,7 @@ const GuestVisit = sequelize.define('GuestVisit', {
     indexes: [
         { name: 'IX_GuestVisit_Company_Member_Date', fields: ['companyId', 'memberId', 'visitDate'] },
         { name: 'UX_GuestVisit_Source', fields: ['sourceModule', 'sourceRef'], unique: true },
+        { name: 'IX_GuestVisit_Company_Guest_Date', fields: ['companyId', 'guestId', 'visitDate'] },
     ],
 });
 

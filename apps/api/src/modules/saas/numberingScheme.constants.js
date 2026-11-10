@@ -23,6 +23,8 @@ const MEMBERSHIP_NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
     // Affiliated / reciprocal club visits and letters of introduction (2026-10-16).
     { key: 'membership-visit', label: 'Visit / Letter No.' },
+    // Guest Registration - a member's guest and their day pass (2026-11-10).
+    { key: 'membership-guest', label: 'Guest Registration No.' },
 ];
 // Golf-owned series (user decision 2026-09-14), ordered by the flight
 // lifecycle: book -> register -> bill -> rain check.

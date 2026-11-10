@@ -4,7 +4,7 @@ This doc is a curated map of the platform's database entities and relationships.
 It is maintained by the `/data-model` skill - refresh it there, do not hand-edit it out of sync.
 Sources of truth: `apps/api/src/wiring/associations.js` (all associations), the `*.model.js` files under `apps/api/src/modules/` and `apps/api/src/platform/` (all columns), and `apps/api/src/platform/schemas.js` (physical schemas).
 Business context and golden rules: `apps/api/docs/systems/`.
-Last refreshed: 2026-11-05.
+Last refreshed: 2026-11-10.
 
 ## Conventions
 
@@ -40,7 +40,7 @@ Last refreshed: 2026-11-05.
 | `src/modules/notification` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: EmailTemplate, Notification (in-app bell) |
 | `src/platform` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: OutboxMessage (transactional outbox queue) |
 | `src/platform` | `audit` | - | Standalone: AuditLog (append-only, written only by the global hooks) |
-| `src/modules/membership` | `membership` | [membership-management.md](../apps/api/docs/systems/membership-management.md) | Membership, Member, Address, MembershipFee, MembershipFeeScheme, MembershipType, MembershipTypeFee, MembershipTypeStandingCharge, SalesAgency, SalesAgent, MembershipImportBatch, MembershipImportRow, MembershipTypeImportBatch, MembershipTypeImportRow. Id-ref documents (no associations): AffiliatedClub (the club-to-club arrangements, 2026-10-16), AffiliatedVisit (the letter of introduction, inbound and outbound). Standalone: MembershipStatus, BillingSchedule, BillingScheduleItem, NumberingScheme, MembershipSetting (per-company singleton) |
+| `src/modules/membership` | `membership` | [membership-management.md](../apps/api/docs/systems/membership-management.md) | Membership, Member, Address, MembershipFee, MembershipFeeScheme, MembershipType, MembershipTypeFee, MembershipTypeStandingCharge, SalesAgency, SalesAgent, MembershipImportBatch, MembershipImportRow, MembershipTypeImportBatch, MembershipTypeImportRow, Guest, GuestRegistration (one guest, one host member, one date = one day pass, 2026-11-10). Id-ref documents (no associations): AffiliatedClub (the club-to-club arrangements, 2026-10-16), AffiliatedVisit (the letter of introduction, inbound and outbound), GuestVisit (the guest-usage ledger behind the monthly guest allowance, written by the producer modules through the membership seam, 2026-10-25). Standalone: MembershipStatus, BillingSchedule, BillingScheduleItem, NumberingScheme, MembershipSetting (per-company singleton) |
 | `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | Master files: UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, UnitCourseClosurePlan, UnitCourseClosureDay (re-keyed from the course to the nine 2026-09-30), Course, CourseTeeTimeSet, CourseTeeTimeSlot, TransactionType, TransactionTypeRate, TransactionTypeElement, TransactionTypeEligibility. Booking and front desk: BookingProfile, Player, Bill, BillItem, BillPayment. Buggy management (2026-10-17/18): BuggyType, Buggy, BuggyIssue, BuggyIssueRider, BuggyMaintenance (service / repair / inspection jobs), BuggyDamage (the damage register, no compensation). Caddy management (2026-10-17/18): CaddyGrade, CaddyGroup, Caddy, CaddyLeave, CaddyNote, CaddyAttendance, CaddyAssignment, CaddyAssignmentPlayer, CaddyRequest (a player's named-caddy request ahead of play). Group bookings: GroupPlayDay, GroupFlight, GroupPlayer, GroupWaitlist, GroupRefund, GroupRefundItem. Id-ref documents (no associations): Golfer, OtherGolfer, NoShowCharge, BookingChange (one row per amendment of a flight booking, 2026-10-14), RainCheck (a golfer's single-use credit for an abandoned paid round, 2026-10-15). Standalone: GolfSetting (per-company singleton), AdvanceBookingOverride, MinPlayerRule, GuestControlRule, HandicapLimitRule, HandicapAccompanimentRule, GolfSession, PaymentType, PlayerType (the player-category catalog whose code every line, rate default and rule carries, 2026-10-15), PlayingRightRule and RoundQuotaRule (whitelist and quota rows targeting a player type or an affiliated club, PUT-replaced with the Specification, 2026-10-15), NumberingScheme, FlightLock (short-lived tee-sheet claims) |
 | `src/modules/tax` | `tax` | [tax.md](../apps/api/docs/systems/tax.md) | TaxScheme, TaxRate, CompanyTaxScheme, CompanyTaxAccount |
 | `src/modules/workflow` | `workflow` | - | WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowTask |
@@ -116,6 +116,11 @@ erDiagram
     BillingScheduleItem }o..|| Membership : "membershipId (id ref)"
     AffiliatedVisit }o..|| AffiliatedClub : "affiliatedClubId - the partner club (id ref)"
     AffiliatedVisit }o..o| Member : "memberId - our member on an outbound letter (id ref)"
+    Guest ||--o{ GuestRegistration : "registrations (one per host per day)"
+    Member ||--o{ GuestRegistration : "memberId - the host"
+    GuestVisit }o..|| Member : "memberId - the host whose allowance is drawn (id ref)"
+    GuestVisit }o..o| Guest : "guestId - a known guest counts once per host per day (id ref)"
+    GuestVisit }o..o| GuestRegistration : "sourceRef when sourceModule is membership (id ref)"
     BillingScheduleItem }o..o| Member : "memberId / incurredByMemberId (id refs)"
     BillingScheduleItem }o..|| ArTransactionType : "transactionTypeId - ar.TransactionType (value ref)"
     BillingScheduleItem }o..o| ArLedger : "postedLedgerId - the posted AR Invoice (value ref)"
@@ -127,6 +132,9 @@ Billing-item vocabulary (fee lines, standing charges, fee-run items) comes from 
 The fee run (`BillingSchedule` + items) is the producer-side holding table: each posted item becomes exactly one AR Invoice through `platform/arGateway.js`.
 Import staging rows keep every parsed column in JSONB (`data`) and lift only the linking keys into real columns; `migratedId` points at the real row a staged row became.
 `AffiliatedClub` (2026-10-16) holds the terms of each affiliate or reciprocal arrangement (agreement dates, per-member and club-wide visit caps, guests, the visit fee, charge-back and approval flags, contact and address) and names, as plain value refs into golf, the affiliate-base player type its visitors are billed as and the fee item; `AffiliatedVisit` is the letter-of-introduction document in both directions (inbound: requested -> (pending-approval ->) confirmed or declined -> arrived -> completed; outbound: requested -> issued -> completed; cancelled and expired from any open state), its `facilities` JSONB carrying the request and `bookingProfileId` the golf flight a confirmed inbound visit books through `platform/golfGateway.js`.
+`GuestVisit` (2026-10-25) is the guest-usage ledger behind `MembershipType.monthlyGuestAllowance`: one row per guest line a producer confirms (`sourceModule` membership, facility or golf, plus the producer's `sourceRef`, unique together), written only through `platform/membershipGateway.js` and by Membership's own Guest Registration.
+`Guest` and `GuestRegistration` (2026-11-10) are the front-desk side: the guest person, and the one-guest, one-host, one-date registration that carries the day pass (`passToken` behind a public pass page) and writes its own ledger row.
+A ledger row that names its `Guest` counts once per host per day across the modules; a row without one counts its own `guestCount`.
 Golf reads this domain only through `platform/membershipGateway.js`: `MembershipType.isGolfAllow` (golfing right, never auto-charged a green fee) and `MembershipType.guestQuota` (guests per booking) are membership-type privileges the golf booking channel enforces, and `Member.memberKind` / `dependentType` / `principalMemberId` decide who counts as a junior.
 
 ### Golf

@@ -616,6 +616,43 @@ module.exports = [
         `),
     },
     {
+        // Guest Registration (2026-11-10): the day pass a member's guest
+        // shows at the club. The link opens the public pass page (QR code,
+        // live status); it works on the visit date only.
+        key: 'membership.guest.pass',
+        name: 'Guest day pass',
+        description: "Sent to a member's guest when the front desk registers their visit; carries the link to the digital day pass.",
+        tenantOverridable: true,
+        variables: [
+            { name: 'guestName', description: "The guest's name." },
+            { name: 'hostName', description: 'The host member who brings the guest.' },
+            { name: 'visitDateText', description: "The visit date, e.g. '14 Nov 2026'." },
+            { name: 'registrationNo', description: 'The guest registration number.' },
+            { name: 'passLink', description: 'The link to the digital day pass.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            guestName: 'Lim Mei Ling', hostName: 'Ahmad Faizal', visitDateText: '14 Nov 2026', registrationNo: 'GR-000123',
+            passLink: 'https://app.example.com/guest-pass/SAMPLE', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Your guest pass for {{companyName}} on {{visitDateText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your guest pass</h2>
+            <p>Dear {{guestName}},</p>
+            <p><strong>{{companyName}}</strong> looks forward to welcoming you on <strong>{{visitDateText}}</strong> as the guest of <strong>{{hostName}}</strong> (registration no. {{registrationNo}}).</p>
+            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
+                <p style="margin: 0 0 12px;">Open your digital day pass and show it at the front desk and the outlets.</p>
+                ${button('{{passLink}}', 'Open my guest pass')}
+                <p style="margin: 12px 0 0; font-size: 12px; color: #777;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    {{passLink}}
+                </p>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">The pass is valid on {{visitDateText}} only. Please keep this link to yourself.</p>
+        `),
+    },
+    {
         key: 'golf.raincheck.issued',
         name: 'Golf rain check issued',
         description: 'Sent to the golfer when the front desk issues a rain check for an abandoned round.',

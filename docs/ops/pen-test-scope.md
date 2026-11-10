@@ -40,7 +40,7 @@ The production services' direct Cloud Run URLs (origin servers behind the load b
 In scope:
 
 1. The full web application: staff back-office, System Admin (platform) area, self-service onboarding wizard, member portal, sales-agent portal.
-2. The full API surface: **503 REST route handlers** under `/api/*` (recount 2026-09-27), of which about **20 are unauthenticated** - 18 rate-limited auth/portal endpoints (login, registration, password reset, email verification, SSO exchange, MFA step-up, member/agent portal register + context) plus a public language lookup, the `/` health root, and logout.
+2. The full API surface: **503 REST route handlers** under `/api/*` (recount 2026-09-27), of which about **20 are unauthenticated** - 18 rate-limited auth/portal endpoints (login, registration, password reset, email verification, SSO exchange, MFA step-up, member/agent portal register + context) plus a public language lookup, the `/` health root, and logout; since 2026-11-10 also the public guest day pass (`GET /api/membership/guest-pass/:token`, a read-only page behind a 256-bit random token, rate-limited).
    Approximate distribution by module (route handlers):
 
    | Module | Handlers | Module | Handlers |

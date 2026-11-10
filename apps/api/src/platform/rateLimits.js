@@ -50,4 +50,10 @@ const tokenLimiter = () => perIp(60 * 60 * 1000, 20);
 // ceiling against scripted hammering. 100 / 15 min / IP / endpoint.
 const publicConfigLimiter = () => perIp(15 * 60 * 1000, 100);
 
-module.exports = { loginLimiter, signupLimiter, tokenLimiter, publicConfigLimiter };
+// Public guest day pass (2026-11-10): a read-only page behind a 256-bit
+// random token, opened by every guest on the club's own Wi-Fi - so one NAT IP
+// legitimately serves a whole day's visitors. Roomy for that, still a ceiling
+// against scripted hammering. 300 / 15 min / IP.
+const guestPassLimiter = () => perIp(15 * 60 * 1000, 300);
+
+module.exports = { loginLimiter, signupLimiter, tokenLimiter, publicConfigLimiter, guestPassLimiter };

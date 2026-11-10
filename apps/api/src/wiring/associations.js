@@ -248,6 +248,10 @@ const Membership = require('../modules/membership/membership.model');
 const Member = require('../modules/membership/member.model');
 // Guest-usage ledger (structure approved 2026-10-25): memberId value ref, written only through membershipGateway by the producer modules; no associations.
 const GuestVisit = require('../modules/membership/guestVisit.model');
+// Guest Registration (structure approved 2026-11-10): the guest person and
+// the one-guest / one-host / one-date registration that carries the day pass.
+const Guest = require('../modules/membership/guest.model');
+const GuestRegistration = require('../modules/membership/guestRegistration.model');
 const Address = require('../modules/membership/address.model');
 // Sales Management (SRS 2.2): agency companies and their/independent agents.
 const SalesAgency = require('../modules/membership/salesAgency.model');
@@ -399,6 +403,13 @@ SalesAgent.belongsTo(SalesAgency, { foreignKey: 'salesAgencyId', as: 'Agency' })
 // Agency office address lives in the typed address book ('company' row).
 SalesAgency.hasMany(Address, { foreignKey: 'salesAgencyId', as: 'Addresses', onDelete: 'CASCADE' });
 Address.belongsTo(SalesAgency, { foreignKey: 'salesAgencyId', as: 'SalesAgency' });
+// Guest -> their registrations and the host member of each (intra-service
+// FKs; no cascade - a guest or a member with registrations never vanishes
+// silently, registrations are cancelled, not deleted).
+Guest.hasMany(GuestRegistration, { foreignKey: 'guestId', as: 'Registrations' });
+GuestRegistration.belongsTo(Guest, { foreignKey: 'guestId', as: 'Guest' });
+Member.hasMany(GuestRegistration, { foreignKey: 'memberId', as: 'GuestRegistrations' });
+GuestRegistration.belongsTo(Member, { foreignKey: 'memberId', as: 'Host' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).
@@ -699,6 +710,8 @@ module.exports = {
     FacilityNoShowCharge,
     FacilityPatronSuspension,
     GuestVisit,
+    Guest,
+    GuestRegistration,
     GolfNoShowCharge,
     GolfGroupPlayDay,
     GolfGroupFlight,
