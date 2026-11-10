@@ -231,7 +231,7 @@
                     <div class="form-group">
                       <label for="ggrFind">Returning guest</label>
                       <input #findInput id="ggrFind" type="search" [value]="guestQuery()" (input)="guestQuery.set(findInput.value)" (keydown.enter)="$event.preventDefault()" autocomplete="off"
-                             placeholder="Search by name, mobile, email or ID to reuse their details" />
+                             placeholder="Name, mobile, email or ID" />
                       @if (guestSearching()) {
                         <p class="cell-subtle field-hint">Searching…</p>
                       } @else if (guestMatches().length) {
@@ -247,6 +247,8 @@
                         </ul>
                       } @else if (guestQuery().trim().length >= 2) {
                         <p class="cell-subtle field-hint">No earlier guest matches - key in the details below.</p>
+                      } @else {
+                        <p class="cell-subtle field-hint">Search an earlier guest to reuse their details.</p>
                       }
                     </div>
                   </div>

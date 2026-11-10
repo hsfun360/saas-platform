@@ -14,6 +14,14 @@ interface VisitGroup {
   lines: GuestVisitLine[];
 }
 
+// A member card's second line: how many different known guests the lines name.
+// Lines without a guest record (a facility booking holds only a name) are not
+// people the ledger can tell apart, so they are left out of this count.
+function knownGuestsLabel(lines: GuestVisitLine[]): string {
+  const known = new Set(lines.map((l) => l.guestId).filter((id): id is string => !!id)).size;
+  return known ? `${known} known guest${known === 1 ? '' : 's'}` : '';
+}
+
 // Membership Management -> Guest Visits (/membership/guest-visits; structure
 // approved 2026-11-10). A read-only enquiry over the guest-usage ledger: how
 // many guests each member brought in a period, across every module (desk
@@ -59,7 +67,7 @@ export class MembershipGuestVisitsComponent implements OnInit {
     return r.byMember.map((m) => ({
       key: `m:${m.memberId}`,
       title: `${m.memberNo} - ${m.memberName}`,
-      subline: '',
+      subline: knownGuestsLabel(m.lines),
       visits: m.visits,
       lines: m.lines,
     }));

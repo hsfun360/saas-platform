@@ -67,6 +67,8 @@ describe('MembershipGuestVisitsComponent', () => {
     expect(text('.ggv-count')).toContain('1 guest visit by 1 member');
     expect(text('.data-card__title')).toBe('A0018 - Ahmad Faizal');
     expect(text('.data-card .status-chip')).toBe('1 visit');
+    // Two lines naming the same guest record are one known guest.
+    expect(text('.data-card__subline')).toBe('1 known guest');
 
     component.setGroupBy('guest');
     fixture.detectChanges();
