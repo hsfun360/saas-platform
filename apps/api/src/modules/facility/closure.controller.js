@@ -13,7 +13,7 @@ const FacilityType = require('./facilityType.model');
 const Facility = require('./facility.model');
 const FacilityClosurePlan = require('./facilityClosurePlan.model');
 const FacilityClosureDay = require('./facilityClosureDay.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, annotateCanModify, canModifyRecord } = require('../../platform/serviceContext');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const { DAY_SCOPE_KEYS, LIMITS } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, rangeDays } = require('./facilityShared');
@@ -50,11 +50,14 @@ function sessionWarning(s) { return `${s.classCode} ${bookingDateText(s.sessionD
 
 const MAX_RANGE_DAYS = LIMITS.maxClosureRangeDays;
 
-async function findOwnedPlan(req) {
+// `amend: true` adds the data-scope check (403) for the paths that change the
+// plan or its days.
+async function findOwnedPlan(req, { amend = false } = {}) {
     const companyId = companyIdOf(req);
     if (!companyId) return { status: 400, message: 'Select a workspace first.' };
     const plan = await FacilityClosurePlan.findOne({ where: { id: req.params.planId, companyId } });
     if (!plan) return { status: 404, message: 'Closure plan not found.' };
+    if (amend && !(await canModifyRecord(req, plan))) return { status: 403, message: "Your role's data scope does not allow amending this record." };
     return { companyId, plan };
 }
 
@@ -139,7 +142,8 @@ exports.list = async (req, res) => {
             FacilityType.findAll({ where: { companyId, isActive: true }, attributes: ['id', 'code', 'description', 'usageMode'], order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
             Facility.findAll({ where: { companyId, isActive: true }, attributes: ['id', 'facilityTypeId', 'code', 'name'], order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
         ]);
-        res.status(200).json({ plans: plans.map(planDto), types, facilities: units });
+        const flags = await annotateCanModify(req, plans);
+        res.status(200).json({ plans: plans.map((p, i) => ({ ...planDto(p), canModify: flags[i] })), types, facilities: units });
     } catch (error) {
         console.error('Error listing facility closure plans:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -192,7 +196,7 @@ exports.create = async (req, res) => {
 // day editor. The plan's type and unit are fixed.
 exports.update = async (req, res) => {
     try {
-        const target = await findOwnedPlan(req);
+        const target = await findOwnedPlan(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         const plan = target.plan;
         const header = validateHeader(req.body, plan);
@@ -211,7 +215,7 @@ exports.update = async (req, res) => {
 // DELETE /api/facility/closure-plans/:planId (days cascade).
 exports.remove = async (req, res) => {
     try {
-        const target = await findOwnedPlan(req);
+        const target = await findOwnedPlan(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         await target.plan.destroy();
         res.status(200).json({ message: 'Closure plan deleted.' });
@@ -248,7 +252,7 @@ exports.generateDays = async (req, res) => {
 // atomically (generated server-side, then hand-adjusted on the screen).
 exports.saveDays = async (req, res) => {
     try {
-        const target = await findOwnedPlan(req);
+        const target = await findOwnedPlan(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         const plan = target.plan;
         const rawDays = Array.isArray(req.body.days) ? req.body.days : [];

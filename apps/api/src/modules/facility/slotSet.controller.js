@@ -9,21 +9,25 @@ const { sequelize } = require('../../platform/db');
 const FacilityType = require('./facilityType.model');
 const FacilityTypeSlotSet = require('./facilityTypeSlotSet.model');
 const FacilityTypeSlot = require('./facilityTypeSlot.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, canModifyRecord } = require('../../platform/serviceContext');
 const { DAY_SCOPE_KEYS, LIMITS } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, DATE_RE, parseRequiredInt } = require('./facilityShared');
 const { generateSlots } = require('./slotSet.service');
 
-async function findOwnedType(req) {
+// A slot set is part of its facility type definition, so amending one is
+// amending the TYPE: `amend: true` checks the caller data scope against the
+// type row (403), whoever created the set itself.
+async function findOwnedType(req, { amend = false } = {}) {
     const companyId = companyIdOf(req);
     if (!companyId) return { status: 400, message: 'Select a workspace first.' };
     const type = await FacilityType.findOne({ where: { id: req.params.id, companyId } });
     if (!type) return { status: 404, message: 'Facility type not found.' };
+    if (amend && !(await canModifyRecord(req, type))) return { status: 403, message: "Your role's data scope does not allow amending this record." };
     return { type };
 }
 
-async function findOwnedSet(req) {
-    const target = await findOwnedType(req);
+async function findOwnedSet(req, opts) {
+    const target = await findOwnedType(req, opts);
     if (target.status) return target;
     const set = await FacilityTypeSlotSet.findOne({ where: { id: req.params.setId, facilityTypeId: target.type.id } });
     if (!set) return { status: 404, message: 'Slot set not found.' };
@@ -126,7 +130,7 @@ exports.preview = async (req, res) => {
 // POST /api/facility/facility-types/:id/slot-sets - header + generated slots.
 exports.create = async (req, res) => {
     try {
-        const target = await findOwnedType(req);
+        const target = await findOwnedType(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         if (target.type.usageMode !== 'slot') return res.status(400).json({ message: `${target.type.code} is not a time-slot facility type.` });
         if (missingRequired(req.body)) return res.status(400).json({ message: 'Day scope, effective date, first and last slot and slot length are required.' });
@@ -154,7 +158,7 @@ exports.create = async (req, res) => {
 // isActive, and `regenerate: true` to rebuild the slots from the header.
 exports.update = async (req, res) => {
     try {
-        const target = await findOwnedSet(req);
+        const target = await findOwnedSet(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         const set = target.set;
         const header = validateHeader(req.body, set);
@@ -188,7 +192,7 @@ exports.update = async (req, res) => {
 // slot list atomically (hand-adjusted on the screen).
 exports.saveSlots = async (req, res) => {
     try {
-        const target = await findOwnedSet(req);
+        const target = await findOwnedSet(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         const set = target.set;
         const raw = Array.isArray(req.body.slots) ? req.body.slots : [];
@@ -230,7 +234,7 @@ exports.saveSlots = async (req, res) => {
 // Slice 2 adds the "in use by bookings" guard.
 exports.remove = async (req, res) => {
     try {
-        const target = await findOwnedSet(req);
+        const target = await findOwnedSet(req, { amend: true });
         if (target.status) return res.status(target.status).json({ message: target.message });
         await target.set.destroy();
         res.status(200).json({ message: 'Slot set deleted.' });

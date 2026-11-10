@@ -13,7 +13,7 @@ const FacilityClass = require('./class.model');
 const FacilityClassSchedule = require('./classSchedule.model');
 const FacilityClassSession = require('./classSession.model');
 const { sequelize } = require('../../platform/db');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, annotateCanModify, canModifyRecord } = require('../../platform/serviceContext');
 const { LIMITS } = require('./facility.constants');
 const { companyIdOf, stampsFor, parseRequiredInt } = require('./facilityShared');
 const { VENUE_INCLUDE, venueBlocksUnit } = require('./classSchedule.service');
@@ -105,8 +105,9 @@ exports.list = async (req, res) => {
                 order: [['code', 'ASC']],
             }),
         ]);
+        const flags = await annotateCanModify(req, rows);
         res.status(200).json({
-            venues: rows.map((r) => venueDto(r, counts.get(r.id))),
+            venues: rows.map((r, i) => ({ ...venueDto(r, counts.get(r.id)), canModify: flags[i] })),
             facilities: units.map((u) => ({ id: u.id, code: u.code, name: u.name, usageMode: u.FacilityType.usageMode, facilityTypeCode: u.FacilityType.code })),
         });
     } catch (error) {
@@ -149,6 +150,7 @@ exports.update = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityVenue.findOne({ where: { id: req.params.id, companyId }, include: VENUE_INCLUDE });
         if (!row) return res.status(404).json({ message: 'Venue not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const v = validateVenue(req.body);
         if (v.error) return res.status(400).json({ message: v.error });
         const inUse = await FacilityClassSession.count({ where: { venueId: row.id } });
@@ -183,6 +185,7 @@ exports.remove = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityVenue.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Venue not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const [classes, schedules, sessions] = await Promise.all([
             FacilityClass.count({ where: { venueId: row.id } }),
             FacilityClassSchedule.count({ where: { venueId: row.id } }),

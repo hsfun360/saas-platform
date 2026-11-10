@@ -10,7 +10,7 @@ const FacilityInstructor = require('./instructor.model');
 const FacilityClass = require('./class.model');
 const FacilityClassSession = require('./classSession.model');
 const { sequelize } = require('../../platform/db');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, annotateCanModify, canModifyRecord } = require('../../platform/serviceContext');
 const { companyIdOf, stampsFor } = require('./facilityShared');
 
 const storage = new Storage();
@@ -77,7 +77,8 @@ exports.list = async (req, res) => {
             FacilityInstructor.findAll({ where: { companyId }, order: [['name', 'ASC']] }),
             countsByInstructor(companyId),
         ]);
-        res.status(200).json(rows.map((r) => instructorDto(r, counts.get(r.id))));
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json(rows.map((r, i) => ({ ...instructorDto(r, counts.get(r.id)), canModify: flags[i] })));
     } catch (error) {
         console.error('Error listing facility instructors:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -112,6 +113,7 @@ exports.update = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityInstructor.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Instructor not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const v = validateInstructor(req.body);
         if (v.error) return res.status(400).json({ message: v.error });
         if (v.values.code && v.values.code !== row.code) {
@@ -137,6 +139,7 @@ exports.remove = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityInstructor.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Instructor not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const [classes, sessions] = await Promise.all([
             FacilityClass.count({ where: { instructorId: row.id } }),
             FacilityClassSession.count({ where: { instructorId: row.id } }),

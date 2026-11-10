@@ -9,7 +9,7 @@ const { Op } = require('sequelize');
 const Facility = require('./facility.model');
 const FacilityType = require('./facilityType.model');
 const FacilityClosurePlan = require('./facilityClosurePlan.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, annotateCanModify, canModifyRecord } = require('../../platform/serviceContext');
 const { companyIdOf, stampsFor, parseOptionalInt, parseRequiredInt } = require('./facilityShared');
 
 const storage = new Storage();
@@ -79,7 +79,8 @@ exports.list = async (req, res) => {
             include: [{ model: FacilityType, as: 'FacilityType', attributes: TYPE_ATTRS }],
             order: [[{ model: FacilityType, as: 'FacilityType' }, 'sortOrder', 'ASC'], [{ model: FacilityType, as: 'FacilityType' }, 'code', 'ASC'], ['sortOrder', 'ASC'], ['code', 'ASC']],
         });
-        res.status(200).json(rows.map(unitDto));
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json(rows.map((r, i) => ({ ...unitDto(r), canModify: flags[i] })));
     } catch (error) {
         console.error('Error listing facilities:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -121,6 +122,7 @@ exports.update = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Facility.findOne({ where: { id: req.params.id, companyId }, include: [{ model: FacilityType, as: 'FacilityType', attributes: TYPE_ATTRS }] });
         if (!row) return res.status(404).json({ message: 'Facility not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         if ('facilityTypeId' in req.body && String(req.body.facilityTypeId) !== row.facilityTypeId) {
             return res.status(409).json({ message: 'A facility cannot move to another facility type. Create a new facility under that type instead.' });
         }
@@ -146,6 +148,7 @@ exports.remove = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Facility.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Facility not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const plans = await FacilityClosurePlan.count({ where: { facilityId: row.id } });
         if (plans) return res.status(409).json({ message: `Cannot delete ${row.code} - ${plans} closure plan${plans === 1 ? '' : 's'} still name it. Delete those first.` });
         await row.destroy();

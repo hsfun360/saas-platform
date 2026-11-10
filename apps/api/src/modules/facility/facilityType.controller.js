@@ -10,7 +10,7 @@ const { sequelize } = require('../../platform/db');
 const FacilityType = require('./facilityType.model');
 const FacilityTypeSlotSet = require('./facilityTypeSlotSet.model');
 const Facility = require('./facility.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, annotateCanModify, canModifyRecord } = require('../../platform/serviceContext');
 const { USAGE_MODES, USAGE_MODE_KEYS, DAY_SCOPES, LIMITS, ENROLMENT_MODES, SCHEDULE_STATUSES, SESSION_STATUSES } = require('./facility.constants');
 const { companyIdOf, stampsFor, normalizeTime, timeDto, parseOptionalInt, parseRequiredInt } = require('./facilityShared');
 
@@ -195,7 +195,8 @@ exports.list = async (req, res) => {
             FacilityType.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
             countsByType(companyId),
         ]);
-        res.status(200).json(rows.map((r) => typeDto(r, counts.get(r.id))));
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json(rows.map((r, i) => ({ ...typeDto(r, counts.get(r.id)), canModify: flags[i] })));
     } catch (error) {
         console.error('Error listing facility types:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -236,6 +237,7 @@ exports.update = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityType.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Facility type not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
 
         const v = validateType(req.body, row);
         if (v.error) return res.status(400).json({ message: v.error });
@@ -272,6 +274,7 @@ exports.remove = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await FacilityType.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Facility type not found.' });
+        if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         const units = await Facility.count({ where: { facilityTypeId: row.id } });
         if (units) return res.status(409).json({ message: `Cannot delete ${row.code} - ${units} facilit${units === 1 ? 'y' : 'ies'} still belong to it. Delete those first.` });
         await row.destroy();

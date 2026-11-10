@@ -77,24 +77,26 @@
               }
             </div>
             <div class="data-row__actions">
-              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
-                <span class="material-icons" aria-hidden="true">event_busy</span>
-                Closure days ({{ dayCount(p) }})
-              </button>
-              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + p.description">
-                <button type="button" appMenuItem (click)="openEdit(p)">
-                  <span class="material-icons" aria-hidden="true">edit</span>
-                  Edit
+              @if (p.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
+                  <span class="material-icons" aria-hidden="true">event_busy</span>
+                  Closure days ({{ dayCount(p) }})
                 </button>
-                <button type="button" appMenuItem (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
-                  <span class="material-icons" aria-hidden="true">{{ p.isActive === false ? 'check_circle' : 'block' }}</span>
-                  {{ p.isActive === false ? 'Enable' : 'Disable' }}
-                </button>
-                <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(p)" [disabled]="togglingId() === p.id">
-                  <span class="material-icons" aria-hidden="true">delete</span>
-                  Delete
-                </button>
-              </app-overflow-menu>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + p.description">
+                  <button type="button" appMenuItem (click)="openEdit(p)">
+                    <span class="material-icons" aria-hidden="true">edit</span>
+                    Edit
+                  </button>
+                  <button type="button" appMenuItem (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
+                    <span class="material-icons" aria-hidden="true">{{ p.isActive === false ? 'check_circle' : 'block' }}</span>
+                    {{ p.isActive === false ? 'Enable' : 'Disable' }}
+                  </button>
+                  <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(p)" [disabled]="togglingId() === p.id">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    Delete
+                  </button>
+                </app-overflow-menu>
+              }
             </div>
           </div>
         </div>

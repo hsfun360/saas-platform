@@ -972,7 +972,10 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 
 ## Auth & entitlements
 
-- Valid JWT + active company subscribed to the module with code `FACILITY`; per-screen `requireMenuAction`; `canModifyRecord` on update paths; the three ownership stamps on every table.
+- Valid JWT + active company subscribed to the module with code `FACILITY`; per-screen `requireMenuAction`; `canModifyRecord` on update and delete paths; the three ownership stamps on every table.
+- The masters (facility types, facilities, venues, instructors, closure plans) enforce the data scope too: update and delete answer 403 outside the caller's scope, and each listing carries a per-row `canModify` so the screen hides the row actions.
+  Saving a closure plan's days is amending the plan.
+  A slot set is part of its facility type's definition, so creating, editing, re-slotting or deleting one is checked against the TYPE row, whoever created the set.
 
 ## Migration status
 
