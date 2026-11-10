@@ -206,3 +206,75 @@ test('data scope: annotateCanModify flags a whole listing in one pass', async ()
     ]);
     assert.deepStrictEqual(flags, [true, true, false, false, false]);
 });
+
+// ---------------------------------------------------------------------------
+// The flag must reach the LISTING DTO, not just come back from the helper.
+// Many listings call `await annotateCanModify(req, rows)` and let their DTO
+// builder read `row.get('canModify')`; that only works because the helper
+// also stamps each Sequelize instance. These tests drive real listings.
+// ---------------------------------------------------------------------------
+
+const Golfer = require('../modules/golf/golfer.model');
+const RainCheck = require('../modules/golf/rainCheck.model');
+const golferController = require('../modules/golf/golfer.controller');
+const rainChecks = require('../modules/golf/rainCheck.service');
+
+// A persisted-looking instance, as findAll returns.
+const persisted = (Model, values) => Model.build(values, { isNewRecord: false });
+
+test('data scope: annotateCanModify stamps Sequelize instances and leaves plain objects alone', async () => {
+    stubScope({ dataScope: 'own', callerDept: 'd1', callerRank: 10 });
+    const mine = persisted(Golfer, { id: 'g-1', name: 'Mine', createdBy: USER.id });
+    const theirs = persisted(Golfer, { id: 'g-2', name: 'Theirs', createdBy: 'other-user' });
+    const plain = rec('other-user', 'd1');
+
+    const flags = await annotateCanModify(mockReq('GET', USER), [mine, theirs, plain]);
+
+    assert.deepStrictEqual(flags, [true, false, false]);
+    assert.strictEqual(mine.get('canModify'), true);
+    assert.strictEqual(theirs.get('canModify'), false);
+    assert.strictEqual('canModify' in plain, false);
+    // Not a column: the stamp must not mark the row changed, or a later save()
+    // and the audit hooks (which diff instance.changed()) would pick it up.
+    assert.strictEqual(mine.changed('canModify'), false);
+    assert.strictEqual(theirs.changed('canModify'), false);
+});
+
+test("data scope 'own': a listing DTO carries false for a row someone else created", async () => {
+    stubScope({ dataScope: 'own', callerDept: 'd1', callerRank: 10 });
+    Golfer.findAll = fn(async () => [
+        persisted(Golfer, { id: 'g-1', name: 'Mine', createdBy: USER.id }),
+        persisted(Golfer, { id: 'g-2', name: 'Theirs', createdBy: 'other-user' }),
+        persisted(Golfer, { id: 'g-3', name: 'Legacy', createdBy: null }),
+    ]);
+    const res = mockRes();
+    await golferController.list(mockReq('GET', USER), res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.body.golfers.map((g) => [g.name, g.canModify]), [
+        ['Mine', true],
+        ['Theirs', false],
+        ['Legacy', false],
+    ]);
+
+    // The same rows under scope 'all' are all amendable.
+    stubScope({ dataScope: 'all', callerDept: 'd1', callerRank: 10 });
+    const resAll = mockRes();
+    await golferController.list(mockReq('GET', USER), resAll);
+    assert.deepStrictEqual(resAll.body.golfers.map((g) => g.canModify), [true, true, true]);
+});
+
+test("data scope 'own': a service listing and its single-record read carry the real flag", async () => {
+    stubScope({ dataScope: 'own', callerDept: 'd1', callerRank: 10 });
+    const req = mockReq('GET', USER);
+    const mine = () => persisted(RainCheck, { id: 'rc-1', rainCheckNo: 'RC-1', status: 'issued', createdBy: USER.id });
+    const theirs = () => persisted(RainCheck, { id: 'rc-2', rainCheckNo: 'RC-2', status: 'issued', createdBy: 'other-user' });
+
+    RainCheck.findAll = fn(async () => [mine(), theirs()]);
+    const listing = await rainChecks.list(req, {});
+    assert.deepStrictEqual(listing.rainChecks.map((r) => [r.rainCheckNo, r.canModify]), [['RC-1', true], ['RC-2', false]]);
+
+    RainCheck.findOne = fn(async () => theirs());
+    assert.strictEqual((await rainChecks.get(req, 'rc-2')).rainCheck.canModify, false);
+    RainCheck.findOne = fn(async () => mine());
+    assert.strictEqual((await rainChecks.get(req, 'rc-1')).rainCheck.canModify, true);
+});

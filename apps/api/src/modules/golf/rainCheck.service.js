@@ -19,7 +19,7 @@
 
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
-const { getUserContext, getCallerPlacement, canModifyRecord, getCompanyProfile } = require('../../platform/serviceContext');
+const { getUserContext, getCallerPlacement, canModifyRecord, annotateCanModify, getCompanyProfile } = require('../../platform/serviceContext');
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const { emailAddress, notifyUser } = require('../../platform/notificationGateway');
 const { companyTimezone } = require('../../platform/calendarGateway');
@@ -341,7 +341,6 @@ async function list(req, query) {
     }
     if (query.golferId) where.golferId = String(query.golferId);
     const rows = await RainCheck.findAll({ where, order: [['issuedAt', 'DESC']], limit: 500 });
-    const { annotateCanModify } = require('../../platform/serviceContext');
     await annotateCanModify(req, rows);
     return { rainChecks: rows.map(dto), statuses: RAIN_CHECK_STATUSES };
 }
@@ -351,6 +350,7 @@ async function get(req, id) {
     if (!companyId) return fail('Select a workspace first.');
     const row = await RainCheck.findOne({ where: { companyId, id } });
     if (!row) return fail('Rain check not found.', 404);
+    await annotateCanModify(req, [row]);
     return { rainCheck: dto(row) };
 }
 

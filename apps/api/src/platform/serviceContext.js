@@ -461,14 +461,38 @@ async function canModifyRecord(req, record, ctx = null) {
 // Batch form for listings: one boolean per record (same order), resolving every
 // owner's rank in a single pair of queries - powers the per-row `canModify`
 // flag so the UI hides Edit/Delete on rows the caller cannot touch.
+//
+// TWO ways to consume it, both supported:
+//   const flags = await annotateCanModify(req, rows);  -> flags[i] into the DTO
+//   await annotateCanModify(req, rows);                -> row.get('canModify')
+// The second works because every Sequelize instance in `records` is also
+// STAMPED with its flag (plain objects are left untouched). A DTO builder
+// that reads row.get('canModify') on a row that was never annotated yields
+// undefined, which the web treats as allowed - annotate on every read path.
 async function annotateCanModify(req, records) {
     const ctx = await getAccessContext(req);
-    if (ctx.scope === 'all') return records.map(() => true);
-    const { companyId } = getUserContext(req);
-    const ranks = ctx.scope === 'department'
-        ? await ownerRanksIn(companyId, records.map(r => r.createdBy))
-        : new Map();
-    return records.map(r => scopeAllows(ctx, r, ranks.get(r ? r.createdBy : null)));
+    let flags;
+    if (ctx.scope === 'all') {
+        flags = records.map(() => true);
+    } else {
+        const { companyId } = getUserContext(req);
+        const ranks = ctx.scope === 'department'
+            ? await ownerRanksIn(companyId, records.map(r => (r ? r.createdBy : null)))
+            : new Map();
+        flags = records.map(r => scopeAllows(ctx, r, ranks.get(r ? r.createdBy : null)));
+    }
+    records.forEach((r, i) => stampCanModify(r, flags[i]));
+    return flags;
+}
+
+// Carry the flag on a Sequelize instance as a non-column data value. Written
+// straight into dataValues rather than through setDataValue(), which would
+// mark the instance changed: a later save() must not see `canModify`, and the
+// audit hooks (which diff instance.changed()) must not log it.
+function stampCanModify(record, flag) {
+    if (record && typeof record.get === 'function' && record.dataValues) {
+        record.dataValues.canModify = flag;
+    }
 }
 
 // --- WHICH companies share the caller's subscription ----------------------

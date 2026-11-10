@@ -215,7 +215,7 @@ The three built masters (#1-#3) carry the full three-layer authorization model -
 - **Route wiring** (`membership.routes.js`): each screen's sub-router mounts behind `requireMenuAction('<screen route>')` on top of the module-wide `requireModule('MEMBERSHIP')` - the HTTP method maps to the role's per-menu Create/Edit/Delete grant flags.
 - **Ownership stamps** (all models): `createdBy`, `createdByDepartmentId` (creator's department at creation), `updatedBy` (every save).
   Create/copy paths stamp them from `getCallerPlacement()` + `getUserContext()`.
-- **Data-scope enforcement**: every update/enable-disable path checks `canModifyRecord(req, row)` (403 when the caller's role data scope - own / department / all - does not cover the record); list responses carry a per-row `canModify` from `annotateCanModify()` so the frontend hides Edit/Enable/Disable on rows the caller cannot touch.
+- **Data-scope enforcement**: every update/enable-disable path checks `canModifyRecord(req, row)` (403 when the caller's role data scope - own / department / all - does not cover the record); list responses carry a per-row `canModify` from `annotateCanModify()` (it returns one boolean per row and also stamps each Sequelize row, so a DTO builder may take `flags[i]` or read `row.get('canModify')`) so the frontend hides Edit/Enable/Disable on rows the caller cannot touch.
 - **Frontend**: the screens wrap their New-FAB / Edit / Enable / Disable buttons in `*appCan` (menu-action gating) and honour `canModify` per row.
 Full model + rule definitions: [system-administration.md](system-administration.md).
 

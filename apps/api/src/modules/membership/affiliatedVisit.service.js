@@ -355,6 +355,7 @@ async function preview(req, id) {
         if (f.error) return f;
         flight = f.flight;
     }
+    await annotateCanModify(req, [row]);
     return {
         visit: await dto(row),
         playerType: type ? { code: type.code, description: type.description } : null,
@@ -642,6 +643,7 @@ async function list(req, query) {
 async function get(req, id) {
     const l = await load(req, id);
     if (l.error) return l;
+    await annotateCanModify(req, [l.row]);
     return { visit: await dto(l.row) };
 }
 
