@@ -1,0 +1,91 @@
+/* Utility Items - screen-specific bits only; the listing, dialog and button
+   primitives are global in styles.css, the .mt-chip pill comes from
+   membership-types.css. All colours are theme tokens. */
+
+.ui-count {
+  margin-bottom: var(--space-md);
+}
+
+/* The units of a numbered item: a compact list inside the drawer. */
+.ui-units__count {
+  margin: 0 0 var(--space-sm);
+}
+.ui-units {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.ui-unit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.ui-unit--busy {
+  opacity: 0.6;
+}
+.ui-unit__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.ui-unit__code {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ui-unit__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.ui-units__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+/* Generate units: the codes the range would add. */
+.ui-preview {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+.ui-preview__lead {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.ui-preview .ui-preview__lead {
+  margin-top: 0;
+  color: var(--text-primary);
+}
+.ui-preview__codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.ui-code {
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--success-border);
+  border-radius: 12px;
+  background: var(--success-surface);
+  color: var(--success-text);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+}
+.ui-code--exists {
+  border-color: var(--border);
+  background: var(--chip-off-surface);
+  color: var(--chip-off-text);
+  text-decoration: line-through;
+}

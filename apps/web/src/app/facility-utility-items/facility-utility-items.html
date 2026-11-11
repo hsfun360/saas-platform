@@ -1,0 +1,433 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">inventory_2</span>
+      <div>
+        <h1>{{ 'Utility Items' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'What the Control Station hands out or lets a person use - lockers by numbered unit, towels by quantity, a shower as a recorded use.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div class="ui-count">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} utility item{{ rows().length === 1 ? '' : 's' }}, {{ activeCount() }} active
+      } @else if (!loading()) {
+        No utility items yet. Use 'New utility item' to add what the station hands out - a locker, a towel, a shower.
+      } @else {
+        Loading the club's utility items…
+      }
+    </span>
+  </div>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #uiSearchBox type="search" [value]="search()" (input)="search.set(uiSearchBox.value)"
+             placeholder="Search utility items…" aria-label="Search utility items" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading utility items…</p></div>
+  } @else if (rows().length > 0 && filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No utility items match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="data-list">
+      @for (i of filtered(); track i.id) {
+        <div class="data-card" [attr.data-return-id]="i.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ i.description }} <span class="data-card__reg">({{ i.code }})</span></div>
+              <div class="data-card__subline">
+                <span class="mt-chip">{{ behaviourLabel(i.behaviour) }}</span>
+                @if (feeLabel(i)) { <span class="data-card__reg">Fee {{ feeLabel(i) }}</span> } @else { <span class="data-card__reg">Free</span> }
+              </div>
+              <dl class="data-card__meta">
+                @switch (i.behaviour) {
+                  @case ('units') {
+                    <div class="meta"><dt>Units</dt><dd>{{ i.unitsAvailable }} of {{ i.unitCount }} free</dd></div>
+                  }
+                  @case ('quantity') {
+                    <div class="meta"><dt>Out now</dt><dd>{{ i.outCount }}{{ i.stockQuantity != null ? ' of ' + i.stockQuantity : '' }}</dd></div>
+                  }
+                }
+                <div class="meta"><dt>Per person</dt><dd>{{ i.maxPerPerson ? i.maxPerPerson + (i.behaviour === 'use' ? ' a day' : '') : 'No limit' }}</dd></div>
+                @if (i.behaviour !== 'use') {
+                  <div class="meta"><dt>Due back</dt><dd>{{ i.dueDays ? 'After ' + i.dueDays + ' day' + (i.dueDays === 1 ? '' : 's') : 'Same day' }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (i.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (i.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(i)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+              } @else if (i.trackUnits) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openUnits(i)">
+                  <span class="material-icons" aria-hidden="true">vpn_key</span>
+                  Units ({{ i.unitCount }})
+                </button>
+              }
+              @if (i.canModify !== false) {
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + i.code">
+                    @if (i.trackUnits) {
+                      <button type="button" appMenuItem (click)="openUnits(i)">
+                        <span class="material-icons" aria-hidden="true">vpn_key</span>
+                        Units ({{ i.unitCount }})
+                      </button>
+                    }
+                    <button type="button" appMenuItem (click)="toggleActive(i)" [disabled]="togglingId() === i.id">
+                      <span class="material-icons" aria-hidden="true">{{ i.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ i.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                    <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(i)" [disabled]="togglingId() === i.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      Delete
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New utility item FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New utility item">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New utility item</span>
+  </button>
+
+  <!-- ============ The ONE drawer dialog ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form saas-form--dialog">
+        @switch (mode) {
+
+          <!-- THE ITEM -->
+          @case ('form') {
+            <form id="uiForm" [formGroup]="form" (ngSubmit)="onSave()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="uiCode">Code <span class="required">*</span></label>
+                  <input id="uiCode" type="text" formControlName="code" placeholder="e.g. LOCKER" autocomplete="off" maxlength="20"
+                         style="text-transform: uppercase;"
+                         [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="uiCodeErr" />
+                  @if (showError(form.controls.code)) {
+                    <p id="uiCodeErr" class="field-error" role="alert">
+                      @if (form.controls.code.errors?.['required']) { Code is required. }
+                      @else if (form.controls.code.errors?.['pattern']) { Use letters, digits and underscores only. }
+                      @else { Use 20 characters or fewer. }
+                    </p>
+                  }
+                  <p class="cell-subtle field-hint">{{ codeFrozen() ? 'Frozen - the item is already in use.' : 'Stored in capitals; frozen once the item is issued.' }}</p>
+                </div>
+                <div class="form-group">
+                  <label for="uiDesc">Description <span class="required">*</span></label>
+                  <input id="uiDesc" type="text" formControlName="description" placeholder="e.g. Changing room locker" maxlength="255"
+                         [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="uiDescErr" />
+                  @if (showError(form.controls.description)) {
+                    <p id="uiDescErr" class="field-error" role="alert">Description is required (255 characters or fewer).</p>
+                  }
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="uiBehaviour">How it is handed out <span class="required">*</span></label>
+                <select id="uiBehaviour" formControlName="behaviour" (change)="behaviourChanged()" aria-describedby="uiBehaviourHint">
+                  @for (b of behaviours; track b.key) { <option [value]="b.key">{{ b.label }}</option> }
+                </select>
+                <p id="uiBehaviourHint" class="cell-subtle field-hint">
+                  @if (formVersion() >= 0) { {{ behaviourHint() }} }
+                  @if (behaviourFrozen()) { Fixed while the item has units or is out with someone. }
+                </p>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="uiMax">Limit per person <span class="required">*</span></label>
+                  <input id="uiMax" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="maxPerPerson"
+                         [attr.aria-invalid]="showError(form.controls.maxPerPerson)" aria-describedby="uiMaxErr" />
+                  @if (showError(form.controls.maxPerPerson)) {
+                    <p id="uiMaxErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
+                  }
+                  <p class="cell-subtle field-hint">
+                    @switch (form.controls.behaviour.value) {
+                      @case ('units') { Units one person may hold at a time; 0 = no limit. }
+                      @case ('quantity') { Pieces one person may hold at a time; 0 = no limit. }
+                      @default { Uses one person may record in a day; 0 = no limit. }
+                    }
+                  </p>
+                </div>
+                @if (form.controls.behaviour.value !== 'use') {
+                  <div class="form-group">
+                    <label for="uiDue">Due back after (days) <span class="required">*</span></label>
+                    <input id="uiDue" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="dueDays"
+                           [attr.aria-invalid]="showError(form.controls.dueDays)" aria-describedby="uiDueErr" />
+                    @if (showError(form.controls.dueDays)) {
+                      <p id="uiDueErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
+                    }
+                    <p class="cell-subtle field-hint">0 = the same day; the station lists it as overdue after that.</p>
+                  </div>
+                }
+              </div>
+
+              <div class="form-grid">
+                @if (form.controls.behaviour.value === 'quantity') {
+                  <div class="form-group">
+                    <label for="uiStock">Pieces the club owns</label>
+                    <input id="uiStock" type="number" inputmode="numeric" min="0" max="1000000" step="1" formControlName="stockQuantity" placeholder="Optional"
+                           [attr.aria-invalid]="showError(form.controls.stockQuantity)" aria-describedby="uiStockErr" />
+                    @if (showError(form.controls.stockQuantity)) {
+                      <p id="uiStockErr" class="field-error" role="alert">Enter a whole number, or leave it blank.</p>
+                    }
+                    <p class="cell-subtle field-hint">Shown on the station as "42 of 200 out"; it never refuses an issue.</p>
+                  </div>
+                }
+                <div class="form-group">
+                  <label for="uiFee">Fee charged automatically</label>
+                  <app-combobox formControlName="feeTransactionTypeId" inputId="uiFee" [options]="feeOptions()" [allowEmpty]="true" emptyLabel="No fee - free" placeholder="Type to search…" />
+                  <p class="cell-subtle field-hint">An Issue Fee item from Facility Transaction Types, charged per unit, piece or use.</p>
+                </div>
+              </div>
+
+              <div class="form-group form-group--narrow">
+                <label for="uiSort">Sort order <span class="required">*</span></label>
+                <input id="uiSort" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="sortOrder"
+                       [attr.aria-invalid]="showError(form.controls.sortOrder)" aria-describedby="uiSortErr" />
+                @if (showError(form.controls.sortOrder)) {
+                  <p id="uiSortErr" class="field-error" role="alert">Enter a whole number between 0 and 9999.</p>
+                }
+                <p class="cell-subtle field-hint">The order on the station's strip.</p>
+              </div>
+            </form>
+          }
+
+          <!-- THE UNITS OF A NUMBERED ITEM -->
+          @case ('units') {
+            @if (unitsReadOnly()) {
+              <div class="flash flash-info flash--static" role="status">
+                <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">visibility</span></span>
+                <span>View only - your role's data scope does not cover this utility item.</span>
+              </div>
+            }
+            @if (unitsLoading()) {
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the units…</p></div>
+            } @else if (units().length === 0) {
+              <div class="empty-state">
+                <span class="material-icons empty-icon" aria-hidden="true">vpn_key</span>
+                <p>{{ unitItem()?.code }} has no units yet. Generate a numbered range, or add them one by one.</p>
+              </div>
+            } @else {
+              <p class="cell-subtle ui-units__count">{{ units().length }} unit{{ units().length === 1 ? '' : 's' }}</p>
+              <div class="ui-units">
+                @for (u of units(); track u.id) {
+                  <div class="ui-unit" [class.ui-unit--busy]="togglingId() === u.id">
+                    <div class="ui-unit__main">
+                      <span class="ui-unit__code">{{ u.code }}</span>
+                      <span class="ui-unit__meta">{{ u.location || 'No location' }}{{ u.remarks ? ' · ' + u.remarks : '' }}</span>
+                    </div>
+                    <span class="status-chip" [class.status-chip--on]="u.isActive !== false && u.unitStatus === 'available'"
+                          [class.status-chip--info]="u.isActive !== false && u.unitStatus === 'issued'"
+                          [class.status-chip--danger]="u.isActive !== false && u.unitStatus === 'out-of-service'"
+                          [class.status-chip--off]="u.isActive === false">{{ unitStatusLabel(u) }}</span>
+                    @if (!unitsReadOnly()) {
+                      <ng-container *appCan="'edit'">
+                        <app-overflow-menu [label]="'Actions for unit ' + u.code">
+                          <button type="button" appMenuItem (click)="openUnitForm(u)">
+                            <span class="material-icons" aria-hidden="true">edit</span>
+                            Edit
+                          </button>
+                          <button type="button" appMenuItem (click)="toggleUnit(u)" [disabled]="togglingId() === u.id">
+                            <span class="material-icons" aria-hidden="true">{{ u.isActive === false ? 'check_circle' : 'block' }}</span>
+                            {{ u.isActive === false ? 'Enable' : 'Disable' }}
+                          </button>
+                          <button *appCan="'delete'" type="button" appMenuItem (click)="askDeleteUnit(u)" [disabled]="togglingId() === u.id">
+                            <span class="material-icons" aria-hidden="true">delete</span>
+                            Delete
+                          </button>
+                        </app-overflow-menu>
+                      </ng-container>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (!unitsReadOnly()) {
+              <div class="ui-units__actions" *appCan="'edit'">
+                <button type="button" class="btn btn--secondary" (click)="openGenerate()">
+                  <span class="material-icons" aria-hidden="true">format_list_numbered</span>
+                  Generate units
+                </button>
+                <button type="button" class="btn btn--secondary" (click)="openUnitForm(null)">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add one unit
+                </button>
+              </div>
+            }
+          }
+
+          <!-- ONE UNIT -->
+          @case ('unit') {
+            <form id="uiUnitForm" [formGroup]="unitForm" (ngSubmit)="saveUnit()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="uuCode">Unit number <span class="required">*</span></label>
+                  <input id="uuCode" type="text" formControlName="code" placeholder="e.g. L014" autocomplete="off" maxlength="20"
+                         style="text-transform: uppercase;"
+                         [attr.aria-invalid]="showError(unitForm.controls.code)" aria-describedby="uuCodeErr" />
+                  @if (showError(unitForm.controls.code)) {
+                    <p id="uuCodeErr" class="field-error" role="alert">
+                      @if (unitForm.controls.code.errors?.['required']) { The unit number is required. }
+                      @else { Use up to 20 letters, digits, underscores and hyphens. }
+                    </p>
+                  }
+                  <p class="cell-subtle field-hint">The number on the unit itself, as the desk reads it out.</p>
+                </div>
+                <div class="form-group">
+                  <label for="uuLocation">Location</label>
+                  <input id="uuLocation" type="text" formControlName="location" placeholder="e.g. Men's changing room, row B" maxlength="255" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="uuRemarks">Remarks</label>
+                <textarea id="uuRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+              </div>
+            </form>
+          }
+
+          <!-- GENERATE UNITS: the range, then the codes it adds -->
+          @case ('generate') {
+            <form id="uiGenForm" [formGroup]="generateForm" (ngSubmit)="refreshPreview()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ugPrefix">Prefix</label>
+                  <input id="ugPrefix" type="text" formControlName="prefix" placeholder="e.g. L" autocomplete="off" maxlength="12"
+                         style="text-transform: uppercase;" (input)="generateChanged()"
+                         [attr.aria-invalid]="showError(generateForm.controls.prefix)" aria-describedby="ugPrefixErr" />
+                  @if (showError(generateForm.controls.prefix)) {
+                    <p id="ugPrefixErr" class="field-error" role="alert">Use up to 12 letters, digits, underscores and hyphens.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ugPad">Digits <span class="required">*</span></label>
+                  <input id="ugPad" type="number" inputmode="numeric" min="1" max="6" step="1" formControlName="pad" (input)="generateChanged()"
+                         [attr.aria-invalid]="showError(generateForm.controls.pad)" aria-describedby="ugPadErr" />
+                  @if (showError(generateForm.controls.pad)) {
+                    <p id="ugPadErr" class="field-error" role="alert">Enter a whole number between 1 and 6.</p>
+                  }
+                  <p class="cell-subtle field-hint">3 digits turns 7 into 007.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ugFrom">From number <span class="required">*</span></label>
+                  <input id="ugFrom" type="number" inputmode="numeric" min="0" max="99999" step="1" formControlName="from" (input)="generateChanged()"
+                         [attr.aria-invalid]="showError(generateForm.controls.from)" />
+                </div>
+                <div class="form-group">
+                  <label for="ugTo">To number <span class="required">*</span></label>
+                  <input id="ugTo" type="number" inputmode="numeric" min="0" max="99999" step="1" formControlName="to" (input)="generateChanged()"
+                         [attr.aria-invalid]="showError(generateForm.controls.to)" />
+                  <p class="cell-subtle field-hint">At most {{ maxGenerate() }} units at a time.</p>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="ugLocation">Location for these units</label>
+                <input id="ugLocation" type="text" formControlName="location" placeholder="Optional, e.g. Men's changing room" maxlength="255" />
+              </div>
+              <button type="submit" class="btn btn--secondary btn--sm" [disabled]="previewing()">
+                <span class="material-icons" aria-hidden="true">visibility</span>
+                {{ previewing() ? 'Checking…' : 'Preview the units' }}
+              </button>
+            </form>
+
+            @if (preview(); as p) {
+              <div class="ui-preview" role="status" aria-live="polite">
+                <p class="ui-preview__lead">
+                  @if (p.fresh) { <strong>{{ p.fresh }}</strong> unit{{ p.fresh === 1 ? '' : 's' }} will be added{{ p.existing ? ', ' + p.existing + ' already exist' + (p.existing === 1 ? 's' : '') + ' and ' + (p.existing === 1 ? 'is' : 'are') + ' left as ' + (p.existing === 1 ? 'it is' : 'they are') : '' }}. }
+                  @else { Every one of those {{ p.codes.length }} unit{{ p.codes.length === 1 ? '' : 's' }} already exists - nothing to add. }
+                </p>
+                <div class="ui-preview__codes">
+                  @for (c of p.codes; track c.code) {
+                    <span class="ui-code" [class.ui-code--exists]="c.exists" [attr.title]="c.exists ? 'Already exists' : 'Will be added'">{{ c.code }}</span>
+                  }
+                </div>
+              </div>
+            } @else if (!previewing()) {
+              <p class="cell-subtle ui-preview__lead">Preview the range to see the unit numbers before anything is added.</p>
+            }
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="uiForm" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+          }
+          @case ('units') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+          @case ('unit') {
+            <button type="button" class="btn btn--secondary" (click)="backToUnits()" [disabled]="saving()">Back</button>
+            <button type="submit" form="uiUnitForm" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+          }
+          @case ('generate') {
+            <button type="button" class="btn btn--secondary" (click)="backToUnits()" [disabled]="saving()">Back</button>
+            <button type="button" class="btn btn--primary" (click)="submitGenerate()" [disabled]="saving() || !preview()?.fresh">
+              {{ saving() ? 'Adding…' : (preview()?.fresh ? 'Add ' + preview()?.fresh + ' unit' + (preview()?.fresh === 1 ? '' : 's') : 'Add units') }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>
