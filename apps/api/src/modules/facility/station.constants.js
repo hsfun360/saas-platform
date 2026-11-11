@@ -11,6 +11,7 @@ const ISSUE_STATUSES = [
     { key: 'issued', label: 'Issued' },
     { key: 'returned', label: 'Returned' },
     { key: 'lost', label: 'Lost' },
+    { key: 'used', label: 'Used' },
 ];
 const ISSUE_STATUS_KEYS = ISSUE_STATUSES.map((s) => s.key);
 
@@ -21,7 +22,7 @@ const RETURN_CONDITIONS = [
 ];
 const RETURN_CONDITION_KEYS = RETURN_CONDITIONS.map((c) => c.key);
 
-// Issue-mode units with trackUnits ON.
+// The numbered units of a utility item (UtilityUnit.unitStatus).
 const UNIT_STATUSES = [
     { key: 'available', label: 'Available' },
     { key: 'issued', label: 'Issued' },

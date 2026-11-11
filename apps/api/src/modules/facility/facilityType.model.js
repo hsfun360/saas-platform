@@ -3,14 +3,16 @@ const { sequelize } = require('../../platform/db');
 const { FACILITY_SCHEMA } = require('../../platform/schemas');
 
 // facility.FacilityType (structure approved 2026-10-25) - the KIND of facility
-// and its rules: Badminton, Tennis, Gym, Pool, Locker, Towel. The `code`
+// and its rules: Badminton, Tennis, Gym, Pool. The `code`
 // (UPPER_SNAKE, frozen once in use) is the key the booking limits, rate cards
 // and reports key on; `description` is display only. `usageMode` (slot /
-// entry / issue, facility.constants USAGE_MODES) decides which column group
+// entry, facility.constants USAGE_MODES) decides which column group
 // applies and how the Control Station treats the facility; it is frozen once
 // a Facility exists under the type. Later slices add `feeTransactionTypeId`,
 // `guestFeeTransactionTypeId`, `requiresApproval` (slice 2) and the no-show
-// flags (slice 4). `companyId` is a Control-Plane reference, no FK.
+// flags (slice 4). The third mode, "issue" (lockers and towels), was retired
+// on 2026-11-11: what the station hands out is a facility.UtilityItem.
+// `companyId` is a Control-Plane reference, no FK.
 const FacilityType = sequelize.define('FacilityType', {
     id: {
         type: DataTypes.UUID,
@@ -29,7 +31,7 @@ const FacilityType = sequelize.define('FacilityType', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    // 'slot' | 'entry' | 'issue'.
+    // 'slot' | 'entry'.
     usageMode: {
         type: DataTypes.STRING(10),
         allowNull: false,
@@ -92,21 +94,7 @@ const FacilityType = sequelize.define('FacilityType', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
-    // ---- issue mode ----
-    // ON = each Facility row is one numbered unit issued and returned
-    // (locker); OFF = a counted consumable issued by quantity (towel).
-    trackUnits: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: true,
-    },
-    // Units or pieces one patron may hold at a time (0 = no limit).
-    maxIssuePerPatron: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 1,
-    },
-    // ---- opening hours (entry + issue modes; slot types get them from the
+    // ---- opening hours (entry mode; slot types get them from the
     // slot set). Both NULL = no restriction. ----
     openTimeWeekday: { type: DataTypes.TIME, allowNull: true },
     closeTimeWeekday: { type: DataTypes.TIME, allowNull: true },
@@ -161,18 +149,6 @@ const FacilityType = sequelize.define('FacilityType', {
         defaultValue: false,
     },
     // ---- slice 3 (structures approved 2026-10-26) ----
-    // The issue-fee transaction type auto-charged once per issue (a unit, or
-    // quantity x the flat amount for a consumable); NULL = free issue.
-    issueFeeTransactionTypeId: {
-        type: DataTypes.UUID,
-        allowNull: true,
-    },
-    // Days an issue may be kept; 0 = due back the same day at the close time.
-    issueDueDays: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0,
-    },
     // An entry type that only admits a patron holding a booking of a slot
     // type that day (a squash entry desk); off for the gym and the pool.
     entryRequiresBooking: {

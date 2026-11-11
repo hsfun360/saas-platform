@@ -676,6 +676,13 @@ async function initializeDB() {
                 }
             }
 
+            // Facility utility items (2026-11-11): lockers and towels leave the
+            // facility types for their own master. The move must run BEFORE the
+            // alter-sync - the sync would otherwise add a NOT NULL utilityItemId
+            // beside the old facilityTypeId and fail on the existing rows.
+            // Idempotent; one transaction (see modules/facility/utilityMigration.js).
+            await require('./modules/facility/utilityMigration').migrateIssueTypesToUtilityItems(sequelize);
+
             await sequelize.sync({ alter: true });
             // ... and again AFTER it, for the copies this sync just added.
             await dropDuplicateConstraints(sequelize);

@@ -57,7 +57,7 @@ function validateType(body, current) {
     }
     if ('usageMode' in body) {
         const usageMode = String(body.usageMode || '').trim();
-        if (!USAGE_MODE_KEYS.includes(usageMode)) return { error: 'Usage mode must be Time slot booking, Entry registration or Issue and return.' };
+        if (!USAGE_MODE_KEYS.includes(usageMode)) return { error: 'Usage mode must be Time slot booking or Entry registration.' };
         out.usageMode = usageMode;
     }
     if ('iconUrl' in body) out.iconUrl = typeof body.iconUrl === 'string' && body.iconUrl.trim() ? body.iconUrl.trim() : null;
@@ -85,8 +85,6 @@ function validateType(body, current) {
         ['maxSlotsPerDayWeekday', 0, 50, 'Weekday slots per day must be a whole number between 0 and 50 (0 = no limit).'],
         ['maxSlotsPerDayWeekend', 0, 50, 'Weekend slots per day must be a whole number between 0 and 50 (0 = no limit).'],
         ['maxConsecutiveSlots', 0, 50, 'Max consecutive slots must be a whole number between 0 and 50 (0 = no limit).'],
-        ['maxIssuePerPatron', 0, 100, 'Max issue per patron must be a whole number between 0 and 100 (0 = no limit).'],
-        ['issueDueDays', 0, 365, 'Issue due days must be a whole number between 0 and 365 (0 = same day).'],
     ];
     for (const [field, min, max, message] of requiredInts) {
         if (!(field in body)) continue;
@@ -94,12 +92,12 @@ function validateType(body, current) {
         if (!n.ok) return { error: message };
         out[field] = n.value;
     }
-    for (const flag of ['trackUnits', 'guestsAllowed', 'memberGuestsAllowed', 'hostMustBePresent', 'requiresApproval', 'entryRequiresBooking', 'noShowChargeEnabled', 'noShowStrikeEnabled']) {
+    for (const flag of ['guestsAllowed', 'memberGuestsAllowed', 'hostMustBePresent', 'requiresApproval', 'entryRequiresBooking', 'noShowChargeEnabled', 'noShowStrikeEnabled']) {
         if (typeof body[flag] === 'boolean') out[flag] = body[flag];
     }
     // Slice 2 default fees: value refs checked against the catalog in the
     // create / update paths (validateDefaultFees); '' clears.
-    for (const field of ['feeTransactionTypeId', 'guestFeeTransactionTypeId', 'issueFeeTransactionTypeId']) {
+    for (const field of ['feeTransactionTypeId', 'guestFeeTransactionTypeId']) {
         if (field in body) out[field] = typeof body[field] === 'string' && body[field].trim() ? body[field].trim() : null;
     }
     for (const field of ['openTimeWeekday', 'closeTimeWeekday', 'openTimeWeekend', 'closeTimeWeekend']) {
@@ -127,7 +125,6 @@ function validateType(body, current) {
         Object.assign(out, { maxParticipants: null, minParticipants: 1, maxSlotsPerDayWeekday: 0, maxSlotsPerDayWeekend: 0, maxConsecutiveSlots: 0, advanceBookingDays: null });
     }
     if (mode && mode !== 'entry') out.capacity = null;
-    if (mode && mode !== 'issue') Object.assign(out, { trackUnits: true, maxIssuePerPatron: 1, issueFeeTransactionTypeId: null, issueDueDays: 0 });
     if (mode && mode !== 'entry') out.entryRequiresBooking = false;
     if (mode === 'slot') Object.assign(out, { openTimeWeekday: null, closeTimeWeekday: null, openTimeWeekend: null, closeTimeWeekend: null });
 
@@ -142,14 +139,13 @@ async function validateDefaultFees(companyId, values, selfId) {
     const checks = [
         ['feeTransactionTypeId', 'facility-fee', 'Facility fee default'],
         ['guestFeeTransactionTypeId', 'guest-fee', 'Guest fee default'],
-        ['issueFeeTransactionTypeId', 'issue-fee', 'Issue fee default'],
     ];
     for (const [field, chargeType, label] of checks) {
         const id = values[field];
         if (!id) continue;
         const tt = await TransactionType.findOne({ where: { id, companyId } });
         if (!tt) return `${label}: pick a transaction type of the active company.`;
-        if (tt.chargeType !== chargeType) return `${label}: '${tt.transactionType}' is not ${chargeType === 'guest-fee' ? 'a guest fee' : chargeType === 'issue-fee' ? 'an issue fee' : 'a facility fee'}.`;
+        if (tt.chargeType !== chargeType) return `${label}: '${tt.transactionType}' is not ${chargeType === 'guest-fee' ? 'a guest fee' : 'a facility fee'}.`;
         if (tt.isActive === false) return `${label}: '${tt.transactionType}' is disabled.`;
         if (tt.facilityTypeId && selfId && tt.facilityTypeId !== selfId) return `${label}: '${tt.transactionType}' belongs to another facility type.`;
     }

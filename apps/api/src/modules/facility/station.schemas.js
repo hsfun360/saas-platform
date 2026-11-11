@@ -31,8 +31,8 @@ module.exports = {
     guests: { ...idParam, body: z.object({ guests: z.array(guestLine).max(50) }) },
     issue: {
         body: z.object({
-            facilityTypeId: z.string().max(64),
-            facilityId: str(64),
+            utilityItemId: z.string().max(64),
+            utilityUnitId: str(64),
             quantity: numberish,
             memberNo: z.string().max(50),
             registrationId: str(64),

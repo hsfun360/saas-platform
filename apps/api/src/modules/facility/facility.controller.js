@@ -21,7 +21,7 @@ function assetsBucket() {
 
 const CODE_RE = /^[A-Z0-9_-]{1,20}$/;
 
-const TYPE_ATTRS = ['id', 'code', 'description', 'usageMode', 'sortOrder', 'isActive', 'trackUnits'];
+const TYPE_ATTRS = ['id', 'code', 'description', 'usageMode', 'sortOrder', 'isActive'];
 
 function unitDto(row) {
     const p = row.get ? row.get({ plain: true }) : row;
@@ -29,7 +29,7 @@ function unitDto(row) {
     return {
         ...p,
         FacilityType: undefined,
-        facilityType: type ? { id: type.id, code: type.code, description: type.description, usageMode: type.usageMode, trackUnits: type.trackUnits } : null,
+        facilityType: type ? { id: type.id, code: type.code, description: type.description, usageMode: type.usageMode } : null,
     };
 }
 

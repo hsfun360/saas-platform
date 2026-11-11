@@ -20,6 +20,8 @@ const RegistrationGuest = require('./registrationGuest.model');
 const IssueRecord = require('./issueRecord.model');
 const Facility = require('./facility.model');
 const FacilityType = require('./facilityType.model');
+const UtilityItem = require('./utilityItem.model');
+const UtilityUnit = require('./utilityUnit.model');
 const TransactionType = require('./transactionType.model');
 const PaymentType = require('./paymentType.model');
 const Patron = require('./patron.model');
@@ -92,12 +94,15 @@ async function sourceOf(companyId, bill) {
     if (bill.issueRecordId) {
         const record = await IssueRecord.findOne({ where: { companyId, id: bill.issueRecordId } });
         if (!record) return null;
+        // Slice 6a: the issue is of a UTILITY ITEM (and its numbered unit),
+        // not of a facility; the header keeps its facilityType / facilities
+        // keys so the one bill drawer reads every source alike.
         const [iType, unit] = await Promise.all([
-            FacilityType.findOne({ where: { id: record.facilityTypeId } }),
-            record.facilityId ? Facility.findOne({ where: { id: record.facilityId }, attributes: ['id', 'code', 'name'] }) : null,
+            UtilityItem.findOne({ where: { id: record.utilityItemId }, attributes: ['id', 'code', 'description'] }),
+            record.utilityUnitId ? UtilityUnit.findOne({ where: { id: record.utilityUnitId }, attributes: ['id', 'code'] }) : null,
         ]);
         return {
-            kind: 'issue', booking: null, issue: record, label: `issue of ${unit ? unit.code : iType ? iType.code : 'unit'}`, facilityTypeId: record.facilityTypeId,
+            kind: 'issue', booking: null, issue: record, label: `issue of ${unit ? unit.code : iType ? iType.code : 'item'}`, facilityTypeId: null,
             context: { date: String(bill.billDate), dayType: 'weekday', sessionId: null },
             header: {
                 id: record.id, kind: 'issue', no: null, status: record.status,

@@ -8,7 +8,6 @@
 const USAGE_MODES = [
     { key: 'slot', label: 'Time slot booking', hint: 'Courts and halls booked by fixed time slot from the type\'s slot set.' },
     { key: 'entry', label: 'Entry registration', hint: 'Gym and pool: register on arrival, optional capacity.' },
-    { key: 'issue', label: 'Issue and return', hint: 'Lockers (numbered units) and towels (counted) issued at the control station.' },
 ];
 const USAGE_MODE_KEYS = USAGE_MODES.map((m) => m.key);
 

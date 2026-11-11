@@ -2,12 +2,14 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { FACILITY_SCHEMA } = require('../../platform/schemas');
 
-// Facility Issue Record (structure approved 2026-10-26, slice 3) - one issue
-// of a unit (trackUnits ON: the locker) or of a quantity of a consumable
-// (trackUnits OFF: towels) to a member, due back at the type's close time
-// plus issueDueDays; returned good, damaged (the unit parks out of service)
-// or lost (no automatic penalty in this slice - the loss is listed for a
-// manual charge). The issue fee, when the type names one, bills on its own.
+// Facility Issue Record (structure approved 2026-10-26, slice 3; re-pointed
+// to the Utility Item master 2026-11-11, slice 6a) - one issue of a numbered
+// unit (the locker), of a quantity (towels) or one recorded use (a shower)
+// of a UTILITY ITEM to a member. A returnable item is due back at the end of
+// its due day; returned good, damaged (the unit parks out of service) or
+// lost (no automatic penalty - the loss is listed for a manual charge). A
+// use-only item closes as 'used' at issue. The fee, when the item names one,
+// bills on its own.
 const IssueRecord = sequelize.define('FacilityIssueRecord', {
     id: {
         type: DataTypes.UUID,
@@ -23,12 +25,14 @@ const IssueRecord = sequelize.define('FacilityIssueRecord', {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    facilityTypeId: {
+    // The utility item (renamed from facilityTypeId, 2026-11-11).
+    utilityItemId: {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // The unit issued, or the type's counter row for a consumable.
-    facilityId: {
+    // The numbered unit issued (renamed from facilityId); NULL for a
+    // quantity or a use.
+    utilityUnitId: {
         type: DataTypes.UUID,
         allowNull: true,
     },
@@ -64,7 +68,7 @@ const IssueRecord = sequelize.define('FacilityIssueRecord', {
         type: DataTypes.STRING(10),
         allowNull: true,
     },
-    // 'issued' | 'returned' | 'lost'.
+    // 'issued' | 'returned' | 'lost' | 'used' (a use-only item, closed at issue).
     status: {
         type: DataTypes.STRING(10),
         allowNull: false,
@@ -87,9 +91,9 @@ const IssueRecord = sequelize.define('FacilityIssueRecord', {
     tableName: 'IssueRecord',
     timestamps: true,
     indexes: [
-        { name: 'IX_FacilityIssueRecord_Company_Type_Status', fields: ['companyId', 'facilityTypeId', 'status'] },
+        { name: 'IX_FacilityIssueRecord_Company_Item_Status', fields: ['companyId', 'utilityItemId', 'status'] },
         { name: 'IX_FacilityIssueRecord_Company_Patron_Status', fields: ['companyId', 'patronId', 'status'] },
-        { name: 'IX_FacilityIssueRecord_Facility', fields: ['facilityId'] },
+        { name: 'IX_FacilityIssueRecord_Unit', fields: ['utilityUnitId'] },
     ],
 });
 

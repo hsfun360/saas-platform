@@ -533,10 +533,17 @@ FacilityType.hasMany(FacilityRegistration, { foreignKey: 'facilityTypeId', as: '
 FacilityRegistration.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
 Facility.hasMany(FacilityRegistration, { foreignKey: 'facilityId', as: 'Registrations', onDelete: 'RESTRICT' });
 FacilityRegistration.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
-FacilityType.hasMany(FacilityIssueRecord, { foreignKey: 'facilityTypeId', as: 'IssueRecords', onDelete: 'RESTRICT' });
-FacilityIssueRecord.belongsTo(FacilityType, { foreignKey: 'facilityTypeId', as: 'FacilityType' });
-Facility.hasMany(FacilityIssueRecord, { foreignKey: 'facilityId', as: 'IssueRecords', onDelete: 'RESTRICT' });
-FacilityIssueRecord.belongsTo(Facility, { foreignKey: 'facilityId', as: 'Facility' });
+// Slice 6a (2026-11-11): what the station hands out is a Utility Item with
+// its numbered units, no longer an issue-mode Facility Type; the issue
+// record hangs off the item and the unit (RESTRICT).
+const FacilityUtilityItem = require('../modules/facility/utilityItem.model');
+const FacilityUtilityUnit = require('../modules/facility/utilityUnit.model');
+FacilityUtilityItem.hasMany(FacilityUtilityUnit, { foreignKey: 'utilityItemId', as: 'Units', onDelete: 'RESTRICT' });
+FacilityUtilityUnit.belongsTo(FacilityUtilityItem, { foreignKey: 'utilityItemId', as: 'UtilityItem' });
+FacilityUtilityItem.hasMany(FacilityIssueRecord, { foreignKey: 'utilityItemId', as: 'IssueRecords', onDelete: 'RESTRICT' });
+FacilityIssueRecord.belongsTo(FacilityUtilityItem, { foreignKey: 'utilityItemId', as: 'UtilityItem' });
+FacilityUtilityUnit.hasMany(FacilityIssueRecord, { foreignKey: 'utilityUnitId', as: 'IssueRecords', onDelete: 'RESTRICT' });
+FacilityIssueRecord.belongsTo(FacilityUtilityUnit, { foreignKey: 'utilityUnitId', as: 'UtilityUnit' });
 // Facility slice 4 No show (structures approved 2026-10-26): a penalised
 // booking is never deleted (RESTRICT); the suspension references the
 // patron by id.

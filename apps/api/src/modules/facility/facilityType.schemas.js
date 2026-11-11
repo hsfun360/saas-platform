@@ -30,9 +30,6 @@ const body = {
     // entry mode
     capacity: numberish,
     // issue mode
-    trackUnits: bool,
-    maxIssuePerPatron: numberish,
-    issueDueDays: numberish,
     entryRequiresBooking: bool,
     noShowChargeEnabled: bool,
     noShowStrikeEnabled: bool,
@@ -48,7 +45,6 @@ const body = {
     hostMustBePresent: bool,
     // slice 2: default fees + approval
     feeTransactionTypeId: str(64),
-    issueFeeTransactionTypeId: str(64),
     guestFeeTransactionTypeId: str(64),
     requiresApproval: bool,
 };

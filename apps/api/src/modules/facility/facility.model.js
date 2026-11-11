@@ -3,11 +3,11 @@ const { sequelize } = require('../../platform/db');
 const { FACILITY_SCHEMA } = require('../../platform/schemas');
 
 // facility.Facility (structure approved 2026-10-25) - ONE physical unit of a
-// Facility Type: Badminton Court 1, Tennis Court 10, the Gym, Locker 001. A
-// counted consumable type (towels) has one row ("Towel counter"). The slot
+// Facility Type: Badminton Court 1, Tennis Court 10, the Gym. The slot
 // definition lives on the TYPE so ten courts share it; closures key on the
-// type with an optional single unit. Slice 3 adds `unitStatus` and
-// `currentIssueId` for issue-mode units. `companyId` is denormalised for
+// type with an optional single unit. Lockers and towels are NOT facilities
+// since 2026-11-11 (facility.UtilityItem / UtilityUnit carry them and the
+// unit status that used to sit here). `companyId` is denormalised for
 // listing and the per-company code uniqueness (the type carries it too).
 // Intra-service FK to the type (RESTRICT while units exist).
 const Facility = sequelize.define('Facility', {
@@ -75,20 +75,6 @@ const Facility = sequelize.define('Facility', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
-    },
-    // ---- slice 3 (structures approved 2026-10-26) ----
-    // Issue-mode units with trackUnits ON: 'available' | 'issued' |
-    // 'out-of-service' (a damaged or lost return parks the unit until the
-    // desk clears it); other modes stay 'available'.
-    unitStatus: {
-        type: DataTypes.STRING(20),
-        allowNull: false,
-        defaultValue: 'available',
-    },
-    // The live IssueRecord while 'issued'.
-    currentIssueId: {
-        type: DataTypes.UUID,
-        allowNull: true,
     },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },

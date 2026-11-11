@@ -1,7 +1,9 @@
 // Control Station engine (structures approved 2026-10-26, slice 3): the
 // day's picture per facility type, the check-in of a booked slot, the walk-in
-// entry with its guests and its bill, sign-out, the issue and return of units
-// and consumables, the end-of-day sweep and the worker's auto sign-out. The
+// entry with its guests and its bill, sign-out, the issue and return of the
+// UTILITY ITEMS (slice 6a, 2026-11-11: lockers, towels and showers live in
+// their own master, no longer as issue-mode facility types), the end-of-day
+// sweep and the worker's auto sign-out. The
 // pure verdicts live in stationRules.service.js and bookingRules.service.js;
 // bills open through billing.service.js exactly as a booking's bill does.
 
@@ -20,6 +22,9 @@ const BookingParticipant = require('./bookingParticipant.model');
 const Registration = require('./registration.model');
 const RegistrationGuest = require('./registrationGuest.model');
 const IssueRecord = require('./issueRecord.model');
+const UtilityItem = require('./utilityItem.model');
+const UtilityUnit = require('./utilityUnit.model');
+const utilityRules = require('./utilityRules.service');
 const Patron = require('./patron.model');
 const TransactionType = require('./transactionType.model');
 const availability = require('./bookingAvailability.service');
@@ -91,9 +96,9 @@ function issueDto(i, { patron, unit, bill = null } = {}, now = new Date()) {
     return {
         id: i.id,
         patron: patron ? { id: patron.id, name: patron.name, memberNo: patron.memberNo } : null,
-        facilityTypeId: i.facilityTypeId,
-        facilityId: i.facilityId,
-        facility: unit ? { id: unit.id, code: unit.code, name: unit.name } : null,
+        utilityItemId: i.utilityItemId,
+        utilityUnitId: i.utilityUnitId,
+        unit: unit ? { id: unit.id, code: unit.code, location: unit.location } : null,
         registrationId: i.registrationId,
         quantity: i.quantity,
         issuedAt: i.issuedAt,
@@ -110,26 +115,36 @@ function issueDto(i, { patron, unit, bill = null } = {}, now = new Date()) {
 }
 
 function unitDto(u) {
-    return { id: u.id, code: u.code, name: u.name, location: u.location, capacity: u.capacity, isActive: u.isActive !== false, unitStatus: u.unitStatus || 'available', currentIssueId: u.currentIssueId || null };
+    return { id: u.id, code: u.code, name: u.name, location: u.location, capacity: u.capacity, isActive: u.isActive !== false };
+}
+
+// A numbered unit of a utility item on the station's board.
+function utilityUnitDto(u) {
+    return { id: u.id, code: u.code, location: u.location, isActive: u.isActive !== false, unitStatus: u.unitStatus || 'available', currentIssueId: u.currentIssueId || null, remarks: u.remarks };
 }
 
 // ---- the day's picture --------------------------------------------------------------
 
-// Everything the station shows for one date: per active type, by mode.
+// Everything the station shows for one date: per active facility type, by
+// mode, and per active utility item (the unit board or the counter).
 async function dayPicture(companyId, date, callerId) {
-    const [{ now }, types, units, { setting, sessions }, dayType] = await Promise.all([
+    const [{ now, timezone }, types, units, { setting, sessions }, dayType] = await Promise.all([
         clock(companyId),
-        FacilityType.findAll({ where: { companyId, isActive: true }, order: [['usageMode', 'ASC'], ['sortOrder', 'ASC'], ['code', 'ASC']] }),
+        FacilityType.findAll({ where: { companyId, isActive: true, usageMode: { [Op.in]: ['slot', 'entry'] } }, order: [['usageMode', 'ASC'], ['sortOrder', 'ASC'], ['code', 'ASC']] }),
         Facility.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
         availability.loadRules(companyId),
         shared.dayTypeOf(companyId, date),
     ]);
     const unitById = new Map(units.map((u) => [u.id, u]));
-    const typeIds = types.map((t) => t.id);
+    const [utilityItems, utilityUnits] = await Promise.all([
+        UtilityItem.findAll({ where: { companyId, isActive: true }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
+        UtilityUnit.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
+    ]);
+    const utilityUnitById = new Map(utilityUnits.map((u) => [u.id, u]));
     const [slots, registrations, issues] = await Promise.all([
         BookingSlot.findAll({ where: { companyId, bookingDate: date, status: { [Op.in]: ACTIVE_SLOT_STATUS_KEYS } }, order: [['startTime', 'ASC']] }),
         Registration.findAll({ where: { companyId, registrationDate: date }, order: [['timeIn', 'ASC']] }),
-        IssueRecord.findAll({ where: { companyId, [Op.or]: [{ status: 'issued' }, { returnedAt: { [Op.gte]: new Date(`${date}T00:00:00Z`) } }] }, order: [['issuedAt', 'ASC']] }),
+        IssueRecord.findAll({ where: { companyId, [Op.or]: [{ status: 'issued' }, { returnedAt: { [Op.gte]: new Date(`${date}T00:00:00Z`) } }, { status: 'used', issuedAt: { [Op.gte]: localToDate(`${date}T00:00`, timezone) } }] }, order: [['issuedAt', 'ASC']] }),
     ]);
     const bookingIds = [...new Set(slots.map((s) => s.bookingId))];
     const bookings = bookingIds.length ? await Booking.findAll({ where: { id: { [Op.in]: bookingIds } } }) : [];
@@ -165,7 +180,7 @@ async function dayPicture(companyId, date, callerId) {
         const hours = rules.openingHours(t, dayType);
         const base = {
             id: t.id, code: t.code, description: t.description, usageMode: t.usageMode, iconUrl: t.iconUrl,
-            capacity: t.capacity, trackUnits: t.trackUnits !== false, maxIssuePerPatron: t.maxIssuePerPatron, issueDueDays: t.issueDueDays || 0,
+            capacity: t.capacity,
             entryRequiresBooking: t.entryRequiresBooking === true, guestsAllowed: t.guestsAllowed !== false, memberGuestsAllowed: t.memberGuestsAllowed !== false,
             maxGuestsPerBooking: t.maxGuestsPerBooking,
             hours: hours ? { open: hhmm(dayType === 'weekend' ? t.openTimeWeekend : t.openTimeWeekday), close: hhmm(dayType === 'weekend' ? t.closeTimeWeekend : t.closeTimeWeekday) } : null,
@@ -198,24 +213,32 @@ async function dayPicture(companyId, date, callerId) {
                 }),
             };
         }
-        if (t.usageMode === 'entry') {
-            const regs = registrations.filter((r) => r.facilityTypeId === t.id && !r.bookingSlotId);
-            return {
-                ...base,
-                liveCount: rules.liveCount(regs),
-                registrations: regs.map((r) => registrationDto(r, { patron: patronById.get(r.patronId), unit: r.facilityId ? unitById.get(r.facilityId) : null, guests: guestsByReg.get(r.id) || [], bill: billByReg.get(r.id) || null })),
-            };
-        }
-        const typeIssues = issues.filter((i) => i.facilityTypeId === t.id);
+        const regs = registrations.filter((r) => r.facilityTypeId === t.id && !r.bookingSlotId);
         return {
             ...base,
-            outCount: typeIssues.filter((i) => i.status === 'issued').reduce((s, i) => s + Number(i.quantity), 0),
-            issues: typeIssues.map((i) => issueDto(i, { patron: patronById.get(i.patronId), unit: i.facilityId ? unitById.get(i.facilityId) : null, bill: billByIssue.get(i.id) || null }, nowDate)),
+            liveCount: rules.liveCount(regs),
+            registrations: regs.map((r) => registrationDto(r, { patron: patronById.get(r.patronId), unit: r.facilityId ? unitById.get(r.facilityId) : null, guests: guestsByReg.get(r.id) || [], bill: billByReg.get(r.id) || null })),
+        };
+    });
+    // The utility items: the unit board of a numbered item, the counter of a
+    // counted one, the day's uses of a use-only one.
+    const utilityOut = utilityItems.map((it) => {
+        const itemIssues = issues.filter((i) => i.utilityItemId === it.id);
+        const itemUnits = utilityUnits.filter((u) => u.utilityItemId === it.id);
+        return {
+            id: it.id, code: it.code, description: it.description, iconUrl: it.iconUrl,
+            behaviour: utilityRules.behaviourOf(it), trackUnits: it.trackUnits === true, returnRequired: it.returnRequired !== false,
+            stockQuantity: it.stockQuantity, maxPerPerson: it.maxPerPerson, dueDays: it.dueDays || 0,
+            guestsAllowed: it.guestsAllowed !== false, requiresEntry: it.requiresEntry === true,
+            units: itemUnits.map(utilityUnitDto),
+            outCount: itemIssues.filter((i) => i.status === 'issued').reduce((sum, i) => sum + Number(i.quantity), 0),
+            usedCount: itemIssues.filter((i) => i.status === 'used').reduce((sum, i) => sum + Number(i.quantity), 0),
+            issues: itemIssues.map((i) => issueDto(i, { patron: patronById.get(i.patronId), unit: i.utilityUnitId ? utilityUnitById.get(i.utilityUnitId) : null, bill: billByIssue.get(i.id) || null }, nowDate)),
         };
     });
     const classesEnabled = setting.classesEnabled === true;
     const classSessions = classesEnabled ? await classSessionsOn(companyId, date) : [];
-    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, noShowControlled: !!cfg, noShowGraceMinutes: cfg ? cfg.graceMinutes : null, types: out, classesEnabled, classSessions, callerId };
+    return { date, dayType, clubNow: now, checkInOpenMinutes: setting.checkInOpenMinutes ?? 30, noShowControlled: !!cfg, noShowGraceMinutes: cfg ? cfg.graceMinutes : null, types: out, utilityItems: utilityOut, classesEnabled, classSessions, callerId };
 }
 
 // ---- slice 5b: the day's class sessions (the station's Classes view) ----------------
@@ -592,57 +615,60 @@ async function replaceGuests(req, id, body) {
     return { message: `Guests saved on ${r.registrationNo}.` };
 }
 
-// ---- rule 5: issue -----------------------------------------------------------------------------
+// ---- rule 5: issue (a utility item, slice 6a) -------------------------------------------------
 
+// `body` = { utilityItemId, utilityUnitId (a numbered item; none = the next
+// available), quantity (a counted or use-only item), memberNo,
+// registrationId, remarks }. A use-only item closes as 'used' at once.
 async function issue(req, body) {
     const companyId = getUserContext(req).companyId;
-    const type = await FacilityType.findOne({ where: { companyId, id: String(body.facilityTypeId || ''), usageMode: 'issue', isActive: true } });
-    if (!type) return { error: 'Pick an issue facility type.' };
-    const trackUnits = type.trackUnits !== false;
+    const item = await UtilityItem.findOne({ where: { companyId, id: String(body.utilityItemId || ''), isActive: true } });
+    if (!item) return { error: 'Pick a utility item.' };
+    const behaviour = utilityRules.behaviourOf(item);
     const m = await memberStanding(companyId, body.memberNo);
     if (m.error) return m;
     const standing = m.standing;
-    const [{ now, timezone }] = await Promise.all([clock(companyId)]);
+    const { now, timezone } = await clock(companyId);
     const date = now.date;
     const dayType = await shared.dayTypeOf(companyId, date);
-    const hours = rules.openingHours(type, dayType);
-    if (!rules.isOpenAt(hours, now.time)) return { error: `${type.code} is closed at ${now.time}.` };
-    const quantity = trackUnits ? 1 : Number(body.quantity || 1);
+    const quantity = behaviour === 'units' ? 1 : Number(body.quantity || 1);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > STATION_LIMITS.maxIssueQuantity) return { error: `Quantity must be between 1 and ${STATION_LIMITS.maxIssueQuantity}.` };
-    const units = await availability.unitsOf(companyId, type.id);
-    const blocks = await availability.closureBlocks(companyId, type.id, units.map((u) => u.id), date);
-    const nowMin = toMinutes(now.time);
     const stamps = await stampsFor(req);
     const warnings = [];
     const result = await runTx(sequelize, async (transaction) => {
         let unit = null;
-        if (trackUnits) {
-            const wanted = body.facilityId ? String(body.facilityId) : null;
-            const candidates = await Facility.findAll({ where: { companyId, facilityTypeId: type.id, isActive: true, unitStatus: 'available', ...(wanted ? { id: wanted } : {}) }, order: [['sortOrder', 'ASC'], ['code', 'ASC']], transaction, lock: transaction.LOCK.UPDATE });
-            unit = candidates.find((u) => !bookingRules.isBlocked(blocks.get(u.id) || [], nowMin, nowMin + 1)) || null;
-            if (!unit) txFail(wanted ? 'That unit is not available.' : `No ${type.code} unit is available right now.`);
-        } else {
-            unit = units[0] || null;
-            if (unit && bookingRules.isBlocked(blocks.get(unit.id) || [], nowMin, nowMin + 1)) txFail(`${type.code} is closed right now.`);
+        if (behaviour === 'units') {
+            const wanted = body.utilityUnitId ? String(body.utilityUnitId) : null;
+            const candidates = await UtilityUnit.findAll({ where: { companyId, utilityItemId: item.id, isActive: true, unitStatus: 'available', ...(wanted ? { id: wanted } : {}) }, order: [['sortOrder', 'ASC'], ['code', 'ASC']], limit: 1, transaction, lock: transaction.LOCK.UPDATE });
+            unit = candidates[0] || null;
+            if (!unit) txFail(wanted ? 'That unit is not available.' : `No ${item.code} unit is available right now.`);
         }
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
-        const live = await IssueRecord.findAll({ where: { companyId, facilityTypeId: type.id, status: 'issued', patronId: patron.id }, transaction });
-        const limitError = rules.issueLimitVerdict({ held: rules.heldByPatron(live, patron.id), taking: quantity, limit: Number(type.maxIssuePerPatron || 0), name: standing.name, unitWord: trackUnits ? `${type.code} units` : `${type.code} pieces` });
+        // The limit: what the person holds now, or (a use-only item) what
+        // they have used today.
+        const liveWhere = behaviour === 'use'
+            ? { companyId, utilityItemId: item.id, status: 'used', patronId: patron.id, issuedAt: { [Op.gte]: localToDate(`${date}T00:00`, timezone) } }
+            : { companyId, utilityItemId: item.id, status: 'issued', patronId: patron.id };
+        const live = await IssueRecord.findAll({ where: liveWhere, attributes: ['quantity'], transaction });
+        const held = live.reduce((sum, i) => sum + Number(i.quantity || 1), 0);
+        const unitWord = behaviour === 'units' ? `${item.code} units` : behaviour === 'use' ? `${item.code} uses today` : `${item.code} pieces`;
+        const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: standing.name, unitWord });
         if (limitError) txFail(limitError);
-        const dueBack = localToDate(rules.dueBackLocal({ issueDate: date, dueDays: type.issueDueDays || 0, hours }), timezone);
+        const issuedAt = new Date();
+        const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date, dueDays: item.dueDays || 0, hours: null }), timezone);
         const record = await IssueRecord.create({
-            companyId, patronId: patron.id, facilityTypeId: type.id, facilityId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
-            quantity, issuedAt: new Date(), dueBack, status: 'issued', remarks: body.remarks ? String(body.remarks).slice(0, 255) : null, ...stamps,
+            companyId, patronId: patron.id, utilityItemId: item.id, utilityUnitId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
+            quantity, issuedAt, dueBack, status: behaviour === 'use' ? 'used' : 'issued', remarks: body.remarks ? String(body.remarks).slice(0, 255) : null, ...stamps,
         }, { transaction });
-        if (trackUnits && unit) {
+        if (unit) {
             unit.unitStatus = 'issued';
             unit.currentIssueId = record.id;
             unit.updatedBy = stamps.updatedBy;
             await unit.save({ transaction });
         }
-        if (type.issueFeeTransactionTypeId) {
-            const feeType = await TransactionType.findOne({ where: { companyId, id: type.issueFeeTransactionTypeId, isActive: true }, transaction });
-            if (!feeType) warnings.push(`${type.code}'s issue fee item is missing or disabled - no fee was charged.`);
+        if (item.feeTransactionTypeId) {
+            const feeType = await TransactionType.findOne({ where: { companyId, id: item.feeTransactionTypeId, isActive: true }, transaction });
+            if (!feeType) warnings.push(`${item.code}'s fee item is missing or disabled - no fee was charged.`);
             else {
                 const issued = await billing.issueBillNo(req, { transaction });
                 if (issued.error) txFail(issued.error);
@@ -657,8 +683,10 @@ async function issue(req, body) {
         return { record, unit };
     });
     if (result.error) return result;
-    const what = trackUnits ? `${result.unit.code}` : `${quantity} ${type.code}`;
-    return { message: `${what} issued to ${standing.name}.`, issueId: result.record.id, warnings };
+    const message = behaviour === 'units' ? `${result.unit.code} issued to ${standing.name}.`
+        : behaviour === 'use' ? `${item.code}${quantity > 1 ? ` x ${quantity}` : ''} recorded for ${standing.name}.`
+            : `${quantity} ${item.code} issued to ${standing.name}.`;
+    return { message, issueId: result.record.id, warnings };
 }
 
 // ---- rule 6: return ------------------------------------------------------------------------------
@@ -667,9 +695,10 @@ async function returnIssue(req, id, body) {
     const companyId = getUserContext(req).companyId;
     const record = await IssueRecord.findOne({ where: { companyId, id } });
     if (!record) return { error: 'Issue record not found.', status: 404 };
+    if (record.status === 'used') return { error: 'A use has nothing to return.' };
     if (record.status !== 'issued') return { error: `Already ${record.status}.` };
-    const type = await FacilityType.findOne({ where: { id: record.facilityTypeId } });
-    const trackUnits = type ? type.trackUnits !== false : true;
+    const item = await UtilityItem.findOne({ where: { id: record.utilityItemId } });
+    const trackUnits = item ? item.trackUnits === true : !!record.utilityUnitId;
     const outcome = rules.returnOutcome({ condition: String(body.condition || ''), quantity: record.quantity, returnedQuantity: body.returnedQuantity, trackUnits });
     if (outcome.error) return { error: outcome.error };
     const callerId = getUserContext(req).userId;
@@ -681,8 +710,8 @@ async function returnIssue(req, id, body) {
         record.remarks = body.remarks ? String(body.remarks).slice(0, 255) : record.remarks;
         record.updatedBy = callerId;
         await record.save({ transaction });
-        if (trackUnits && record.facilityId) {
-            await Facility.update({ unitStatus: outcome.unitStatus, currentIssueId: null, updatedBy: callerId }, { where: { id: record.facilityId }, transaction });
+        if (trackUnits && record.utilityUnitId) {
+            await UtilityUnit.update({ unitStatus: outcome.unitStatus, currentIssueId: null, updatedBy: callerId }, { where: { id: record.utilityUnitId }, transaction });
         }
     });
     const lost = outcome.lostQuantity ? ` ${outcome.lostQuantity} lost - charge it from the bill's tiles if the club bills losses.` : '';
@@ -691,7 +720,7 @@ async function returnIssue(req, id, body) {
 
 async function clearUnit(req, unitId) {
     const companyId = getUserContext(req).companyId;
-    const unit = await Facility.findOne({ where: { companyId, id: unitId } });
+    const unit = await UtilityUnit.findOne({ where: { companyId, id: unitId } });
     if (!unit) return { error: 'Unit not found.', status: 404 };
     if (unit.unitStatus !== 'out-of-service') return { error: `${unit.code} is ${unit.unitStatus}.` };
     unit.unitStatus = 'available';
@@ -707,7 +736,7 @@ async function endOfDay(req, { facilityTypeId = null, date }) {
     const where = { companyId, status: 'in', registrationDate: { [Op.lte]: date } };
     if (facilityTypeId) where.facilityTypeId = facilityTypeId;
     const [n] = await Registration.update({ status: 'out', timeOut: new Date(), updatedBy: getUserContext(req).userId }, { where });
-    const overdue = await IssueRecord.count({ where: { companyId, status: 'issued', dueBack: { [Op.lt]: new Date() }, ...(facilityTypeId ? { facilityTypeId } : {}) } });
+    const overdue = facilityTypeId ? 0 : await IssueRecord.count({ where: { companyId, status: 'issued', dueBack: { [Op.lt]: new Date() } } });
     // Slice 4 rule 3: every still-booked slot past its end on the date is a
     // no-show (charges raised, strikes counted) while the control is ON.
     let sweep = null;
@@ -717,7 +746,7 @@ async function endOfDay(req, { facilityTypeId = null, date }) {
         const past = booked.filter((s) => bookingRules.minutesUntil(now, String(s.bookingDate), hhmm(s.endTime)) <= 0).map((s) => s.id);
         if (past.length) sweep = await markNoShows(req, { slotIds: past });
     }
-    const msg = `${n} registration${n === 1 ? '' : 's'} signed out.${overdue ? ` ${overdue} issue${overdue === 1 ? '' : 's'} overdue.` : ''}${sweep && !sweep.error ? ` ${sweep.message}` : ''}`;
+    const msg = `${n} registration${n === 1 ? '' : 's'} signed out.${overdue ? ` ${overdue} utility item${overdue === 1 ? '' : 's'} overdue.` : ''}${sweep && !sweep.error ? ` ${sweep.message}` : ''}`;
     return { message: msg, signedOut: n, overdue, noShows: sweep && !sweep.error ? sweep.marked : 0 };
 }
 

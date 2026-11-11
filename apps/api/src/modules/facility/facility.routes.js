@@ -19,7 +19,7 @@ router.use(requireModule('FACILITY'));
 
 const SLICE1_MENUS = ['/facility/settings', '/facility/facility-types', '/facility/facilities', '/facility/closures',
     '/facility/participant-types', '/facility/transaction-types', '/facility/payment-types', '/facility/numbering', '/facility/bookings', '/facility/station', '/facility/no-show-charges', '/facility/suspensions',
-    '/facility/venues', '/facility/instructors', '/facility/classes', '/facility/class-schedule'];
+    '/facility/venues', '/facility/instructors', '/facility/classes', '/facility/class-schedule', '/facility/utility-items'];
 
 // --- Vocabularies for every slice-1 screen ---
 const facilityTypeController = require('./facilityType.controller');
@@ -91,6 +91,11 @@ router.use('/class-enrolments', requireMenuAction('/facility/class-schedule'), e
 // Slice 5c: the patron's cancellation (with its preview) and the waitlist -
 // the Class Schedule's roster and the Control Station's Classes view share them.
 router.use('/class-lifecycle', requireAnyMenuAction(['/facility/class-schedule', '/facility/station']), require('./classLifecycle.routes'));
+
+// --- Slice 6a Utility Items (structures approved 2026-11-11): what the
+// station hands out, with its numbered units. The station reads the master;
+// writes need the Utility Items grant. ---
+router.use('/utility-items', readsOn(['/facility/utility-items', '/facility/station'], '/facility/utility-items'), require('./utilityItems.routes'));
 
 // --- Numbering Control (facility-owned series: booking / registration / bill) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
