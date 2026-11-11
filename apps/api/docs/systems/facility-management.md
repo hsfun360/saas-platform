@@ -949,6 +949,116 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile); under `/class-lifecycle` (the Class Schedule or Control Station grant, built 5c): `GET /enrolments/:id/cancel-preview`, `POST /enrolments/:id/cancel`, `POST /waitlist` (the enrol body), `POST /waitlist/:id/offer`, `POST /waitlist/:id/confirm`, `POST /waitlist/:id/withdraw`; the closure `generate-days` preview returns `classSessions` and `PUT days` cancels them; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
 - Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
+### Slice 6 - Station Arrival: the party at the door (DRAFT 2026-11-11, for approval - nothing built)
+
+**Status:** drafted 2026-11-11 at the user's request; no table, route or screen of this section exists yet.
+The station of slice 3 serves ONE member per action: the entry form takes a member number and guest lines, and an issue takes a member number only.
+A member who brings a guest to the pool, both wanting a towel and a locker, is four separate actions today, every towel and locker lands under the member's name, and the guest's day pass (Membership's Guest Registration, 2026-11-10) is not read at the station at all.
+The door's guest line also carries only a name, so a guest who was registered upfront is counted twice on the host's monthly allowance: once by the pass and once by the door.
+This slice makes the station handle the PARTY in one action, names the person holding each towel and locker, and reads or issues the guest's pass at the door so a known guest counts once.
+No new table: five existing tables gain columns, and Membership gains three calls on its seam.
+Every table keeps its `id` (UUID v4) primary key.
+
+#### The two walk-throughs (a member and one guest, pool + towel + locker each)
+
+**With the guest registered upfront (the guest holds a QR pass).**
+1. The desk presses **Arrival** and scans the guest's pass (camera, or a handheld scanner typing into the field).
+2. The drawer fills the host from the pass (name, member number, standing, the monthly allowance) and adds the guest as a line marked "Pass G2611-00012, valid today".
+3. The desk picks the pool, and ticks Towel and Locker on the member's line and on the guest's line.
+4. The preview states the outcome before anything is saved: 2 people into the pool (38 of 40 after this), the guest already counted today by the pass (no further draw on the allowance), lockers L003 and L004, 2 towels, the fees per line and the total on ONE bill.
+5. **Admit 2 and issue 4 items** saves everything in one transaction: the entry, the guest line, the pass marked arrived, the four issue records each naming its holder, and the bill.
+
+**Without upfront registration.**
+1. The desk presses **Arrival** and keys the member number.
+2. The desk adds the guest: the participant type, the name, and a mobile or an email.
+3. Steps 3 to 5 as above.
+   On save the station registers the guest with Membership on the spot (a Guest Registration on channel `facility`, already arrived), so the guest gets the same pass, the result view offers Email and WhatsApp for it, and the visit counts once per host per day like any known guest.
+   A guest keyed with a name only enters as today's casual line: no pass, and the line counts its own visit.
+
+**Later in the day.**
+A second towel: the Issue form asks "For" and lists the member and the guests of the party who are inside.
+Return: the desk scans the guest's pass or keys the member number, and the board narrows to that party's rows, each showing its holder ("L004 - Tan Wei Ming, guest of Ahmad Faizal").
+Sign-out lists what the party still holds, with Return beside each.
+
+#### Decisions proposed here and open for your change
+
+1. **Whose account.** A guest's towel and locker fees go on the HOST's bill, the same bill as the entry and the guest fee, priced at the guest line's participant type.
+   The alternative (a bill of the guest's own, settled by the guest at the counter) needs the guest as a billable party and is not proposed.
+2. **Items only for people inside.** Each issue type gets a switch, `issueRequiresEntry` (default OFF, today's behaviour): ON refuses a towel or locker unless the holder is inside today (a live entry as the member or as a guest line, or a checked-in booking).
+3. **A guest with no mobile or email.** Allowed in by name only, without a pass, exactly as today; a Specification switch (`doorGuestContactRequired`, default OFF) lets a club insist on the contact so every guest is known.
+4. **A guest who arrives before the host.** Follows the type's existing `hostMustBePresent` flag: ON refuses the guest until the member is in the party or already inside today; OFF admits a guest holding a valid pass alone, on a registration in the host's name that counts only the guest (`Registration.hostPresent` false).
+   A guest WITHOUT a pass never enters alone.
+5. **The limit is per person.** `maxIssuePerPatron` reads as "per person": the member and each guest may each hold up to the limit (one locker each), where today two lockers for the party need a limit of 2 on the member.
+6. **A member who comes as another member's guest** holds items on their OWN member number, as a member; only visitor guests are "held for a guest".
+7. **Booked courts.** The guests on a booked slot's roster (check-in) keep today's behaviour in this slice; giving the booking's guest lines the same identity and pass is a following step.
+
+#### `facility.IssueRecord` - gains the holder
+
+`patronId` changes meaning from "the member holding it" to "the member RESPONSIBLE for it": the host whose bill carries the fee and to whom a loss is charged.
+The holder is that member unless the three new columns say otherwise.
+New index `(companyId, guestRegistrationId, status)` (return by scanning the pass).
+
+| Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `id` | UUID | no | uuid v4 | Primary key (unchanged). |
+| `patronId` | UUID | no | | REWORDED: the responsible member (the host). |
+| `holderName` | STRING | yes | | NEW. The guest holding the unit or the pieces, as a snapshot; NULL = the member holds it. |
+| `registrationGuestId` | UUID | yes | | NEW. The door line of the guest (intra-service FK to `RegistrationGuest`, SET NULL); NULL when the guest was served on a pass without an entry. |
+| `guestRegistrationId` | UUID | yes | | NEW. The guest's day pass, `membership.GuestRegistration.id` (value ref across the seam, no FK); NULL for a name-only guest. |
+| every other column | | | | Unchanged (`facilityTypeId`, `facilityId`, `registrationId`, `quantity`, `issuedAt`, `dueBack`, `returnedAt`, `returnedQuantity`, `returnCondition`, `status`, `feeBillId`, `remarks`, the stamps). |
+
+#### Columns added on the other tables
+
+| Table | Column | Type | Null | Default | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `facility.RegistrationGuest` | `guestId` | UUID | yes | | The known guest, `membership.Guest.id` (value ref); passed to the ledger so the guest counts once per host per day. NULL = a name-only line. |
+| `facility.RegistrationGuest` | `guestRegistrationId` | UUID | yes | | The day pass behind the line (value ref): the one scanned, or the one the station created. Index `(companyId, guestRegistrationId)`. |
+| `facility.RegistrationGuest` | `passCreatedHere` | BOOLEAN | no | false | The station created the pass for this line (so removing the line before sign-out cancels that pass; a pass registered upfront is never cancelled by the station). |
+| `facility.Registration` | `hostPresent` | BOOLEAN | no | true | false = a guest admitted on a pass before the host arrived (decision 4); the live count then adds the guests only. |
+| `facility.FacilityType` | `issueRequiresEntry` | BOOLEAN | no | false | Issue types only (decision 2). |
+| `facility.FacilitySetting` | `doorGuestPassEnabled` | BOOLEAN | no | true | ON = a visitor guest keyed at the door with a mobile or an email is registered with Membership and gets the day pass. OFF = the door keeps name-only lines (a club that does not use passes). |
+| `facility.FacilitySetting` | `doorGuestContactRequired` | BOOLEAN | no | false | ON = a visitor guest at the door must carry a mobile or an email (decision 3). |
+
+`Bill` is unchanged: the arrival's ONE bill hangs off the entry registration as today and carries the entry fee, the guest fees and the issue fees of the party; each issue record's `feeBillId` points at it.
+An arrival with no entry (items only, on a pass or for the member alone) opens the one bill on its first issue record, and the party's other issue records point at the same bill.
+
+#### Membership additions (owned by Membership; no table change)
+
+`membership.GuestRegistration.channel` already lists `facility`.
+Three calls join `platform/membershipGateway.js`, each a thin wrapper over `guestRegistration.service.js` and `guestVisit.service.js`:
+
+- `findGuestPass(companyId, code)` - the pass behind a scanned link or token: the registration id and number, the guest (id, name), the host (member id, number, name), the visit date and the derived state (`valid` / `upcoming` / `expired` / `cancelled`), and whether it is already `arrived`.
+- `registerGuestAtDoor(req, { memberId, visitDate, guest, channel: 'facility' }, { transaction })` - finds or creates the `Guest` by the Guest Registration rules (same name and the same mobile or email is the returning guest), returns the live registration of that guest with that host for the date when one exists, else creates one already `arrived` with its number from the `membership-guest` series; `cancelGuestAtDoor` undoes one the station created.
+  No "Guest Registration No." series = the line is kept name-only with a warning to the desk, never a refusal at the door.
+- `markGuestArrived(companyId, guestRegistrationId, { actorId, transaction })` - idempotent; the pass page then shows the guest as arrived.
+
+`recordGuestVisit` already takes `guestId`; the station now sends it.
+`getGuestAllowanceStanding` gains an optional list of guest ids and answers how many of them are already counted for the host that day, so the door's allowance check asks only for the guests who would draw a new visit.
+
+#### Arrival rules (binding at the desk)
+
+1. **The party** is one host member plus zero or more guest lines; the member's standing gates it as in slice 3 (barred refuses, warning shows).
+2. **A scanned pass** must belong to this club, be `valid` today by the club clock and not cancelled; an `upcoming` or `expired` pass is refused with its date; a pass of a different host than the party's is refused ("start a separate arrival"); a pass already `arrived` is accepted (the guest stepped out and came back) and draws nothing.
+3. **A keyed guest** with a mobile or an email becomes a known guest through `registerGuestAtDoor` when `doorGuestPassEnabled` is ON; with `doorGuestContactRequired` ON a visitor line without either is refused.
+4. **The guest rules of slice 2 and 3 run unchanged** on the lines (exception, then the type's policy, then the general flags; `maxGuestsPerBooking` per visit), and the monthly allowance is checked for the lines that would draw a NEW visit only.
+5. **The entry** (when an entry type is picked) follows slice 3 rule 2: opening hours, closures, the capacity against the people actually arriving (`hostPresent` false counts the guests only), `entryRequiresBooking`.
+6. **Each item** names its holder; the limit is checked per holder; a locker is the picked unit or the next available, a towel is a quantity; `issueRequiresEntry` ON refuses a holder who is not inside after this arrival.
+7. **Fees**: the entry fee and the guest fees as slice 3 rule 8; each item's issue fee at the HOLDER's participant type (`member` for the member, the line's type for a guest), all on the one bill in the host's name.
+8. **One transaction**: the entry, the lines, the passes created or marked arrived, the ledger lines, the issue records, the units flipped to `issued` and the bill commit together or not at all; the preview and the save run the same checks.
+9. **Return and sign-out**: a return is found by the pass, the member number or the board; sign-out of a registration lists the party's items still out and never blocks (the end-of-day list keeps them).
+10. **Removing a guest line** before sign-out voids its ledger line as today, refuses while the guest still holds an item, and cancels the pass only when the station created it.
+
+#### Slice 6 screens and API
+
+- **Control Station** gains an **Arrival** button and **Scan pass** on the station's header, available from every view: ONE drawer in the station's existing dialog (mode `arrival`) with the party (member number or scanned pass, the guest lines with type, name, mobile, email and a per-line Scan), the entry type (or "Items only"), a row per person with a tick per issue type (quantity for a counted type, the unit picker for a numbered one), and the live preview of rule 8 with the concrete button label ("Admit 2 and issue 4 items").
+  The result view lists the registration number, each person's locker, the bill, and the pass of every guest the station registered with Email and WhatsApp.
+- The **Issue** form gains "For": the member, or a guest of the member's party inside today, or a scanned pass; the board and the lists show the holder and the host on every row; **Return** accepts a scanned pass to narrow the board.
+- The **Register** and **Guests** forms gain the mobile and email fields and the per-line Scan, so the single-member path gives the same pass and the same counting.
+- **Facility Specification** gains the two door switches in the guest card; **Facility Types** gains "Items only for people inside" on an issue type.
+- API under `/api/facility/station`: `POST /scan` (code: the pass and the party's picture for today), `GET /party?memberNo` (the host's standing and allowance, the guests inside, the items out), `POST /arrivals/preview` and `POST /arrivals` (memberNo, hostPresent, facilityTypeId or none, facilityId, the guest lines each with an optional guestRegistrationId, the items each with its holder), `POST /issues` gains the holder (a registrationGuestId or a guestRegistrationId), `GET /today` rows gain the holder and the host.
+- No new menu: everything sits on `/facility/station`.
+- Build order inside the slice: 6a the known guest at the door (the seam calls, `RegistrationGuest` columns, Scan and contact on the Register form, counting once); 6b the holder (the `IssueRecord` columns, Issue "For", the per-person limit, the fee at the holder's type, return by pass, the sign-out list, `issueRequiresEntry`); 6c the Arrival drawer (the party in one transaction with its preview, `hostPresent`).
+
 ## Public API (gateway seam: `/api/facility`)
 
 - `GET /health` returns `{ service: 'facility', status: 'ok' }`; the slice-1 routes are listed under *Slice 1 screens and API*; anything else answers `501` behind `verifyToken` + `requireModule('FACILITY')` so a caller can tell "wrong URL" from "planned but not implemented".
