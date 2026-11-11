@@ -20,7 +20,8 @@ import {
   StationRegistration,
   StationSlot,
   StationType,
-  StationUnit,
+  StationUtilityItem,
+  StationUtilityUnit,
 } from '../services/facility-station.service';
 
 // One guest line at the door (typed FormGroup in the FormArray).
@@ -35,10 +36,11 @@ type GuestGroup = FormGroup<{
 // and a type strip: a slot type lists today's booked slots to CHECK IN by the
 // clock (early / open / closed), an entry type shows the live count against
 // the capacity and the register of who is in (Register a member with guests,
-// Sign out, edit guests), an issue type shows the unit board coloured by
-// status or the pieces out (Issue to a member, Return with the condition,
-// Clear a parked unit), and End of day signs everyone out and lists the
-// overdue issues. Bills open in the bookings screen's one bill drawer.
+// Sign out, edit guests), a UTILITY ITEM (slice 6a: lockers, towels and
+// showers have their own master) shows its unit board coloured by status,
+// its pieces out or its uses today (Issue to a member, Return with the
+// condition, Clear a parked unit), and End of day signs everyone out and
+// lists the overdue items. Bills open in the bookings screen's one bill drawer.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-facility-station',
@@ -67,6 +69,9 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   readonly typeId = signal('');
   readonly types = computed(() => this.day()?.types || []);
   readonly current = computed<StationType | null>(() => this.types().find((t) => t.id === this.typeId()) || null);
+  // Slice 6a: the utility items sit on the same strip as the facility types.
+  readonly utilityItems = computed<StationUtilityItem[]>(() => this.day()?.utilityItems || []);
+  readonly currentItem = computed<StationUtilityItem | null>(() => this.utilityItems().find((u) => u.id === this.typeId()) || null);
   // Slice 5b: the Classes view - the day's sessions with their seats.
   readonly classesView = computed(() => this.typeId() === 'classes');
   readonly classesEnabled = computed(() => this.day()?.classesEnabled === true);
@@ -88,12 +93,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   });
   readonly entriesIn = computed(() => (this.current()?.registrations || []).filter((r) => r.status === 'in'));
   readonly entriesOut = computed(() => (this.current()?.registrations || []).filter((r) => r.status === 'out'));
-  readonly issuesOut = computed(() => (this.current()?.issues || []).filter((i) => i.status === 'issued'));
-  readonly issuesDone = computed(() => (this.current()?.issues || []).filter((i) => i.status !== 'issued'));
-  readonly overdueCount = computed(() => this.types().reduce((n, t) => n + (t.issues || []).filter((i) => i.overdue).length, 0));
+  readonly issuesOut = computed(() => (this.currentItem()?.issues || []).filter((i) => i.status === 'issued'));
+  readonly issuesDone = computed(() => (this.currentItem()?.issues || []).filter((i) => i.status !== 'issued'));
+  readonly overdueCount = computed(() => this.utilityItems().reduce((n, u) => n + u.issues.filter((i) => i.overdue).length, 0));
   readonly insideCount = computed(() => this.types().reduce((n, t) => n + (t.liveCount || 0), 0));
   readonly guestTypes = computed(() => this.meta()?.participantTypes || []);
-  readonly unitOptions = computed<ComboOption[]>(() => (this.current()?.units || []).filter((u) => u.isActive && u.unitStatus === 'available').map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })));
+  readonly unitOptions = computed<ComboOption[]>(() => (this.currentItem()?.units || []).filter((u) => u.isActive && u.unitStatus === 'available').map((u) => ({ value: u.id, label: u.location ? `${u.code} - ${u.location}` : u.code })));
   readonly entryUnitOptions = computed<ComboOption[]>(() => (this.current()?.units || []).filter((u) => u.isActive).map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })));
 
   // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' ----
@@ -122,8 +127,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       case 'checkin': { const s = this.checkInSlot(); return s ? `Check in ${s.facility?.code} ${s.startTime} - ${s.booker?.name || s.bookingNo}` : 'Check in'; }
       case 'register': return `Register on ${t?.code || ''}`;
       case 'guests': { const r = this.guestTarget(); return r ? `Guests - ${r.registrationNo}` : 'Guests'; }
-      case 'issue': return t?.trackUnits ? `Issue a ${t?.code} unit` : `Issue ${t?.code}`;
-      case 'return': { const i = this.returnTarget(); return i ? `Return ${i.facility?.code || t?.code}${i.quantity > 1 ? ' x ' + i.quantity : ''}` : 'Return'; }
+      case 'issue': { const u = this.currentItem(); return u?.behaviour === 'units' ? `Issue a ${u.code} unit` : u?.behaviour === 'use' ? `Record ${u.code}` : `Issue ${u?.code || ''}`; }
+      case 'return': { const i = this.returnTarget(); return i ? `Return ${i.unit?.code || this.currentItem()?.code || ''}${i.quantity > 1 ? ' x ' + i.quantity : ''}` : 'Return'; }
       case 'roster': { const s = this.rosterSession(); return s ? `${s.class?.description || s.class?.code || 'Session'} · ${s.startTime}` : 'Roster'; }
       default: return '';
     }
@@ -147,11 +152,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
         this.day.set(d);
         this.loading.set(false);
         if (this.typeId() === 'classes' && d.classesEnabled === true) return;
-        if (!d.types.some((t) => t.id === this.typeId())) {
+        // The strip holds the facility types and the utility items alike.
+        const strip = [...d.types.map((t) => t.id), ...(d.utilityItems || []).map((u) => u.id)];
+        if (!strip.includes(this.typeId())) {
           let remembered = '';
           try { remembered = localStorage.getItem(FacilityStationComponent.TYPE_KEY) || ''; } catch { remembered = ''; }
-          const pick = d.types.find((t) => t.id === remembered) || d.types[0];
-          this.typeId.set(pick ? pick.id : '');
+          this.typeId.set(strip.includes(remembered) ? remembered : strip[0] || '');
         }
       },
       error: (err) => {
@@ -177,7 +183,15 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   }
 
   modeLabel(mode: string): string {
-    return mode === 'slot' ? 'Check-in' : mode === 'entry' ? 'Entry' : 'Issue';
+    return mode === 'slot' ? 'Check-in' : 'Entry';
+  }
+
+  behaviourLabel(u: StationUtilityItem): string {
+    return u.behaviour === 'units' ? 'Numbered units' : u.behaviour === 'use' ? 'Use only' : 'By quantity';
+  }
+
+  freeUnits(u: StationUtilityItem): number {
+    return u.units.filter((x) => x.isActive && x.unitStatus === 'available').length;
   }
 
   stateLabel(state: string): string {
@@ -321,7 +335,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
 
   // ---- issue ----
 
-  openIssue(unit: StationUnit | null = null): void {
+  openIssue(unit: StationUtilityUnit | null = null): void {
     this.clearMessages();
     this.form.reset({ memberNo: '', facilityId: unit?.id || '', quantity: 1, remarks: '', condition: 'good', returnedQuantity: null });
     this.formVersion.update((v) => v + 1);
@@ -330,12 +344,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
 
   submitIssue(): void {
     this.clearMessages();
-    const t = this.current();
+    const t = this.currentItem();
     if (!t) return;
     if (this.form.controls.memberNo.invalid) { this.form.controls.memberNo.markAsTouched(); return; }
     const v = this.form.getRawValue();
     this.saving.set(true);
-    this.service.issue({ facilityTypeId: t.id, facilityId: v.facilityId || null, quantity: t.trackUnits ? 1 : Number(v.quantity) || 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
+    this.service.issue({ utilityItemId: t.id, utilityUnitId: t.trackUnits ? (v.facilityId || null) : null, quantity: t.trackUnits ? 1 : Number(v.quantity) || 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
       next: (res) => this.done(res.message, res),
       error: (err) => this.fail(err, 'Failed to issue.'),
     });
@@ -356,7 +370,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   submitReturn(): void {
     this.clearMessages();
     const i = this.returnTarget();
-    const t = this.current();
+    const t = this.currentItem();
     if (!i) return;
     const v = this.form.getRawValue();
     this.saving.set(true);
@@ -370,12 +384,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     });
   }
 
-  unitClicked(u: StationUnit): void {
-    const t = this.current();
+  unitClicked(u: StationUtilityUnit): void {
+    const t = this.currentItem();
     if (!t || !t.trackUnits) return;
     if (u.unitStatus === 'available') { this.openIssue(u); return; }
     if (u.unitStatus === 'issued') {
-      const issue = (t.issues || []).find((i) => i.id === u.currentIssueId) || (t.issues || []).find((i) => i.facilityId === u.id && i.status === 'issued');
+      const issue = t.issues.find((i) => i.id === u.currentIssueId) || t.issues.find((i) => i.utilityUnitId === u.id && i.status === 'issued');
       if (issue) this.openReturn(issue);
       return;
     }
@@ -423,7 +437,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       title: t ? `End of day for ${t.code}?` : 'End of day?',
       message: t && t.usageMode === 'slot'
         ? `Every slot on ${t.code} still booked past its end today is recorded as a no-show${this.day()?.noShowControlled ? ' and charged to its booker' : ''}; ${(t.slots || []).filter((s) => s.checkInState === 'closed').length} slot${(t.slots || []).filter((s) => s.checkInState === 'closed').length === 1 ? '' : 's'} qualify now.`
-        : `${inside} registration${inside === 1 ? '' : 's'} still in will be signed out at ${this.day()?.clubNow.time || 'now'}. Issues past their due time are listed as overdue; nothing is written off.`,
+        : `${inside} registration${inside === 1 ? '' : 's'} still in will be signed out at ${this.day()?.clubNow.time || 'now'}. Utility items past their due time are listed as overdue; nothing is written off.`,
       confirmLabel: t && t.usageMode === 'slot' ? 'Record the no-shows' : 'Sign everyone out',
       cancelLabel: 'Not yet',
       danger: false,

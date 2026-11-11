@@ -15,7 +15,7 @@ function unit(over: Partial<Facility>): Facility {
   return {
     id: 'u1', facilityTypeId: 't1', code: 'TC1', name: 'Tennis Court 1', location: null, isIndoor: false, isFloodlit: false,
     capacity: null, pictureUrl: null, remarks: null, sortOrder: 0, isActive: true,
-    facilityType: { id: 't1', code: 'TENNIS', description: 'Tennis Court', usageMode: 'slot', trackUnits: false },
+    facilityType: { id: 't1', code: 'TENNIS', description: 'Tennis Court', usageMode: 'slot' },
     canModify: true,
     ...over,
   };

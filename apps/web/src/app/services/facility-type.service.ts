@@ -6,7 +6,9 @@ import { MembershipStatusOption } from '../models/auth.models';
 
 // The usage mode of a Facility Type (facility.constants USAGE_MODES, user
 // decision 2026-10-24: exactly three).
-export type FacilityUsageMode = 'slot' | 'entry' | 'issue';
+// The third mode, "issue" (lockers and towels), was retired on 2026-11-11:
+// what the station hands out is a Utility Item (facility-utility-item.service).
+export type FacilityUsageMode = 'slot' | 'entry';
 
 export interface FacilityUsageModeOption extends MembershipStatusOption {
   key: FacilityUsageMode;
@@ -39,10 +41,7 @@ export interface FacilityType {
   advanceBookingDays: number | null;
   // entry mode
   capacity: number | null;
-  // issue mode
-  trackUnits: boolean;
-  maxIssuePerPatron: number;
-  // opening hours (entry + issue), 'HH:MM' or null
+  // opening hours (entry), 'HH:MM' or null
   openTimeWeekday: string | null;
   closeTimeWeekday: string | null;
   openTimeWeekend: string | null;
@@ -56,9 +55,7 @@ export interface FacilityType {
   feeTransactionTypeId: string | null;
   guestFeeTransactionTypeId: string | null;
   requiresApproval: boolean;
-  // slice 3: issue fee, due days, entry gate
-  issueFeeTransactionTypeId: string | null;
-  issueDueDays: number;
+  // slice 3: the entry gate
   entryRequiresBooking: boolean;
   // slice 4: no-show switches (under the Specification's master switch)
   noShowChargeEnabled: boolean;

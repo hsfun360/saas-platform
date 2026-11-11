@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">category</span>
       <div>
         <h1>{{ 'Facility Types' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The kinds of facility the club runs and their rules - courts booked by slot, the gym and pool entered on registration, lockers and towels issued at the station.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The kinds of facility the club runs and their rules - courts booked by slot, the gym and pool entered on registration.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -331,44 +331,6 @@
                 </details>
               }
 
-              @if (formMode() === 'issue') {
-                <details class="dlg-sec" open>
-                  <summary><h3 class="dlg-section">Issue rules</h3></summary>
-                  <div class="form-row">
-                    <label class="ft-check switch">
-                      <input type="checkbox" role="switch" formControlName="trackUnits" />
-                      <span>Track numbered units</span>
-                      <app-field-info label="Track numbered units" [text]="hint.trackUnits" />
-                    </label>
-                  </div>
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="ftIssueMax">Max per patron <span class="required">*</span></label>
-                      <input id="ftIssueMax" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="maxIssuePerPatron"
-                             [attr.aria-invalid]="showError(form.controls.maxIssuePerPatron)" aria-describedby="ftIssueMaxErr" />
-                      @if (showError(form.controls.maxIssuePerPatron)) {
-                        <p id="ftIssueMaxErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
-                      }
-                      <p class="cell-subtle field-hint">{{ form.controls.trackUnits.value ? 'Units' : 'Pieces' }} one patron may hold at a time; 0 = no limit.</p>
-                    </div>
-                    <div class="form-group">
-                      <label for="ftDueDays">Due back after (days) <span class="required">*</span></label>
-                      <input id="ftDueDays" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="issueDueDays"
-                             [attr.aria-invalid]="showError(form.controls.issueDueDays)" aria-describedby="ftDueDaysErr" />
-                      @if (showError(form.controls.issueDueDays)) {
-                        <p id="ftDueDaysErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
-                      }
-                      <p class="cell-subtle field-hint">0 = the same day at the close time.</p>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label for="ftIssueFee">Issue fee charged automatically</label>
-                    <app-combobox formControlName="issueFeeTransactionTypeId" inputId="ftIssueFee" [options]="issueFeeOptions()" [allowEmpty]="true" emptyLabel="No automatic charge" placeholder="Type to search…" />
-                    <p class="cell-subtle field-hint">An Issue Fee transaction type, charged once per unit or per piece issued.</p>
-                  </div>
-                </details>
-              }
-
               @if (formMode() !== 'slot') {
                 <details class="dlg-sec" open>
                   <summary><h3 class="dlg-section">Opening hours</h3></summary>
@@ -425,7 +387,7 @@
                 <summary><h3 class="dlg-section">Fees and approval</h3></summary>
                 <div class="form-grid">
                   <div class="form-group">
-                    <label for="ftFee">{{ formMode() === 'entry' ? 'Entry fee' : formMode() === 'issue' ? 'Issue fee' : 'Facility fee' }} charged automatically
+                    <label for="ftFee">{{ formMode() === 'entry' ? 'Entry fee' : 'Facility fee' }} charged automatically
                       <app-field-info label="Default fees" [text]="hint.fees" />
                     </label>
                     <app-combobox formControlName="feeTransactionTypeId" inputId="ftFee" [options]="facilityFeeOptions()" [allowEmpty]="true" emptyLabel="No automatic charge" placeholder="Type to search…" />

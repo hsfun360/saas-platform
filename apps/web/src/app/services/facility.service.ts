@@ -20,7 +20,7 @@ export interface Facility {
   sortOrder: number;
   isActive: boolean;
   // Served with the listing: the unit's type.
-  facilityType: { id: string; code: string; description: string; usageMode: FacilityUsageMode; trackUnits: boolean } | null;
+  facilityType: { id: string; code: string; description: string; usageMode: FacilityUsageMode } | null;
   canModify?: boolean;
 }
 

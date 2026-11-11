@@ -49,22 +49,32 @@
 
   @if (loading() && !day()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the day…</p></div>
-  } @else if (types().length === 0) {
+  } @else if (types().length === 0 && utilityItems().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">meeting_room</span>
-      <p>No active facility type yet. Set the types up under Facility Types and the station fills itself.</p>
+      <p>Nothing to run yet. Set the facility types up under Facility Types and what the station hands out under Utility Items, and the station fills itself.</p>
     </div>
   } @else {
     <!-- TYPE STRIP -->
-    <div class="st-strip" role="tablist" aria-label="Facility types">
+    <div class="st-strip" role="tablist" aria-label="Facility types and utility items">
       @for (t of types(); track t.id) {
         <button type="button" role="tab" class="st-chip" [class.st-chip--active]="t.id === typeId()" [attr.aria-selected]="t.id === typeId()" (click)="setType(t.id)">
-          <span class="material-icons" aria-hidden="true">{{ t.usageMode === 'slot' ? 'event_available' : t.usageMode === 'entry' ? 'login' : 'vpn_key' }}</span>
+          <span class="material-icons" aria-hidden="true">{{ t.usageMode === 'slot' ? 'event_available' : 'login' }}</span>
           <span class="st-chip__code">{{ t.code }}</span>
           <span class="st-chip__meta">
             @if (t.usageMode === 'slot') { {{ (t.slots || []).length }} slot{{ (t.slots || []).length === 1 ? '' : 's' }} }
-            @else if (t.usageMode === 'entry') { {{ t.liveCount }}{{ t.capacity != null ? ' / ' + t.capacity : '' }} in }
-            @else { {{ t.outCount }} out }
+            @else { {{ t.liveCount }}{{ t.capacity != null ? ' / ' + t.capacity : '' }} in }
+          </span>
+        </button>
+      }
+      @for (u of utilityItems(); track u.id) {
+        <button type="button" role="tab" class="st-chip" [class.st-chip--active]="u.id === typeId()" [attr.aria-selected]="u.id === typeId()" (click)="setType(u.id)">
+          <span class="material-icons" aria-hidden="true">{{ u.behaviour === 'units' ? 'vpn_key' : u.behaviour === 'quantity' ? 'layers' : 'task_alt' }}</span>
+          <span class="st-chip__code">{{ u.code }}</span>
+          <span class="st-chip__meta">
+            @if (u.behaviour === 'units') { {{ freeUnits(u) }} free }
+            @else if (u.behaviour === 'quantity') { {{ u.outCount }} out }
+            @else { {{ u.usedCount }} today }
           </span>
         </button>
       }
@@ -254,8 +264,27 @@
         }
       }
 
-      <!-- ============ ISSUE (issue types) ============ -->
-      @if (t.usageMode === 'issue') {
+      <!-- ============ END OF DAY ============ -->
+      @if (t.usageMode === 'entry' || day()?.noShowControlled) {
+        <div class="st-eod">
+          <span class="cell-subtle">{{ t.usageMode === 'slot' ? 'End of day: record every slot still booked past its end as a no-show.' : 'End of day: sign out everyone still in on ' + t.code + ' and list the overdue utility items.' }}</span>
+          <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="askEndOfDay()" [disabled]="t.usageMode === 'entry' && !(t.liveCount || 0)">
+            <span class="material-icons" aria-hidden="true">nightlight</span>
+            End of day
+          </button>
+        </div>
+      }
+    }
+
+    <!-- ============ UTILITY ITEMS (slice 6a): the unit board, the counter or the day's uses ============ -->
+    @if (currentItem(); as t) {
+      <div class="st-type-head">
+        <span><strong>{{ t.code }}</strong> · {{ t.description }} · {{ behaviourLabel(t) }}</span>
+        <span class="cell-subtle">
+          {{ t.maxPerPerson ? 'At most ' + t.maxPerPerson + ' per person' + (t.behaviour === 'use' ? ' a day' : '') : 'No limit per person' }}@if (t.behaviour !== 'use') { · due back {{ t.dueDays ? 'in ' + t.dueDays + ' day' + (t.dueDays === 1 ? '' : 's') : 'the same day' }} }
+        </span>
+      </div>
+
         @if (t.trackUnits) {
           <div class="st-board-head">
             <span class="cell-subtle">Tap an available unit to issue it, an issued unit to take it back, a parked unit to clear it.</span>
@@ -266,12 +295,12 @@
             </span>
           </div>
           @if (t.units.length === 0) {
-            <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">vpn_key</span><p>{{ t.code }} has no units yet. Add them under Facilities.</p></div>
+            <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">vpn_key</span><p>{{ t.code }} has no units yet. Add them under Utility Items.</p></div>
           } @else {
             <div class="st-board" role="group" [attr.aria-label]="t.code + ' units'">
               @for (u of t.units; track u.id) {
                 <button type="button" class="st-unit" [class]="'st-unit st-unit--' + u.unitStatus" [disabled]="!u.isActive" (click)="unitClicked(u)"
-                        [attr.aria-label]="u.code + ' - ' + (u.isActive ? u.unitStatus : 'inactive')" [title]="u.name">
+                        [attr.aria-label]="u.code + ' - ' + (u.isActive ? u.unitStatus : 'inactive')" [title]="u.location || u.code">
                   <span class="st-unit__code">{{ u.code }}</span>
                   <span class="st-unit__state">{{ u.isActive ? (u.unitStatus === 'out-of-service' ? 'parked' : u.unitStatus) : 'inactive' }}</span>
                 </button>
@@ -280,24 +309,27 @@
           }
         } @else {
           <div class="st-capacity">
-            <span class="st-capacity__count"><strong>{{ t.outCount }}</strong> {{ t.code }} out</span>
-            <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openIssue()" [disabled]="!t.isOpenNow && isToday()">
-              <span class="material-icons" aria-hidden="true">vpn_key</span>
-              Issue
+            <span class="st-capacity__count">
+              @if (t.behaviour === 'use') { <strong>{{ t.usedCount }}</strong> {{ t.code }} used today }
+              @else { <strong>{{ t.outCount }}</strong>{{ t.stockQuantity != null ? ' of ' + t.stockQuantity : '' }} {{ t.code }} out }
+            </span>
+            <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openIssue()" [disabled]="!isToday()">
+              <span class="material-icons" aria-hidden="true">{{ t.behaviour === 'use' ? 'task_alt' : 'layers' }}</span>
+              {{ t.behaviour === 'use' ? 'Record use' : 'Issue' }}
             </button>
           </div>
         }
 
-        <h2 class="section-heading st-section">Out now</h2>
+        @if (t.behaviour !== 'use') { <h2 class="section-heading st-section">Out now</h2> }
         @if (issuesOut().length === 0) {
-          <p class="cell-subtle">Nothing out on {{ t.code }}.</p>
+          @if (t.behaviour !== 'use') { <p class="cell-subtle">Nothing out on {{ t.code }}.</p> }
         } @else {
           <div class="data-list">
             @for (i of issuesOut(); track i.id) {
               <div class="data-card" [class.st-card--overdue]="i.overdue">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.facility?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
                     <div class="data-card__subline">
                       <span class="data-card__reg">issued {{ i.issuedAt | localDate:'datetime' }} · due {{ i.dueBack | localDate:'datetime' }}</span>
                       @if (i.bill) { <span class="status-chip" [class.status-chip--on]="i.bill.status === 'settled'" [class.status-chip--info]="i.bill.status === 'open'">Bill {{ i.bill.billNo }} · {{ i.bill.status }}</span> }
@@ -324,33 +356,21 @@
           </div>
         }
         @if (issuesDone().length) {
-          <h2 class="section-heading st-section">Returned today</h2>
+          <h2 class="section-heading st-section">{{ t.behaviour === 'use' ? 'Used today' : 'Returned today' }}</h2>
           <div class="data-list">
             @for (i of issuesDone(); track i.id) {
               <div class="data-card st-card--out">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.facility?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }}</div>
-                    <div class="data-card__subline"><span class="data-card__reg">returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }}{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }}</div>
+                    <div class="data-card__subline"><span class="data-card__reg">@if (i.status === 'used') { {{ i.issuedAt | localDate:'datetime' }} } @else { returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }} }{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
                   </div>
-                  <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
+                  <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned' || i.status === 'used'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
                 </div>
               </div>
             }
           </div>
         }
-      }
-
-      <!-- ============ END OF DAY ============ -->
-      @if (t.usageMode !== 'slot' || day()?.noShowControlled) {
-        <div class="st-eod">
-          <span class="cell-subtle">{{ t.usageMode === 'slot' ? 'End of day: record every slot still booked past its end as a no-show.' : 'End of day: sign out everyone still in on ' + t.code + ' and list the overdue issues.' }}</span>
-          <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="askEndOfDay()" [disabled]="t.usageMode === 'entry' && !(t.liveCount || 0)">
-            <span class="material-icons" aria-hidden="true">nightlight</span>
-            End of day
-          </button>
-        </div>
-      }
     }
   }
 
@@ -436,7 +456,7 @@
                          [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="stIssueMemberErr" />
                   @if (showError(form.controls.memberNo)) { <p id="stIssueMemberErr" class="field-error" role="alert">Key in the member number.</p> }
                 </div>
-                @if (current()?.trackUnits) {
+                @if (currentItem()?.trackUnits) {
                   <div class="form-group">
                     <label for="stIssueUnit">Unit</label>
                     <app-combobox formControlName="facilityId" inputId="stIssueUnit" [options]="unitOptions()" [allowEmpty]="true" emptyLabel="Next available" placeholder="Type to search…" />
@@ -452,8 +472,11 @@
                 <label for="stIssueRemarks">Remarks</label>
                 <textarea id="stIssueRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
               </div>
-              @if (current(); as t) {
-                <p class="cell-subtle field-hint">Due back {{ t.issueDueDays ? 'in ' + t.issueDueDays + ' day' + (t.issueDueDays === 1 ? '' : 's') : 'today' }} at the close time{{ t.maxIssuePerPatron ? ' · at most ' + t.maxIssuePerPatron + ' per member' : '' }}.</p>
+              @if (currentItem(); as t) {
+                <p class="cell-subtle field-hint">
+                  @if (t.behaviour === 'use') { Recorded as used - there is nothing to return{{ t.maxPerPerson ? '; at most ' + t.maxPerPerson + ' per person a day' : '' }}. }
+                  @else { Due back {{ t.dueDays ? 'in ' + t.dueDays + ' day' + (t.dueDays === 1 ? '' : 's') : 'today' }}{{ t.maxPerPerson ? ' · at most ' + t.maxPerPerson + ' per person' : '' }}. }
+                </p>
               }
             </form>
           }
@@ -462,7 +485,7 @@
           @case ('return') {
             <form id="stReturn" [formGroup]="form" (ngSubmit)="submitReturn()">
               @if (returnTarget(); as i) {
-                <p class="st-lead"><strong>{{ i.patron?.name }}</strong> · {{ i.facility?.code || current()?.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · issued {{ i.issuedAt | localDate:'datetime' }}</p>
+                <p class="st-lead"><strong>{{ i.patron?.name }}</strong> · {{ i.unit?.code || currentItem()?.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · issued {{ i.issuedAt | localDate:'datetime' }}</p>
               }
               <div class="form-grid">
                 <div class="form-group">
@@ -470,9 +493,9 @@
                   <select id="stCondition" formControlName="condition" (change)="conditionChanged()">
                     @for (c of meta()?.returnConditions || []; track c.key) { <option [value]="c.key">{{ c.label }}</option> }
                   </select>
-                  <p class="cell-subtle field-hint">{{ current()?.trackUnits ? 'Damaged or lost parks the unit out of service until it is cleared.' : 'Lost pieces are the difference between issued and returned.' }}</p>
+                  <p class="cell-subtle field-hint">{{ currentItem()?.trackUnits ? 'Damaged or lost parks the unit out of service until it is cleared.' : 'Lost pieces are the difference between issued and returned.' }}</p>
                 </div>
-                @if (!current()?.trackUnits && form.controls.condition.value !== 'lost') {
+                @if (!currentItem()?.trackUnits && form.controls.condition.value !== 'lost') {
                   <div class="form-group">
                     <label for="stBack">Pieces returned</label>
                     <input id="stBack" type="number" inputmode="numeric" min="0" [max]="returnTarget()?.quantity || 1" step="1" formControlName="returnedQuantity" />
@@ -539,7 +562,7 @@
           }
           @case ('issue') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
-            <button type="submit" form="stIssue" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Issuing…' : 'Issue' }}</button>
+            <button type="submit" form="stIssue" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : (currentItem()?.behaviour === 'use' ? 'Record use' : 'Issue') }}</button>
           }
           @case ('return') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>

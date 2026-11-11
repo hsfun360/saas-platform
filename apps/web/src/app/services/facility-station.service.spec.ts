@@ -47,8 +47,10 @@ describe('FacilityStationService', () => {
   });
 
   it('issues, returns, clears a unit and runs the end of day', () => {
-    service.issue({ facilityTypeId: 't2', facilityId: 'u1', memberNo: 'A1' }).subscribe();
-    http.expectOne('/api/facility/station/issues').flush({ message: 'issued', issueId: 'i1' });
+    service.issue({ utilityItemId: 'i2', utilityUnitId: 'u1', memberNo: 'A1' }).subscribe();
+    const issue = http.expectOne('/api/facility/station/issues');
+    expect(issue.request.body).toEqual({ utilityItemId: 'i2', utilityUnitId: 'u1', memberNo: 'A1' });
+    issue.flush({ message: 'issued', issueId: 'i1' });
 
     service.returnIssue('i1', { condition: 'damaged', remarks: 'door bent' }).subscribe();
     const ret = http.expectOne('/api/facility/station/issues/i1/return');

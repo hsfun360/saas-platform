@@ -7,7 +7,9 @@ import { FacilityBillSummary, FacilityParticipantTypeOption } from './facility-b
 
 // Control Station (structures approved 2026-10-26, slice 3): the day's
 // picture per facility type (booked slots to check in, entries against the
-// live capacity, issues and units), and the desk actions - check-in, entry
+// live capacity), the utility items the station hands out (slice 6a,
+// 2026-11-11: lockers, towels and showers are Utility Items with their own
+// master, no longer facility types), and the desk actions - check-in, entry
 // with guests, sign-out, guests, issue, return, unit clear, end of day.
 
 export interface StationMeta {
@@ -33,8 +35,17 @@ export interface StationUnit {
   location: string | null;
   capacity: number | null;
   isActive: boolean;
+}
+
+// A numbered unit of a utility item on the station's board (locker L014).
+export interface StationUtilityUnit {
+  id: string;
+  code: string;
+  location: string | null;
+  isActive: boolean;
   unitStatus: 'available' | 'issued' | 'out-of-service';
   currentIssueId: string | null;
+  remarks: string | null;
 }
 
 export interface StationGuest {
@@ -88,9 +99,9 @@ export interface StationSlot {
 export interface StationIssue {
   id: string;
   patron: StationPatron | null;
-  facilityTypeId: string;
-  facilityId: string | null;
-  facility: { id: string; code: string; name: string } | null;
+  utilityItemId: string;
+  utilityUnitId: string | null;
+  unit: { id: string; code: string; location: string | null } | null;
   registrationId: string | null;
   quantity: number;
   issuedAt: string;
@@ -99,7 +110,8 @@ export interface StationIssue {
   returnedAt: string | null;
   returnedQuantity: number | null;
   returnCondition: string | null;
-  status: 'issued' | 'returned' | 'lost';
+  // 'used' = a use-only item, closed at issue.
+  status: 'issued' | 'returned' | 'lost' | 'used';
   feeBillId: string | null;
   bill: FacilityBillSummary | null;
   remarks: string | null;
@@ -109,12 +121,9 @@ export interface StationType {
   id: string;
   code: string;
   description: string;
-  usageMode: 'slot' | 'entry' | 'issue';
+  usageMode: 'slot' | 'entry';
   iconUrl: string | null;
   capacity: number | null;
-  trackUnits: boolean;
-  maxIssuePerPatron: number;
-  issueDueDays: number;
   entryRequiresBooking: boolean;
   guestsAllowed: boolean;
   memberGuestsAllowed: boolean;
@@ -127,9 +136,28 @@ export interface StationType {
   // entry mode
   liveCount?: number;
   registrations?: StationRegistration[];
-  // issue mode
-  outCount?: number;
-  issues?: StationIssue[];
+}
+
+// A utility item on the station: 'units' = numbered units issued and
+// returned one by one, 'quantity' = pieces issued and counted back, 'use' =
+// a use recorded with nothing to return.
+export interface StationUtilityItem {
+  id: string;
+  code: string;
+  description: string;
+  iconUrl: string | null;
+  behaviour: 'units' | 'quantity' | 'use';
+  trackUnits: boolean;
+  returnRequired: boolean;
+  stockQuantity: number | null;
+  maxPerPerson: number;
+  dueDays: number;
+  guestsAllowed: boolean;
+  requiresEntry: boolean;
+  units: StationUtilityUnit[];
+  outCount: number;
+  usedCount: number;
+  issues: StationIssue[];
 }
 
 // Slice 5b: one of the day's class sessions on the station's Classes view.
@@ -157,6 +185,8 @@ export interface StationDay {
   noShowControlled?: boolean;
   noShowGraceMinutes?: number | null;
   types: StationType[];
+  // Slice 6a: what the station hands out.
+  utilityItems?: StationUtilityItem[];
   // Slice 5b: the day's class sessions while classes are switched on.
   classesEnabled?: boolean;
   classSessions?: StationClassSession[];
@@ -211,7 +241,7 @@ export class FacilityStationService {
     return this.http.put<StationActionResult>(`${this.base}/registrations/${registrationId}/guests`, { guests });
   }
 
-  issue(payload: { facilityTypeId: string; facilityId?: string | null; quantity?: number; memberNo: string; registrationId?: string | null; remarks?: string | null }): Observable<StationActionResult> {
+  issue(payload: { utilityItemId: string; utilityUnitId?: string | null; quantity?: number; memberNo: string; registrationId?: string | null; remarks?: string | null }): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/issues`, payload);
   }
 

@@ -39,14 +39,13 @@ type SlotGroup = FormGroup<{
 const FALLBACK_MODES: FacilityUsageModeOption[] = [
   { key: 'slot', label: 'Time slot booking' },
   { key: 'entry', label: 'Entry registration' },
-  { key: 'issue', label: 'Issue and return' },
 ];
 const FALLBACK_SCOPES: MembershipStatusOption[] = [
   { key: 'all', label: 'All days' },
   { key: 'weekday', label: 'Weekdays' },
   { key: 'weekend', label: 'Weekends' },
 ];
-const MODE_ICONS: Record<FacilityUsageMode, string> = { slot: 'event_available', entry: 'login', issue: 'key' };
+const MODE_ICONS: Record<FacilityUsageMode, string> = { slot: 'event_available', entry: 'login' };
 
 function toMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -58,8 +57,8 @@ const optInt = (v: unknown, lo: number, hi: number): number | null => (v === nul
 
 // Facility Management → Facility Types (/facility/facility-types; structure
 // approved 2026-10-25). The KIND of facility and its rules: code, description,
-// usage mode (slot / entry / issue - frozen once a unit exists) and the rule
-// group that mode applies - slot limits, entry capacity, issue tracking,
+// usage mode (slot / entry - frozen once a unit exists) and the rule
+// group that mode applies - slot limits, entry capacity,
 // opening hours, guest policy. Slot-mode types own their SLOT SETS (header ->
 // generated slots, previewed before save, then hand-adjusted). ONE drawer
 // dialog with four views (type form / slot-set list / slot-set form / slot
@@ -89,7 +88,6 @@ export class FacilityTypesComponent implements OnInit {
   readonly fees = signal<FacilityTransactionType[]>([]);
   readonly facilityFeeOptions = computed(() => this.feeOptionsFor('facility-fee'));
   readonly guestFeeOptions = computed(() => this.feeOptionsFor('guest-fee'));
-  readonly issueFeeOptions = computed(() => this.feeOptionsFor('issue-fee'));
   readonly usageModes = computed(() => this.meta()?.usageModes || FALLBACK_MODES);
   readonly dayScopes = computed(() => this.meta()?.dayScopes || FALLBACK_SCOPES);
   readonly slotMinutesMin = computed(() => this.meta()?.limits.slotMinutesMin || 15);
@@ -120,14 +118,13 @@ export class FacilityTypesComponent implements OnInit {
 
   // Long behavioural explanations live in <app-field-info> popovers.
   readonly hint = {
-    mode: 'Time slot booking: courts and halls, booked by fixed slots from this type\'s slot sets. Entry registration: gym and pool, registered on arrival, optionally capped. Issue and return: lockers (numbered units) and towels (counted) handed out at the Control Station. The mode is frozen once a facility exists under the type.',
+    mode: 'Time slot booking: courts and halls, booked by fixed slots from this type\'s slot sets. Entry registration: gym and pool, registered on arrival, optionally capped. Lockers, towels and showers are not facility types - they are set up under Utility Items. The mode is frozen once a facility exists under the type.',
     slotsPerDay: 'How many slots of this type one member may hold on one day, counted as the booker or as a participant; cancelled bookings free the count. 0 = no limit.',
     consecutive: 'How many adjacent slots on one facility a single booking may take - a hall hired by the hour sets a high number. 0 = no limit.',
     advance: 'Overrides the Specification\'s general advance booking days for this type only; leave blank to follow the general rule.',
     participants: 'Max is what one court holds (badminton 4); leave blank when participants are not tracked (a hall). Min is what a booking must name - 1 means no rule.',
     capacity: 'The number of persons inside at one time across all facilities of this type. The Control Station shows the live count and refuses entry past it; blank = unlimited.',
-    trackUnits: 'On: every facility under this type is one numbered unit, issued to one patron and returned (lockers). Off: one counted consumable issued by quantity (towels) - create a single facility row for the counter.',
-    hours: 'Entry and issue types are open between these times; leave both blank for no restriction. Slot types take their hours from the slot set instead.',
+    hours: 'Entry types are open between these times; leave both blank for no restriction. Slot types take their hours from the slot set instead.',
     guests: 'These apply only while guest control is switched on in Facility Specification, and only tighten the general flags there. Guests also count against the member\'s monthly allowance.',
     slotSets: 'A slot set defines the bookable slots for a day scope from an effective date: first start, last start and slot length generate the list, which you can then adjust (untick a lunch break, mark evening slots front-desk-only). Add a weekend set when weekends run differently, and a new set with a later effective date when the schedule changes.',
     fees: 'When a bill opens for a booking of this type, the facility fee is charged once per reserved slot and the guest fee once per guest participant, each priced from its rate card for the slot\'s day, session and participant type. Leave a picker blank for no automatic charge. The items themselves live under Transaction Types.',
@@ -155,11 +152,6 @@ export class FacilityTypesComponent implements OnInit {
     advanceBookingDays: this.fb.control<number | null>(null, [Validators.min(0), Validators.max(365)]),
     // entry mode
     capacity: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(100000)]),
-    // issue mode
-    trackUnits: [true],
-    maxIssuePerPatron: [1, [Validators.required, Validators.min(0), Validators.max(100)]],
-    issueDueDays: [0, [Validators.required, Validators.min(0), Validators.max(365)]],
-    issueFeeTransactionTypeId: [''],
     entryRequiresBooking: [false],
     noShowChargeEnabled: [true],
     noShowStrikeEnabled: [false],
@@ -275,8 +267,7 @@ export class FacilityTypesComponent implements OnInit {
       if (t.maxParticipants) parts.push(`${t.maxParticipants} participants`);
       return parts.join(' · ');
     }
-    if (t.usageMode === 'entry') return t.capacity ? `Capacity ${t.capacity}` : 'No capacity cap';
-    return t.trackUnits ? `Numbered units · max ${t.maxIssuePerPatron || 'unlimited'} per patron` : `Counted items · max ${t.maxIssuePerPatron || 'unlimited'} per patron`;
+    return t.capacity ? `Capacity ${t.capacity}` : 'No capacity cap';
   }
 
   load(): void {
@@ -310,10 +301,6 @@ export class FacilityTypesComponent implements OnInit {
       maxConsecutiveSlots: t?.maxConsecutiveSlots ?? 0,
       advanceBookingDays: t?.advanceBookingDays ?? null,
       capacity: t?.capacity ?? null,
-      trackUnits: t?.trackUnits !== false,
-      maxIssuePerPatron: t?.maxIssuePerPatron ?? 1,
-      issueDueDays: t?.issueDueDays ?? 0,
-      issueFeeTransactionTypeId: t?.issueFeeTransactionTypeId || '',
       entryRequiresBooking: t?.entryRequiresBooking === true,
       noShowChargeEnabled: t?.noShowChargeEnabled !== false,
       noShowStrikeEnabled: t?.noShowStrikeEnabled === true,
@@ -422,10 +409,6 @@ export class FacilityTypesComponent implements OnInit {
       maxConsecutiveSlots: clampInt(v.maxConsecutiveSlots, 0, 50, 0),
       advanceBookingDays: optInt(v.advanceBookingDays, 0, 365),
       capacity: optInt(v.capacity, 1, 100000),
-      trackUnits: v.trackUnits === true,
-      maxIssuePerPatron: clampInt(v.maxIssuePerPatron, 0, 100, 1),
-      issueDueDays: clampInt(v.issueDueDays, 0, 365, 0),
-      issueFeeTransactionTypeId: v.issueFeeTransactionTypeId || null,
       entryRequiresBooking: v.entryRequiresBooking === true,
       noShowChargeEnabled: v.noShowChargeEnabled === true,
       noShowStrikeEnabled: v.noShowStrikeEnabled === true,

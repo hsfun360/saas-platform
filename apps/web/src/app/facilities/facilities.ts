@@ -13,7 +13,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
-const MODE_ICONS: Record<FacilityUsageMode, string> = { slot: 'event_available', entry: 'login', issue: 'key' };
+const MODE_ICONS: Record<FacilityUsageMode, string> = { slot: 'event_available', entry: 'login' };
 const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || dflt)));
 
 // Facility Management → Facilities (/facility/facilities; structure approved

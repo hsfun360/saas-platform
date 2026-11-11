@@ -169,8 +169,8 @@
             }
             <p id="faTypeHint" class="cell-subtle field-hint">
               @if (editId()) { Fixed once the facility exists - create a new facility to move a unit to another type. }
-              @else if (selectedType(); as t) { {{ t.usageMode === 'slot' ? 'Booked by the type\'s slot sets.' : t.usageMode === 'entry' ? 'Entered on registration at the Control Station.' : (t.trackUnits ? 'One numbered unit issued and returned at the station.' : 'A counted consumable - one row for the counter is enough.') }} }
-              @else { Decides how the unit is used - slot booking, entry registration or issue and return. }
+              @else if (selectedType(); as t) { {{ t.usageMode === 'slot' ? 'Booked by the type\'s slot sets.' : 'Entered on registration at the Control Station.' }} }
+              @else { Decides how the facility is used - slot booking or entry registration. }
             </p>
           </div>
         </div>
