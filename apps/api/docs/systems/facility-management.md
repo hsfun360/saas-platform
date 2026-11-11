@@ -12,7 +12,7 @@ Manage the club's bookable and walk-in facilities: courts booked by time slot, t
 
 - **Vocabulary.** The person identity is `facility.Patron` (thin row, member or visitor) + `facility.OtherPatron` (the visitor profile), mirroring `golf.Golfer` / `golf.OtherGolfer`.
   Screens are *Facility Specification*, *Facility Types*, *Facilities*, *Facility Bookings*, *Control Station*, *Classes*.
-- **Three usage modes on the Facility Type, no more:** `slot` (courts: booked by fixed time slot from a slot set defined on the type), `entry` (gym, pool: register on arrival, optional capacity), `issue` (lockers: numbered units issued and returned; towels: a counted consumable).
+- **SUPERSEDED 2026-11-11 for the third mode (lockers and towels are Utility Items with their own master, see Slice 6; a Facility Type is `slot` or `entry`).** **Three usage modes on the Facility Type, no more:** `slot` (courts: booked by fixed time slot from a slot set defined on the type), `entry` (gym, pool: register on arrival, optional capacity), `issue` (lockers: numbered units issued and returned; towels: a counted consumable).
   Hourly hall hire is a `slot` type with 60-minute slots and a high consecutive cap; there is no duration mode and no per-game mode.
 - **Billing copies golf's shape into the facility schema** (`Bill` / `BillItem` / `BillPayment` / `TransactionType` / `PaymentType`, slice 2).
   Two tender catalogs are accepted; the shared billing service is extracted when POS becomes the third consumer.
@@ -90,7 +90,7 @@ The `code` (UPPER_SNAKE, frozen once in use) is the key the booking limits, rate
 | `companyId` | UUID | no | | |
 | `code` | STRING(20) | no | | 'BADMINTON', 'TENNIS', 'GYM', 'POOL', 'LOCKER', 'TOWEL'. |
 | `description` | STRING | no | | Display name. |
-| `usageMode` | STRING(10) | no | | `slot` / `entry` / `issue` (facilityType.constants USAGE_MODES). Frozen once a facility exists under the type. |
+| `usageMode` | STRING(10) | no | | `slot` / `entry` (facility.constants USAGE_MODES; the third mode `issue` was retired 2026-11-11 - lockers and towels are Utility Items, see Slice 6). Frozen once a facility exists under the type. |
 | `iconUrl` | STRING | yes | | Public GCS URL of the type's tile icon (same upload flow as golf transaction-type icons). |
 | `sortOrder` | INTEGER | no | 100 | Order on the booking grid and the station. |
 | `isActive` | BOOLEAN | no | true | Inactive = hidden from booking and the station; existing bookings stand. |
@@ -949,9 +949,12 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile); under `/class-lifecycle` (the Class Schedule or Control Station grant, built 5c): `GET /enrolments/:id/cancel-preview`, `POST /enrolments/:id/cancel`, `POST /waitlist` (the enrol body), `POST /waitlist/:id/offer`, `POST /waitlist/:id/confirm`, `POST /waitlist/:id/withdraw`; the closure `generate-days` preview returns `classSessions` and `PUT days` cancels them; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
 - Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
-### Slice 6 - Utility Items and Station Arrival (DRAFT 2026-11-11, revised with the user's changes, for approval - nothing built)
+### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11, dev smoke pending; 6b, 6c and 6d not built)
 
-**Status:** drafted 2026-11-11 and revised the same day with two changes from the user; no table, route or screen of this section exists yet.
+**Status:** drafted 2026-11-11, revised the same day with two changes from the user, and approved as revised.
+Sub-slice 6a built 2026-11-11: the `UtilityItem` and `UtilityUnit` models; the pure rules in utilityRules.service.js (unit-tested: the behaviour of an item from its two switches, their normalisation, the codes Generate units proposes); the master's controller, schemas and routes under /api/facility/utility-items (items, units, generate with its preview, the icon upload); `IssueRecord` re-pointed (`utilityItemId`, `utilityUnitId`, the `used` status); the station engine's issue, return, unit clear and day picture on the new tables (the picture returns `utilityItems` beside `types`; a use-only item closes as `used` and its limit counts the day's uses); the issue usage mode and its columns retired from the facility types and the facilities; the move of the existing data (see "Moving what exists"); the Utility Items screen at /facility/utility-items; the station's strip and view reading the utility items; Facility Types and Facilities without the issue mode.
+Built as drafted with these notes: the move runs at BOOT before the schema sync rather than as a script someone must remember (the script stays as a manual runner); the holder columns of `IssueRecord` arrive with 6c, so in 6a every item is still issued to a member; `guestsAllowed` and `requiresEntry` exist on the table but are neither shown on the screen nor enforced until 6c; the item icon can be uploaded through the API but the screen and the station strip do not use it yet.
+Dev smoke of 6a pending; 6b, 6c and 6d not built.
 The user's changes: (1) a towel or a locker must not be called a facility - they become **Utility Items** with a master file of their own; (2) a guest holding a pass (registered upfront) claims utility items at the station on their own, while a guest who was not registered must be at the station together with the member.
 
 What is wrong today.
@@ -1056,9 +1059,13 @@ New index `(companyId, guestRegistrationId, status)` (find a guest's items by sc
 
 `Bill` is unchanged: `issueRecordId` stays the source of a bill opened for utility items.
 
-#### Moving what exists (one script, run before the deploy)
+#### Moving what exists (at boot, before the schema sync)
 
-`scripts/migrate-facility-utility-items.js`, idempotent, per company:
+`modules/facility/utilityMigration.js`, called from `src/app.js` inside the sync lock just before `sequelize.sync` (the sync would otherwise add a NOT NULL `utilityItemId` beside the old column and fail on the existing rows); `scripts/migrate-facility-utility-items.js` runs the same step by hand.
+Idempotent (it does nothing once `IssueRecord` has lost `facilityTypeId`, or on a fresh database) and ONE transaction after the two tables are created.
+Each utility item keeps the id of the facility type it came from and each unit the id of its facility row, so every issue record and the bill hanging off it stay valid through a plain column rename.
+Verified on a throwaway Postgres 18 with a locker type (a unit issued with its bill, a unit parked out of service), a counted towel type, a fee item and a closure plan: both types moved, the units kept their state, the issue records and the bill resolved, the alter-sync rebuilt the two foreign keys, and a second run did nothing.
+What it does:
 every Facility Type of usage mode `issue` becomes a `UtilityItem` with the same code and settings (`returnRequired` ON);
 its Facility rows become `UtilityUnit` rows when the type tracked units (the single counter row of a counted type is dropped);
 every `IssueRecord` is re-pointed (the two renamed columns);
@@ -1182,4 +1189,4 @@ Sign-out of the entry lists what the party still holds, with Return beside each.
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, dev smoke pending) · [ ] Slice 6b the known guest at the door · [ ] Slice 6c the holder · [ ] Slice 6d the Arrival drawer · [ ] Events · [ ] Own DB · [ ] Own deploy
