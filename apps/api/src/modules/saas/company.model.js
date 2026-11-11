@@ -50,7 +50,7 @@ const Company = sequelize.define('Company', {
     addressLine2: { type: DataTypes.STRING, allowNull: true },
     city: { type: DataTypes.STRING, allowNull: true },
     state: { type: DataTypes.STRING, allowNull: true },
-    postalCode: { type: DataTypes.STRING, allowNull: true },
+    postcode: { type: DataTypes.STRING, allowNull: true },
     // Free-text address country (display only, kept for existing invoices/profile).
     country: { type: DataTypes.STRING, allowNull: true },
     // Canonical ISO 3166-1 alpha-2 (lowercase, e.g. 'my'), referencing Country.alpha2

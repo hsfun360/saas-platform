@@ -604,7 +604,7 @@ async function getCompanyLetterhead(companyId) {
     if (!companyId) return null;
     const Company = require('../modules/saas/company.model');
     const c = await Company.findByPk(companyId, {
-        attributes: ['id', 'name', 'registrationNumber', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'countryCode', 'phone', 'email', 'logo'],
+        attributes: ['id', 'name', 'registrationNumber', 'addressLine1', 'addressLine2', 'city', 'state', 'postcode', 'country', 'countryCode', 'phone', 'email', 'logo'],
     });
     if (!c) return null;
     return {
@@ -619,7 +619,7 @@ async function getCompanyLetterhead(companyId) {
             line2: c.addressLine2 || null,
             city: c.city || null,
             state: c.state || null,
-            postcode: c.postalCode || null,
+            postcode: c.postcode || null,
             countryCode: c.countryCode || (c.country ? String(c.country) : null),
         },
     };
@@ -667,7 +667,7 @@ async function getPlatformProfile() {
         addressLine2: profile.addressLine2,
         city: profile.city,
         state: profile.state,
-        postalCode: profile.postalCode,
+        postcode: profile.postcode,
         logo: profile.logo,
         countryCode: profile.countryCode,
         baseCurrencyCode: profile.baseCurrencyCode,

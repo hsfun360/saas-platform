@@ -1136,7 +1136,7 @@ exports.createCompany = async (req, res) => {
 
         const {
             name, registrationNumber, taxRegistrationNumber, email, phone, website,
-            addressLine1, addressLine2, city, state, postalCode, country, countryCode,
+            addressLine1, addressLine2, city, state, postcode, country, countryCode,
             timezone, moduleIds, logo, defaultCurrencyCode,
         } = req.body;
         if (!name || !name.trim()) {
@@ -1176,7 +1176,7 @@ exports.createCompany = async (req, res) => {
             addressLine2: trimOrNull(addressLine2),
             city: trimOrNull(city),
             state: trimOrNull(state),
-            postalCode: trimOrNull(postalCode),
+            postcode: trimOrNull(postcode),
             country: trimOrNull(country),
             // Canonical alpha-2 (lowercase) matching Country.alpha2; drives tax lookup.
             countryCode: countryCode ? String(countryCode).trim().toLowerCase() || null : null,
@@ -1303,7 +1303,7 @@ exports.updateCompanyModules = async (req, res) => {
 
 // PUT /api/auth/companies/:companyId  -> update a company's profile / billing details
 // Body may include any of: name, registrationNumber, taxRegistrationNumber, email,
-// phone, website, addressLine1, addressLine2, city, state, postalCode, country,
+// phone, website, addressLine1, addressLine2, city, state, postcode, country,
 // timezone. Only provided fields are changed; an empty string clears a field.
 exports.updateCompany = async (req, res) => {
     const target = await resolveTargetCompany(req, req.params.companyId);
@@ -1328,7 +1328,7 @@ exports.updateCompany = async (req, res) => {
         // Optional profile fields: set when provided; empty string clears to null.
         const fields = [
             'registrationNumber', 'taxRegistrationNumber', 'email', 'phone', 'website',
-            'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'timezone', 'logo',
+            'addressLine1', 'addressLine2', 'city', 'state', 'postcode', 'country', 'timezone', 'logo',
             // LHDN e-Invoice issuer identity (see company.model.js).
             'tin', 'msicCode', 'businessActivityDescription', 'sstRegistrationNumber', 'ttxRegistrationNumber',
         ];

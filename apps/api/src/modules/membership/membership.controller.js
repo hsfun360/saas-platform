@@ -298,9 +298,11 @@ function normalizeAddresses(raw, allowedKeys = ADDRESS_TYPE_KEYS) {
     const value = [];
     for (const row of raw) {
         const addressType = strOrNull(row && row.addressType);
-        const address = strOrNull(row && row.address);
+        const addressLine1 = strOrNull(row && row.addressLine1);
+        const addressLine2 = strOrNull(row && row.addressLine2);
         // A row with no street line is treated as an intentionally empty entry.
-        if (!address) continue;
+        if (!addressLine1 && !addressLine2) continue;
+        if (!addressLine1) return { error: 'Address line 1 is required when an address is entered.' };
         if (!addressType || !allowedKeys.includes(addressType)) {
             return { error: `Each address needs a valid type (${allowedLabels.join(' or ')}).` };
         }
@@ -309,10 +311,13 @@ function normalizeAddresses(raw, allowedKeys = ADDRESS_TYPE_KEYS) {
             return { error: `Only one ${label} address is allowed.` };
         }
         seen.add(addressType);
-        if (address.length > 255) return { error: 'Address must be 255 characters or fewer.' };
+        if (addressLine1.length > 255 || (addressLine2 || '').length > 255) {
+            return { error: 'Each address line must be 255 characters or fewer.' };
+        }
         value.push({
             addressType,
-            address,
+            addressLine1,
+            addressLine2,
             city: strOrNull(row.city),
             postcode: strOrNull(row.postcode),
             state: strOrNull(row.state),
@@ -344,7 +349,8 @@ async function loadAddressBooks(membershipId, memberIds) {
     });
     const toDto = (a) => ({
         addressType: a.addressType,
-        address: a.address,
+        addressLine1: a.addressLine1,
+        addressLine2: a.addressLine2,
         city: a.city,
         postcode: a.postcode,
         state: a.state,

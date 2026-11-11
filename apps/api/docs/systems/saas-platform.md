@@ -94,6 +94,9 @@ New product services **must not** add any new cross-boundary FK - store peer ids
   Platform / control-plane / notification tables stay in `public` for now.
 - **Money/amount columns are `numeric(21,2)`** (`DataTypes.DECIMAL(21, 2)` in the model): amounts, fees, charges, credit limits - any value denominated in a currency.
   Percentages and rates are NOT money and keep their own precision (e.g. tax rate `DECIMAL(7,4)`, claim percentage `DECIMAL(5,2)`, exchange rate `DECIMAL(21,10)`).
+- **Postal address columns follow ONE vocabulary** (user decision 2026-11-11): `addressLine1` (STRING(255), required wherever the address itself is required) + `addressLine2` (STRING(255), optional) for the street part - two lines, not three, mapping to LHDN e-Invoice `AddressLine0/1` - plus `city` (100), `state` (100), `postcode` (20, never `postalCode`) and `countryCode` (alpha-2 value ref, no FK).
+  Display always goes through `platform/addressFormat.js` / the web's `shared/address.ts` (postcode+city+state one line, country full name).
+  Never a single free-text/multiline street column, never `address1..n`, and never a third line.
 - **Every new product table carries the ownership stamps** `createdBy` (UUID, nullable), `createdByDepartmentId` (UUID, nullable - the creator's department at creation) and `updatedBy` (UUID, nullable, stamped on every save).
   They power the RBAC data scope (see "How services talk to each other") and the workflow engine's submitter placement.
   Prefer explicit status/state columns over booleans for records an approval flow may govern.

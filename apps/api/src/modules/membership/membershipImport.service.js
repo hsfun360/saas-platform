@@ -66,12 +66,17 @@ const MEMBERSHIP_COLUMNS = [
     { header: 'Mobile', key: 'mobile' },
     { header: 'Email', key: 'email' },
     { header: 'Industry Code', key: 'industryTypeCode' },
-    { header: 'Residential Address', key: 'resAddress' },
+    // Address standard (2026-11-11): two street lines. The old single-column
+    // header stays as the Line 1 alias so previously downloaded templates
+    // keep importing (everything lands in line 1).
+    { header: 'Residential Address Line 1', key: 'resAddress', aliases: ['Residential Address'] },
+    { header: 'Residential Address Line 2', key: 'resAddress2' },
     { header: 'Residential City', key: 'resCity' },
     { header: 'Residential Postcode', key: 'resPostcode' },
     { header: 'Residential State', key: 'resState' },
     { header: 'Residential Country', key: 'resCountry', hint: 'ISO alpha-2, e.g. my' },
-    { header: 'Mailing Address', key: 'mailAddress' },
+    { header: 'Mailing Address Line 1', key: 'mailAddress', aliases: ['Mailing Address'] },
+    { header: 'Mailing Address Line 2', key: 'mailAddress2' },
     { header: 'Mailing City', key: 'mailCity' },
     { header: 'Mailing Postcode', key: 'mailPostcode' },
     { header: 'Mailing State', key: 'mailState' },
@@ -114,12 +119,14 @@ const MEMBER_COLUMNS = [
     { header: 'Join Date', key: 'joinDate' },
     { header: 'Expiry Date', key: 'expiryDate' },
     { header: 'Credit Limit', key: 'creditLimit' },
-    { header: 'Residential Address', key: 'resAddress' },
+    { header: 'Residential Address Line 1', key: 'resAddress', aliases: ['Residential Address'] },
+    { header: 'Residential Address Line 2', key: 'resAddress2' },
     { header: 'Residential City', key: 'resCity' },
     { header: 'Residential Postcode', key: 'resPostcode' },
     { header: 'Residential State', key: 'resState' },
     { header: 'Residential Country', key: 'resCountry' },
-    { header: 'Mailing Address', key: 'mailAddress' },
+    { header: 'Mailing Address Line 1', key: 'mailAddress', aliases: ['Mailing Address'] },
+    { header: 'Mailing Address Line 2', key: 'mailAddress2' },
     { header: 'Mailing City', key: 'mailCity' },
     { header: 'Mailing Postcode', key: 'mailPostcode' },
     { header: 'Mailing State', key: 'mailState' },
@@ -259,10 +266,10 @@ function low(v) {
 function addressesOf(d) {
     const rows = [];
     if (d.resAddress) {
-        rows.push({ addressType: 'residential', address: d.resAddress, city: d.resCity, postcode: d.resPostcode, state: d.resState, countryCode: low(d.resCountry) });
+        rows.push({ addressType: 'residential', addressLine1: d.resAddress, addressLine2: d.resAddress2 || null, city: d.resCity, postcode: d.resPostcode, state: d.resState, countryCode: low(d.resCountry) });
     }
     if (d.mailAddress) {
-        rows.push({ addressType: 'mailing', address: d.mailAddress, city: d.mailCity, postcode: d.mailPostcode, state: d.mailState, countryCode: low(d.mailCountry) });
+        rows.push({ addressType: 'mailing', addressLine1: d.mailAddress, addressLine2: d.mailAddress2 || null, city: d.mailCity, postcode: d.mailPostcode, state: d.mailState, countryCode: low(d.mailCountry) });
     }
     return rows;
 }

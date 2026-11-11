@@ -53,7 +53,7 @@ const PlatformProfile = sequelize.define('PlatformProfile', {
     addressLine2: { type: DataTypes.STRING, allowNull: true },
     city: { type: DataTypes.STRING, allowNull: true },
     state: { type: DataTypes.STRING, allowNull: true },
-    postalCode: { type: DataTypes.STRING, allowNull: true },
+    postcode: { type: DataTypes.STRING, allowNull: true },
     // Public URL of the platform logo (for the invoice header).
     logo: { type: DataTypes.STRING, allowNull: true },
 

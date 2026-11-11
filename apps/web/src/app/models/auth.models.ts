@@ -1092,7 +1092,8 @@ export interface MembershipMeta {
 // (owner, addressType); 'residential' | 'mailing' | 'company' | 'other'.
 export interface AddressEntry {
   addressType: string;
-  address: string;
+  addressLine1: string;
+  addressLine2?: string | null;
   city?: string | null;
   postcode?: string | null;
   state?: string | null;
@@ -1138,7 +1139,8 @@ export interface SalesAgency {
   agentCount?: number;
   // The agency's single office address (a 'company' row in the address book).
   address?: {
-    address: string;
+    addressLine1: string;
+    addressLine2?: string | null;
     city?: string | null;
     postcode?: string | null;
     state?: string | null;
@@ -1787,7 +1789,7 @@ export interface CompanyEntity {
   addressLine2?: string;
   city?: string;
   state?: string;
-  postalCode?: string;
+  postcode?: string;
   country?: string;
   // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
   countryCode?: string | null;
@@ -1817,7 +1819,7 @@ export interface UpdateCompanyData {
   addressLine2?: string;
   city?: string;
   state?: string;
-  postalCode?: string;
+  postcode?: string;
   country?: string;
   // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
   countryCode?: string | null;
@@ -1844,7 +1846,7 @@ export interface CreateCompanyData {
   addressLine2?: string;
   city?: string;
   state?: string;
-  postalCode?: string;
+  postcode?: string;
   country?: string;
   // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
   countryCode?: string | null;
@@ -1959,7 +1961,7 @@ export interface PlatformProfile {
   addressLine2: string | null;
   city: string | null;
   state: string | null;
-  postalCode: string | null;
+  postcode: string | null;
   logo: string | null;
   countryCode: string | null;
   baseCurrencyCode: string | null;

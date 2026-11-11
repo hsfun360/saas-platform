@@ -17,7 +17,8 @@ const id = fields.uuid;
 // the per-type vocabulary and the one-row-per-type rule.
 const addressLine = z.object({
     addressType: str(20),
-    address: str(1000),
+    addressLine1: str(255),
+    addressLine2: str(255),
     city: str(100),
     postcode: str(20),
     state: str(100),

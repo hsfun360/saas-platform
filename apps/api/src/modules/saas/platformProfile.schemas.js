@@ -30,7 +30,7 @@ module.exports = {
             addressLine2: str(255),
             city: str(255),
             state: str(255),
-            postalCode: str(255),
+            postcode: str(255),
             logo: str(255),
             defaultTaxSchemeCode: str(255),
             // LHDN e-Invoice issuer identity

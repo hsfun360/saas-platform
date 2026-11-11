@@ -83,7 +83,7 @@ const AffiliatedClub = sequelize.define('AffiliatedClub', {
     addressLine2: { type: DataTypes.STRING, allowNull: true },
     city: { type: DataTypes.STRING(100), allowNull: true },
     state: { type: DataTypes.STRING(100), allowNull: true },
-    postalCode: { type: DataTypes.STRING(20), allowNull: true },
+    postcode: { type: DataTypes.STRING(20), allowNull: true },
     countryCode: { type: DataTypes.STRING(2), allowNull: true },
     remarks: { type: DataTypes.STRING, allowNull: true },
     isActive: {

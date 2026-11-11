@@ -19,7 +19,7 @@ There is only ever one profile; staff come here once at setup and whenever the r
 One form in four sections, followed by a test panel:
 
 - **Issuer identity** - legal name, trading name, registration numbers, email, phone, website and the logo.
-- **Address** - two address lines, city, state, postal code and the **Country**, which is also the platform's tax country.
+- **Address** - two address lines, city, state, postcode and the **Country**, which is also the platform's tax country.
 - **Billing & tax** - the **Base currency** and the **Default tax scheme**, offered from the platform tax schemes of the chosen country.
 - **e-Invoice (LHDN)** - TIN, MSIC code, business activity description and the SST and tourism-tax registration numbers.
 - A **Save profile** button under the form.
@@ -38,7 +38,7 @@ One form in four sections, followed by a test panel:
 
 ### Set the address and tax country
 
-1. Fill in the address lines, **City**, **State** and **Postal code**.
+1. Fill in the address lines, **City**, **State** and **Postcode**.
 2. Pick the **Country** from the list; type a few letters to filter.
    This is also the platform's tax country: changing it clears the **Default tax scheme** if that scheme belongs to another country.
 3. Click **Save profile**.
@@ -89,7 +89,7 @@ This is exactly the calculation a platform invoice will use, so it is the quicke
 | **Address line 1** / **Address line 2** | No | The street address. | Up to 150 characters each. |
 | **City** | No | The city. | Up to 100 characters. |
 | **State** | No | The state or region. | Up to 100 characters. |
-| **Postal code** | No | The postal code. | Up to 20 characters. |
+| **Postcode** | No | The postcode. | Up to 20 characters. |
 | **Country** | No | The platform's country, picked from the active countries. It is also the platform's tax country and limits the Default tax scheme to that country's schemes. | Changing it clears a default scheme that belongs to another country. |
 
 ### Billing & tax

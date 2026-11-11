@@ -96,7 +96,7 @@ Leaving every day unticked is valid: the company is "not configured" and weekend
 | **Website** | No | The company's website, e.g. `https://yourclub.com`. | - |
 | **Registration no.** | No | The business registration number, shown in brackets on the company card and on documents. | - |
 | **Tax registration no.** | No | The tax/SST/GST registration number used on tax documents. | - |
-| **Address line 1 / 2, City, State, Postal code** | No | The company's registered address, used on printed documents. | - |
+| **Address line 1 / 2, City, State, Postcode** | No | The company's registered address, used on printed documents. | - |
 | **Country** | No | The country the company operates in. It anchors country-based setup elsewhere - public holidays, tax schemes - and drives the Timezone choices. The special **Others** entry (bottom of the list) is for a country not in the list. | Choices come from the active countries maintained on the Countries screen. |
 | **Timezone** | No | The timezone used when showing this company's dates and times, displayed with its UTC offset. | After picking a country, choose from that country's timezones (a single-timezone country is filled automatically). With no country (or Others), type the timezone name, e.g. `Asia/Kuala_Lumpur`. |
 | **Default currency** | No | The currency this company prices in, e.g. `MYR`. | Choices are the currencies your organization opted into - if the list is empty, add them under System Setup → Currencies first. |

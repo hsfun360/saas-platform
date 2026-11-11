@@ -59,7 +59,7 @@ export interface GolfAffiliatedClubPayload {
   addressLine2: string | null;
   city: string | null;
   state: string | null;
-  postalCode: string | null;
+  postcode: string | null;
   countryCode: string | null;
   remarks: string | null;
   sortOrder: number;

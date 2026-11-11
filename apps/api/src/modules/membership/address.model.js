@@ -32,7 +32,10 @@ const Address = sequelize.define('Address', {
         type: DataTypes.STRING(20),
         allowNull: false,
     },
-    address: { type: DataTypes.STRING(255), allowNull: false },
+    // Street lines per the app-wide address standard (2026-11-11): TWO lines,
+    // addressLine1 required, addressLine2 optional (maps to LHDN AddressLine0/1).
+    addressLine1: { type: DataTypes.STRING(255), allowNull: false },
+    addressLine2: { type: DataTypes.STRING(255), allowNull: true },
     city: { type: DataTypes.STRING(100), allowNull: true },
     postcode: { type: DataTypes.STRING(20), allowNull: true },
     state: { type: DataTypes.STRING(100), allowNull: true },

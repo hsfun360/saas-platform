@@ -204,7 +204,8 @@ async function lookupPartyBilling(companyId, debtorType, sourceId) {
         no: d.no,
         contactPerson,
         address: pick ? {
-            line1: pick.address,
+            line1: pick.addressLine1,
+            line2: pick.addressLine2,
             city: pick.city,
             state: pick.state,
             postcode: pick.postcode,

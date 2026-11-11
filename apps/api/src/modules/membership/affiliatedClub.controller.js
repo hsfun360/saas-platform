@@ -66,7 +66,7 @@ async function toDto(c, types, feeTypes, canModify = true) {
         contactEmail: c.contactEmail,
         contactPhone: c.contactPhone,
         address: await withCountryName({
-            line1: c.addressLine1, line2: c.addressLine2, city: c.city, state: c.state, postcode: c.postalCode, countryCode: c.countryCode,
+            line1: c.addressLine1, line2: c.addressLine2, city: c.city, state: c.state, postcode: c.postcode, countryCode: c.countryCode,
         }),
         remarks: c.remarks,
         isActive: c.isActive !== false,
@@ -136,7 +136,7 @@ function normalizeBody(body, types, feeTypes) {
             addressLine2: strOrNull(body.addressLine2),
             city: strOrNull(body.city),
             state: strOrNull(body.state),
-            postalCode: strOrNull(body.postalCode),
+            postcode: strOrNull(body.postcode),
             countryCode,
             remarks: strOrNull(body.remarks),
             sortOrder: sort.value === null ? 100 : sort.value,

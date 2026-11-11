@@ -141,7 +141,7 @@ export class CompaniesComponent implements OnInit {
     addressLine2: [''],
     city: [''],
     state: [''],
-    postalCode: [''],
+    postcode: [''],
     country: [''],
     timezone: ['Asia/Kuala_Lumpur'],
     logo: [''],
@@ -165,7 +165,7 @@ export class CompaniesComponent implements OnInit {
     addressLine2: [''],
     city: [''],
     state: [''],
-    postalCode: [''],
+    postcode: [''],
     country: [''],
     timezone: ['Asia/Kuala_Lumpur'],
     logo: [''],
@@ -195,7 +195,7 @@ export class CompaniesComponent implements OnInit {
   // is active at a time. The dialog component handles focus in/trap/restore.
   private readonly emptyCompany = {
     name: '', registrationNumber: '', taxRegistrationNumber: '', email: '', phone: '',
-    website: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '',
+    website: '', addressLine1: '', addressLine2: '', city: '', state: '', postcode: '',
     country: '', timezone: 'Asia/Kuala_Lumpur', logo: '', defaultCurrencyCode: '',
   };
 
@@ -333,7 +333,7 @@ export class CompaniesComponent implements OnInit {
         addressLine2: v.addressLine2.trim() || undefined,
         city: v.city.trim() || undefined,
         state: v.state.trim() || undefined,
-        postalCode: v.postalCode.trim() || undefined,
+        postcode: v.postcode.trim() || undefined,
         country: v.country.trim() || undefined,
         // The picker's value is the alpha-2 code; mirror it to the canonical field.
         countryCode: v.country.trim().toLowerCase() || undefined,
@@ -424,7 +424,7 @@ export class CompaniesComponent implements OnInit {
       addressLine2: company.addressLine2 || '',
       city: company.city || '',
       state: company.state || '',
-      postalCode: company.postalCode || '',
+      postcode: company.postcode || '',
       country: company.country || '',
       timezone: company.timezone || 'Asia/Kuala_Lumpur',
       logo: company.logo || '',

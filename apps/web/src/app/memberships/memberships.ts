@@ -519,7 +519,8 @@ export class MembershipsComponent implements OnInit {
   private buildAddressGroup(v: Partial<AddressEntry> = {}): FormGroup {
     return this.fb.nonNullable.group({
       addressType: [v.addressType || 'residential'],
-      address: ['' + (v.address || ''), [Validators.maxLength(255)]],
+      addressLine1: ['' + (v.addressLine1 || ''), [Validators.maxLength(255)]],
+      addressLine2: ['' + (v.addressLine2 || ''), [Validators.maxLength(255)]],
       city: [v.city || '', [Validators.maxLength(100)]],
       postcode: [v.postcode || '', [Validators.maxLength(20)]],
       state: [v.state || '', [Validators.maxLength(100)]],

@@ -38,9 +38,9 @@ const OtherDebtor = sequelize.define('OtherDebtor', {
     mobile: { type: DataTypes.STRING, allowNull: true },
     fax: { type: DataTypes.STRING, allowNull: true },
     email: { type: DataTypes.STRING, allowNull: true },
-    address1: { type: DataTypes.STRING, allowNull: true },
-    address2: { type: DataTypes.STRING, allowNull: true },
-    address3: { type: DataTypes.STRING, allowNull: true },
+    // Street lines per the app-wide address standard (2026-11-11): two lines.
+    addressLine1: { type: DataTypes.STRING(255), allowNull: true },
+    addressLine2: { type: DataTypes.STRING(255), allowNull: true },
     city: { type: DataTypes.STRING, allowNull: true },
     state: { type: DataTypes.STRING, allowNull: true },
     postcode: { type: DataTypes.STRING(20), allowNull: true },

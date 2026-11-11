@@ -59,7 +59,8 @@ export class SalesAgenciesComponent implements OnInit {
     email: ['', [Validators.email]],
     // The single office address; an empty street line means "no address".
     address: this.fb.nonNullable.group({
-      address: ['', [Validators.maxLength(255)]],
+      addressLine1: ['', [Validators.maxLength(255)]],
+      addressLine2: ['', [Validators.maxLength(255)]],
       city: ['', [Validators.maxLength(100)]],
       postcode: ['', [Validators.maxLength(20)]],
       state: ['', [Validators.maxLength(100)]],
@@ -106,7 +107,7 @@ export class SalesAgenciesComponent implements OnInit {
     this.editRow.set(null);
     this.form.reset({
       agencyCode: '', agencyName: '', registrationNo: '', contactPerson: '', phone: '', mobile: '', email: '',
-      address: { address: '', city: '', postcode: '', state: '', countryCode: '' },
+      address: { addressLine1: '', addressLine2: '', city: '', postcode: '', state: '', countryCode: '' },
     });
     this.dialogOpen.set(true);
   }
@@ -124,7 +125,8 @@ export class SalesAgenciesComponent implements OnInit {
       mobile: row.mobile || '',
       email: row.email || '',
       address: {
-        address: row.address?.address || '',
+        addressLine1: row.address?.addressLine1 || '',
+        addressLine2: row.address?.addressLine2 || '',
         city: row.address?.city || '',
         postcode: row.address?.postcode || '',
         state: row.address?.state || '',

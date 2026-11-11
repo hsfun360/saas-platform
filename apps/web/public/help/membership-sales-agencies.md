@@ -29,7 +29,7 @@ The screen is only relevant for a commercial club that has the **Sales agencies*
 [Screenshot: New agency dialog]
 
 1. Click **New agency**.
-2. Under **Agency**, enter the **Agency code** and **Agency name**; optionally the **Registration no.** and the office **Address** (address line, city, postcode, state, country).
+2. Under **Agency**, enter the **Agency code** and **Agency name**; optionally the **Registration no.** and the office **Address** (address lines 1 and 2, city, postcode, state, country).
 3. Under **Contact**, optionally enter the **Contact person**, **Email**, **Phone** and **Mobile**.
 4. Click **Save**.
 
@@ -39,7 +39,7 @@ The agency appears in the list and can be picked when creating an agency-staff s
 
 1. Find the agency (use the search box if the list is long) and click **Edit**.
 2. Change what you need - the code can be changed as long as it stays unique.
-   Clearing the address line removes the agency's address altogether.
+   Clearing address line 1 removes the agency's address altogether.
 3. Click **Save**.
 
 If you leave the dialog with unsaved changes (Cancel, ✕, Esc or the browser back button), the system asks whether to discard your changes or keep editing.
@@ -61,7 +61,7 @@ Agencies are never deleted, because their agents and the memberships they sold r
 | **Agency code** | Yes | A short code identifying the agency, e.g. `AGY01`. | Up to 30 characters; must be unique within the company. |
 | **Agency name** | Yes | The agency's trading name, e.g. `Prime Leisure Marketing Sdn Bhd`. | Up to 255 characters. |
 | **Registration no.** | No | The agency's business registration number, shown in brackets on the card. | Up to 100 characters. |
-| **Address** | No | The agency's office street address; leave empty for no address. | Up to 255 characters. |
+| **Address line 1 / 2** | No | The agency's office street address, on up to two lines; leave line 1 empty for no address. | Up to 255 characters each. |
 | **City** / **Postcode** / **State** | No | The rest of the office address. | City and state up to 100 characters; postcode up to 20. |
 | **Country** | No | The office country, picked from the active countries list. | - |
 
@@ -78,7 +78,7 @@ Agencies are never deleted, because their agents and the memberships they sold r
 
 - If you see "Agency 'X' already exists." another agency in this company already has that code.
 - If you see "Agency code is required." or "Agency name is required." fill in the two mandatory fields.
-- If you see "Address must be 255 characters or fewer." shorten the street line.
+- If you see "Each address line must be 255 characters or fewer." shorten the street line.
 - If you see "Your role's data scope does not allow amending this record." the agency was created by someone outside your data scope; ask your administrator.
 - If the Sales Agencies menu does not appear, check that the **Sales agencies** channel is enabled on Membership Management → Club Specification and that your club is not a committee club.
 - Disable rather than rename an agency you stop working with, so Business Insights keeps reporting the memberships it closed under its own name.

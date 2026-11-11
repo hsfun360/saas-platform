@@ -24,7 +24,7 @@ function toDto(profile) {
         return {
             legalName: null, tradingName: null, registrationNumber: null, taxRegistrationNumber: null,
             email: null, phone: null, website: null,
-            addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null,
+            addressLine1: null, addressLine2: null, city: null, state: null, postcode: null,
             logo: null, countryCode: null, baseCurrencyCode: null, defaultTaxSchemeCode: null,
             tin: null, msicCode: null, businessActivityDescription: null,
             sstRegistrationNumber: null, ttxRegistrationNumber: null,
@@ -42,7 +42,7 @@ function toDto(profile) {
         addressLine2: profile.addressLine2,
         city: profile.city,
         state: profile.state,
-        postalCode: profile.postalCode,
+        postcode: profile.postcode,
         logo: profile.logo,
         countryCode: profile.countryCode,
         baseCurrencyCode: profile.baseCurrencyCode,
@@ -79,7 +79,7 @@ exports.updateProfile = async (req, res) => {
         const textFields = [
             'legalName', 'tradingName', 'registrationNumber', 'taxRegistrationNumber',
             'email', 'phone', 'website',
-            'addressLine1', 'addressLine2', 'city', 'state', 'postalCode',
+            'addressLine1', 'addressLine2', 'city', 'state', 'postcode',
             'logo', 'defaultTaxSchemeCode',
             // LHDN e-Invoice issuer identity (see platformProfile.model.js).
             'tin', 'msicCode', 'businessActivityDescription', 'sstRegistrationNumber', 'ttxRegistrationNumber',

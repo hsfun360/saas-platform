@@ -63,7 +63,7 @@ const companyProfile = {
     addressLine2: str(255),
     city: str(255),
     state: str(255),
-    postalCode: str(50),
+    postcode: str(50),
     country: str(255),
     countryCode: str(10),
     timezone: str(100),

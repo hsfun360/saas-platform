@@ -641,6 +641,41 @@ async function initializeDB() {
                 }
             }
 
+            // Address standardization (user decision 2026-11-11): ONE street
+            // vocabulary app-wide - addressLine1 + addressLine2 (two lines,
+            // not three) and `postcode` (never postalCode). Renames run
+            // BEFORE the alter-sync so rows survive; idempotent via
+            // information_schema guards; a fresh DB skips every branch.
+            const addrColExists = async (schema, table, column) => {
+                const [[hit]] = await sequelize.query(`
+                    SELECT 1 AS present FROM information_schema.columns
+                    WHERE table_schema = :schema AND table_name = :table AND column_name = :column
+                `, { replacements: { schema, table, column } });
+                return Boolean(hit && hit.present);
+            };
+            // 1. membership.Address: the single street field becomes line 1
+            //    (the sync adds the new nullable addressLine2).
+            if (await addrColExists('membership', 'Address', 'address')) {
+                await sequelize.query('ALTER TABLE membership."Address" RENAME COLUMN "address" TO "addressLine1"');
+                console.log('Migrated membership.Address.address -> addressLine1.');
+            }
+            // 2. ar.OtherDebtor: address1/2 rename; address3 folds into
+            //    line 2 (comma-joined) and drops.
+            if (await addrColExists('ar', 'OtherDebtor', 'address1')) {
+                await sequelize.query('ALTER TABLE ar."OtherDebtor" RENAME COLUMN "address1" TO "addressLine1"');
+                await sequelize.query('ALTER TABLE ar."OtherDebtor" RENAME COLUMN "address2" TO "addressLine2"');
+                await sequelize.query(`UPDATE ar."OtherDebtor" SET "addressLine2" = NULLIF(CONCAT_WS(', ', "addressLine2", "address3"), '') WHERE "address3" IS NOT NULL`);
+                await sequelize.query('ALTER TABLE ar."OtherDebtor" DROP COLUMN "address3"');
+                console.log('Migrated ar.OtherDebtor address1/2/3 -> addressLine1/2 (line 3 folded into line 2).');
+            }
+            // 3. postalCode -> postcode on the three carriers that drifted.
+            for (const [schema, table] of [['public', 'Company'], ['public', 'PlatformProfile'], ['membership', 'AffiliatedClub']]) {
+                if (await addrColExists(schema, table, 'postalCode')) {
+                    await sequelize.query(`ALTER TABLE ${schema}."${table}" RENAME COLUMN "postalCode" TO "postcode"`);
+                    console.log(`Migrated ${schema}.${table}.postalCode -> postcode.`);
+                }
+            }
+
             await sequelize.sync({ alter: true });
             // ... and again AFTER it, for the copies this sync just added.
             await dropDuplicateConstraints(sequelize);

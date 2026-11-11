@@ -69,7 +69,7 @@ export class PlatformProfileComponent implements OnInit {
     addressLine2: ['', [Validators.maxLength(150)]],
     city: ['', [Validators.maxLength(100)]],
     state: ['', [Validators.maxLength(100)]],
-    postalCode: ['', [Validators.maxLength(20)]],
+    postcode: ['', [Validators.maxLength(20)]],
     logo: [''],
     // LHDN e-Invoice issuer identity (Malaysia MyInvois).
     tin: ['', [Validators.maxLength(20)]],
@@ -135,7 +135,7 @@ export class PlatformProfileComponent implements OnInit {
           registrationNumber: p.registrationNumber || '', taxRegistrationNumber: p.taxRegistrationNumber || '',
           email: p.email || '', phone: p.phone || '', website: p.website || '',
           addressLine1: p.addressLine1 || '', addressLine2: p.addressLine2 || '',
-          city: p.city || '', state: p.state || '', postalCode: p.postalCode || '',
+          city: p.city || '', state: p.state || '', postcode: p.postcode || '',
           logo: p.logo || '', countryCode: p.countryCode || '', baseCurrencyCode: p.baseCurrencyCode || '',
           defaultTaxSchemeCode: p.defaultTaxSchemeCode || '',
           tin: p.tin || '', msicCode: p.msicCode || '',

@@ -78,7 +78,7 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
     addressLine2: [''],
     city: [''],
     state: [''],
-    postalCode: [''],
+    postcode: [''],
     countryCode: [''],
     remarks: [''],
     sortOrder: [100, [Validators.required, Validators.min(1), Validators.max(999)]],
@@ -183,7 +183,7 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
     this.form.reset({
       code: '', name: '', kind: '', playerTypeId: '', agreementFrom: '', agreementTo: '', allowChargeToHomeClub: false,
       maxGuestsPerVisit: null, maxVisitsPerPlayer: null, maxVisitsPeriod: 'year', maxVisitsPerYear: null, visitFeeTransactionTypeId: '', requiresApproval: false,
-      contactName: '', contactEmail: '', contactPhone: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', countryCode: '',
+      contactName: '', contactEmail: '', contactPhone: '', addressLine1: '', addressLine2: '', city: '', state: '', postcode: '', countryCode: '',
       remarks: '', sortOrder: 100,
     });
     this.dialogOpen.set(true);
@@ -200,7 +200,7 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
       requiresApproval: c.requiresApproval,
       contactName: c.contactName || '', contactEmail: c.contactEmail || '', contactPhone: c.contactPhone || '',
       addressLine1: c.address.line1 || '', addressLine2: c.address.line2 || '', city: c.address.city || '', state: c.address.state || '',
-      postalCode: c.address.postcode || '', countryCode: c.address.countryCode || '',
+      postcode: c.address.postcode || '', countryCode: c.address.countryCode || '',
       remarks: c.remarks || '', sortOrder: c.sortOrder,
     });
     this.dialogOpen.set(true);
@@ -239,7 +239,7 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
       addressLine2: v.addressLine2.trim() || null,
       city: v.city.trim() || null,
       state: v.state.trim() || null,
-      postalCode: v.postalCode.trim() || null,
+      postcode: v.postcode.trim() || null,
       countryCode: v.countryCode || null,
       remarks: v.remarks.trim() || null,
       sortOrder: Number(v.sortOrder) || 100,

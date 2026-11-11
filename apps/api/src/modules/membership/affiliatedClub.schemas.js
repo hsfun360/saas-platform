@@ -32,7 +32,7 @@ const clubBody = z.object({
     addressLine2: str(255),
     city: str(100),
     state: str(100),
-    postalCode: str(20),
+    postcode: str(20),
     countryCode: str(2),
     remarks: str(255),
     sortOrder: numberish,

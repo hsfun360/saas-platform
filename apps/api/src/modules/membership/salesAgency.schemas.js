@@ -14,7 +14,8 @@ const id = fields.uuid;
 // The agency's single office address (normalizeAddress): an empty street
 // line means "no address", so the whole object may be absent or null.
 const address = z.object({
-    address: str(500),
+    addressLine1: str(255),
+    addressLine2: str(255),
     city: str(100),
     postcode: str(20),
     state: str(100),

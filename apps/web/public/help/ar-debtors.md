@@ -91,7 +91,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 4. When multi-currency is on, choose the **Account currency**.
    It starts as the base currency.
    Every document on the account will be in this currency, and it locks once the first document is saved, so a customer who needs two currencies gets two Other Debtor accounts.
-5. Fill in the identity and contact details: **Registration no.**, **Tax no.**, **Contact person**, **Email**, **Phone**, **Mobile**, the three **Address** lines, **City**, **State**, **Postcode** and **Country**, plus **Remarks**.
+5. Fill in the identity and contact details: **Registration no.**, **Tax no.**, **Contact person**, **Email**, **Phone**, **Mobile**, the two **Address** lines, **City**, **State**, **Postcode** and **Country**, plus **Remarks**.
 6. Under the ledger account heading, set the starting **Terms (days)**, **Credit limit**, **Send payment reminders** and **Charge late-payment interest**.
    These are edited later through **Edit terms**.
 7. Click **Save**.
@@ -165,7 +165,7 @@ The same check runs automatically every night in report-only mode.
 | **Contact person** | No | Who to address statements to. | Up to 255 characters; printed as "Attn:" on statements. |
 | **Email** | No | The billing email address. | Must be a valid email address. |
 | **Phone** / **Mobile** | No | Pick the country code, then type the number. | |
-| **Address** (three lines), **City**, **State**, **Postcode**, **Country** | No | The billing address printed on statements. | Postcode up to 20 characters; Country from the active country list. |
+| **Address** (two lines), **City**, **State**, **Postcode**, **Country** | No | The billing address printed on statements. | Postcode up to 20 characters; Country from the active country list. |
 | **Remarks** | No | Internal notes. | |
 | **Terms (days)** | No | Starting payment terms; blank means immediate. | 0 to 3650; create mode only. |
 | **Credit limit** | No | Starting credit limit. | Zero or more; create mode only. |

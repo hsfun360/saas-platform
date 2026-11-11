@@ -641,9 +641,8 @@ export interface ArOtherDebtor {
   mobile: string | null;
   fax: string | null;
   email: string | null;
-  address1: string | null;
-  address2: string | null;
-  address3: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
   city: string | null;
   state: string | null;
   postcode: string | null;

@@ -688,7 +688,7 @@ async function generateOne({
             debtorNo = o.code;
             contactPerson = o.contactPerson || null;
             billAddress = {
-                line1: o.address1, line2: o.address2, line3: o.address3,
+                line1: o.addressLine1, line2: o.addressLine2,
                 city: o.city, state: o.state, postcode: o.postcode, countryCode: o.countryCode,
             };
         }

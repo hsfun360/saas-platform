@@ -42,19 +42,22 @@ function toDto(a, extra = {}) {
 
 function addressToDto(row) {
     if (!row) return null;
-    return { address: row.address, city: row.city, postcode: row.postcode, state: row.state, countryCode: row.countryCode };
+    return { addressLine1: row.addressLine1, addressLine2: row.addressLine2, city: row.city, postcode: row.postcode, state: row.state, countryCode: row.countryCode };
 }
 
 // The agency's single office address (a 'company' row in the typed address
 // book). An empty street line means "no address" - the row is removed.
 function normalizeAddress(raw) {
     if (!raw || typeof raw !== 'object') return { value: null };
-    const line = str(raw.address);
-    if (!line) return { value: null };
-    if (line.length > 255) return { error: 'Address must be 255 characters or fewer.' };
+    const line = str(raw.addressLine1);
+    const line2 = strOrNull(raw.addressLine2);
+    if (!line && !line2) return { value: null };
+    if (!line) return { error: 'Address line 1 is required when an address is entered.' };
+    if (line.length > 255 || (line2 || '').length > 255) return { error: 'Each address line must be 255 characters or fewer.' };
     return {
         value: {
-            address: line,
+            addressLine1: line,
+            addressLine2: line2,
             city: strOrNull(raw.city),
             postcode: strOrNull(raw.postcode),
             state: strOrNull(raw.state),
