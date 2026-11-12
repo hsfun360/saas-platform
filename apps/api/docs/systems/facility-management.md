@@ -949,7 +949,7 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile); under `/class-lifecycle` (the Class Schedule or Control Station grant, built 5c): `GET /enrolments/:id/cancel-preview`, `POST /enrolments/:id/cancel`, `POST /waitlist` (the enrol body), `POST /waitlist/:id/offer`, `POST /waitlist/:id/confirm`, `POST /waitlist/:id/withdraw`; the closure `generate-days` preview returns `classSessions` and `PUT days` cancels them; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
 - Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
-### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; "Scan and serve" approved 2026-11-12 and its step 6b BUILT and smoked on dev 2026-11-12; 6c BUILT and smoked on dev 2026-11-12; 6d not built)
+### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; "Scan and serve" approved 2026-11-12 and its step 6b BUILT and smoked on dev 2026-11-12; 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12, dev smoke pending)
 
 **Status:** drafted 2026-11-11, revised the same day with two changes from the user, and approved as revised.
 Sub-slice 6a built 2026-11-11: the `UtilityItem` and `UtilityUnit` models; the pure rules in utilityRules.service.js (unit-tested: the behaviour of an item from its two switches, their normalisation, the codes Generate units proposes); the master's controller, schemas and routes under /api/facility/utility-items (items, units, generate with its preview, the icon upload); `IssueRecord` re-pointed (`utilityItemId`, `utilityUnitId`, the `used` status); the station engine's issue, return, unit clear and day picture on the new tables (the picture returns `utilityItems` beside `types`; a use-only item closes as `used` and its limit counts the day's uses); the issue usage mode and its columns retired from the facility types and the facilities; the move of the existing data (see "Moving what exists"); the Utility Items screen at /facility/utility-items; the station's strip and view reading the utility items; Facility Types and Facilities without the issue mode.
@@ -959,7 +959,7 @@ Polish from that smoke (2026-11-12): the day picture carries `fee` per utility i
 Not checked at phone width (the test browser window could not be resized).
 6b, 6c and 6d not built.
 Those three steps were revised and approved on 2026-11-12 ("Scan and serve - the station starts from the person", at the end of this slice): the station starts from a scanned pass or a member number and serves the person in one panel, a tap per item.
-Its first step, 6b, is built and smoked on dev (2026-11-12); its second, 6c, is built and smoked on dev (2026-11-12).
+Its first step, 6b, is built and smoked on dev (2026-11-12); its second, 6c, is built and smoked on dev (2026-11-12); its third and last, 6d, is built (dev smoke pending).
 The user's changes: (1) a towel or a locker must not be called a facility - they become **Utility Items** with a master file of their own; (2) a guest holding a pass (registered upfront) claims utility items at the station on their own, while a guest who was not registered must be at the station together with the member.
 
 What is wrong today.
@@ -1164,7 +1164,7 @@ Sign-out of the entry lists what the party still holds, with Return beside each.
 - Build order inside the slice: 6a the Utility Item master (the two tables, the migration script, the master screen, the station's Utility Items view on the new tables, the use-only behaviour) - same behaviour as today under the new name; 6b the known guest at the door (the seam calls, the `RegistrationGuest` columns, Scan and contact on the Register form, counting once); 6c the holder (the `IssueRecord` holder columns, "For", a pass served alone, the per-person limit, the fee at the holder's type, return by pass, the sign-out list); 6d the Arrival drawer (the party in one transaction with its preview, `hostPresent`).
   On approval the slice 1 and slice 3 text above that describes the "issue" usage mode is marked superseded by this section.
 
-#### Scan and serve - the station starts from the person (approved 2026-11-12; 6b and 6c BUILT and smoked on dev 2026-11-12)
+#### Scan and serve - the station starts from the person (approved 2026-11-12; 6b and 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12, dev smoke pending)
 
 **Status:** drafted 2026-11-12 after the 6a smoke, at the user's request, and approved the same day with its nine decisions as proposed.
 It revises the build order 6b, 6c and 6d above and replaces the Arrival drawer as the station's main path.
@@ -1212,7 +1212,27 @@ The entry form's guest line showed its Mobile and Email fields, but an entry wit
 Polish found by that smoke and fixed: the Add guest form opens with the keyboard in the name field; its outcome line stands clear of the fields; its button reads "Register and serve" when the club asks for a contact; removing a guest returns the focus to the next-person field; the Control Station card of Facility Specification names the guest settings in its subtitle; the guest-rule refusal at the door reads its date as a date.
 Those were pushed and re-checked on dev the same day: the name field held the keyboard, the outcome line stood 16px clear, removing a guest (pass GR00004) left the focus in the next-person field, the card subtitle read as changed and the refusal said "12 Nov 2026"; the button label under the contact switch was not re-checked on dev (its test covers it).
 Not checked on dev: the WhatsApp and email sends (no real recipient), the camera scanner and phone width.
-6d not built.
+
+Step 6d built 2026-11-12 (entering a facility from the panel; dev smoke pending).
+What it is: the Serve panel gains **Enter a facility**, one tile per active entry facility, each stating before it is tapped the price and the count the tap will reach ("13 of 40 inside after this"), or why it cannot be tapped.
+A tap admits ONE person.
+The member gets an entry of their own, or - when their guests went in ahead on a pass - joins that entry.
+A guest (on a pass, or by name with the member) becomes a line on the host's live entry of that facility; when the host is not inside, the guest opens an entry in the host's name with `Registration.hostPresent` false, which a type with `hostMustBePresent` ON refuses ("Ahmad Faizal must enter POOL first").
+A person who is inside is shown so on the tile, with **Sign out** where the entry is theirs (the member's, or a guest's own while the host is not in) and "signs out with <the member>" where it is not.
+Sign-out never blocks and says what the party still holds ("Still out: L003 (Tan Wei Ming), TOWEL (Ahmad Faizal)").
+Verified before any deploy on a throwaway Postgres 18 driving the service the way the screen does (54 checks): the tiles' price, count and reasons; a guest admitted alone on the pass (host not present, counted once, the guest fee billed, the pass arrived); the inside-only utility item opening to the guest inside; the Register form refusing to open a second entry behind the guests; the member joining that entry (one entry, the entry fee on the SAME bill, the member's towel on it too: one open bill); a guest by name admitted onto the member's entry drawing ONE visit that an item and its undo leave alone; the capacity; the host-must-be-present type; the guests-per-visit cap; the sign-out list naming each holder; a second visitor-guest type picked on the tile; the guest rule and the monthly allowance.
+The 6b scenario (38 checks) and the 6c scenario (54 checks) were run again unchanged.
+Built as approved with these notes:
+"the host already inside" means the host stands on a live entry of THAT facility now;
+the entry fee and the guest fee go on the ENTRY's bill (the one it carries while open, else the member's open bill of the day, else a new one), so the member keeps ONE open bill with their utility items; a guest's own utility items stay on the guest's bill of 6b, also in the host's name;
+a guest's line takes the system guest type unless the club keeps more than one visitor-guest type, in which case the tile offers the pick (this is where the participant type left out of "Add guest" in 6c went);
+the panel admits against the type's capacity and offers no unit pick and no member-as-guest line - the Register form keeps both;
+a guest on the host's entry signs out with the host, as an entry always signed out as one;
+a wrong admit has no Undo: it is corrected by Sign out and by removing its line on the bill;
+the Register form refuses to open a second entry for a member whose guests are already inside, and points to the panel;
+`IssueRecord.registrationGuestId` was NOT added: nothing reads it - a party's items are found by the pass or, for a guest by name, by the host and the name;
+the live count and the Guests form's capacity check add the host only when the host is inside.
+Dev smoke of 6d pending.
 
 The user's point.
 The station has no scan of the guest's pass, and it is not friendly: the desk picks an item first and keys the person after, once per item.
@@ -1314,6 +1334,7 @@ A typed member number returns the same picture for the member.
   - `POST /issues` gains the holder: `guestRegistrationId` in place of `memberNo`; the server takes the host from the pass, never from the browser;
   - `POST /issues/:id/undo`;
   - (6c) `POST /door-guests` `{ memberNo, name, mobile, email }` - adds the guest and answers the GUEST's panel with `share` (the pass to hand over) when one was registered; `GET /door-guests/:id/pass`; `POST /door-guests/:id/send` `{ via }`; `POST /door-guests/:id/remove`;
+  - (6d) `POST /admissions` `{ facilityTypeId, the person, participantType, panel }` admits one person; the panel's picture carries `entries` (one per entry facility: `liveCount`, `capacity`, `willReach`, `fee`, `allowed`, `reason`, `inside`, `hostInside`, `guestTypes`); `POST /registrations/:id/sign-out` answers `stillOut`;
   - (6c) `POST /scan` and `POST /issues` take `guestName` with `memberNo` for a guest served by name; a member's panel carries `guests` (served under them today) and `door` (the two switches);
   - `GET /today` carries the holder and the host on every issue row.
 
@@ -1324,7 +1345,7 @@ A typed member number returns the same picture for the member.
   This step alone delivers the three steps above.
 - **6c The guest without a pass, with the member (BUILT 2026-11-12).**
   "Add guest" in the member's panel (name, mobile or email - the type waits for the entry line of 6d); `registerGuestAtDoor`; the `RegistrationGuest` columns and the two door switches; the guest counted once; the panel then serves that guest, who holds a pass from then on.
-- **6d Entering a facility from the panel.**
+- **6d Entering a facility from the panel (BUILT 2026-11-12).**
   The entry facilities (pool, gym) as tiles beside the utility items, "Pool - admit" with the count it will reach; `hostPresent` and the type's `hostMustBePresent`; the entry fee and the guest fee on the same bill; sign-out lists what the person still holds.
 
 ##### Decisions (approved as proposed 2026-11-12)
@@ -1375,4 +1396,4 @@ A typed member number returns the same picture for the member.
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [ ] Slice 6d entering a facility from the panel · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, dev smoke pending) · [ ] Events · [ ] Own DB · [ ] Own deploy
