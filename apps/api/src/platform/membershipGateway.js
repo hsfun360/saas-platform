@@ -439,6 +439,36 @@ async function markGuestArrived(companyId, guestRegistrationId, opts = {}) {
     return require('../modules/membership/guestRegistration.service').markArrived(companyId, guestRegistrationId, opts);
 }
 
+// ---- A guest registered at a producer's counter (Facility's station, slice 6c) ----
+// registerGuestAtDoor(req, { memberId, visitDate, guest: { name, mobile, email }, channel }, { transaction })
+// registers the guest with Membership by the Guest Registration rules: the
+// returning guest is found, a pass that guest already holds with that host
+// for the date is returned as it is, an exhausted allowance refuses, and a
+// new registration is born 'arrived' on the visit date. It answers
+// { pass, created, counted, share } | { error, status } | { nameOnly: true,
+// warning } (no automatic number series: serve the guest by name).
+// share = { guestRegistrationId, registrationNo, passUrl, qrDataUrl,
+// whatsappUrl, canEmail, sentVia }; getGuestPassShare reads it again and
+// sendGuestPass(req, id, via) emails the pass or records the WhatsApp share.
+// cancelGuestAtDoor undoes ONLY a registration that channel created.
+// WHEN SPLIT: POST {internalServiceUrl('membership')}/internal/guest-passes/door
+//             GET  .../internal/guest-passes/:id/share   POST .../:id/send   POST .../:id/cancel-door
+async function registerGuestAtDoor(req, input, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').registerAtDoor(req, input, opts);
+}
+
+async function cancelGuestAtDoor(companyId, guestRegistrationId, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').cancelAtDoor(companyId, guestRegistrationId, opts);
+}
+
+async function getGuestPassShare(req, guestRegistrationId) {
+    return require('../modules/membership/guestRegistration.service').passShare(req, guestRegistrationId);
+}
+
+async function sendGuestPass(req, guestRegistrationId, via) {
+    return require('../modules/membership/guestRegistration.service').send(req, guestRegistrationId, { via });
+}
+
 module.exports = {
     getGuestAllowanceStanding,
     recordGuestVisit,
@@ -446,6 +476,10 @@ module.exports = {
     findGuestPass,
     getGuestPass,
     markGuestArrived,
+    registerGuestAtDoor,
+    cancelGuestAtDoor,
+    getGuestPassShare,
+    sendGuestPass,
     lookupPartyDisplay,
     searchPartyIds,
     getChargeTarget,

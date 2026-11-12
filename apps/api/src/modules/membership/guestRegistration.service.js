@@ -574,6 +574,8 @@ async function passFactsOf(companyId, row, { transaction } = {}) {
         status: row.status,
         passState: passStateOf(row.status, row.visitDate, today),
         arrivedAt: row.arrivedAt || null,
+        // Who registered it: 'desk', or the producer module whose counter did.
+        channel: row.channel,
         guest: guest ? { id: guest.id, name: guest.name } : { id: row.guestId, name: '' },
         host: hosts.get(row.memberId) || { memberId: row.memberId, memberNo: '', name: '' },
     };
@@ -605,8 +607,117 @@ async function markArrived(companyId, id, { actorId = null, transaction } = {}) 
     return true;
 }
 
+// ---- the door: a producer registers a guest standing at its counter ----------------
+// (Facility's Control Station, slice 6c, 2026-11-12.) The guest is at the
+// counter WITH the member, so the registration is born 'arrived'. The same
+// rules as the front desk's own registration: the returning guest is the
+// same name with the same mobile or email, a guest already registered with
+// this host for the date keeps that pass (nothing is created, nothing more is
+// drawn), and an exhausted monthly allowance refuses.
+//   -> { pass, created, counted, share } | { error, status }
+//   -> { nameOnly: true, warning } when the club has no automatic Guest
+//      Registration No. series: the door is never refused for that, the
+//      producer serves the guest by name.
+// Inside the producer's own transaction when one is passed.
+async function registerAtDoor(req, { memberId, visitDate = null, guest, channel = 'facility' } = {}, opts = {}) {
+    const companyId = getUserContext(req).companyId;
+    if (!companyId || !memberId) return fail('The host member is missing.');
+    const g = normalizeGuest(guest);
+    if (g.error) return g;
+    const today = await clubToday(companyId);
+    const date = visitDate && DATE_RE.test(String(visitDate)) ? String(visitDate) : today;
+    if (date < today) return fail(`${dateText(date)} has passed - a guest is registered for today or a later date.`);
+    const hostDto = (await hostsById(companyId, [memberId])).get(memberId);
+    if (!hostDto) return fail('The host member was not found.', 404);
+    const placement = await getCallerPlacement(req);
+    const callerId = getUserContext(req).userId;
+    const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
+    const work = async (transaction) => {
+        const Member = require('./member.model');
+        await Member.findOne({ where: { companyId, id: memberId }, attributes: ['id'], lock: transaction.LOCK.UPDATE, transaction });
+        const guestRow = await resolveGuest(companyId, {}, g.value, stamps, { transaction });
+        const live = await GuestRegistration.findOne({ where: { companyId, memberId, guestId: guestRow.id, visitDate: date, status: { [Op.ne]: 'cancelled' } }, transaction });
+        if (live) {
+            if (live.status === 'registered' && date === today) {
+                Object.assign(live, { status: 'arrived', arrivedAt: new Date(), arrivedBy: callerId, updatedBy: callerId });
+                await live.save({ transaction });
+            }
+            return { row: live, guestRow, created: false, counted: true };
+        }
+        const counted = await guestVisits.alreadyCounted(companyId, memberId, guestRow.id, date, { transaction });
+        const allowance = await guestVisits.getStanding(companyId, memberId, date, { transaction });
+        if (!counted && allowance && allowance.allowance !== null && allowance.remaining < 1) {
+            throw txFail(allowance.allowance === 0
+                ? `${hostDto.name} (${hostDto.memberNo}) may not bring guests under their membership type.`
+                : `${hostDto.name} (${hostDto.memberNo}) has used all ${allowance.allowance} guest visits for ${monthText(date)}.`);
+        }
+        const issued = await numberingGateway.issueNumber(req, NUMBERING_PURPOSE, { transaction });
+        if (!issued || !issued.number) throw Object.assign(new Error('no automatic series'), { noSeries: true });
+        const arrived = date === today;
+        const row = await GuestRegistration.create({
+            companyId, registrationNo: issued.number, guestId: guestRow.id, memberId, visitDate: date,
+            status: arrived ? 'arrived' : 'registered', arrivedAt: arrived ? new Date() : null, arrivedBy: arrived ? callerId : null,
+            channel, passToken: crypto.randomBytes(32).toString('hex'), ...stamps,
+        }, { transaction });
+        await guestVisits.record(companyId, {
+            memberId, visitDate: date, sourceModule: SOURCE_MODULE, sourceRef: row.id,
+            guestId: guestRow.id, guestName: guestRow.name, guestCount: 1, stamps,
+        }, { transaction });
+        return { row, guestRow, created: true, counted };
+    };
+    let out;
+    try {
+        out = opts.transaction ? await work(opts.transaction) : await sequelize.transaction(work);
+    } catch (err) {
+        if (err && err.noSeries) {
+            return { nameOnly: true, warning: `No automatic Guest Registration No. series is set up (Membership Management - Numbering Control) - ${g.value.name} is served by name, without a pass.` };
+        }
+        if (err && err.httpStatus) return { error: err.message, status: err.httpStatus };
+        if (!opts.transaction && err && err.name === 'SequelizeUniqueConstraintError') return { error: 'This guest is already registered with this member for that date.', status: 409 };
+        throw err;
+    }
+    const company = await getCompanyProfile(companyId);
+    return {
+        pass: await passFactsOf(companyId, out.row, { transaction: opts.transaction }),
+        created: out.created,
+        counted: out.counted,
+        share: await shareFactsOf(out.row, out.guestRow, hostDto, company),
+    };
+}
+
+// What a counter needs to hand the pass over, without the guest's contact
+// details themselves: the link, its QR code, the WhatsApp click-to-chat link
+// (a guest with a mobile) and whether the pass can be emailed.
+async function shareFactsOf(row, guest, hostDto, company) {
+    const facts = await passFacts(row, guest, hostDto, company);
+    return {
+        guestRegistrationId: row.id, registrationNo: row.registrationNo, passUrl: facts.passUrl, qrDataUrl: facts.qrDataUrl, whatsappUrl: facts.whatsappUrl,
+        canEmail: !!guest.email, sentVia: row.passSentVia || null,
+    };
+}
+
+// The share facts of an existing pass (null when there is none to hand over).
+async function passShare(req, id) {
+    const l = await load(req, id);
+    if (l.error || l.row.status === 'cancelled') return null;
+    return shareFactsOf(l.row, l.guest, l.host, await getCompanyProfile(l.companyId));
+}
+
+// Undo a registration a producer's counter created (never one of the front
+// desk's or the portal's): it is cancelled with the reason and its visit no
+// longer counts. Returns true when THIS call cancelled it.
+async function cancelAtDoor(companyId, id, { channel = 'facility', actorId = null, reason = null, transaction } = {}) {
+    const row = await GuestRegistration.findOne({ where: { companyId, id: String(id) }, transaction });
+    if (!row || row.status === 'cancelled' || row.channel !== channel) return false;
+    Object.assign(row, { status: 'cancelled', cancelledAt: new Date(), cancelReason: str(reason) || 'Removed at the counter', updatedBy: actorId });
+    await row.save({ transaction });
+    await guestVisits.voidVisit(companyId, SOURCE_MODULE, row.id, { transaction, updatedBy: actorId });
+    return true;
+}
+
 module.exports = {
     passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf,
     host, searchGuests, create, update, cancel, arrive, pass, send, scan, publicPass, list, get,
     findPassByCode, findPassById, markArrived,
+    registerAtDoor, cancelAtDoor, passShare,
 };
