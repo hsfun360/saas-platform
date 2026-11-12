@@ -496,7 +496,9 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // after every tap: a handheld scanner types where the focus is, and its
   // Enter must never land on a tile button and issue again.
   private focusNext(): void {
-    setTimeout(() => this.scanNext()?.nativeElement.focus(), 0);
+    // A refused code still sitting in the field is selected with it, so the
+    // next scan replaces it and is never appended to it.
+    setTimeout(() => { const box = this.scanNext()?.nativeElement; box?.focus(); box?.select(); }, 0);
   }
 
   submitScan(): void {

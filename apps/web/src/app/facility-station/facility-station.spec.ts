@@ -326,6 +326,16 @@ describe('FacilityStationComponent - scan and serve', () => {
       // The refused code stays, selected, where it was keyed - never behind the drawer.
       expect(document.activeElement).toBe(next);
       expect(next.value).toBe('NOPE');
+      // A tap on a tile brings the focus back with that code still selected,
+      // so the next scan replaces it and is never appended to it.
+      next.setSelectionRange(4, 4);
+      const unit = host().querySelector('.st-tile .st-unit') as HTMLButtonElement;
+      unit.focus();
+      unit.click();
+      await settle();
+      const field = host().querySelector('#stScanNext') as HTMLInputElement;
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([0, field.value.length]);
     } finally {
       window.matchMedia = original;
     }
