@@ -1185,6 +1185,8 @@ the return form opened from the panel opens on Damaged and its footer is Back, t
 a use is listed under its own heading "Used today", apart from "Holding now", and the Undo hint shows only while something can be undone;
 a unit picked on the board is captioned "picked", not "next free";
 the return message names what came back ("TOWEL returned.", "L001 returned.").
+Those five were pushed and re-checked on dev the same day, each one seen working.
+One more came out of the re-check and is fixed: the focus returning to the next-person field after a tap now selects a refused code still sitting there, so the next scan replaces it and is never appended to it.
 Not checked on dev: the camera scanner (it needs the device's camera permission) and phone width (the Chrome window cannot be resized by the smoke).
 6c and 6d not built.
 
