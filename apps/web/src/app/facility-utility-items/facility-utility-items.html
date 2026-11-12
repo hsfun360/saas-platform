@@ -378,7 +378,7 @@
                 <label for="ugLocation">Location for these units</label>
                 <input id="ugLocation" type="text" formControlName="location" placeholder="Optional, e.g. Men's changing room" maxlength="255" />
               </div>
-              <button type="submit" class="btn btn--secondary btn--sm" [disabled]="previewing()">
+              <button type="submit" class="btn btn--secondary btn--sm ui-preview-btn" [disabled]="previewing()">
                 <span class="material-icons" aria-hidden="true">visibility</span>
                 {{ previewing() ? 'Checking…' : 'Preview the units' }}
               </button>

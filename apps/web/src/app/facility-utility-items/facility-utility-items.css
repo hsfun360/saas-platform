@@ -50,7 +50,11 @@
   margin-top: var(--space-md);
 }
 
-/* Generate units: the codes the range would add. */
+/* Generate units: the preview button stands clear of the field above it,
+   then the codes the range would add. */
+.ui-preview-btn {
+  margin-top: var(--space-md);
+}
 .ui-preview {
   margin-top: var(--space-md);
   padding: var(--space-sm) var(--space-md);

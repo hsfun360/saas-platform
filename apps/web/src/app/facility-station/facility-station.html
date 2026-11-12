@@ -191,7 +191,7 @@
 
       <!-- ============ ENTRY (entry types) ============ -->
       @if (t.usageMode === 'entry') {
-        <div class="st-capacity" [class.st-capacity--full]="t.capacity != null && (t.liveCount || 0) >= t.capacity">
+        <div class="st-capacity" [class.st-capacity--plain]="t.capacity == null" [class.st-capacity--full]="t.capacity != null && (t.liveCount || 0) >= t.capacity">
           <span class="st-capacity__count"><strong>{{ t.liveCount }}</strong>{{ t.capacity != null ? ' of ' + t.capacity : '' }} inside</span>
           @if (t.capacity != null) {
             <span class="st-capacity__bar" aria-hidden="true"><span class="st-capacity__fill" [style.width.%]="t.capacity ? ((t.liveCount || 0) / t.capacity) * 100 : 0"></span></span>
@@ -308,11 +308,14 @@
             </div>
           }
         } @else {
-          <div class="st-capacity">
+          <div class="st-capacity" [class.st-capacity--plain]="!stockShown(t)">
             <span class="st-capacity__count">
               @if (t.behaviour === 'use') { <strong>{{ t.usedCount }}</strong> {{ t.code }} used today }
               @else { <strong>{{ t.outCount }}</strong>{{ t.stockQuantity != null ? ' of ' + t.stockQuantity : '' }} {{ t.code }} out }
             </span>
+            @if (stockShown(t)) {
+              <span class="st-capacity__bar" aria-hidden="true"><span class="st-capacity__fill" [style.width.%]="stockPercent(t)"></span></span>
+            }
             <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openIssue()" [disabled]="!isToday()">
               <span class="material-icons" aria-hidden="true">{{ t.behaviour === 'use' ? 'task_alt' : 'layers' }}</span>
               {{ t.behaviour === 'use' ? 'Record use' : 'Issue' }}
@@ -362,7 +365,7 @@
               <div class="data-card st-card--out">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }}</div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
                     <div class="data-card__subline"><span class="data-card__reg">@if (i.status === 'used') { {{ i.issuedAt | localDate:'datetime' }} } @else { returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }} }{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
                   </div>
                   <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned' || i.status === 'used'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
@@ -377,7 +380,7 @@
   <!-- ============ The ONE drawer ============ -->
   @if (dlgMode(); as mode) {
     <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
-                discardTitle="Discard?" discardMessage="You have unkeyed details. Leaving now will discard them."
+                discardTitle="Discard?" discardMessage="The details you keyed are not saved. Leaving now will discard them."
                 (close)="closeDialog()">
       <div class="saas-form saas-form--dialog">
         @switch (mode) {
@@ -461,7 +464,7 @@
                     <label for="stIssueUnit">Unit</label>
                     <app-combobox formControlName="facilityId" inputId="stIssueUnit" [options]="unitOptions()" [allowEmpty]="true" emptyLabel="Next available" placeholder="Type to search…" />
                   </div>
-                } @else {
+                } @else if (currentItem()?.behaviour === 'quantity') {
                   <div class="form-group">
                     <label for="stQty">Quantity <span class="required">*</span></label>
                     <input id="stQty" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="quantity" />
@@ -477,6 +480,14 @@
                   @if (t.behaviour === 'use') { Recorded as used - there is nothing to return{{ t.maxPerPerson ? '; at most ' + t.maxPerPerson + ' per person a day' : '' }}. }
                   @else { Due back {{ t.dueDays ? 'in ' + t.dueDays + ' day' + (t.dueDays === 1 ? '' : 's') : 'today' }}{{ t.maxPerPerson ? ' · at most ' + t.maxPerPerson + ' per person' : '' }}. }
                 </p>
+                @if (t.fee; as fee) {
+                  <p class="cell-subtle field-hint">
+                    @if (fee.unitAmount != null) { A bill is opened for {{ fee.code }} - {{ feeTotal(t) | money }}{{ t.behaviour === 'quantity' ? ' (' + (fee.unitAmount | money) + ' a piece)' : '' }} before tax. }
+                    @else { {{ fee.code }} has no price in force today - set up its pricing before issuing. }
+                  </p>
+                } @else {
+                  <p class="cell-subtle field-hint">Free - no bill is opened.</p>
+                }
               }
             </form>
           }

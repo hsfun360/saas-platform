@@ -10,6 +10,7 @@ import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ClassRosterComponent } from '../shared/class-roster/class-roster';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
+import { MoneyPipe } from '../shared/money.pipe';
 import {
   FacilityStationService,
   StationClassSession,
@@ -47,7 +48,7 @@ type GuestGroup = FormGroup<{
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
-    DialogComponent, ComboboxComponent, ConfirmDialogComponent, ClassRosterComponent, LocalDatePipe,
+    DialogComponent, ComboboxComponent, ConfirmDialogComponent, ClassRosterComponent, LocalDatePipe, MoneyPipe,
   ],
   templateUrl: './facility-station.html',
   styleUrls: ['./facility-station.css'],
@@ -168,6 +169,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   }
 
   setType(id: string): void {
+    // A message about one item must not linger over the next one.
+    if (id !== this.typeId()) this.clearMessages();
     this.typeId.set(id);
     try { localStorage.setItem(FacilityStationComponent.TYPE_KEY, id); } catch { /* per-viewer convenience only */ }
   }
@@ -342,6 +345,21 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.dlgMode.set('issue');
   }
 
+  // A counted item shows its bar only when the club recorded how many it owns.
+  stockShown(t: StationUtilityItem): boolean {
+    return t.behaviour === 'quantity' && t.stockQuantity != null && t.stockQuantity > 0;
+  }
+
+  stockPercent(t: StationUtilityItem): number {
+    return t.stockQuantity ? Math.min(100, (t.outCount / t.stockQuantity) * 100) : 0;
+  }
+
+  // What the issue being keyed will bill before tax: the fee by the quantity.
+  feeTotal(t: StationUtilityItem): number {
+    const qty = t.behaviour === 'quantity' ? Math.max(1, Number(this.form.controls.quantity.value) || 1) : 1;
+    return (t.fee?.unitAmount || 0) * qty;
+  }
+
   submitIssue(): void {
     this.clearMessages();
     const t = this.currentItem();
@@ -349,7 +367,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     if (this.form.controls.memberNo.invalid) { this.form.controls.memberNo.markAsTouched(); return; }
     const v = this.form.getRawValue();
     this.saving.set(true);
-    this.service.issue({ utilityItemId: t.id, utilityUnitId: t.trackUnits ? (v.facilityId || null) : null, quantity: t.trackUnits ? 1 : Number(v.quantity) || 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
+    this.service.issue({ utilityItemId: t.id, utilityUnitId: t.trackUnits ? (v.facilityId || null) : null, quantity: t.behaviour === 'quantity' ? Number(v.quantity) || 1 : 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
       next: (res) => this.done(res.message, res),
       error: (err) => this.fail(err, 'Failed to issue.'),
     });
@@ -490,6 +508,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   }
 
   closeDialog(): void {
+    // A refusal belongs to the form that drew it: it goes when the form does.
+    this.errorMessage.set('');
     this.dlgMode.set(null);
     this.guestLines.clear();
     this.guestLines.markAsPristine();

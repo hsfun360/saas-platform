@@ -154,6 +154,9 @@ export interface StationUtilityItem {
   dueDays: number;
   guestsAllowed: boolean;
   requiresEntry: boolean;
+  // The fee an issue bills today (before tax; null amount = no price in
+  // force), or null for a free item.
+  fee?: { code: string; description: string | null; unitAmount: number | null } | null;
   units: StationUtilityUnit[];
   outCount: number;
   usedCount: number;

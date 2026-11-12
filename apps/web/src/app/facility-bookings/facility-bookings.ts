@@ -883,7 +883,7 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
     if (!bs) return '';
     const kind = bs.booking.kind || 'booking';
     if (kind === 'registration') return `entry ${bs.booking.bookingNo || ''}`;
-    if (kind === 'issue') return `utility item ${bs.booking.facilities?.[0] || bs.booking.facilityType?.code || ''}`.trim();
+    if (kind === 'issue') return [bs.booking.facilityType?.code, bs.booking.facilities?.[0]].filter(Boolean).join(' ') || 'utility item';
     if (kind === 'enrolment') return `class ${bs.booking.facilityType?.code || ''}${bs.booking.bookingNo ? ' ' + bs.booking.bookingNo : ''}`.trim();
     return `booking ${bs.booking.bookingNo || ''}`;
   }

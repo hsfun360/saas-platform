@@ -135,6 +135,11 @@
   border-radius: 12px;
   background: var(--surface-card);
 }
+/* No bar to show (no capacity, no stock): the count takes the room and the
+   button keeps its own width instead of stretching across the row. */
+.st-capacity--plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
 .st-capacity--full {
   border-color: var(--danger-border);
 }

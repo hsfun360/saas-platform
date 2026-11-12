@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">domain</span>
       <div>
         <h1>{{ 'Facilities' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The physical units under each facility type - every court, the gym, every locker.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The physical units under each facility type - every court, every hall, the gym.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -35,7 +35,7 @@
       } @else if (!loading() && types().length === 0) {
         No facility types yet - add the types under Facility Types first, then their facilities here.
       } @else if (!loading()) {
-        No facilities yet. Use 'New facility' to add the first court, room or locker.
+        No facilities yet. Use 'New facility' to add the first court, hall or room.
       } @else {
         Loading the club's facilities…
       }
