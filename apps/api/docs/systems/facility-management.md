@@ -1239,6 +1239,7 @@ Polish found by that smoke and fixed:
 a free facility no longer warns "the entry fee was not charged" after every admit - its tile said "No fee" before the tap (a picked guest type with no fee item of its own still warns);
 a fee item with no price in force now closes the tile in words ("GUESTFEE has no price today.") instead of letting the tap be refused at the bill.
 The local scenario was run again with both (56 checks).
+Both were pushed the same day; on dev the admit to GYM then answered "Ahmad Faizal is in GYM (RG-00004) - 1 of 40 inside." with no warning. The no-price reason could not be seen on dev: the guest rule closes that tile first.
 
 The user's point.
 The station has no scan of the guest's pass, and it is not friendly: the desk picks an item first and keys the person after, once per item.
