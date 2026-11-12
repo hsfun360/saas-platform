@@ -77,7 +77,7 @@ describe('FacilityUtilityItemsComponent', () => {
     await settle();
     expect(created[0]).toEqual({
       code: 'SHOWER', description: 'Shower', trackUnits: false, returnRequired: false, stockQuantity: null,
-      maxPerPerson: 1, dueDays: 0, feeTransactionTypeId: null, sortOrder: 100,
+      maxPerPerson: 1, dueDays: 0, feeTransactionTypeId: null, guestsAllowed: true, requiresEntry: false, sortOrder: 100,
     });
     expect(component.dlgMode()).toBeNull();
   });

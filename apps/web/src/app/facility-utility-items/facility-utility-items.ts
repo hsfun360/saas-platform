@@ -95,6 +95,9 @@ export class FacilityUtilityItemsComponent implements OnInit {
     maxPerPerson: [1, [Validators.required, Validators.min(0), Validators.max(100)]],
     dueDays: [0, [Validators.required, Validators.min(0), Validators.max(365)]],
     feeTransactionTypeId: [''],
+    // Who the station may serve with it (enforced from slice 6b).
+    guestsAllowed: [true],
+    requiresEntry: [false],
     sortOrder: [100, [Validators.required, Validators.min(0), Validators.max(9999)]],
   });
   // Bumped on a behaviour change so the OnPush template re-reads the form.
@@ -185,6 +188,8 @@ export class FacilityUtilityItemsComponent implements OnInit {
       maxPerPerson: i?.maxPerPerson ?? 1,
       dueDays: i?.dueDays ?? 0,
       feeTransactionTypeId: i?.feeTransactionTypeId || '',
+      guestsAllowed: i ? i.guestsAllowed !== false : true,
+      requiresEntry: i ? i.requiresEntry === true : false,
       sortOrder: i?.sortOrder ?? 100,
     });
     if (this.codeFrozen()) this.form.controls.code.disable(); else this.form.controls.code.enable();
@@ -226,6 +231,8 @@ export class FacilityUtilityItemsComponent implements OnInit {
       maxPerPerson: Number(v.maxPerPerson),
       dueDays: v.behaviour === 'use' ? 0 : Number(v.dueDays),
       feeTransactionTypeId: v.feeTransactionTypeId || null,
+      guestsAllowed: v.guestsAllowed,
+      requiresEntry: v.requiresEntry,
       sortOrder: Number(v.sortOrder),
     };
     if (this.codeFrozen()) delete payload.code;
