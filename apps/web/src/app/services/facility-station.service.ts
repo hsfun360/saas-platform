@@ -74,6 +74,8 @@ export interface StationRegistration {
   timeOut: string | null;
   dayType: string;
   guestCount: number;
+  // false = the guests went in on a pass before the host arrived (slice 6d).
+  hostPresent?: boolean;
   status: 'in' | 'out';
   billId: string | null;
   bill: FacilityBillSummary | null;
@@ -239,6 +241,27 @@ export interface ServeRow extends StationIssue {
   undoable: boolean;
 }
 
+// One entry facility in the Serve panel (slice 6d): the count a tap will
+// reach, what it bills, why it cannot be tapped, and where the person stands
+// on it (`own` = theirs to sign out here; a guest on the host's entry signs
+// out with the host).
+export interface ServeEntry {
+  facilityTypeId: string;
+  code: string;
+  description: string;
+  iconUrl: string | null;
+  liveCount: number;
+  capacity: number | null;
+  willReach: number;
+  fee: { code: string; description: string; unitAmount: number | null } | null;
+  allowed: boolean;
+  reason: string | null;
+  inside: { registrationId: string; registrationNo: string; timeIn: string; guestCount: number; own: boolean } | null;
+  hostInside: boolean;
+  // The visitor-guest types to pick from, when the club keeps more than one.
+  guestTypes: { code: string; description: string }[];
+}
+
 // What the desk needs to hand a guest's pass over (slice 6c).
 export interface PassShare {
   guestRegistrationId: string;
@@ -274,6 +297,8 @@ export interface ServePanel {
   holding: ServeRow[];
   usedToday: ServeRow[];
   tiles: ServeTile[];
+  // Slice 6d: the facilities the person may enter from the panel.
+  entries?: ServeEntry[];
   bill: FacilityBillSummary | null;
   undoMinutes: number;
   clubNow: { date: string; time: string };
@@ -289,6 +314,8 @@ export interface StationActionResult {
   standingWarning?: string | null;
   // The pass of a guest the station just registered (slice 6c).
   share?: PassShare | null;
+  // What the party of a signed-out entry still holds (slice 6d).
+  stillOut?: { issueId: string; label: string; holder: string }[];
   signedOut?: number;
   overdue?: number;
 }
@@ -355,6 +382,12 @@ export class FacilityStationService {
   // Email the pass, or record that the desk shared it over its own WhatsApp.
   sendDoorPass(guestRegistrationId: string, via: 'email' | 'whatsapp'): Observable<{ message: string; share: PassShare }> {
     return this.http.post<{ message: string; share: PassShare }>(`${this.base}/door-guests/${guestRegistrationId}/send`, { via });
+  }
+
+  // Slice 6d: ONE person enters an entry facility from the Serve panel - the
+  // member, a guest on a pass, or a guest served by name with the member.
+  admit(payload: { facilityTypeId: string; memberNo?: string | null; guestRegistrationId?: string | null; guestName?: string | null; participantType?: string | null; panel?: boolean }): Observable<StationActionResult> {
+    return this.http.post<StationActionResult>(`${this.base}/admissions`, payload);
   }
 
   // A guest added by mistake: the pass the station registered is cancelled.

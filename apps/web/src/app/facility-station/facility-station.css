@@ -656,3 +656,19 @@
 .st-outcome {
   margin-top: var(--space-md);
 }
+
+/* ---- slice 6d: entering a facility from the panel ---- */
+/* The visitor-guest type of a guest's entry, when the club keeps more than one. */
+.st-tile__select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+}
+.st-tile__select:focus {
+  border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
+}

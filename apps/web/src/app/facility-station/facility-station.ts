@@ -19,6 +19,7 @@ import { MoneyPipe } from '../shared/money.pipe';
 import {
   FacilityStationService,
   PassShare,
+  ServeEntry,
   ServeGuest,
   ServePanel,
   ServeRow,
@@ -163,6 +164,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // The pass of the guest in the panel, to hand over (QR, WhatsApp, email).
   readonly passShare = signal<PassShare | null>(null);
   readonly sendingPass = signal(false);
+  // Slice 6d: the visitor-guest type picked for a guest's entry (the club keeps more than one).
+  readonly guestTypePick = signal('guest');
   // How the guest being keyed will be served: registered (a day pass) or by name.
   readonly addGuestMode = computed<'pass' | 'name' | 'refused'>(() => {
     const d = this.guestDraft();
@@ -576,6 +579,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
         this.scanForm.reset({ code: '' });
         this.tilesExpanded.set(new Set());
         this.passShare.set(null);
+        this.guestTypePick.set('guest');
         this.panel.set(res.panel);
         this.dlgMode.set('serve');
         if (res.panel.pass?.firstScan) this.successMessage.set(`${res.panel.person.name} arrived - guest of ${res.panel.host.name} (${res.panel.host.memberNo}).`);
@@ -718,6 +722,71 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     const p = this.panel();
     return !!p && [...p.holding, ...p.usedToday].some((r) => r.undoable);
   });
+
+  // ---- slice 6d: entering a facility from the panel ----
+
+  // The price line of an entry tile, before it is tapped.
+  entryPrice(e: ServeEntry, p: ServePanel): string {
+    if (!e.fee) return 'No fee';
+    if (e.fee.unitAmount == null) return `${e.fee.code} - no price today`;
+    const amount = e.fee.unitAmount.toFixed(2);
+    return p.kind === 'guest' ? `${amount} before tax, on ${p.host.name}'s bill` : `${amount} before tax`;
+  }
+
+  // The count the tap will reach, said before it is tapped.
+  entryReach(e: ServeEntry, p: ServePanel): string {
+    const count = e.capacity != null ? `${e.willReach} of ${e.capacity} inside after this` : `${e.willReach} inside after this`;
+    return p.kind === 'guest' && !e.hostInside ? `${count} · ${p.host.name} is not inside` : count;
+  }
+
+  // Who signs the entry out with this person.
+  entryParty(e: ServeEntry, p: ServePanel): string {
+    const n = e.inside?.guestCount || 0;
+    return p.kind === 'member' && n ? ` with ${n} guest${n === 1 ? '' : 's'}` : '';
+  }
+
+  // A tap admits ONE person; the answer redraws the panel.
+  admit(e: ServeEntry): void {
+    const p = this.panel();
+    if (!p || this.serveBusy()) return;
+    this.clearMessages();
+    this.serveBusy.set(e.facilityTypeId);
+    const type = p.kind === 'guest' && e.guestTypes.length ? { participantType: this.guestTypePick() } : {};
+    this.service.admit({ facilityTypeId: e.facilityTypeId, ...this.holderOf(p), ...type, panel: true }).subscribe({
+      next: (res) => {
+        this.serveBusy.set(null);
+        if (res.panel) this.panel.set(res.panel);
+        this.successMessage.set([res.message, ...(res.warnings || []), ...(res.standingWarning ? [res.standingWarning] : [])].join(' '));
+        this.load(true);
+        this.focusNext();
+      },
+      error: (err) => {
+        this.serveBusy.set(null);
+        this.errorMessage.set(err.error?.message || 'Failed to admit.');
+        this.refreshPanel();
+        this.focusNext();
+      },
+    });
+  }
+
+  // Sign the person's entry out from the panel: it never blocks, and says
+  // what the party still holds.
+  signOutEntry(e: ServeEntry): void {
+    const inside = e.inside;
+    if (!inside || this.serveBusy()) return;
+    this.clearMessages();
+    this.serveBusy.set(e.facilityTypeId);
+    this.service.signOut(inside.registrationId).subscribe({
+      next: (res) => {
+        this.serveBusy.set(null);
+        this.successMessage.set(res.message);
+        this.refreshPanel();
+        this.load(true);
+        this.focusNext();
+      },
+      error: (err) => { this.serveBusy.set(null); this.errorMessage.set(err.error?.message || 'Failed to sign out.'); this.refreshPanel(); },
+    });
+  }
 
   // Who a tap in the panel is for: the guest's pass, a guest served by name
   // with the member (slice 6c), or the member.

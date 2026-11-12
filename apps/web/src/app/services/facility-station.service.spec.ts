@@ -96,6 +96,19 @@ describe('FacilityStationService', () => {
     expect(http.expectOne('/api/facility/station/issues').request.body.guestName).toBe('Lim');
   });
 
+  it('admits one person to an entry facility from the Serve panel', () => {
+    service.admit({ facilityTypeId: 't1', guestRegistrationId: 'g1', memberNo: null, participantType: 'CHILD', panel: true }).subscribe();
+    const admit = http.expectOne('/api/facility/station/admissions');
+    expect(admit.request.method).toBe('POST');
+    expect(admit.request.body).toEqual({ facilityTypeId: 't1', guestRegistrationId: 'g1', memberNo: null, participantType: 'CHILD', panel: true });
+    admit.flush({ message: 'in', registrationId: 'r1', panel: null });
+
+    service.signOut('r1').subscribe();
+    const out = http.expectOne('/api/facility/station/registrations/r1/sign-out');
+    expect(out.request.method).toBe('POST');
+    out.flush({ message: 'signed out', stillOut: [{ issueId: 'x1', label: 'L003', holder: 'Tan Wei Ming' }] });
+  });
+
   it('issues, returns, clears a unit and runs the end of day', () => {
     service.issue({ utilityItemId: 'i2', utilityUnitId: 'u1', memberNo: 'A1' }).subscribe();
     const issue = http.expectOne('/api/facility/station/issues');

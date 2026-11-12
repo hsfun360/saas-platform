@@ -237,7 +237,7 @@
                   <div class="data-row__main">
                     <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}</span></div>
                     <div class="data-card__subline">
-                      <span class="data-card__reg">{{ r.registrationNo }} · in {{ r.timeIn | localDate:'datetime' }}{{ r.facility ? ' · ' + r.facility.code : '' }}</span>
+                      <span class="data-card__reg">{{ r.registrationNo }} · in {{ r.timeIn | localDate:'datetime' }}{{ r.facility ? ' · ' + r.facility.code : '' }}{{ r.hostPresent === false ? ' · guests only, the member is not inside' : '' }}</span>
                       @if (r.bill) { <span class="status-chip" [class.status-chip--on]="r.bill.status === 'settled'" [class.status-chip--info]="r.bill.status === 'open'">Bill {{ r.bill.billNo }} · {{ r.bill.status }}</span> }
                     </div>
                     @if (r.guests.length) {
@@ -628,6 +628,52 @@
                   </div>
                 }
               </div>
+
+              <!-- Slice 6d: the facilities the person may enter, each tile
+                   stating the count it will reach and what it bills. -->
+              @if (p.entries?.length) {
+                <h3 class="dlg-section">Enter a facility</h3>
+                <div class="st-tiles">
+                  @for (e of p.entries; track e.facilityTypeId) {
+                    <div class="st-tile" [class.st-tile--off]="!e.allowed && !e.inside">
+                      <div class="st-tile__head">
+                        <span class="material-icons st-tile__icon" aria-hidden="true">login</span>
+                        <span class="st-tile__name"><strong>{{ e.code }}</strong> · {{ e.description }}</span>
+                        @if (!e.inside) { <span class="st-tile__price">{{ entryPrice(e, p) }}</span> }
+                      </div>
+                      @if (e.inside; as i) {
+                        <div class="st-tile__action">
+                          <span class="status-chip status-chip--on">Inside</span>
+                          <span class="cell-subtle">since {{ i.timeIn | localDate:'datetime' }} · {{ i.registrationNo }}</span>
+                          @if (i.own) {
+                            <button type="button" class="btn btn--secondary btn--sm" (click)="signOutEntry(e)" [disabled]="!!serveBusy()" *appCan="'edit'">
+                              <span class="material-icons" aria-hidden="true">logout</span>
+                              {{ serveBusy() === e.facilityTypeId ? 'Signing out…' : 'Sign out' + entryParty(e, p) }}
+                            </button>
+                          } @else {
+                            <span class="cell-subtle">signs out with {{ p.host.name }}</span>
+                          }
+                        </div>
+                      } @else if (!e.allowed) {
+                        <p class="st-tile__reason"><span class="material-icons inline-icon" aria-hidden="true">block</span> {{ e.reason }}</p>
+                      } @else {
+                        <div class="st-tile__action">
+                          @if (e.guestTypes.length) {
+                            <select #guestType class="st-tile__select" [attr.aria-label]="'Guest type for ' + e.code" (change)="guestTypePick.set(guestType.value)">
+                              @for (g of e.guestTypes; track g.code) { <option [value]="g.code" [selected]="g.code === guestTypePick()">{{ g.description }}</option> }
+                            </select>
+                          }
+                          <button type="button" class="btn btn--primary" (click)="admit(e)" [disabled]="!!serveBusy()">
+                            <span class="material-icons" aria-hidden="true">login</span>
+                            {{ serveBusy() === e.facilityTypeId ? 'Admitting…' : 'Admit to ' + e.code }}
+                          </button>
+                          <span class="cell-subtle">{{ entryReach(e, p) }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
 
               @if (p.bill; as b) {
                 <div class="st-serve-bill">
