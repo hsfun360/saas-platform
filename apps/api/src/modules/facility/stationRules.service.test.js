@@ -36,6 +36,11 @@ test('issue limits and the due-back time', () => {
     assert.equal(rules.issueLimitVerdict({ held: 2, taking: 1, limit: 3, name: 'Ahmad', unitWord: 'towels' }), null);
     assert.match(rules.issueLimitVerdict({ held: 2, taking: 2, limit: 3, name: 'Ahmad', unitWord: 'towels' }), /Ahmad would hold 4 towels - the limit is 3 \(already holding 2\)/);
     assert.equal(rules.issueLimitVerdict({ held: 9, taking: 9, limit: 0, name: 'x', unitWord: 'lockers' }), null);
+    // A use-only item holds nothing: the refusal counts the day's uses.
+    assert.equal(rules.issueLimitVerdict({ held: 0, taking: 1, limit: 1, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), null);
+    assert.equal(rules.issueLimitVerdict({ held: 1, taking: 1, limit: 1, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), 'Ahmad has already used SHOWER 1 time today - the limit is 1 a day.');
+    assert.equal(rules.issueLimitVerdict({ held: 2, taking: 1, limit: 2, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), 'Ahmad has already used SHOWER 2 times today - the limit is 2 a day.');
+    assert.equal(rules.issueLimitVerdict({ held: 0, taking: 3, limit: 2, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), '3 SHOWER uses are over the limit of 2 a day.');
     assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', dueDays: 0, hours: { open: 360, close: 1320 } }), '2026-11-02T22:00');
     assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', dueDays: 2, hours: null }), '2026-11-04T23:59');
 });

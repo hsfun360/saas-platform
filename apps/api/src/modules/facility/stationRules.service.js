@@ -57,11 +57,17 @@ function heldByPatron(issues, patronId) {
     return (issues || []).filter((i) => i.status === 'issued' && i.patronId === patronId).reduce((s, i) => s + Number(i.quantity || 1), 0);
 }
 
-// Refuse past maxIssuePerPatron (0 = no limit).
-function issueLimitVerdict({ held, taking, limit, name, unitWord }) {
+// Refuse past the limit per person (0 = no limit). `usedToday` (the code of
+// a use-only item) words the refusal as uses of the day: nothing is held.
+function issueLimitVerdict({ held, taking, limit, name, unitWord, usedToday = null }) {
     if (!limit || limit <= 0) return null;
-    if (held + taking > limit) return `${name} would hold ${held + taking} ${unitWord} - the limit is ${limit}${held ? ` (already holding ${held})` : ''}.`;
-    return null;
+    if (held + taking <= limit) return null;
+    if (usedToday) {
+        return held
+            ? `${name} has already used ${usedToday} ${held} time${held === 1 ? '' : 's'} today - the limit is ${limit} a day.`
+            : `${taking} ${usedToday} uses are over the limit of ${limit} a day.`;
+    }
+    return `${name} would hold ${held + taking} ${unitWord} - the limit is ${limit}${held ? ` (already holding ${held})` : ''}.`;
 }
 
 // Due back: `issueDueDays` after the issue date at the type's close time for

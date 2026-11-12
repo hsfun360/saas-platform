@@ -15,6 +15,7 @@ const { MATRIX_CHARGE_TYPE_KEYS } = require('./facility.constants');
 const participantTypes = require('./participantType.service');
 const { parseAmount, normalizeCells } = require('./rateCard.service');
 const { companyIdOf, stampsFor, DATE_RE } = require('./facilityShared');
+const { bookingDateText: dateText } = require('./bookingShared');
 
 function cellDto(c) {
     return { id: c.id, participantType: c.participantType, dayScope: c.dayScope, sessionId: c.sessionId || null, amount: Number(c.amount) };
@@ -92,7 +93,7 @@ exports.create = async (req, res) => {
         const parsed = await normalizeBody(req.body, companyId, parent);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const clash = await TransactionTypeRate.findOne({ where: { transactionTypeId: parent.id, effectiveDate: parsed.value.effectiveDate } });
-        if (clash) return res.status(409).json({ message: `A price effective ${parsed.value.effectiveDate} already exists.` });
+        if (clash) return res.status(409).json({ message: `A price effective ${dateText(parsed.value.effectiveDate)} already exists.` });
         const stamps = await stampsFor(req);
         const created = await sequelize.transaction(async (t) => {
             const row = await TransactionTypeRate.create({ transactionTypeId: parent.id, ...parsed.value, ...stamps }, { transaction: t });
@@ -100,7 +101,7 @@ exports.create = async (req, res) => {
             return row;
         });
         const full = await findRate(parent.id, created.id);
-        res.status(201).json({ message: `Price effective ${full.effectiveDate} created.`, rate: toDto(full) });
+        res.status(201).json({ message: `Price effective ${dateText(full.effectiveDate)} created.`, rate: toDto(full) });
     } catch (error) {
         console.error('Error creating facility rate card:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -120,7 +121,7 @@ exports.update = async (req, res) => {
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         if (parsed.value.effectiveDate !== String(row.effectiveDate)) {
             const clash = await TransactionTypeRate.findOne({ where: { transactionTypeId: parent.id, effectiveDate: parsed.value.effectiveDate } });
-            if (clash) return res.status(409).json({ message: `A price effective ${parsed.value.effectiveDate} already exists.` });
+            if (clash) return res.status(409).json({ message: `A price effective ${dateText(parsed.value.effectiveDate)} already exists.` });
         }
         await sequelize.transaction(async (t) => {
             Object.assign(row, parsed.value, { updatedBy: getUserContext(req).userId });
@@ -129,7 +130,7 @@ exports.update = async (req, res) => {
             if (parsed.cells.length) await TransactionTypeRateCell.bulkCreate(parsed.cells.map((c) => ({ ...c, rateId: row.id })), { transaction: t });
         });
         const full = await findRate(parent.id, row.id);
-        res.status(200).json({ message: `Price effective ${full.effectiveDate} updated.`, rate: toDto(full) });
+        res.status(200).json({ message: `Price effective ${dateText(full.effectiveDate)} updated.`, rate: toDto(full) });
     } catch (error) {
         console.error('Error updating facility rate card:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -149,7 +150,7 @@ exports.setActive = async (req, res) => {
             row.updatedBy = getUserContext(req).userId;
             await row.save();
         }
-        res.status(200).json({ message: `Price effective ${row.effectiveDate} updated.`, rate: toDto(row) });
+        res.status(200).json({ message: `Price effective ${dateText(row.effectiveDate)} updated.`, rate: toDto(row) });
     } catch (error) {
         console.error('Error updating facility rate card:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -166,7 +167,7 @@ exports.remove = async (req, res) => {
         if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         if (String(row.effectiveDate) <= todayStr()) return res.status(409).json({ message: 'This price is already in force - disable it instead of deleting.' });
         await row.destroy();
-        res.status(200).json({ message: `Price effective ${row.effectiveDate} deleted.` });
+        res.status(200).json({ message: `Price effective ${dateText(row.effectiveDate)} deleted.` });
     } catch (error) {
         console.error('Error deleting facility rate card:', error);
         res.status(500).json({ message: 'Internal server error' });

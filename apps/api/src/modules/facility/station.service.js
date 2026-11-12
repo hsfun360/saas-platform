@@ -220,6 +220,15 @@ async function dayPicture(companyId, date, callerId) {
             registrations: regs.map((r) => registrationDto(r, { patron: patronById.get(r.patronId), unit: r.facilityId ? unitById.get(r.facilityId) : null, guests: guestsByReg.get(r.id) || [], bill: billByReg.get(r.id) || null })),
         };
     });
+    // The fee each utility item would bill today, so the desk sees it before
+    // issuing (tax-exclusive, the member price; null amount = no price in force).
+    const feeTypeIds = [...new Set(utilityItems.map((it) => it.feeTransactionTypeId).filter(Boolean))];
+    const feeTypes = feeTypeIds.length ? await TransactionType.findAll({ where: { companyId, id: { [Op.in]: feeTypeIds }, isActive: true } }) : [];
+    const feeById = new Map();
+    for (const ft of feeTypes) {
+        const priced = pricing.unitPriceOf(ft, await billing.cardsOf(ft.id), { date, dayType, participantType: 'member' });
+        feeById.set(ft.id, { code: ft.transactionType, description: ft.description, unitAmount: priced.missing ? null : priced.unitAmount });
+    }
     // The utility items: the unit board of a numbered item, the counter of a
     // counted one, the day's uses of a use-only one.
     const utilityOut = utilityItems.map((it) => {
@@ -230,6 +239,7 @@ async function dayPicture(companyId, date, callerId) {
             behaviour: utilityRules.behaviourOf(it), trackUnits: it.trackUnits === true, returnRequired: it.returnRequired !== false,
             stockQuantity: it.stockQuantity, maxPerPerson: it.maxPerPerson, dueDays: it.dueDays || 0,
             guestsAllowed: it.guestsAllowed !== false, requiresEntry: it.requiresEntry === true,
+            fee: it.feeTransactionTypeId ? (feeById.get(it.feeTransactionTypeId) || null) : null,
             units: itemUnits.map(utilityUnitDto),
             outCount: itemIssues.filter((i) => i.status === 'issued').reduce((sum, i) => sum + Number(i.quantity), 0),
             usedCount: itemIssues.filter((i) => i.status === 'used').reduce((sum, i) => sum + Number(i.quantity), 0),
@@ -651,8 +661,8 @@ async function issue(req, body) {
             : { companyId, utilityItemId: item.id, status: 'issued', patronId: patron.id };
         const live = await IssueRecord.findAll({ where: liveWhere, attributes: ['quantity'], transaction });
         const held = live.reduce((sum, i) => sum + Number(i.quantity || 1), 0);
-        const unitWord = behaviour === 'units' ? `${item.code} units` : behaviour === 'use' ? `${item.code} uses today` : `${item.code} pieces`;
-        const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: standing.name, unitWord });
+        const unitWord = behaviour === 'units' ? `${item.code} units` : `${item.code} pieces`;
+        const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: standing.name, unitWord, usedToday: behaviour === 'use' ? item.code : null });
         if (limitError) txFail(limitError);
         const issuedAt = new Date();
         const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date, dueDays: item.dueDays || 0, hours: null }), timezone);
