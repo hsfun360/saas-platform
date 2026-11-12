@@ -26,6 +26,29 @@
     </div>
   }
 
+  <!-- SCAN AND SERVE (slice 6b): the desk starts from the person -->
+  @if (isToday()) {
+    <form class="st-scan" [formGroup]="scanForm" (ngSubmit)="submitScan()" *appCan="'create'">
+      <div class="st-scan__row">
+        <span class="material-icons st-scan__icon" aria-hidden="true">qr_code_scanner</span>
+        <input #scanBox id="stScan" class="st-scan__input" type="text" formControlName="code" maxlength="600" autocomplete="off" autocapitalize="off" spellcheck="false"
+               enterkeyhint="go" placeholder="Scan a guest pass or key a member number" aria-label="Scan a guest pass or key a member number" aria-describedby="stScanHint" />
+        <button type="button" class="btn btn--secondary st-scan__btn" (click)="openCamera()" aria-label="Scan with the camera">
+          <span class="material-icons" aria-hidden="true">photo_camera</span>
+        </button>
+        <button type="submit" class="btn btn--primary st-scan__btn" [disabled]="scanning()">{{ scanning() ? 'Reading…' : 'Serve' }}</button>
+      </div>
+      <p id="stScanHint" class="cell-subtle field-hint">
+        @if (preferredUnit(); as u) {
+          Scan the pass or key the member number of who takes <strong>{{ u.code }}</strong>.
+          <button type="button" class="btn btn--link btn--sm st-scan__cancel" (click)="preferredUnit.set(null)">Not this unit</button>
+        } @else {
+          One panel opens for that person: a tap assigns a locker, a tap issues a towel.
+        }
+      </p>
+    </form>
+  }
+
   <!-- THE DAY: club clock, date, totals -->
   <div class="st-day">
     <div class="st-day__clock">
@@ -287,7 +310,7 @@
 
         @if (t.trackUnits) {
           <div class="st-board-head">
-            <span class="cell-subtle">Tap an available unit to issue it, an issued unit to take it back, a parked unit to clear it.</span>
+            <span class="cell-subtle">Tap a free unit, then scan or key who takes it. Tap an issued unit to take it back, a parked unit to clear it.</span>
             <span class="st-legend" aria-hidden="true">
               <span class="st-legend__item"><span class="st-unit-swatch st-unit-swatch--available"></span>Available</span>
               <span class="st-legend__item"><span class="st-unit-swatch st-unit-swatch--issued"></span>Issued</span>
@@ -332,7 +355,7 @@
               <div class="data-card" [class.st-card--overdue]="i.overdue">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
                     <div class="data-card__subline">
                       <span class="data-card__reg">issued {{ i.issuedAt | localDate:'datetime' }} · due {{ i.dueBack | localDate:'datetime' }}</span>
                       @if (i.bill) { <span class="status-chip" [class.status-chip--on]="i.bill.status === 'settled'" [class.status-chip--info]="i.bill.status === 'open'">Bill {{ i.bill.billNo }} · {{ i.bill.status }}</span> }
@@ -365,7 +388,7 @@
               <div class="data-card st-card--out">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.patron?.name }} <span class="data-card__reg">{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
                     <div class="data-card__subline"><span class="data-card__reg">@if (i.status === 'used') { {{ i.issuedAt | localDate:'datetime' }} } @else { returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }} }{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
                   </div>
                   <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned' || i.status === 'used'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
@@ -391,6 +414,158 @@
               <p class="cell-subtle st-lead">{{ s.class?.code }} · {{ s.sessionDate | localDate:'weekday' }} · {{ s.startTime }} - {{ s.endTime }} · {{ s.venue?.code }} · {{ s.instructor?.name }}</p>
               <app-class-roster [sessionId]="s.id" channel="station" [canEdit]="s.status === 'scheduled'" (message)="rosterMessage($event)" (error)="rosterError($event)" (changed)="rosterChanged()" />
             }
+          }
+
+          <!-- SERVE (slice 6b): one person, a tap per item -->
+          @case ('serve') {
+            @if (panel(); as p) {
+              @if (deskInput) {
+              <form class="st-scan st-scan--next" [formGroup]="scanForm" (ngSubmit)="submitScan()">
+                <div class="st-scan__row">
+                  <span class="material-icons st-scan__icon" aria-hidden="true">qr_code_scanner</span>
+                  <input #scanNext id="stScanNext" class="st-scan__input" type="text" formControlName="code" maxlength="600" autocomplete="off" autocapitalize="off" spellcheck="false"
+                         enterkeyhint="go" placeholder="Next person: scan a pass or key a member number" aria-label="Next person: scan a guest pass or key a member number" />
+                  <button type="submit" class="btn btn--secondary st-scan__btn" [disabled]="scanning()">{{ scanning() ? 'Reading…' : 'Next' }}</button>
+                </div>
+              </form>
+              }
+
+              <div class="st-who">
+                <span class="material-icons st-who__icon" aria-hidden="true">{{ p.kind === 'guest' ? 'badge' : 'person' }}</span>
+                <div class="st-who__text">
+                  <div class="st-who__name">{{ p.person.name }}</div>
+                  @if (p.kind === 'guest') {
+                    <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · pass {{ p.pass?.registrationNo }} · valid today</div>
+                    @if (p.pass?.arrivedAt) { <div class="st-who__line">Arrived {{ p.pass?.arrivedAt | localDate:'datetime' }}</div> }
+                  } @else {
+                    <div class="st-who__line">Member {{ p.host.memberNo }}</div>
+                  }
+                </div>
+                <span class="status-chip" [class.status-chip--info]="p.kind === 'guest'" [class.status-chip--on]="p.kind === 'member'">{{ p.kind === 'guest' ? 'Guest' : 'Member' }}</span>
+              </div>
+              @if (p.standingWarning) {
+                <div class="flash flash-info flash--static" role="status">
+                  <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">warning</span></span>
+                  <span>{{ p.standingWarning }}</span>
+                </div>
+              }
+
+              <h3 class="dlg-section">Holding now</h3>
+              @if (p.holding.length === 0 && p.usedToday.length === 0) {
+                <p class="cell-subtle">Nothing yet.</p>
+              } @else {
+                <div class="st-holds">
+                  @for (h of p.holding; track h.id) {
+                    <div class="st-hold" [class.st-hold--busy]="serveBusy() === h.id">
+                      <div class="st-hold__main">
+                        <span class="st-hold__title">{{ rowLabel(h) }}@if (h.unit && h.item) { <span class="data-card__reg">{{ h.item.code }}</span> }</span>
+                        <span class="st-hold__meta">issued {{ h.issuedAt | localDate:'datetime' }} · due {{ h.dueBack | localDate:'datetime' }}@if (h.bill) { · bill {{ h.bill.billNo }} {{ h.bill.status }} }</span>
+                      </div>
+                      @if (h.overdue) { <span class="status-chip status-chip--danger">Overdue</span> }
+                      <div class="st-hold__actions" *appCan="'edit'">
+                        @if (h.undoable) {
+                          <button type="button" class="btn btn--secondary btn--sm" (click)="undoIssue(h)" [disabled]="!!serveBusy()">
+                            <span class="material-icons" aria-hidden="true">undo</span>
+                            Undo
+                          </button>
+                        } @else {
+                          <button type="button" class="btn btn--secondary btn--sm" (click)="returnGood(h)" [disabled]="!!serveBusy()">
+                            <span class="material-icons" aria-hidden="true">assignment_return</span>
+                            Return
+                          </button>
+                        }
+                        <app-overflow-menu [label]="'More actions for ' + rowLabel(h)">
+                          @if (h.undoable) {
+                            <button type="button" appMenuItem (click)="returnGood(h)">
+                              <span class="material-icons" aria-hidden="true">assignment_return</span>
+                              Return in good condition
+                            </button>
+                          }
+                          <button type="button" appMenuItem (click)="openReturn(h, true)">
+                            <span class="material-icons" aria-hidden="true">report_problem</span>
+                            Return damaged or lost
+                          </button>
+                        </app-overflow-menu>
+                      </div>
+                    </div>
+                  }
+                  @for (h of p.usedToday; track h.id) {
+                    <div class="st-hold st-hold--used" [class.st-hold--busy]="serveBusy() === h.id">
+                      <div class="st-hold__main">
+                        <span class="st-hold__title">{{ rowLabel(h) }}</span>
+                        <span class="st-hold__meta">used {{ h.issuedAt | localDate:'datetime' }}@if (h.bill) { · bill {{ h.bill.billNo }} {{ h.bill.status }} }</span>
+                      </div>
+                      <span class="status-chip status-chip--off">Used</span>
+                      @if (h.undoable) {
+                        <div class="st-hold__actions" *appCan="'edit'">
+                          <button type="button" class="btn btn--secondary btn--sm" (click)="undoIssue(h)" [disabled]="!!serveBusy()">
+                            <span class="material-icons" aria-hidden="true">undo</span>
+                            Undo
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+                <p class="cell-subtle field-hint">Undo is for a wrong tap, in the first {{ p.undoMinutes }} minutes.</p>
+              }
+
+              <h3 class="dlg-section">Tap to issue</h3>
+              @if (p.tiles.length === 0) {
+                <p class="cell-subtle">No utility items are set up yet. Add them under Utility Items.</p>
+              }
+              <div class="st-tiles">
+                @for (t of p.tiles; track t.utilityItemId) {
+                  <div class="st-tile" [class.st-tile--off]="!t.allowed">
+                    <div class="st-tile__head">
+                      <span class="material-icons st-tile__icon" aria-hidden="true">{{ t.behaviour === 'units' ? 'vpn_key' : t.behaviour === 'quantity' ? 'layers' : 'task_alt' }}</span>
+                      <span class="st-tile__name"><strong>{{ t.code }}</strong> · {{ t.description }}</span>
+                      <span class="st-tile__price">{{ tilePrice(t, p) }}</span>
+                    </div>
+                    @if (!t.allowed) {
+                      <p class="st-tile__reason"><span class="material-icons inline-icon" aria-hidden="true">block</span> {{ t.reason }}</p>
+                    } @else if (t.behaviour === 'units') {
+                      <div class="st-board st-tile__units" role="group" [attr.aria-label]="'Free ' + t.code + ' units'">
+                        @for (u of tileUnits(t); track u.id) {
+                          <button type="button" class="st-unit st-unit--available" [class.st-unit--suggested]="u.id === firstUnitId(t)" [disabled]="!!serveBusy()"
+                                  (click)="serveIssue(t, u.id)" [attr.aria-label]="'Issue ' + u.code + (u.location ? ', ' + u.location : '') + ' to ' + p.person.name" [title]="u.location || u.code">
+                            <span class="st-unit__code">{{ u.code }}</span>
+                            <span class="st-unit__state">{{ serveBusy() === u.id ? 'issuing' : (u.id === firstUnitId(t) ? 'next free' : 'free') }}</span>
+                          </button>
+                        }
+                      </div>
+                      @if (hiddenUnits(t); as more) {
+                        <button type="button" class="btn btn--link btn--sm" (click)="showAllUnits(t)">Show all {{ t.freeUnits.length }} free units</button>
+                      }
+                    } @else {
+                      <div class="st-tile__action">
+                        <button type="button" class="btn btn--primary" (click)="serveIssue(t)" [disabled]="!!serveBusy()">
+                          <span class="material-icons" aria-hidden="true">{{ t.behaviour === 'use' ? 'task_alt' : 'add' }}</span>
+                          {{ serveBusy() === t.utilityItemId ? 'Saving…' : (t.behaviour === 'use' ? 'Record ' + t.code + ' use' : 'Issue 1 ' + t.code) }}
+                        </button>
+                        @if (t.limit) {
+                          <span class="cell-subtle">{{ t.behaviour === 'use' ? 'used ' + t.held + ' of ' + t.limit + ' today' : 'holding ' + t.held + ' of ' + t.limit }}</span>
+                        } @else if (t.held) {
+                          <span class="cell-subtle">{{ t.behaviour === 'use' ? 'used ' + t.held + ' today' : 'holding ' + t.held }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              @if (p.bill; as b) {
+                <div class="st-serve-bill">
+                  <span>Open bill <strong>{{ b.billNo }}</strong> · {{ b.totalAmount | money }} · in {{ p.host.name }}'s name</span>
+                </div>
+              }
+            }
+          }
+
+          <!-- CAMERA (slice 6b): read the pass with the device camera -->
+          @case ('camera') {
+            <app-qr-scanner hint="Point the camera at the QR code on the guest's pass." (scanned)="onCameraScan($event)" />
+            <p class="cell-subtle field-hint">A handheld scanner needs no camera: it types the pass into the scan box.</p>
           }
 
           <!-- CHECK-IN: confirm who arrived -->
@@ -459,12 +634,7 @@
                          [attr.aria-invalid]="showError(form.controls.memberNo)" aria-describedby="stIssueMemberErr" />
                   @if (showError(form.controls.memberNo)) { <p id="stIssueMemberErr" class="field-error" role="alert">Key in the member number.</p> }
                 </div>
-                @if (currentItem()?.trackUnits) {
-                  <div class="form-group">
-                    <label for="stIssueUnit">Unit</label>
-                    <app-combobox formControlName="facilityId" inputId="stIssueUnit" [options]="unitOptions()" [allowEmpty]="true" emptyLabel="Next available" placeholder="Type to search…" />
-                  </div>
-                } @else if (currentItem()?.behaviour === 'quantity') {
+                @if (currentItem()?.behaviour === 'quantity') {
                   <div class="form-group">
                     <label for="stQty">Quantity <span class="required">*</span></label>
                     <input id="stQty" type="number" inputmode="numeric" min="1" max="500" step="1" formControlName="quantity" />
@@ -496,7 +666,7 @@
           @case ('return') {
             <form id="stReturn" [formGroup]="form" (ngSubmit)="submitReturn()">
               @if (returnTarget(); as i) {
-                <p class="st-lead"><strong>{{ i.patron?.name }}</strong> · {{ i.unit?.code || currentItem()?.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · issued {{ i.issuedAt | localDate:'datetime' }}</p>
+                <p class="st-lead"><strong>{{ i.holderName || i.patron?.name }}</strong>{{ i.holderName ? ', guest of ' + (i.patron?.name || '') : '' }} · {{ rowLabel(i) }} · issued {{ i.issuedAt | localDate:'datetime' }}</p>
               }
               <div class="form-grid">
                 <div class="form-group">
@@ -504,9 +674,9 @@
                   <select id="stCondition" formControlName="condition" (change)="conditionChanged()">
                     @for (c of meta()?.returnConditions || []; track c.key) { <option [value]="c.key">{{ c.label }}</option> }
                   </select>
-                  <p class="cell-subtle field-hint">{{ currentItem()?.trackUnits ? 'Damaged or lost parks the unit out of service until it is cleared.' : 'Lost pieces are the difference between issued and returned.' }}</p>
+                  <p class="cell-subtle field-hint">{{ returnIsUnit() ? 'Damaged or lost parks the unit out of service until it is cleared.' : 'Lost pieces are the difference between issued and returned.' }}</p>
                 </div>
-                @if (!currentItem()?.trackUnits && form.controls.condition.value !== 'lost') {
+                @if (!returnIsUnit() && form.controls.condition.value !== 'lost') {
                   <div class="form-group">
                     <label for="stBack">Pieces returned</label>
                     <input id="stBack" type="number" inputmode="numeric" min="0" [max]="returnTarget()?.quantity || 1" step="1" formControlName="returnedQuantity" />
@@ -558,6 +728,18 @@
         @switch (mode) {
           @case ('roster') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+          @case ('serve') {
+            @if (panel()?.bill; as b) {
+              <button type="button" class="btn btn--secondary" (click)="openBill(b.id, null)">
+                <span class="material-icons" aria-hidden="true">receipt_long</span>
+                Bill {{ b.totalAmount | money }}
+              </button>
+            }
+            <button type="button" class="btn btn--primary" (click)="dlg.requestClose()">Done</button>
+          }
+          @case ('camera') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Cancel</button>
           }
           @case ('checkin') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>

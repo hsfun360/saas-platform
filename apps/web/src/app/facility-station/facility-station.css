@@ -357,3 +357,233 @@
     display: none;
   }
 }
+
+/* ---- slice 6b: scan and serve ---- */
+/* The scan box: one field the desk scans or keys into, above everything. */
+.st-scan {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.st-scan__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.st-scan__icon {
+  font-size: var(--icon-lg);
+  color: var(--brand-text);
+}
+.st-scan__input {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+}
+.st-scan__input:focus {
+  border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
+}
+/* The global mobile rule widens a submit button; the scan row keeps its buttons at content width. */
+.st-scan__row .st-scan__btn {
+  width: auto;
+}
+.st-scan .field-hint {
+  margin-top: var(--space-xs);
+}
+.st-scan__cancel {
+  min-height: 0;
+  padding: 0 var(--space-xs);
+}
+/* Inside the Serve panel: the same field for the next person, without the card. */
+.st-scan--next {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.st-scan--next .st-scan__row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+@media (max-width: 767px) {
+  .st-scan {
+    padding: var(--space-sm);
+  }
+  .st-scan__icon {
+    display: none;
+  }
+  .st-scan__row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .st-scan--next .st-scan__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* Who is being served. */
+.st-who {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: start;
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
+.st-who__icon {
+  font-size: var(--icon-lg);
+  color: var(--brand-text);
+}
+.st-who__text {
+  min-width: 0;
+}
+.st-who__name {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.st-who__line {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* What the person holds: a compact list. */
+.st-holds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.st-hold {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+.st-hold--used {
+  background: var(--surface-sunken);
+}
+.st-hold--busy {
+  opacity: 0.6;
+}
+.st-hold__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.st-hold__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.st-hold__title .data-card__reg {
+  margin-left: var(--space-xs);
+  font-weight: var(--weight-regular);
+}
+.st-hold__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.st-hold__actions {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+@media (max-width: 767px) {
+  .st-hold {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .st-hold__actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+/* One tile per utility item: what a tap does, and what it bills. */
+.st-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.st-tile {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.st-tile--off {
+  background: var(--surface-sunken);
+}
+.st-tile__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.st-tile__icon {
+  font-size: var(--icon-md);
+  color: var(--text-muted);
+}
+.st-tile__name {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.st-tile__price {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  text-align: right;
+}
+.st-tile__reason {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.st-tile__units {
+  margin-bottom: 0;
+}
+.st-tile__action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+}
+/* The unit the desk is expected to hand over: the one picked on the board, or the next free one. */
+.st-unit--suggested {
+  border-color: var(--brand);
+  background: var(--brand-surface);
+}
+.st-unit--suggested .st-unit__state {
+  color: var(--brand-text);
+}
+@media (max-width: 767px) {
+  .st-tile__head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .st-tile__price {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}
+
+.st-serve-bill {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  background: var(--info-surface);
+  color: var(--info-text);
+  font-size: var(--font-body-2);
+}

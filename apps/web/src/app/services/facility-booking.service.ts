@@ -305,6 +305,10 @@ export interface FacilityBillScreen {
     endTime: string | null;
     facilityType: { id: string; code: string; description: string } | null;
     facilities: string[];
+    // A utility item bill (slice 6b): the one item or the count of them,
+    // and the guest holding them when the bill is in the host's name.
+    itemsLabel?: string;
+    holderName?: string | null;
     booker: { id: string; patronType: 'member' | 'other'; name: string; memberNo: string | null } | null;
     slots: number;
     participants: { id: string; name: string; participantType: string }[];

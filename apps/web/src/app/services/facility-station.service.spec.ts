@@ -46,6 +46,30 @@ describe('FacilityStationService', () => {
     g.flush({ message: 'saved' });
   });
 
+  it('scans a code or redraws a person, issues to a pass holder with the panel, and undoes a tap', () => {
+    service.scan({ code: 'https://club/guest-pass/abc' }).subscribe();
+    const scan = http.expectOne('/api/facility/station/scan');
+    expect(scan.request.method).toBe('POST');
+    expect(scan.request.body).toEqual({ code: 'https://club/guest-pass/abc' });
+    scan.flush({ panel: { kind: 'guest', tiles: [] } });
+
+    service.scan({ guestRegistrationId: 'g1' }).subscribe();
+    expect(http.expectOne('/api/facility/station/scan').request.body).toEqual({ guestRegistrationId: 'g1' });
+
+    service.issue({ utilityItemId: 'i2', utilityUnitId: 'u1', quantity: 1, guestRegistrationId: 'g1', memberNo: null, panel: true }).subscribe();
+    const issue = http.expectOne('/api/facility/station/issues');
+    expect(issue.request.body).toEqual({ utilityItemId: 'i2', utilityUnitId: 'u1', quantity: 1, guestRegistrationId: 'g1', memberNo: null, panel: true });
+    issue.flush({ message: 'issued', issueId: 'x1', panel: null });
+
+    service.undoIssue('x1').subscribe();
+    const undo = http.expectOne('/api/facility/station/issues/x1/undo');
+    expect(undo.request.method).toBe('POST');
+    undo.flush({ message: 'undone' });
+
+    service.returnIssue('x1', { condition: 'good', panel: true }).subscribe();
+    expect(http.expectOne('/api/facility/station/issues/x1/return').request.body).toEqual({ condition: 'good', panel: true });
+  });
+
   it('issues, returns, clears a unit and runs the end of day', () => {
     service.issue({ utilityItemId: 'i2', utilityUnitId: 'u1', memberNo: 'A1' }).subscribe();
     const issue = http.expectOne('/api/facility/station/issues');

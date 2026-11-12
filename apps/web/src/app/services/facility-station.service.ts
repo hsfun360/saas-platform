@@ -98,7 +98,11 @@ export interface StationSlot {
 
 export interface StationIssue {
   id: string;
+  // The RESPONSIBLE member; the holder is that member unless holderName
+  // names a guest served on the pass (slice 6b).
   patron: StationPatron | null;
+  holderName?: string | null;
+  guestRegistrationId?: string | null;
   utilityItemId: string;
   utilityUnitId: string | null;
   unit: { id: string; code: string; location: string | null } | null;
@@ -204,8 +208,52 @@ export interface StationGuestLine {
   email?: string | null;
 }
 
+// ---- slice 6b: scan and serve ----
+
+// One utility item in the Serve panel: whether the person may take it now
+// (and why not), what it bills, and the free units of a numbered item.
+export interface ServeTile {
+  utilityItemId: string;
+  code: string;
+  description: string;
+  iconUrl: string | null;
+  behaviour: 'units' | 'quantity' | 'use';
+  fee: { code: string; description: string | null; unitAmount: number | null } | null;
+  allowed: boolean;
+  reason: string | null;
+  held: number;
+  limit: number;
+  dueDays: number;
+  freeUnits: { id: string; code: string; location: string | null }[];
+  suggestedUnitId: string | null;
+}
+
+// What the person holds or used today, with the item it is of.
+export interface ServeRow extends StationIssue {
+  item: { id: string; code: string; description: string; behaviour: 'units' | 'quantity' | 'use' } | null;
+  undoable: boolean;
+}
+
+// The Serve panel of one person: a guest on a pass (the host is the
+// responsible member) or a member on their own number.
+export interface ServePanel {
+  kind: 'guest' | 'member';
+  person: { name: string };
+  host: { memberId: string; memberNo: string; name: string };
+  pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean } | null;
+  standingWarning: string | null;
+  holding: ServeRow[];
+  usedToday: ServeRow[];
+  tiles: ServeTile[];
+  bill: FacilityBillSummary | null;
+  undoMinutes: number;
+  clubNow: { date: string; time: string };
+}
+
 export interface StationActionResult {
   message: string;
+  // The redrawn Serve panel, when the request asked for it.
+  panel?: ServePanel | null;
   registrationId?: string;
   issueId?: string;
   warnings?: string[];
@@ -244,12 +292,25 @@ export class FacilityStationService {
     return this.http.put<StationActionResult>(`${this.base}/registrations/${registrationId}/guests`, { guests });
   }
 
-  issue(payload: { utilityItemId: string; utilityUnitId?: string | null; quantity?: number; memberNo: string; registrationId?: string | null; remarks?: string | null }): Observable<StationActionResult> {
+  // The holder is the member (memberNo) or a guest on a pass
+  // (guestRegistrationId); `panel` asks for the redrawn Serve panel.
+  issue(payload: { utilityItemId: string; utilityUnitId?: string | null; quantity?: number; memberNo?: string | null; guestRegistrationId?: string | null; registrationId?: string | null; remarks?: string | null; panel?: boolean }): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/issues`, payload);
   }
 
-  returnIssue(issueId: string, payload: { condition: string; returnedQuantity?: number | null; remarks?: string | null }): Observable<StationActionResult> {
+  returnIssue(issueId: string, payload: { condition: string; returnedQuantity?: number | null; remarks?: string | null; panel?: boolean }): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/issues/${issueId}/return`, payload);
+  }
+
+  // Slice 6b: what was scanned or keyed (a pass link, a pass token or a
+  // member number) opens the Serve panel; the ids redraw it.
+  scan(payload: { code?: string; guestRegistrationId?: string | null; memberNo?: string | null }): Observable<{ panel: ServePanel }> {
+    return this.http.post<{ panel: ServePanel }>(`${this.base}/scan`, payload);
+  }
+
+  // A wrong tap, inside the undo window.
+  undoIssue(issueId: string): Observable<StationActionResult> {
+    return this.http.post<StationActionResult>(`${this.base}/issues/${issueId}/undo`, {});
   }
 
   clearUnit(unitId: string): Observable<StationActionResult> {

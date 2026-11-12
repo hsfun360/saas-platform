@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -9,10 +9,16 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ClassRosterComponent } from '../shared/class-roster/class-roster';
+import { QrScannerComponent } from '../shared/qr-scanner/qr-scanner';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { MoneyPipe } from '../shared/money.pipe';
 import {
   FacilityStationService,
+  ServePanel,
+  ServeRow,
+  ServeTile,
   StationClassSession,
   StationDay,
   StationGuestLine,
@@ -42,6 +48,9 @@ type GuestGroup = FormGroup<{
 // its pieces out or its uses today (Issue to a member, Return with the
 // condition, Clear a parked unit), and End of day signs everyone out and
 // lists the overdue items. Bills open in the bookings screen's one bill drawer.
+// Slice 6b: the desk starts from the PERSON - the scan box on top reads a
+// guest's pass (a handheld scanner types it, the camera reads it) or a keyed
+// member number and opens the Serve panel, where a tap on a tile issues.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-facility-station',
@@ -49,6 +58,7 @@ type GuestGroup = FormGroup<{
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, ConfirmDialogComponent, ClassRosterComponent, LocalDatePipe, MoneyPipe,
+    QrScannerComponent, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './facility-station.html',
   styleUrls: ['./facility-station.css'],
@@ -99,11 +109,31 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   readonly overdueCount = computed(() => this.utilityItems().reduce((n, u) => n + u.issues.filter((i) => i.overdue).length, 0));
   readonly insideCount = computed(() => this.types().reduce((n, t) => n + (t.liveCount || 0), 0));
   readonly guestTypes = computed(() => this.meta()?.participantTypes || []);
-  readonly unitOptions = computed<ComboOption[]>(() => (this.currentItem()?.units || []).filter((u) => u.isActive && u.unitStatus === 'available').map((u) => ({ value: u.id, label: u.location ? `${u.code} - ${u.location}` : u.code })));
   readonly entryUnitOptions = computed<ComboOption[]>(() => (this.current()?.units || []).filter((u) => u.isActive).map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })));
 
-  // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' ----
-  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | null>(null);
+  // ---- slice 6b: scan and serve ----
+  // How many free units a numbered tile shows before "Show all".
+  static readonly UNITS_SHOWN = 12;
+  private readonly scanBox = viewChild<ElementRef<HTMLInputElement>>('scanBox');
+  private readonly scanNext = viewChild<ElementRef<HTMLInputElement>>('scanNext');
+  // A desk with a keyboard and a mouse (so, a handheld scanner): the scan
+  // fields take the focus by themselves. A phone or a tablet keeps its
+  // on-screen keyboard down and scans with the camera.
+  readonly deskInput = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  readonly scanForm = this.fb.nonNullable.group({ code: ['', Validators.maxLength(600)] });
+  readonly scanning = signal(false);
+  // The person in the Serve panel, redrawn after every tap.
+  readonly panel = signal<ServePanel | null>(null);
+  // The tile, unit or row a call is running for.
+  readonly serveBusy = signal<string | null>(null);
+  // A free unit tapped on the board: the next scan takes THAT unit first.
+  readonly preferredUnit = signal<StationUtilityUnit | null>(null);
+  readonly tilesExpanded = signal<Set<string>>(new Set());
+  // A return keyed from the panel comes back to the panel.
+  private returnToPanel = false;
+
+  // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'serve' | 'camera' ----
+  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | 'serve' | 'camera' | null>(null);
   readonly saving = signal(false);
   readonly checkInSlot = signal<StationSlot | null>(null);
   readonly arrived = signal<Set<string>>(new Set());
@@ -129,8 +159,10 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       case 'register': return `Register on ${t?.code || ''}`;
       case 'guests': { const r = this.guestTarget(); return r ? `Guests - ${r.registrationNo}` : 'Guests'; }
       case 'issue': { const u = this.currentItem(); return u?.behaviour === 'units' ? `Issue a ${u.code} unit` : u?.behaviour === 'use' ? `Record ${u.code}` : `Issue ${u?.code || ''}`; }
-      case 'return': { const i = this.returnTarget(); return i ? `Return ${i.unit?.code || this.currentItem()?.code || ''}${i.quantity > 1 ? ' x ' + i.quantity : ''}` : 'Return'; }
+      case 'return': { const i = this.returnTarget(); return i ? `Return ${this.rowLabel(i)}` : 'Return'; }
       case 'roster': { const s = this.rosterSession(); return s ? `${s.class?.description || s.class?.code || 'Session'} · ${s.startTime}` : 'Roster'; }
+      case 'serve': { const p = this.panel(); return p ? `Serve ${p.person.name}` : 'Serve'; }
+      case 'camera': return 'Scan a guest pass';
       default: return '';
     }
   });
@@ -140,6 +172,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.load();
     // The club clock moves the check-in states: refresh each minute.
     this.refreshTimer = setInterval(() => { if (!this.dlgMode()) this.load(true); }, 60000);
+    this.focusScan();
   }
 
   ngOnDestroy(): void {
@@ -338,9 +371,9 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
 
   // ---- issue ----
 
-  openIssue(unit: StationUtilityUnit | null = null): void {
+  openIssue(): void {
     this.clearMessages();
-    this.form.reset({ memberNo: '', facilityId: unit?.id || '', quantity: 1, remarks: '', condition: 'good', returnedQuantity: null });
+    this.form.reset({ memberNo: '', facilityId: '', quantity: 1, remarks: '', condition: 'good', returnedQuantity: null });
     this.formVersion.update((v) => v + 1);
     this.dlgMode.set('issue');
   }
@@ -367,14 +400,15 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     if (this.form.controls.memberNo.invalid) { this.form.controls.memberNo.markAsTouched(); return; }
     const v = this.form.getRawValue();
     this.saving.set(true);
-    this.service.issue({ utilityItemId: t.id, utilityUnitId: t.trackUnits ? (v.facilityId || null) : null, quantity: t.behaviour === 'quantity' ? Number(v.quantity) || 1 : 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
+    this.service.issue({ utilityItemId: t.id, utilityUnitId: null, quantity: t.behaviour === 'quantity' ? Number(v.quantity) || 1 : 1, memberNo: v.memberNo.trim(), remarks: v.remarks.trim() || null }).subscribe({
       next: (res) => this.done(res.message, res),
       error: (err) => this.fail(err, 'Failed to issue.'),
     });
   }
 
-  openReturn(i: StationIssue): void {
+  openReturn(i: StationIssue, fromPanel = false): void {
     this.clearMessages();
+    this.returnToPanel = fromPanel;
     this.returnTarget.set(i);
     this.form.reset({ memberNo: '', facilityId: '', quantity: 1, remarks: '', condition: 'good', returnedQuantity: i.quantity });
     this.formVersion.update((v) => v + 1);
@@ -385,19 +419,25 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.formVersion.update((v) => v + 1);
   }
 
+  // A numbered unit comes back whole; a counted item may come back short.
+  readonly returnIsUnit = computed(() => !!this.returnTarget()?.utilityUnitId);
+
   submitReturn(): void {
     this.clearMessages();
     const i = this.returnTarget();
-    const t = this.currentItem();
     if (!i) return;
     const v = this.form.getRawValue();
     this.saving.set(true);
     this.service.returnIssue(i.id, {
       condition: v.condition,
-      returnedQuantity: t?.trackUnits ? null : (v.condition === 'lost' ? 0 : v.returnedQuantity),
+      returnedQuantity: i.utilityUnitId ? null : (v.condition === 'lost' ? 0 : v.returnedQuantity),
       remarks: v.remarks.trim() || null,
+      panel: this.returnToPanel,
     }).subscribe({
-      next: (res) => this.done(res.message),
+      next: (res) => {
+        if (this.returnToPanel && res.panel) { this.backToPanel(res.message, res.panel); return; }
+        this.done(res.message);
+      },
       error: (err) => this.fail(err, 'Failed to record the return.'),
     });
   }
@@ -405,7 +445,14 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   unitClicked(u: StationUtilityUnit): void {
     const t = this.currentItem();
     if (!t || !t.trackUnits) return;
-    if (u.unitStatus === 'available') { this.openIssue(u); return; }
+    if (u.unitStatus === 'available') {
+      // Slice 6b: a free unit is taken by a PERSON - the scan decides who.
+      if (!this.isToday()) return;
+      this.clearMessages();
+      this.preferredUnit.set(u);
+      this.focusScan(true);
+      return;
+    }
     if (u.unitStatus === 'issued') {
       const issue = t.issues.find((i) => i.id === u.currentIssueId) || t.issues.find((i) => i.utilityUnitId === u.id && i.status === 'issued');
       if (issue) this.openReturn(issue);
@@ -425,6 +472,175 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
         });
       },
     });
+  }
+
+  // ---- slice 6b: scan and serve ----
+
+  // What a row is of: the unit's number, or the item's code and its count.
+  rowLabel(i: StationIssue | ServeRow): string {
+    const code = i.unit?.code || (i as ServeRow).item?.code || this.utilityItems().find((u) => u.id === i.utilityItemId)?.code || '';
+    return `${code}${i.quantity > 1 ? ' x ' + i.quantity : ''}`;
+  }
+
+  // The scan box takes the keyboard on a desk with one (a handheld scanner
+  // types into it); a phone keeps its keyboard down until the field is tapped.
+  focusScan(force = false): void {
+    if (!force && !this.deskInput) return;
+    setTimeout(() => { if (!this.dlgMode()) this.scanBox()?.nativeElement.focus(); }, 0);
+  }
+
+  // Inside the Serve panel the focus goes back to the "next person" field
+  // after every tap: a handheld scanner types where the focus is, and its
+  // Enter must never land on a tile button and issue again.
+  private focusNext(): void {
+    setTimeout(() => this.scanNext()?.nativeElement.focus(), 0);
+  }
+
+  submitScan(): void {
+    const code = this.scanForm.controls.code.value.trim();
+    if (!code || this.scanning()) { if (!code) this.focusScan(true); return; }
+    this.readCode(code);
+  }
+
+  private readCode(code: string): void {
+    this.clearMessages();
+    this.scanning.set(true);
+    this.service.scan({ code }).subscribe({
+      next: (res) => {
+        this.scanning.set(false);
+        this.scanForm.reset({ code: '' });
+        this.tilesExpanded.set(new Set());
+        this.panel.set(res.panel);
+        this.dlgMode.set('serve');
+        if (res.panel.pass?.firstScan) this.successMessage.set(`${res.panel.person.name} arrived - guest of ${res.panel.host.name} (${res.panel.host.memberNo}).`);
+      },
+      error: (err) => {
+        this.scanning.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to read that code.');
+        // The refused code stays selected, so the next scan replaces it.
+        setTimeout(() => this.scanBox()?.nativeElement.select(), 0);
+      },
+    });
+  }
+
+  openCamera(): void {
+    this.clearMessages();
+    this.dlgMode.set('camera');
+  }
+
+  onCameraScan(code: string): void {
+    if (this.scanning()) return;
+    this.readCode(code);
+  }
+
+  // The free units a numbered tile shows: the unit picked on the board (or
+  // the next free one) first, a dozen at a time.
+  tileUnits(t: ServeTile): { id: string; code: string; location: string | null }[] {
+    const first = this.firstUnitId(t);
+    const ordered = first ? [...t.freeUnits.filter((u) => u.id === first), ...t.freeUnits.filter((u) => u.id !== first)] : t.freeUnits;
+    return this.tilesExpanded().has(t.utilityItemId) ? ordered : ordered.slice(0, FacilityStationComponent.UNITS_SHOWN);
+  }
+
+  firstUnitId(t: ServeTile): string | null {
+    const wanted = this.preferredUnit();
+    return wanted && t.freeUnits.some((u) => u.id === wanted.id) ? wanted.id : t.suggestedUnitId;
+  }
+
+  hiddenUnits(t: ServeTile): number {
+    return this.tilesExpanded().has(t.utilityItemId) ? 0 : Math.max(0, t.freeUnits.length - FacilityStationComponent.UNITS_SHOWN);
+  }
+
+  showAllUnits(t: ServeTile): void {
+    this.tilesExpanded.update((set) => new Set(set).add(t.utilityItemId));
+  }
+
+  // The price line of a tile, before it is tapped.
+  tilePrice(t: ServeTile, p: ServePanel): string {
+    if (!t.fee) return 'Free';
+    if (t.fee.unitAmount == null) return `${t.fee.code} - no price today`;
+    const amount = t.fee.unitAmount.toFixed(2);
+    return p.kind === 'guest' ? `${amount} before tax, on ${p.host.name}'s bill` : `${amount} before tax`;
+  }
+
+  // A tap issues: a unit of a numbered item, one piece of a counted item, or
+  // one use. The answer redraws the panel.
+  serveIssue(t: ServeTile, unitId: string | null = null): void {
+    const p = this.panel();
+    if (!p || this.serveBusy()) return;
+    this.clearMessages();
+    this.serveBusy.set(unitId || t.utilityItemId);
+    this.service.issue({
+      utilityItemId: t.utilityItemId, utilityUnitId: unitId, quantity: 1,
+      guestRegistrationId: p.pass?.id || null, memberNo: p.pass ? null : p.host.memberNo, panel: true,
+    }).subscribe({
+      next: (res) => {
+        this.serveBusy.set(null);
+        this.preferredUnit.set(null);
+        if (res.panel) this.panel.set(res.panel);
+        this.successMessage.set([res.message, ...(res.warnings || [])].join(' '));
+        this.load(true);
+        this.focusNext();
+      },
+      error: (err) => {
+        this.serveBusy.set(null);
+        this.errorMessage.set(err.error?.message || 'Failed to issue.');
+        this.refreshPanel();
+        this.focusNext();
+      },
+    });
+  }
+
+  undoIssue(row: ServeRow): void {
+    if (this.serveBusy()) return;
+    this.clearMessages();
+    this.serveBusy.set(row.id);
+    this.service.undoIssue(row.id).subscribe({
+      next: (res) => this.afterPanelAction(res.message, res.panel),
+      error: (err) => { this.serveBusy.set(null); this.errorMessage.set(err.error?.message || 'Failed to undo.'); this.refreshPanel(); },
+    });
+  }
+
+  // One tap takes an item back in good condition; damaged or lost goes
+  // through the return form.
+  returnGood(row: ServeRow): void {
+    if (this.serveBusy()) return;
+    this.clearMessages();
+    this.serveBusy.set(row.id);
+    this.service.returnIssue(row.id, { condition: 'good', returnedQuantity: row.utilityUnitId ? null : row.quantity, panel: true }).subscribe({
+      next: (res) => this.afterPanelAction(res.message, res.panel),
+      error: (err) => { this.serveBusy.set(null); this.errorMessage.set(err.error?.message || 'Failed to record the return.'); this.refreshPanel(); },
+    });
+  }
+
+  private afterPanelAction(message: string, panel: ServePanel | null | undefined): void {
+    this.serveBusy.set(null);
+    this.successMessage.set(message);
+    if (panel) this.panel.set(panel);
+    else this.refreshPanel();
+    this.load(true);
+    this.focusNext();
+  }
+
+  // Redraw the panel of the person being served (after a refusal: another
+  // desk may have taken the unit).
+  private refreshPanel(): void {
+    const p = this.panel();
+    if (!p) return;
+    this.service.scan(p.pass ? { guestRegistrationId: p.pass.id } : { memberNo: p.host.memberNo }).subscribe({
+      next: (res) => { if (this.panel()) this.panel.set(res.panel); },
+      error: () => { /* the panel keeps its last picture */ },
+    });
+  }
+
+  private backToPanel(message: string, panel: ServePanel): void {
+    this.saving.set(false);
+    this.returnToPanel = false;
+    this.returnTarget.set(null);
+    this.form.markAsPristine();
+    this.successMessage.set(message);
+    this.panel.set(panel);
+    this.dlgMode.set('serve');
+    this.load(true);
   }
 
   // ---- slice 4: the no-show mark ----
@@ -517,6 +733,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.checkInSlot.set(null);
     this.guestTarget.set(null);
     this.returnTarget.set(null);
+    this.returnToPanel = false;
+    this.panel.set(null);
+    this.preferredUnit.set(null);
+    this.serveBusy.set(null);
+    // Ready for the next person.
+    this.focusScan();
   }
 
   private done(message: string, res?: { warnings?: string[]; standingWarning?: string | null }): void {
