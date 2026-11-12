@@ -1187,6 +1187,7 @@ a unit picked on the board is captioned "picked", not "next free";
 the return message names what came back ("TOWEL returned.", "L001 returned.").
 Those five were pushed and re-checked on dev the same day, each one seen working.
 One more came out of the re-check and is fixed: the focus returning to the next-person field after a tap now selects a refused code still sitting there, so the next scan replaces it and is never appended to it.
+That one was pushed and seen working on dev the same day too.
 Not checked on dev: the camera scanner (it needs the device's camera permission) and phone width (the Chrome window cannot be resized by the smoke).
 6c and 6d not built.
 
