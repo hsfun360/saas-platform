@@ -784,8 +784,12 @@ exports.switchWorkspace = async (req, res) => {
             return res.status(403).json({ message: "You do not have access to that workspace." });
         }
 
+        // mfaEnabled MUST be loaded: completeLogin's enrolment gate reads it,
+        // and without the column every Tenant Admin who already has MFA was
+        // answered mfaEnrollRequired on a switch and stranded on /mfa-setup
+        // ("already enabled") with the old session revoked (fixed 2026-11-12).
         const user = await User.findByPk(req.user.id, {
-            attributes: ['id', 'email', 'full_name', 'profilePicture'],
+            attributes: ['id', 'email', 'full_name', 'profilePicture', 'mfaEnabled'],
         });
         if (!user) {
             return res.status(404).json({ message: "User not found." });
