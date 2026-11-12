@@ -64,6 +64,9 @@ export interface FacilitySettingDoc {
   // slice 3: Control Station
   checkInOpenMinutes: number;
   autoSignOutAtClose: boolean;
+  // slice 6c: a guest keyed at the station
+  doorGuestPassEnabled: boolean;
+  doorGuestContactRequired: boolean;
   // slice 4: No show
   lateCancellationAction: 'charge' | 'refuse';
   noShowTransactionTypeId: string | null;

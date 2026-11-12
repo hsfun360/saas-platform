@@ -394,6 +394,20 @@
                 <app-field-info label="End-of-day sign-out" [text]="hint.autoSignOut" />
               </label>
             </div>
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="doorGuestPassEnabled" />
+                <span>Give a day pass to a guest keyed at the station</span>
+                <app-field-info label="Guest pass at the station" [text]="hint.doorPass" />
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="fs-check switch">
+                <input type="checkbox" role="switch" formControlName="doorGuestContactRequired" />
+                <span>A guest keyed at the station must give a mobile or an email</span>
+                <app-field-info label="Guest contact at the station" [text]="hint.doorContact" />
+              </label>
+            </div>
           </div>
         }
       </div>

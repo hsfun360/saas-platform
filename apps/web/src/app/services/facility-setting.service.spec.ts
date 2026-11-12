@@ -28,7 +28,7 @@ describe('FacilitySettingService', () => {
     service.save({
       advanceBookingDays: 10, advanceBookingHours: 2, allowSameDayBooking: true, bookingLockMinutes: 5,
       guestControlEnabled: true, allowGuestWeekday: true, allowMemberGuestWeekday: true, allowGuestWeekend: false, allowMemberGuestWeekend: true,
-      noShowControlEnabled: false, cancellationNoticeHours: 24, checkInOpenMinutes: 30, autoSignOutAtClose: true,
+      noShowControlEnabled: false, cancellationNoticeHours: 24, checkInOpenMinutes: 30, autoSignOutAtClose: true, doorGuestPassEnabled: true, doorGuestContactRequired: false,
       lateCancellationAction: 'charge', noShowTransactionTypeId: null, noShowChargeBasis: 'booking', noShowGraceMinutes: 15, strikeCount: 3, strikeWindowDays: 90, strikeSuspensionDays: 30, classesEnabled: false, classCancellationNoticeHours: 24, classWaitlistOfferHours: 24,
       allowMembershipTypeOverride: true,
       overrides: [{ membershipTypeId: 'mt1', advanceBookingDays: 14 }],
