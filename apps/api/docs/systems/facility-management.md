@@ -949,7 +949,7 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile); under `/class-lifecycle` (the Class Schedule or Control Station grant, built 5c): `GET /enrolments/:id/cancel-preview`, `POST /enrolments/:id/cancel`, `POST /waitlist` (the enrol body), `POST /waitlist/:id/offer`, `POST /waitlist/:id/confirm`, `POST /waitlist/:id/withdraw`; the closure `generate-days` preview returns `classSessions` and `PUT days` cancels them; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
 - Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
-### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; "Scan and serve" approved 2026-11-12 and its step 6b BUILT and smoked on dev 2026-11-12; 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12, dev smoke pending)
+### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; "Scan and serve" approved 2026-11-12 and its step 6b BUILT and smoked on dev 2026-11-12; 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12 and its member path smoked on dev the same day)
 
 **Status:** drafted 2026-11-11, revised the same day with two changes from the user, and approved as revised.
 Sub-slice 6a built 2026-11-11: the `UtilityItem` and `UtilityUnit` models; the pure rules in utilityRules.service.js (unit-tested: the behaviour of an item from its two switches, their normalisation, the codes Generate units proposes); the master's controller, schemas and routes under /api/facility/utility-items (items, units, generate with its preview, the icon upload); `IssueRecord` re-pointed (`utilityItemId`, `utilityUnitId`, the `used` status); the station engine's issue, return, unit clear and day picture on the new tables (the picture returns `utilityItems` beside `types`; a use-only item closes as `used` and its limit counts the day's uses); the issue usage mode and its columns retired from the facility types and the facilities; the move of the existing data (see "Moving what exists"); the Utility Items screen at /facility/utility-items; the station's strip and view reading the utility items; Facility Types and Facilities without the issue mode.
@@ -959,7 +959,7 @@ Polish from that smoke (2026-11-12): the day picture carries `fee` per utility i
 Not checked at phone width (the test browser window could not be resized).
 6b, 6c and 6d not built.
 Those three steps were revised and approved on 2026-11-12 ("Scan and serve - the station starts from the person", at the end of this slice): the station starts from a scanned pass or a member number and serves the person in one panel, a tap per item.
-Its first step, 6b, is built and smoked on dev (2026-11-12); its second, 6c, is built and smoked on dev (2026-11-12); its third and last, 6d, is built (dev smoke pending).
+Its first step, 6b, is built and smoked on dev (2026-11-12); its second, 6c, is built and smoked on dev (2026-11-12); its third and last, 6d, is built and its member path smoked on dev (2026-11-12).
 The user's changes: (1) a towel or a locker must not be called a facility - they become **Utility Items** with a master file of their own; (2) a guest holding a pass (registered upfront) claims utility items at the station on their own, while a guest who was not registered must be at the station together with the member.
 
 What is wrong today.
@@ -1164,7 +1164,7 @@ Sign-out of the entry lists what the party still holds, with Return beside each.
 - Build order inside the slice: 6a the Utility Item master (the two tables, the migration script, the master screen, the station's Utility Items view on the new tables, the use-only behaviour) - same behaviour as today under the new name; 6b the known guest at the door (the seam calls, the `RegistrationGuest` columns, Scan and contact on the Register form, counting once); 6c the holder (the `IssueRecord` holder columns, "For", a pass served alone, the per-person limit, the fee at the holder's type, return by pass, the sign-out list); 6d the Arrival drawer (the party in one transaction with its preview, `hostPresent`).
   On approval the slice 1 and slice 3 text above that describes the "issue" usage mode is marked superseded by this section.
 
-#### Scan and serve - the station starts from the person (approved 2026-11-12; 6b and 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12, dev smoke pending)
+#### Scan and serve - the station starts from the person (approved 2026-11-12; 6b and 6c BUILT and smoked on dev 2026-11-12; 6d BUILT 2026-11-12, its member path smoked on dev)
 
 **Status:** drafted 2026-11-12 after the 6a smoke, at the user's request, and approved the same day with its nine decisions as proposed.
 It revises the build order 6b, 6c and 6d above and replaces the Arrival drawer as the station's main path.
@@ -1213,7 +1213,7 @@ Polish found by that smoke and fixed: the Add guest form opens with the keyboard
 Those were pushed and re-checked on dev the same day: the name field held the keyboard, the outcome line stood 16px clear, removing a guest (pass GR00004) left the focus in the next-person field, the card subtitle read as changed and the refusal said "12 Nov 2026"; the button label under the contact switch was not re-checked on dev (its test covers it).
 Not checked on dev: the WhatsApp and email sends (no real recipient), the camera scanner and phone width.
 
-Step 6d built 2026-11-12 (entering a facility from the panel; dev smoke pending).
+Step 6d built 2026-11-12 (entering a facility from the panel; the member path smoked on dev the same day).
 What it is: the Serve panel gains **Enter a facility**, one tile per active entry facility, each stating before it is tapped the price and the count the tap will reach ("13 of 40 inside after this"), or why it cannot be tapped.
 A tap admits ONE person.
 The member gets an entry of their own, or - when their guests went in ahead on a pass - joins that entry.
@@ -1232,7 +1232,13 @@ a wrong admit has no Undo: it is corrected by Sign out and by removing its line 
 the Register form refuses to open a second entry for a member whose guests are already inside, and points to the panel;
 `IssueRecord.registrationGuestId` was NOT added: nothing reads it - a party's items are found by the pass or, for a guest by name, by the host and the name;
 the live count and the Guests form's capacity check add the host only when the host is inside.
-Dev smoke of 6d pending.
+Smoked on dev 2026-11-12 at Tropicana, in the user's Chrome, under member MEM26-000001:
+the member's panel showed "Enter a facility" with the GYM tile ("No fee", "1 of 40 inside after this"); a tap admitted the member (RG-00003, the strip and the register read 1 of 40) and the tile turned to "Inside since ... RG-00003" with Sign out; the guest's panel showed the same tile closed in words by the club's own rule ("Visitor guests are not allowed on GYM now"); Sign out from the member's panel answered "RG-00003 signed out. Still out: TOWEL (Ahmad Faizal)." and the tile went back to Admit.
+The GUEST path (a guest admitted alone or onto the member's entry, the host-must-be-present refusal, the fees on the entry's bill) could not be exercised on dev: Tropicana's guest-control rule refuses visitor guests on GYM and it has no other entry facility, so that path stands on the local verification.
+Polish found by that smoke and fixed:
+a free facility no longer warns "the entry fee was not charged" after every admit - its tile said "No fee" before the tap (a picked guest type with no fee item of its own still warns);
+a fee item with no price in force now closes the tile in words ("GUESTFEE has no price today.") instead of letting the tap be refused at the bill.
+The local scenario was run again with both (56 checks).
 
 The user's point.
 The station has no scan of the guest's pass, and it is not friendly: the desk picks an item first and keys the person after, once per item.
@@ -1396,4 +1402,4 @@ A typed member number returns the same picture for the member.
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, dev smoke pending) · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, member path smoked on dev) · [ ] Events · [ ] Own DB · [ ] Own deploy
