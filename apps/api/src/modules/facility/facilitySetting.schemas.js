@@ -46,6 +46,9 @@ const saveBody = z.object({
     // Control Station (slice 3)
     checkInOpenMinutes: numberish,
     autoSignOutAtClose: bool,
+    // Guests keyed at the station (slice 6c)
+    doorGuestPassEnabled: bool,
+    doorGuestContactRequired: bool,
     // Classes (slice 5)
     classesEnabled: bool,
     classCancellationNoticeHours: numberish,

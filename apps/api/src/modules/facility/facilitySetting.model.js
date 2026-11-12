@@ -114,6 +114,21 @@ const FacilitySetting = sequelize.define('FacilitySetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // ---- slice 6c (structures approved 2026-11-11) ----
+    // ON = a guest keyed at the station with a mobile or an email is
+    // registered with Membership and gets the day pass.
+    doorGuestPassEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    // ON = a guest keyed at the station must carry a mobile or an email, so
+    // every guest is known.
+    doorGuestContactRequired: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // ---- slice 4 (structures approved 2026-10-26) ----
     // 'charge' raises the late-cancel charge and lets the cancel through;
     // 'refuse' refuses a cancel inside the notice (the desk may waive).

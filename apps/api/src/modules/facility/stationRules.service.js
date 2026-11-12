@@ -154,8 +154,32 @@ function undoVerdict({ status, issuedAt, now = new Date(), billStatus = null, mi
     return null;
 }
 
+// ---- slice 6c: a guest keyed at the station, with the member ----
+
+// The remark an undone issue carries (no status of its own: it reads 'returned').
+const UNDONE_REMARK = 'Undone at the desk';
+
+// Whether a keyed mobile is a number at all: the phone input sends the bare
+// dialling code ('+60') when nothing was typed after it.
+function hasMobile(mobile) {
+    const compact = String(mobile || '').replace(/[\s\-()]/g, '');
+    return !!compact && !/^\+?\d{0,4}$/.test(compact);
+}
+
+// How a guest keyed at the station is served: 'pass' (a mobile or an email
+// was keyed and the club registers door guests - Membership issues the day
+// pass) or 'name' (served by name, together with the member). The club may
+// insist on the contact.
+function doorGuestVerdict({ name, mobile, email, passEnabled = true, contactRequired = false }) {
+    if (!String(name || '').trim()) return { error: "Key in the guest's name." };
+    const contact = hasMobile(mobile) || !!String(email || '').trim();
+    if (!contact && contactRequired) return { error: "Key in the guest's mobile number or email - the club registers every guest at the station." };
+    return { mode: contact && passEnabled ? 'pass' : 'name' };
+}
+
 module.exports = {
     checkInState, openingHours, isOpenAt, liveCount, capacityVerdict,
     heldByPatron, issueLimitVerdict, dueBackLocal, returnOutcome,
     UNDO_MINUTES, scanKind, passVerdict, serveTileVerdict, undoVerdict,
+    UNDONE_REMARK, hasMobile, doorGuestVerdict,
 };

@@ -31,6 +31,8 @@ const DEFAULTS = {
     cancellationNoticeHours: 24,
     checkInOpenMinutes: 30,
     autoSignOutAtClose: true,
+    doorGuestPassEnabled: true,
+    doorGuestContactRequired: false,
     lateCancellationAction: 'charge',
     noShowTransactionTypeId: null,
     noShowChargeBasis: 'booking',
@@ -60,6 +62,8 @@ function settingDto(row) {
         cancellationNoticeHours: row.cancellationNoticeHours,
         checkInOpenMinutes: row.checkInOpenMinutes ?? 30,
         autoSignOutAtClose: row.autoSignOutAtClose !== false,
+        doorGuestPassEnabled: row.doorGuestPassEnabled !== false,
+        doorGuestContactRequired: row.doorGuestContactRequired === true,
         lateCancellationAction: row.lateCancellationAction === 'refuse' ? 'refuse' : 'charge',
         noShowTransactionTypeId: row.noShowTransactionTypeId || null,
         noShowChargeBasis: row.noShowChargeBasis || 'booking',
@@ -228,9 +232,11 @@ exports.save = async (req, res) => {
             values[field] = n.value;
         }
         for (const flag of ['allowSameDayBooking', 'allowMembershipTypeOverride', 'guestControlEnabled', 'allowGuestWeekday', 'allowMemberGuestWeekday',
-            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose', 'classesEnabled']) {
+            'allowGuestWeekend', 'allowMemberGuestWeekend', 'noShowControlEnabled', 'autoSignOutAtClose', 'classesEnabled', 'doorGuestContactRequired']) {
             values[flag] = req.body[flag] === true;
         }
+        // Slice 6c: ON unless the screen says otherwise (a client saved before the switch existed keeps it ON).
+        values.doorGuestPassEnabled = req.body.doorGuestPassEnabled !== false;
         // Slice 4: the late-cancel action, the charge basis and the no-show item.
         values.lateCancellationAction = req.body.lateCancellationAction === 'refuse' ? 'refuse' : 'charge';
         values.noShowChargeBasis = ['booking', 'slot', 'participant'].includes(req.body.noShowChargeBasis) ? req.body.noShowChargeBasis : 'booking';

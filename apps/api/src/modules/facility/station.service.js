@@ -11,7 +11,10 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { getUserContext } = require('../../platform/serviceContext');
-const { getGolfMemberStanding, getGuestAllowanceStanding, recordGuestVisit, voidGuestVisit, findGuestPass, getGuestPass, markGuestArrived } = require('../../platform/membershipGateway');
+const {
+    getGolfMemberStanding, getGuestAllowanceStanding, recordGuestVisit, voidGuestVisit, findGuestPass, getGuestPass, markGuestArrived,
+    registerGuestAtDoor, cancelGuestAtDoor, getGuestPassShare, sendGuestPass,
+} = require('../../platform/membershipGateway');
 const { companyTimezoneById } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const FacilityType = require('./facilityType.model');
@@ -67,7 +70,11 @@ function hhmm(t) {
 // ---- DTOs ----------------------------------------------------------------------
 
 function guestDto(g) {
-    return { id: g.id, patronId: g.patronId, participantType: g.participantType, name: g.name, memberNo: g.memberNo, guestVisitId: g.guestVisitId, sortOrder: g.sortOrder };
+    return {
+        id: g.id, patronId: g.patronId, participantType: g.participantType, name: g.name, memberNo: g.memberNo, guestVisitId: g.guestVisitId, sortOrder: g.sortOrder,
+        // Slice 6c: the day pass behind the line, and whether the station created it.
+        guestRegistrationId: g.guestRegistrationId || null, passCreatedHere: g.passCreatedHere === true,
+    };
 }
 
 function registrationDto(r, { patron, unit, guests = [], bill = null } = {}) {
@@ -391,7 +398,10 @@ async function resolveGuests(companyId, raw, types) {
         } else {
             const name = String(g.name || '').trim();
             if (!name) return { error: `Guest ${i + 1}: key in the guest's name.` };
-            lines.push({ sortOrder: i + 1, participantType: code, base: t.baseIdentity, standing: null, name, memberNo: null, visitor: { name, identityNo: g.identityNo || null, mobile: g.mobile || null, email: g.email || null } });
+            // The phone input sends the bare dialling code when no number was keyed.
+            const mobile = rules.hasMobile(g.mobile) ? String(g.mobile).replace(/[\s\-()]/g, '') : null;
+            const email = String(g.email || '').trim() || null;
+            lines.push({ sortOrder: i + 1, participantType: code, base: t.baseIdentity, standing: null, name, memberNo: null, passId: g.guestRegistrationId ? String(g.guestRegistrationId) : null, visitor: { name, identityNo: g.identityNo || null, mobile, email } });
         }
     }
     return { lines };
@@ -406,11 +416,45 @@ async function checkDoorGuests({ companyId, setting, type, guestRules, dayType, 
     if (visitors.length && !verdict.allowGuest) return { error: `Visitor guests are not allowed on ${type.code} at ${time} on ${date}.` };
     if (memberGuests.length && !verdict.allowMemberGuest) return { error: `Members as guests are not allowed on ${type.code} at ${time} on ${date}.` };
     if (type.maxGuestsPerBooking != null && visitors.length > Number(type.maxGuestsPerBooking)) return { error: `At most ${type.maxGuestsPerBooking} visitor guest${Number(type.maxGuestsPerBooking) === 1 ? '' : 's'} per visit on ${type.code}.` };
+    // Only the lines that would draw a NEW visit: a known guest (slice 6c) was
+    // counted when the pass was registered.
+    const draws = lines.filter((l) => !l.guestId).length;
     const allowance = await getGuestAllowanceStanding(companyId, host.memberId, date, { transaction });
-    if (allowance && allowance.allowance != null && allowance.remaining + excludeCurrent < lines.length) {
-        return { error: `${host.name} (${host.memberNo}) has ${allowance.remaining + excludeCurrent} of ${allowance.allowance} monthly guest visits left - this entry needs ${lines.length}.` };
+    if (draws && allowance && allowance.allowance != null && allowance.remaining + excludeCurrent < draws) {
+        return { error: `${host.name} (${host.memberNo}) has ${allowance.remaining + excludeCurrent} of ${allowance.allowance} monthly guest visits left - this entry needs ${draws}.` };
     }
     return { allowance };
+}
+
+// Slice 6c - give the visitor lines of an entry their identity before they
+// are checked and written: a line standing on a day pass keeps it; a line
+// keyed with a mobile or an email is registered with Membership (the pass a
+// guest already holds with this host today is found, never doubled); a name
+// alone stays a name unless the club insists on a contact. `keep` = the
+// passes the entry's earlier lines stood on (pass id -> created here).
+async function linkDoorGuests({ req, companyId, lines, host, date, door, warnings, transaction, keep = new Map() }) {
+    for (const l of lines) {
+        if (l.standing || !l.visitor) continue;
+        const label = `Guest ${l.sortOrder}`;
+        if (l.passId) {
+            const pass = await getGuestPass(companyId, l.passId, { transaction });
+            if (!pass || pass.status === 'cancelled' || pass.host.memberId !== host.memberId || pass.visitDate !== date) txFail(`${label}: that pass is not ${host.name}'s guest pass for today.`);
+            Object.assign(l, { guestId: pass.guest.id, guestRegistrationId: pass.id, name: pass.guest.name, passCreatedHere: keep.get(pass.id) === true });
+            if (pass.status === 'registered') await markGuestArrived(companyId, pass.id, { actorId: getUserContext(req).userId, transaction });
+            continue;
+        }
+        const verdict = rules.doorGuestVerdict({ name: l.name, mobile: l.visitor.mobile, email: l.visitor.email, passEnabled: door.passEnabled, contactRequired: door.contactRequired });
+        if (verdict.error) txFail(`${label}: ${verdict.error}`);
+        if (verdict.mode !== 'pass') continue;
+        const r = await registerGuestAtDoor(req, { memberId: host.memberId, visitDate: date, guest: { name: l.name, mobile: l.visitor.mobile, email: l.visitor.email }, channel: 'facility' }, { transaction });
+        if (r.error) txFail(`${label}: ${r.error}`, r.status || 400);
+        if (r.nameOnly) { if (!warnings.includes(r.warning)) warnings.push(r.warning); continue; }
+        Object.assign(l, { guestId: r.pass.guest.id, guestRegistrationId: r.pass.id, name: r.pass.guest.name, passCreatedHere: r.created || keep.get(r.pass.id) === true });
+    }
+}
+
+function doorOf(setting) {
+    return { passEnabled: setting.doorGuestPassEnabled !== false, contactRequired: setting.doorGuestContactRequired === true };
 }
 
 async function attachGuestPatrons(companyId, lines, stamps, transaction) {
@@ -430,8 +474,10 @@ async function writeGuests({ companyId, registration, lines, host, date, stamps,
     for (const l of lines) {
         const row = await RegistrationGuest.create({
             companyId, registrationId: registration.id, patronId: l.patronId || null, participantType: l.participantType, name: l.name, memberNo: l.memberNo, sortOrder: l.sortOrder,
+            guestId: l.guestId || null, guestRegistrationId: l.guestRegistrationId || null, passCreatedHere: l.passCreatedHere === true,
         }, { transaction });
-        const visit = await recordGuestVisit(companyId, { memberId: host.memberId, visitDate: date, sourceModule: 'facility', sourceRef: row.id, guestName: l.name, guestCount: 1, stamps }, { transaction });
+        // A known guest's line names the guest, so it joins the once-per-day rule.
+        const visit = await recordGuestVisit(companyId, { memberId: host.memberId, visitDate: date, sourceModule: 'facility', sourceRef: row.id, guestId: l.guestId || null, guestName: l.name, guestCount: 1, stamps }, { transaction });
         if (visit && visit.id) { row.guestVisitId = visit.id; await row.save({ transaction }); }
     }
     registration.guestCount = lines.length;
@@ -560,6 +606,7 @@ async function register(req, body) {
         const capacity = unit && unit.capacity != null ? unit.capacity : type.capacity;
         const capError = rules.capacityVerdict({ count: rules.liveCount(regs), arriving: 1 + lines.length, capacity, label: unit && unit.capacity != null ? unit.code : type.code });
         if (capError) txFail(capError);
+        await linkDoorGuests({ req, companyId, lines, host: standing, date, door: doorOf(setting), warnings, transaction });
         const g = await checkDoorGuests({ companyId, setting, type, guestRules, dayType, date, time: now.time, lines, host: standing, types: ptypes, transaction });
         if (g.error) txFail(g.error);
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
@@ -612,30 +659,51 @@ async function replaceGuests(req, id, body) {
     if (guests.error) return guests;
     const { lines } = guests;
     const stamps = await stampsFor(req);
+    const warnings = [];
     const result = await runTx(sequelize, async (transaction) => {
         const regs = await Registration.findAll({ where: { companyId, facilityTypeId: type.id, registrationDate: r.registrationDate, status: 'in', bookingSlotId: null }, transaction, lock: transaction.LOCK.UPDATE });
         const current = Number(r.guestCount || 0);
+        // Slice 6c: the passes and the names the entry's lines stood on.
+        const before = await RegistrationGuest.findAll({ where: { registrationId: r.id }, transaction });
+        const keep = new Map(before.filter((b) => b.guestRegistrationId).map((b) => [b.guestRegistrationId, b.passCreatedHere === true]));
         const capError = rules.capacityVerdict({ count: rules.liveCount(regs) - (1 + current), arriving: 1 + lines.length, capacity: type.capacity, label: type.code });
         if (capError) txFail(capError);
         await voidGuests(companyId, r.id, { transaction });
+        await linkDoorGuests({ req, companyId, lines, host: standing, date: String(r.registrationDate), door: doorOf(setting), warnings, transaction, keep });
         const g = await checkDoorGuests({ companyId, setting, type, guestRules, dayType: r.dayType, date: String(r.registrationDate), time: now.time, lines, host: standing, types: ptypes, transaction });
         if (g.error) txFail(g.error);
         const pErr = await attachGuestPatrons(companyId, lines, stamps, transaction);
         if (pErr) txFail(pErr);
         await writeGuests({ companyId, registration: r, lines, host: standing, date: String(r.registrationDate), stamps, transaction });
+        // Rule 9: a guest taken off the entry must hold nothing, and the
+        // pass the station created for them is cancelled (one registered
+        // upfront is never cancelled here).
+        const stays = new Set(lines.map((l) => l.guestRegistrationId).filter(Boolean));
+        const stayNames = new Set(lines.filter((l) => !l.guestRegistrationId && !l.standing).map((l) => l.name.toLowerCase()));
+        for (const b of before) {
+            if (b.guestRegistrationId) {
+                if (stays.has(b.guestRegistrationId)) continue;
+                if (await IssueRecord.count({ where: { companyId, guestRegistrationId: b.guestRegistrationId, status: 'issued' }, transaction })) txFail(`${b.name} still holds an item - take it back before removing them from the entry.`);
+                if (b.passCreatedHere === true) await cancelGuestAtDoor(companyId, b.guestRegistrationId, { channel: 'facility', actorId: getUserContext(req).userId, reason: 'Removed from the entry at the facility station', transaction });
+            } else if (!b.memberNo && !stayNames.has(String(b.name).toLowerCase())) {
+                if (await IssueRecord.count({ where: { companyId, patronId: r.patronId, guestRegistrationId: null, holderName: sameName(b.name), status: 'issued' }, transaction })) txFail(`${b.name} still holds an item - take it back before removing them from the entry.`);
+            }
+        }
         return {};
     });
     if (result.error) return result;
-    return { message: `Guests saved on ${r.registrationNo}.` };
+    return { message: `Guests saved on ${r.registrationNo}.`, warnings };
 }
 
 // ---- rule 5: issue (a utility item, slice 6a; the holder, slice 6b) --------------------------
 
 // Who the desk serves (slice 6b): a guest on the pass - the host named on it
 // is the responsible member - or a member on their own number. `code` is
-// whatever was scanned or keyed into the scan box. Returns { error } or
+// whatever was scanned or keyed into the scan box. Slice 6c adds the guest
+// WITHOUT a pass, served by name together with the member: `memberNo` with
+// `guestName` (pass stays null). Returns { error } or
 // { isGuest, pass, standing, holderName, participantType }.
-async function resolveHolder(companyId, { code = null, guestRegistrationId = null, memberNo = null } = {}) {
+async function resolveHolder(companyId, { code = null, guestRegistrationId = null, memberNo = null, guestName = null } = {}) {
     let pass = null;
     let number = memberNo ? String(memberNo).trim() : '';
     let scanned = false;
@@ -663,13 +731,57 @@ async function resolveHolder(companyId, { code = null, guestRegistrationId = nul
     }
     const m = await memberStanding(companyId, number);
     if (m.error) return m;
+    const byName = guestName ? String(guestName).trim().slice(0, 255) : '';
+    if (byName) return { isGuest: true, pass: null, standing: m.standing, holderName: byName, participantType: 'guest' };
     return { isGuest: false, pass: null, standing: m.standing, holderName: m.standing.name, participantType: 'member' };
 }
 
-// The rows that belong to the person served: a guest's by the pass, a
-// member's by the patron with no guest named.
+// A name matched as keyed, whatever its capitals.
+function sameName(name) {
+    return { [Op.iLike]: String(name || '').replace(/[\\%_]/g, (c) => `\\${c}`) };
+}
+
+// The rows that belong to the person served: a guest's by the pass, a guest
+// without one by the host and the name, a member's by the patron with no
+// guest named.
 function holderWhere(who, patronId) {
-    return who.isGuest ? { guestRegistrationId: who.pass.id } : { patronId, guestRegistrationId: null };
+    if (who.isGuest && who.pass) return { guestRegistrationId: who.pass.id };
+    if (who.isGuest) return { patronId, guestRegistrationId: null, holderName: sameName(who.holderName) };
+    return { patronId, guestRegistrationId: null, holderName: null };
+}
+
+// A guest served by NAME is known to the day only through what the desk
+// recorded for them: an item under the same host and name that was not
+// undone, or a line of that name on one of the host's entries today. Either
+// means the visit already drew on the host's allowance.
+async function nameGuestCounted(companyId, patronId, name, date, startOfDay, { transaction, exceptIssueId = null } = {}) {
+    if (!patronId) return false;
+    const where = {
+        companyId, patronId, guestRegistrationId: null, holderName: sameName(name), issuedAt: { [Op.gte]: startOfDay },
+        [Op.or]: [{ remarks: null }, { remarks: { [Op.ne]: rules.UNDONE_REMARK } }],
+    };
+    if (exceptIssueId) where.id = { [Op.ne]: exceptIssueId };
+    if (await IssueRecord.count({ where, transaction })) return true;
+    const entries = await Registration.findAll({ where: { companyId, patronId, registrationDate: date }, attributes: ['id'], transaction });
+    if (!entries.length) return false;
+    return (await RegistrationGuest.count({ where: { registrationId: { [Op.in]: entries.map((e) => e.id) }, name: sameName(name), guestVisitId: { [Op.ne]: null } }, transaction })) > 0;
+}
+
+function allowanceRefusal(standing, allowance) {
+    return allowance.allowance === 0
+        ? `${standing.name} (${standing.memberNo}) may not bring guests under their membership type.`
+        : `${standing.name} (${standing.memberNo}) has used all ${allowance.allowance} guest visits of the month.`;
+}
+
+// The undo of a name-only guest's item: once nothing of theirs is left for
+// the day, the visit it drew is voided (whichever of their records carries it).
+async function releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy }) {
+    const all = await IssueRecord.findAll({
+        where: { companyId, patronId: row.patronId, guestRegistrationId: null, holderName: sameName(row.holderName), issuedAt: { [Op.gte]: startOfDay } },
+        attributes: ['id', 'remarks'], transaction,
+    });
+    if (all.some((r) => r.id !== row.id && r.remarks !== rules.UNDONE_REMARK)) return;
+    for (const r of all) await voidGuestVisit(companyId, 'facility', r.id, { transaction, updatedBy });
 }
 
 async function isInside(companyId, patronId, date, { transaction } = {}) {
@@ -682,15 +794,18 @@ function standingWarningOf(standing) {
 }
 
 // `body` = { utilityItemId, utilityUnitId (a numbered item; none = the next
-// available), quantity (a counted item), memberNo OR guestRegistrationId
-// (the holder), registrationId, remarks, panel (answer with the refreshed
-// Serve panel) }. A use-only item closes as 'used' at once.
+// available), quantity (a counted item), the holder (memberNo, OR
+// guestRegistrationId for a guest on a pass, OR memberNo with guestName for a
+// guest served by name with the member), registrationId, remarks, panel
+// (answer with the refreshed Serve panel) }. A use-only item closes as 'used'
+// at once. A guest served by name draws ONE visit on the host's monthly
+// allowance for the day, at their first item.
 async function issue(req, body) {
     const companyId = getUserContext(req).companyId;
     const item = await UtilityItem.findOne({ where: { companyId, id: String(body.utilityItemId || ''), isActive: true } });
     if (!item) return { error: 'Pick a utility item.' };
     const behaviour = utilityRules.behaviourOf(item);
-    const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo });
+    const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
     if (who.error) return who;
     const standing = who.standing;
     if (who.isGuest && item.guestsAllowed === false) return { error: `${item.code} is for members only.` };
@@ -729,7 +844,7 @@ async function issue(req, body) {
         const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date, dueDays: item.dueDays || 0, hours: null }), timezone);
         const record = await IssueRecord.create({
             companyId, patronId: patron.id, utilityItemId: item.id, utilityUnitId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
-            holderName: who.isGuest ? String(who.holderName || '').slice(0, 255) : null, guestRegistrationId: who.isGuest ? who.pass.id : null,
+            holderName: who.isGuest ? String(who.holderName || '').slice(0, 255) : null, guestRegistrationId: who.isGuest && who.pass ? who.pass.id : null,
             quantity, issuedAt, dueBack, status: behaviour === 'use' ? 'used' : 'issued', remarks: body.remarks ? String(body.remarks).slice(0, 255) : null, ...stamps,
         }, { transaction });
         if (unit) {
@@ -737,6 +852,14 @@ async function issue(req, body) {
             unit.currentIssueId = record.id;
             unit.updatedBy = stamps.updatedBy;
             await unit.save({ transaction });
+        }
+        if (who.isGuest && !who.pass && !(await nameGuestCounted(companyId, patron.id, who.holderName, date, startOfDay, { transaction, exceptIssueId: record.id }))) {
+            // The first item of the day of a guest served by name: one visit
+            // on the host's allowance (a guest on a pass was counted when the
+            // pass was registered).
+            const allowance = await getGuestAllowanceStanding(companyId, standing.memberId, date, { transaction });
+            if (allowance && allowance.allowance != null && allowance.remaining < 1) txFail(allowanceRefusal(standing, allowance));
+            await recordGuestVisit(companyId, { memberId: standing.memberId, visitDate: date, sourceModule: 'facility', sourceRef: record.id, guestName: who.holderName, guestCount: 1, stamps }, { transaction });
         }
         if (item.feeTransactionTypeId) {
             const feeType = await TransactionType.findOne({ where: { companyId, id: item.feeTransactionTypeId, isActive: true }, transaction });
@@ -766,7 +889,7 @@ async function issue(req, body) {
     });
     if (result.error) return result;
     // Serving a guest IS the arrival, however the request came in.
-    if (who.isGuest && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+    if (who.isGuest && who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
     const to = who.isGuest ? `${who.holderName}, guest of ${standing.name}` : standing.name;
     const message = behaviour === 'units' ? `${result.unit.code} issued to ${to}.`
         : behaviour === 'use' ? `${item.code} recorded for ${to}.`
@@ -836,7 +959,7 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         Patron.findOne({ where: { companyId, patronType: 'member', sourceId: who.standing.memberId } }),
         UtilityItem.findAll({ where: { companyId, isActive: true }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
     ]);
-    const known = who.isGuest || !!patron;
+    const known = !!(who.isGuest && who.pass) || !!patron;
     const mine = known ? await IssueRecord.findAll({
         where: { companyId, ...holderWhere(who, patron ? patron.id : null), [Op.or]: [{ status: 'issued' }, { issuedAt: { [Op.gte]: startOfDay } }] },
         order: [['issuedAt', 'ASC']],
@@ -897,8 +1020,14 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         kind: who.isGuest ? 'guest' : 'member',
         person: { name: who.holderName },
         host,
-        pass: who.isGuest ? { id: who.pass.id, registrationNo: who.pass.registrationNo, visitDate: who.pass.visitDate, arrivedAt: who.pass.arrivedAt, firstScan } : null,
+        // A guest served by name has no pass. `createdHere` = the station
+        // registered this pass (slice 6c), so the station may take it back.
+        pass: who.pass ? { id: who.pass.id, registrationNo: who.pass.registrationNo, visitDate: who.pass.visitDate, arrivedAt: who.pass.arrivedAt, firstScan, createdHere: who.pass.channel === 'facility' } : null,
         standingWarning: standingWarningOf(who.standing),
+        // A member's panel: the guests served under them today, and how a
+        // guest keyed here is served (the two door switches).
+        guests: who.isGuest ? [] : await guestsOfHost(companyId, patron, startOfDay),
+        door: who.isGuest ? null : await doorRules(companyId),
         holding: live.map(rowOf),
         usedToday: usedToday.map(rowOf),
         tiles,
@@ -914,10 +1043,10 @@ async function servePicture(req, who, { firstScan = false } = {}) {
 async function scan(req, body) {
     const companyId = getUserContext(req).companyId;
     if (!companyId) return { error: 'Select a workspace first.' };
-    const who = await resolveHolder(companyId, { code: body.code, guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo });
+    const who = await resolveHolder(companyId, { code: body.code, guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
     if (who.error) return who;
     let firstScan = false;
-    if (who.isGuest && who.pass.status === 'registered') {
+    if (who.isGuest && who.pass && who.pass.status === 'registered') {
         firstScan = await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
         if (firstScan) who.pass = (await getGuestPass(companyId, who.pass.id)) || who.pass;
     }
@@ -932,7 +1061,7 @@ async function panelOfRecord(req, record) {
     if (record.guestRegistrationId) who = await resolveHolder(companyId, { guestRegistrationId: record.guestRegistrationId });
     else {
         const patron = await Patron.findOne({ where: { companyId, id: record.patronId }, attributes: ['memberNo'] });
-        who = patron && patron.memberNo ? await resolveHolder(companyId, { memberNo: patron.memberNo }) : { error: 'no member' };
+        who = patron && patron.memberNo ? await resolveHolder(companyId, { memberNo: patron.memberNo, guestName: record.holderName || null }) : { error: 'no member' };
     }
     return who.error ? null : servePicture(req, who);
 }
@@ -946,6 +1075,8 @@ async function undoIssue(req, id) {
     if (!record) return { error: 'Issue record not found.', status: 404 };
     const item = await UtilityItem.findOne({ where: { id: record.utilityItemId } });
     const callerId = getUserContext(req).userId;
+    const { now, timezone } = await clock(companyId);
+    const startOfDay = localToDate(`${now.date}T00:00`, timezone);
     const result = await runTx(sequelize, async (transaction) => {
         const row = await IssueRecord.findOne({ where: { id: record.id }, transaction, lock: transaction.LOCK.UPDATE });
         const bill = row.feeBillId ? await billing.Bill.findOne({ where: { companyId, id: row.feeBillId }, transaction, lock: transaction.LOCK.UPDATE }) : null;
@@ -963,15 +1094,16 @@ async function undoIssue(req, id) {
             if (line) {
                 await billing.removeItem({ bill, item: line, transaction });
                 if ((await billing.BillItem.count({ where: { billId: bill.id }, transaction })) === 0) {
-                    Object.assign(bill, { status: 'voided', voidedAt: new Date(), voidedBy: callerId, voidReason: 'Undone at the desk', updatedBy: callerId });
+                    Object.assign(bill, { status: 'voided', voidedAt: new Date(), voidedBy: callerId, voidReason: rules.UNDONE_REMARK, updatedBy: callerId });
                     await bill.save({ transaction });
                     billNote = ` Bill ${bill.billNo} is voided.`;
                 } else billNote = ` Its line is off bill ${bill.billNo}.`;
                 row.feeBillId = null;
             } else billNote = ` Its fee stays on bill ${bill.billNo} - remove the line there.`;
         }
-        Object.assign(row, { status: 'returned', returnedAt: new Date(), returnedQuantity: row.quantity, returnCondition: 'good', remarks: 'Undone at the desk', updatedBy: callerId });
+        Object.assign(row, { status: 'returned', returnedAt: new Date(), returnedQuantity: row.quantity, returnCondition: 'good', remarks: rules.UNDONE_REMARK, updatedBy: callerId });
         await row.save({ transaction });
+        if (row.holderName && !row.guestRegistrationId) await releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy: callerId });
         if (row.utilityUnitId) await UtilityUnit.update({ unitStatus: 'available', currentIssueId: null, updatedBy: callerId }, { where: { id: row.utilityUnitId }, transaction });
         return { row, billNote };
     });
@@ -979,6 +1111,122 @@ async function undoIssue(req, id) {
     const unit = record.utilityUnitId ? await UtilityUnit.findOne({ where: { id: record.utilityUnitId }, attributes: ['code'] }) : null;
     const what = unit ? unit.code : `${item ? item.code : 'The item'}${record.quantity > 1 ? ` x ${record.quantity}` : ''}`;
     return { message: `${what} undone.${result.billNote}`, panel: await panelOfRecord(req, result.row) };
+}
+
+// ---- slice 6c: the guest without a pass, with the member ---------------------------------------
+
+// The guests served under a member today (or still holding something of
+// theirs): the ones on a pass and the ones served by name.
+async function guestsOfHost(companyId, patron, startOfDay) {
+    if (!patron) return [];
+    const rows = await IssueRecord.findAll({
+        where: { companyId, patronId: patron.id, holderName: { [Op.ne]: null }, [Op.or]: [{ status: 'issued' }, { issuedAt: { [Op.gte]: startOfDay } }] },
+        attributes: ['holderName', 'guestRegistrationId', 'status', 'remarks'], order: [['issuedAt', 'ASC']],
+    });
+    const byKey = new Map();
+    for (const r of rows) {
+        if (r.status !== 'issued' && r.remarks === rules.UNDONE_REMARK) continue;
+        const key = r.guestRegistrationId || `name:${String(r.holderName).toLowerCase()}`;
+        const g = byKey.get(key) || { name: r.holderName, guestRegistrationId: r.guestRegistrationId || null, holding: 0 };
+        if (r.status === 'issued') g.holding += 1;
+        byKey.set(key, g);
+    }
+    return [...byKey.values()];
+}
+
+// How a guest keyed at the station is served (Facility Specification).
+async function doorRules(companyId) {
+    const { setting } = await availability.loadRules(companyId);
+    return { passEnabled: setting.doorGuestPassEnabled !== false, contactRequired: setting.doorGuestContactRequired === true };
+}
+
+// POST /door-guests { memberNo, name, mobile, email } - the member is at the
+// counter with a guest who holds no pass. Keyed with a mobile or an email
+// (and door passes ON) the guest is registered with Membership, already
+// arrived, and holds a pass from then on; keyed with a name only, the guest
+// is served by name, together with the member. Answers the GUEST's panel.
+async function addDoorGuest(req, body) {
+    const companyId = getUserContext(req).companyId;
+    if (!companyId) return { error: 'Select a workspace first.' };
+    const m = await memberStanding(companyId, body.memberNo);
+    if (m.error) return m;
+    const standing = m.standing;
+    const name = String(body.name || '').trim().slice(0, 255);
+    const door = await doorRules(companyId);
+    const verdict = rules.doorGuestVerdict({ name, mobile: body.mobile, email: body.email, passEnabled: door.passEnabled, contactRequired: door.contactRequired });
+    if (verdict.error) return { error: verdict.error };
+    const warnings = [];
+    let who = null;
+    let share = null;
+    let message = '';
+    if (verdict.mode === 'pass') {
+        const r = await registerGuestAtDoor(req, { memberId: standing.memberId, guest: { name, mobile: body.mobile || null, email: body.email || null }, channel: 'facility' });
+        if (r.error) return r;
+        if (r.nameOnly) warnings.push(r.warning);
+        else {
+            who = { isGuest: true, pass: r.pass, standing, holderName: r.pass.guest.name, participantType: 'guest' };
+            share = r.share;
+            message = r.created
+                ? `${r.pass.guest.name} is registered as ${standing.name}'s guest - pass ${r.pass.registrationNo}.`
+                : `${r.pass.guest.name} already holds pass ${r.pass.registrationNo} as ${standing.name}'s guest today.`;
+        }
+    }
+    if (!who) {
+        const { now, timezone } = await clock(companyId);
+        const patron = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: standing.memberId }, attributes: ['id'] });
+        const counted = await nameGuestCounted(companyId, patron ? patron.id : null, name, now.date, localToDate(`${now.date}T00:00`, timezone));
+        if (!counted) {
+            const allowance = await getGuestAllowanceStanding(companyId, standing.memberId, now.date);
+            if (allowance && allowance.allowance != null && allowance.remaining < 1) return { error: allowanceRefusal(standing, allowance) };
+        }
+        who = { isGuest: true, pass: null, standing, holderName: name, participantType: 'guest' };
+        message = `${name} is served as ${standing.name}'s guest, by name - no pass.`;
+    }
+    return { message, warnings, panel: await servePicture(req, who), share };
+}
+
+// GET /door-guests/:id/pass - what the desk needs to hand a pass over again.
+async function doorPass(req, guestRegistrationId) {
+    const companyId = getUserContext(req).companyId;
+    const pass = await getGuestPass(companyId, guestRegistrationId);
+    if (!pass) return { error: 'That guest pass was not found.', status: 404 };
+    const share = await getGuestPassShare(req, pass.id);
+    if (!share) return { error: `Pass ${pass.registrationNo} is cancelled.` };
+    return { share };
+}
+
+// POST /door-guests/:id/send { via } - email the pass, or record that the
+// desk shared it over its own WhatsApp.
+async function sendDoorPass(req, guestRegistrationId, body) {
+    const companyId = getUserContext(req).companyId;
+    const pass = await getGuestPass(companyId, guestRegistrationId);
+    if (!pass) return { error: 'That guest pass was not found.', status: 404 };
+    const sent = await sendGuestPass(req, pass.id, String(body.via || ''));
+    if (sent.error) return sent;
+    return { message: sent.message, share: await getGuestPassShare(req, pass.id) };
+}
+
+// POST /door-guests/:id/remove - a guest added by mistake: the pass the
+// STATION registered is cancelled and its visit no longer counts. Refused
+// once the guest holds or has used anything today, and for a pass the front
+// desk registered. Answers the member's panel.
+async function removeDoorGuest(req, guestRegistrationId) {
+    const companyId = getUserContext(req).companyId;
+    const pass = await getGuestPass(companyId, guestRegistrationId);
+    if (!pass) return { error: 'That guest pass was not found.', status: 404 };
+    if (pass.status === 'cancelled') return { error: `Pass ${pass.registrationNo} is already cancelled.` };
+    if (pass.channel !== 'facility') return { error: `Pass ${pass.registrationNo} was not registered at the station - cancel it under Guest Registrations.` };
+    const { now, timezone } = await clock(companyId);
+    const startOfDay = localToDate(`${now.date}T00:00`, timezone);
+    const taken = await IssueRecord.findAll({ where: { companyId, guestRegistrationId: pass.id, [Op.or]: [{ status: 'issued' }, { issuedAt: { [Op.gte]: startOfDay } }] }, attributes: ['status', 'remarks'] });
+    if (taken.some((r) => r.status === 'issued' || r.remarks !== rules.UNDONE_REMARK)) return { error: `${pass.guest.name} holds or has taken an item today - the pass stays.` };
+    const done = await cancelGuestAtDoor(companyId, pass.id, { channel: 'facility', actorId: getUserContext(req).userId, reason: 'Removed at the facility station' });
+    if (!done) return { error: `Pass ${pass.registrationNo} could not be cancelled.` };
+    const host = await resolveHolder(companyId, { memberNo: pass.host.memberNo });
+    return {
+        message: `${pass.guest.name} is removed - pass ${pass.registrationNo} is cancelled and no longer counts against ${pass.host.name}'s allowance.`,
+        panel: host.error ? null : await servePicture(req, host),
+    };
 }
 
 // ---- rule 7: end of day ------------------------------------------------------------------------
@@ -1040,5 +1288,6 @@ module.exports = {
     localToDate, clock, registrationDto, issueDto, unitDto, dayPicture,
     checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut, markNoShows,
     resolveHolder, servePicture, scan, undoIssue,
+    addDoorGuest, doorPass, sendDoorPass, removeDoorGuest,
     classSessionsOn, enrolWalkIn,
 };

@@ -13,6 +13,9 @@ const guestLine = z.object({
     identityNo: str(50),
     mobile: str(30),
     email: str(255),
+    // The day pass the line already stands on (slice 6c): kept when the
+    // lines of a live entry are saved again.
+    guestRegistrationId: str(64),
 });
 
 module.exports = {
@@ -37,6 +40,8 @@ module.exports = {
             // The holder: the member's number, or a guest's pass (slice 6b).
             memberNo: str(50),
             guestRegistrationId: str(64),
+            // A guest without a pass, served by name with the member (slice 6c).
+            guestName: str(255),
             registrationId: str(64),
             remarks: str(255),
             panel: z.boolean().optional(),
@@ -44,7 +49,10 @@ module.exports = {
     },
     // What was scanned or keyed (a pass link, a pass token or a member
     // number), or the person already served, to redraw the panel.
-    scan: { body: z.object({ code: str(600), guestRegistrationId: str(64), memberNo: str(50) }) },
+    scan: { body: z.object({ code: str(600), guestRegistrationId: str(64), memberNo: str(50), guestName: str(255) }) },
+    // Slice 6c: a guest without a pass, added while the member is at the counter.
+    doorGuest: { body: z.object({ memberNo: z.string().max(50), name: z.string().max(255), mobile: str(30), email: str(255) }) },
+    doorSend: { ...idParam, body: z.object({ via: z.string().max(10) }) },
     returnIssue: { ...idParam, body: z.object({ condition: z.string().max(10), returnedQuantity: numberish, remarks: str(255), panel: z.boolean().optional() }) },
     endOfDay: { body: z.object({ facilityTypeId: str(64), date: str(10) }) },
     markNoShows: { body: z.object({ slotIds: z.array(z.string().max(64)).min(1).max(200) }) },

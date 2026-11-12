@@ -44,6 +44,26 @@ const RegistrationGuest = sequelize.define('FacilityRegistrationGuest', {
         type: DataTypes.UUID,
         allowNull: true,
     },
+    // ---- slice 6c (structures approved 2026-11-11) ----
+    // The known guest, membership.Guest.id (value ref): passed to the ledger
+    // so the guest counts once per host per day. NULL = a name-only line.
+    guestId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // The day pass behind the line (membership.GuestRegistration.id, value
+    // ref): the one the guest already held, or the one the station created.
+    guestRegistrationId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // The station created the pass for this line, so removing the line
+    // cancels that pass; a pass registered upfront is never cancelled here.
+    passCreatedHere: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     sortOrder: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -56,6 +76,7 @@ const RegistrationGuest = sequelize.define('FacilityRegistrationGuest', {
     indexes: [
         { name: 'IX_FacilityRegistrationGuest_Registration', fields: ['registrationId'] },
         { name: 'IX_FacilityRegistrationGuest_Company_Patron', fields: ['companyId', 'patronId'] },
+        { name: 'IX_FacilityRegistrationGuest_Company_Pass', fields: ['companyId', 'guestRegistrationId'] },
     ],
 });
 

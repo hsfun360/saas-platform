@@ -127,6 +127,46 @@ exports.returnIssue = async (req, res) => {
     }
 };
 
+// POST /api/facility/station/door-guests { memberNo, name, mobile, email }
+exports.addDoorGuest = async (req, res) => {
+    try {
+        send(res, await station.addDoorGuest(req, req.body || {}), 201);
+    } catch (error) {
+        console.error('Error adding a guest at the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/facility/station/door-guests/:id/pass
+exports.doorPass = async (req, res) => {
+    try {
+        send(res, await station.doorPass(req, req.params.id));
+    } catch (error) {
+        console.error('Error reading a guest pass at the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/facility/station/door-guests/:id/send { via }
+exports.sendDoorPass = async (req, res) => {
+    try {
+        send(res, await station.sendDoorPass(req, req.params.id, req.body || {}));
+    } catch (error) {
+        console.error('Error sending a guest pass from the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/facility/station/door-guests/:id/remove
+exports.removeDoorGuest = async (req, res) => {
+    try {
+        send(res, await station.removeDoorGuest(req, req.params.id));
+    } catch (error) {
+        console.error('Error removing a guest at the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/facility/station/units/:id/clear
 exports.clearUnit = async (req, res) => {
     try {

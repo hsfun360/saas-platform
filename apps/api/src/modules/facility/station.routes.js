@@ -19,6 +19,13 @@ router.post('/scan', validate(s.scan), controller.scan);
 router.post('/issues', validate(s.issue), controller.issue);
 router.post('/issues/:id/undo', validate(s.id), controller.undoIssue);
 router.post('/issues/:id/return', validate(s.returnIssue), controller.returnIssue);
+// Slice 6c: the guest without a pass, with the member - registered at the
+// counter (a pass from then on) or served by name; the pass handed over
+// again; a guest added by mistake taken back.
+router.post('/door-guests', validate(s.doorGuest), controller.addDoorGuest);
+router.get('/door-guests/:id/pass', validate(s.id), controller.doorPass);
+router.post('/door-guests/:id/send', validate(s.doorSend), controller.sendDoorPass);
+router.post('/door-guests/:id/remove', validate(s.id), controller.removeDoorGuest);
 router.post('/units/:id/clear', validate(s.id), controller.clearUnit);
 router.post('/end-of-day', validate(s.endOfDay), controller.endOfDay);
 router.post('/no-shows', validate(s.markNoShows), controller.markNoShows);

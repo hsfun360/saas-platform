@@ -96,6 +96,22 @@ test('a tile states why it cannot be tapped: members only, not inside, the limit
     assert.equal(rules.serveTileVerdict({ ...base, fee: { code: 'LOCKERFEE', unitAmount: 5 } }).allowed, true);
 });
 
+test('a guest keyed at the station: a contact makes a pass while the club registers door guests, a name alone is served by name, and the club may insist on the contact', () => {
+    assert.match(rules.doorGuestVerdict({ name: '  ', mobile: '+60123456789' }).error, /guest's name/);
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60123456789' }), { mode: 'pass' });
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', email: 'tan@example.com' }), { mode: 'pass' });
+    // The phone input sends the bare dialling code when no number was typed.
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60', email: '' }), { mode: 'name' });
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan' }), { mode: 'name' });
+    // Door passes switched OFF: the contact is ignored, the guest is served by name.
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60123456789', passEnabled: false }), { mode: 'name' });
+    // The club insists on a contact.
+    assert.match(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60', contactRequired: true }).error, /mobile number or email/);
+    assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60123456789', contactRequired: true }), { mode: 'pass' });
+    assert.equal(rules.hasMobile('+60 12-345 6789'), true);
+    assert.equal(rules.hasMobile(''), false);
+});
+
 test('undo is for a wrong tap: inside the window, on a live issue or a use, and never past a settled bill', () => {
     const issuedAt = new Date('2026-11-12T02:00:00Z');
     const at = (min) => new Date(issuedAt.getTime() + min * 60000);
