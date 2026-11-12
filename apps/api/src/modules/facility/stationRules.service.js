@@ -36,9 +36,13 @@ function isOpenAt(hours, time) {
     return m >= hours.open && m < hours.close;
 }
 
-// Persons inside: every registration still 'in' counts itself plus its guests.
+// Persons inside: every registration still 'in' counts its host plus its
+// guests; an entry whose host has not arrived (slice 6d) counts the guests only.
+function partySize(r) {
+    return (r.hostPresent === false ? 0 : 1) + Number(r.guestCount || 0);
+}
 function liveCount(registrations) {
-    return (registrations || []).filter((r) => r.status === 'in').reduce((s, r) => s + 1 + Number(r.guestCount || 0), 0);
+    return (registrations || []).filter((r) => r.status === 'in').reduce((s, r) => s + partySize(r), 0);
 }
 
 // Refuse when the arriving party would push the count past the capacity
@@ -154,6 +158,34 @@ function undoVerdict({ status, issuedAt, now = new Date(), billStatus = null, mi
     return null;
 }
 
+// ---- slice 6d: entering a facility from the Serve panel ----
+
+// Whether ONE person may be admitted to an entry facility now, and why not.
+// `inside` = already in (the tile then shows that, not a refusal).
+// A guest also needs the visitor-guest rule to allow it, the host inside
+// when the type says the host must be present, room under the type's
+// guests-per-visit cap and - a guest not yet counted today - a visit left on
+// the host's monthly allowance (`allowanceLeft` null = no limit).
+function entryVerdict({
+    code, inside = false, closedReason = null, needsBooking = false, hasBooking = false,
+    isGuest = false, hostName = 'The member', guestsAllowed = true, hostMustBePresent = false, hostInside = false,
+    guestCap = null, guestsOnEntry = 0, allowanceLeft = null, count = 0, capacity = null,
+}) {
+    if (inside) return { allowed: false, reason: null };
+    if (closedReason) return { allowed: false, reason: closedReason };
+    if (needsBooking && !hasBooking) return { allowed: false, reason: `${code} admits members holding a booking today - ${hostName} has none.` };
+    if (isGuest) {
+        if (!guestsAllowed) return { allowed: false, reason: `Visitor guests are not allowed on ${code} now.` };
+        if (hostMustBePresent && !hostInside) return { allowed: false, reason: `${hostName} must enter ${code} first.` };
+        if (guestCap !== null && guestCap !== undefined && guestsOnEntry >= Number(guestCap)) {
+            return { allowed: false, reason: `At most ${guestCap} visitor guest${Number(guestCap) === 1 ? '' : 's'} per visit on ${code}.` };
+        }
+        if (allowanceLeft !== null && allowanceLeft !== undefined && allowanceLeft < 1) return { allowed: false, reason: `${hostName} has no guest visits left this month.` };
+    }
+    if (capacity !== null && capacity !== undefined && count + 1 > Number(capacity)) return { allowed: false, reason: `Full - ${count} of ${capacity} inside.` };
+    return { allowed: true, reason: null };
+}
+
 // ---- slice 6c: a guest keyed at the station, with the member ----
 
 // The remark an undone issue carries (no status of its own: it reads 'returned').
@@ -182,4 +214,5 @@ module.exports = {
     heldByPatron, issueLimitVerdict, dueBackLocal, returnOutcome,
     UNDO_MINUTES, scanKind, passVerdict, serveTileVerdict, undoVerdict,
     UNDONE_REMARK, hasMobile, doorGuestVerdict,
+    partySize, entryVerdict,
 };

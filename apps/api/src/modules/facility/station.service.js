@@ -91,6 +91,8 @@ function registrationDto(r, { patron, unit, guests = [], bill = null } = {}) {
         timeOut: r.timeOut,
         dayType: r.dayType,
         guestCount: r.guestCount,
+        // false = the guests went in on a pass before the host arrived (slice 6d).
+        hostPresent: r.hostPresent !== false,
         status: r.status,
         billId: r.billId,
         bill,
@@ -606,6 +608,10 @@ async function register(req, body) {
         const capacity = unit && unit.capacity != null ? unit.capacity : type.capacity;
         const capError = rules.capacityVerdict({ count: rules.liveCount(regs), arriving: 1 + lines.length, capacity, label: unit && unit.capacity != null ? unit.code : type.code });
         if (capError) txFail(capError);
+        // Slice 6d: guests already inside ahead of this member hold the entry -
+        // the member joins it from the Serve panel rather than opening a second.
+        const ahead = await Patron.findOne({ where: { companyId, patronType: 'member', sourceId: standing.memberId }, attributes: ['id'], transaction });
+        if (ahead && regs.some((x) => x.patronId === ahead.id && x.hostPresent === false)) txFail(`${standing.name}'s guests are already inside ${type.code} - admit ${standing.name} from the Serve panel (key the member number in the scan box).`);
         await linkDoorGuests({ req, companyId, lines, host: standing, date, door: doorOf(setting), warnings, transaction });
         const g = await checkDoorGuests({ companyId, setting, type, guestRules, dayType, date, time: now.time, lines, host: standing, types: ptypes, transaction });
         if (g.error) txFail(g.error);
@@ -640,7 +646,10 @@ async function signOut(req, id) {
     r.updatedBy = getUserContext(req).userId;
     await r.save();
     const openBill = r.billId ? await billing.Bill.findOne({ where: { id: r.billId, status: 'open' }, attributes: ['billNo'] }) : null;
-    return { message: `${r.registrationNo} signed out.${openBill ? ` Bill ${openBill.billNo} is still open.` : ''}` };
+    // Slice 6d: sign-out never blocks, but it says what the party still holds.
+    const stillOut = await partyItemsOut(companyId, r);
+    const outNote = stillOut.length ? ` Still out: ${stillOut.map((x) => `${x.label} (${x.holder})`).join(', ')}.` : '';
+    return { message: `${r.registrationNo} signed out.${openBill ? ` Bill ${openBill.billNo} is still open.` : ''}${outNote}`, stillOut };
 }
 
 // Replace the guests of a live entry (rule 3 re-run; visits follow).
@@ -666,7 +675,8 @@ async function replaceGuests(req, id, body) {
         // Slice 6c: the passes and the names the entry's lines stood on.
         const before = await RegistrationGuest.findAll({ where: { registrationId: r.id }, transaction });
         const keep = new Map(before.filter((b) => b.guestRegistrationId).map((b) => [b.guestRegistrationId, b.passCreatedHere === true]));
-        const capError = rules.capacityVerdict({ count: rules.liveCount(regs) - (1 + current), arriving: 1 + lines.length, capacity: type.capacity, label: type.code });
+        const hostIn = r.hostPresent === false ? 0 : 1;
+        const capError = rules.capacityVerdict({ count: rules.liveCount(regs) - (hostIn + current), arriving: hostIn + lines.length, capacity: type.capacity, label: type.code });
         if (capError) txFail(capError);
         await voidGuests(companyId, r.id, { transaction });
         await linkDoorGuests({ req, companyId, lines, host: standing, date: String(r.registrationDate), door: doorOf(setting), warnings, transaction, keep });
@@ -775,18 +785,28 @@ function allowanceRefusal(standing, allowance) {
 
 // The undo of a name-only guest's item: once nothing of theirs is left for
 // the day, the visit it drew is voided (whichever of their records carries it).
-async function releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy }) {
+async function releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy, date }) {
     const all = await IssueRecord.findAll({
         where: { companyId, patronId: row.patronId, guestRegistrationId: null, holderName: sameName(row.holderName), issuedAt: { [Op.gte]: startOfDay } },
         attributes: ['id', 'remarks'], transaction,
     });
     if (all.some((r) => r.id !== row.id && r.remarks !== rules.UNDONE_REMARK)) return;
+    // A guest who also stands on one of the host's entries today is still a visit.
+    const entries = await Registration.findAll({ where: { companyId, patronId: row.patronId, registrationDate: date }, attributes: ['id'], transaction });
+    if (entries.length && await RegistrationGuest.count({ where: { registrationId: { [Op.in]: entries.map((e) => e.id) }, guestRegistrationId: null, name: sameName(row.holderName) }, transaction })) return;
     for (const r of all) await voidGuestVisit(companyId, 'facility', r.id, { transaction, updatedBy });
 }
 
-async function isInside(companyId, patronId, date, { transaction } = {}) {
+// Whether the person served is inside a facility today: the member on an
+// entry of their own, a guest on a line of one of the host's entries (found
+// by the pass, or by the name for a guest without one).
+async function isInside(companyId, who, patronId, date, { transaction } = {}) {
     if (!patronId) return false;
-    return (await Registration.count({ where: { companyId, patronId, registrationDate: date, status: 'in' }, transaction })) > 0;
+    const live = await Registration.findAll({ where: { companyId, patronId, registrationDate: date, status: 'in' }, attributes: ['id', 'hostPresent'], transaction });
+    if (!who.isGuest) return live.some((r) => r.hostPresent !== false);
+    if (!live.length) return false;
+    const line = who.pass ? { guestRegistrationId: who.pass.id } : { guestRegistrationId: null, memberNo: null, name: sameName(who.holderName) };
+    return (await RegistrationGuest.count({ where: { registrationId: { [Op.in]: live.map((r) => r.id) }, ...line }, transaction })) > 0;
 }
 
 function standingWarningOf(standing) {
@@ -827,7 +847,7 @@ async function issue(req, body) {
         }
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
         const mine = holderWhere(who, patron.id);
-        if (item.requiresEntry === true && !(who.isGuest ? false : await isInside(companyId, patron.id, date, { transaction }))) {
+        if (item.requiresEntry === true && !(await isInside(companyId, who, patron.id, date, { transaction }))) {
             txFail(`${item.code} is only for a person inside a facility today.`);
         }
         // The limit is per HOLDER: what the person holds now, or (a use-only
@@ -869,7 +889,7 @@ async function issue(req, body) {
                 // item opens it in the responsible member's name, the next ones
                 // add their lines to it while it is open.
                 const earlier = await IssueRecord.findAll({ where: { companyId, ...mine, feeBillId: { [Op.ne]: null }, issuedAt: { [Op.gte]: startOfDay } }, attributes: ['feeBillId'], transaction });
-                const billIds = [...new Set(earlier.map((e) => e.feeBillId))];
+                const billIds = [...new Set([...earlier.map((e) => e.feeBillId), ...(who.isGuest ? [] : await entryBillIds(companyId, patron.id, date, { transaction }))])];
                 let bill = billIds.length
                     ? await billing.Bill.findOne({ where: { companyId, id: { [Op.in]: billIds }, status: 'open', billDate: date }, order: [['createdAt', 'DESC']], transaction, lock: transaction.LOCK.UPDATE })
                     : null;
@@ -972,7 +992,7 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         numbered.length ? UtilityUnit.findAll({ where: { companyId, utilityItemId: { [Op.in]: numbered }, isActive: true, unitStatus: 'available' }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }) : [],
     ]);
     const unitById = new Map(heldUnits.map((u) => [u.id, u]));
-    const billIds = [...new Set(mine.map((i) => i.feeBillId).filter(Boolean))];
+    const billIds = [...new Set([...mine.map((i) => i.feeBillId).filter(Boolean), ...(who.isGuest || !patron ? [] : await entryBillIds(companyId, patron.id, date))])];
     const bills = billIds.length ? await billing.Bill.findAll({ where: { companyId, id: { [Op.in]: billIds }, status: { [Op.ne]: 'voided' } }, attributes: ['id', 'billNo', 'status', 'totalAmount', 'billDate', 'createdAt'], order: [['createdAt', 'ASC']] }) : [];
     const billById = new Map(bills.map((b) => [b.id, { id: b.id, billNo: b.billNo, status: b.status, totalAmount: Number(b.totalAmount) }]));
     const openToday = bills.filter((b) => b.status === 'open' && String(b.billDate) === date).pop() || null;
@@ -984,7 +1004,7 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         const priced = pricing.unitPriceOf(ft, await billing.cardsOf(ft.id), { date, dayType, participantType: who.participantType });
         feeById.set(ft.id, { code: ft.transactionType, description: ft.description, unitAmount: priced.missing ? null : priced.unitAmount, priceRequired: ft.allowPriceOverride !== true });
     }
-    const inside = who.isGuest ? false : await isInside(companyId, patron ? patron.id : null, date);
+    const inside = await isInside(companyId, who, patron ? patron.id : null, date);
     const nowDate = new Date();
     const live = mine.filter((i) => i.status === 'issued');
     const usedToday = mine.filter((i) => i.status === 'used' && new Date(i.issuedAt).getTime() >= startOfDay.getTime());
@@ -1031,6 +1051,8 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         holding: live.map(rowOf),
         usedToday: usedToday.map(rowOf),
         tiles,
+        // Slice 6d: the facilities the person may enter from here.
+        entries: await entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }),
         bill: openToday ? billById.get(openToday.id) : null,
         undoMinutes: rules.UNDO_MINUTES,
         clubNow: now,
@@ -1103,7 +1125,7 @@ async function undoIssue(req, id) {
         }
         Object.assign(row, { status: 'returned', returnedAt: new Date(), returnedQuantity: row.quantity, returnCondition: 'good', remarks: rules.UNDONE_REMARK, updatedBy: callerId });
         await row.save({ transaction });
-        if (row.holderName && !row.guestRegistrationId) await releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy: callerId });
+        if (row.holderName && !row.guestRegistrationId) await releaseNameGuestVisit(companyId, row, startOfDay, { transaction, updatedBy: callerId, date: now.date });
         if (row.utilityUnitId) await UtilityUnit.update({ unitStatus: 'available', currentIssueId: null, updatedBy: callerId }, { where: { id: row.utilityUnitId }, transaction });
         return { row, billNote };
     });
@@ -1229,6 +1251,270 @@ async function removeDoorGuest(req, guestRegistrationId) {
     };
 }
 
+// ---- slice 6d: entering a facility from the Serve panel ----------------------------------------
+
+// The bills the member's entries of the day carry (the member's ONE open
+// bill may have been opened by an entry rather than by a utility item).
+async function entryBillIds(companyId, patronId, date, { transaction } = {}) {
+    const rows = await Registration.findAll({ where: { companyId, patronId, registrationDate: date, billId: { [Op.ne]: null } }, attributes: ['billId'], transaction });
+    return rows.map((r) => r.billId);
+}
+
+// What the people of an entry still hold when it signs out: the host (when
+// inside) and every guest on its lines.
+async function partyItemsOut(companyId, r) {
+    const lines = await RegistrationGuest.findAll({ where: { registrationId: r.id }, attributes: ['name', 'guestRegistrationId', 'memberNo'] });
+    const out = await IssueRecord.findAll({ where: { companyId, patronId: r.patronId, status: 'issued' }, order: [['issuedAt', 'ASC']] });
+    if (!out.length) return [];
+    const patron = await Patron.findOne({ where: { id: r.patronId }, attributes: ['name'] });
+    const passes = new Set(lines.map((l) => l.guestRegistrationId).filter(Boolean));
+    const names = new Set(lines.filter((l) => !l.guestRegistrationId && !l.memberNo).map((l) => String(l.name).toLowerCase()));
+    const mine = out.filter((i) => (i.guestRegistrationId ? passes.has(i.guestRegistrationId) : i.holderName ? names.has(String(i.holderName).toLowerCase()) : r.hostPresent !== false));
+    if (!mine.length) return [];
+    const [items, units] = await Promise.all([
+        UtilityItem.findAll({ where: { id: { [Op.in]: [...new Set(mine.map((i) => i.utilityItemId))] } }, attributes: ['id', 'code'] }),
+        UtilityUnit.findAll({ where: { id: { [Op.in]: mine.map((i) => i.utilityUnitId).filter(Boolean) } }, attributes: ['id', 'code'] }),
+    ]);
+    const itemCode = new Map(items.map((x) => [x.id, x.code]));
+    const unitCode = new Map(units.map((x) => [x.id, x.code]));
+    return mine.map((i) => ({
+        issueId: i.id,
+        label: i.utilityUnitId ? unitCode.get(i.utilityUnitId) || 'unit' : `${itemCode.get(i.utilityItemId) || 'item'}${i.quantity > 1 ? ` x ${i.quantity}` : ''}`,
+        holder: i.holderName || (patron ? patron.name : 'the member'),
+    }));
+}
+
+// Why an entry type admits nobody right now (its hours, a closure), or null.
+async function entryClosedReason(companyId, type, { now, date, dayType }) {
+    const hours = rules.openingHours(type, dayType);
+    if (!rules.isOpenAt(hours, now.time)) {
+        return `${type.code} is closed at ${now.time} (open ${hhmm(dayType === 'weekend' ? type.openTimeWeekend : type.openTimeWeekday) || '00:00'} to ${hhmm(dayType === 'weekend' ? type.closeTimeWeekend : type.closeTimeWeekday) || '24:00'}).`;
+    }
+    const units = await availability.unitsOf(companyId, type.id);
+    if (!units.length) return null;
+    const blocks = await availability.closureBlocks(companyId, type.id, units.map((u) => u.id), date);
+    const nowMin = toMinutes(now.time);
+    return units.every((u) => bookingRules.isBlocked(blocks.get(u.id) || [], nowMin, nowMin + 1)) ? `${type.code} is closed right now.` : null;
+}
+
+async function holdsBookingToday(companyId, patronId, date, { transaction } = {}) {
+    if (!patronId) return false;
+    return (await BookingSlot.count({ where: { companyId, bookingDate: date, status: { [Op.in]: ACTIVE_SLOT_STATUS_KEYS } }, include: [{ model: Booking, as: 'Booking', where: { bookerPatronId: patronId, status: 'booked' } }], transaction })) > 0;
+}
+
+// The guest line a person stands on among the host's live entries of a type.
+function lineOf(who, lines) {
+    return who.pass
+        ? lines.find((l) => l.guestRegistrationId === who.pass.id)
+        : lines.find((l) => !l.guestRegistrationId && !l.memberNo && String(l.name).toLowerCase() === String(who.holderName).toLowerCase());
+}
+
+// Everything one person's entry to one type turns on, read fresh: used to
+// draw the tile and again, inside the transaction, when it is tapped.
+async function entryFacts(companyId, who, type, ctx, { transaction, lock = false } = {}) {
+    const { patron, now, date, dayType, startOfDay, setting, guestRules, ptypes } = ctx;
+    const regs = await Registration.findAll({
+        where: { companyId, facilityTypeId: type.id, registrationDate: date, status: 'in', bookingSlotId: null },
+        transaction, ...(lock ? { lock: transaction.LOCK.UPDATE } : {}),
+    });
+    const hostRegs = patron ? regs.filter((r) => r.patronId === patron.id) : [];
+    const hostReg = hostRegs[0] || null;
+    const lines = hostRegs.length ? await RegistrationGuest.findAll({ where: { registrationId: { [Op.in]: hostRegs.map((r) => r.id) } }, transaction }) : [];
+    const myLine = who.isGuest ? lineOf(who, lines) || null : null;
+    const hostInside = hostRegs.some((r) => r.hostPresent !== false);
+    const inside = who.isGuest ? !!myLine : hostInside;
+    const count = rules.liveCount(regs);
+    let guestsAllowed = true;
+    let allowanceLeft = null;
+    if (who.isGuest && !inside) {
+        guestsAllowed = bookingRules.resolveGuestRule({ setting, type, rules: guestRules, facilityTypeId: type.id, dayType, date, startTime: now.time }).allowGuest;
+        // A guest on a pass was counted when the pass was registered; a guest
+        // by name draws a visit unless an item or an entry already drew it.
+        const counted = who.pass ? true : await nameGuestCounted(companyId, patron ? patron.id : null, who.holderName, date, startOfDay, { transaction });
+        if (!counted) {
+            const a = await getGuestAllowanceStanding(companyId, who.standing.memberId, date, { transaction });
+            allowanceLeft = a && a.allowance != null ? a.remaining : null;
+        }
+    }
+    const visitorsOnEntry = hostReg ? lines.filter((l) => l.registrationId === hostReg.id && participantTypes.isVisitorGuest(ptypes, l.participantType)).length : 0;
+    const closedReason = inside ? null : await entryClosedReason(companyId, type, { now, date, dayType });
+    const needsBooking = type.entryRequiresBooking === true && !inside;
+    const verdict = rules.entryVerdict({
+        code: type.code, inside, closedReason, needsBooking, hasBooking: needsBooking ? await holdsBookingToday(companyId, patron ? patron.id : null, date, { transaction }) : false,
+        isGuest: who.isGuest, hostName: who.standing.name, guestsAllowed, hostMustBePresent: type.hostMustBePresent === true, hostInside,
+        guestCap: type.maxGuestsPerBooking, guestsOnEntry: visitorsOnEntry, allowanceLeft, count, capacity: type.capacity,
+    });
+    const myReg = who.isGuest ? (myLine ? hostRegs.find((r) => r.id === myLine.registrationId) : null) : hostRegs.find((r) => r.hostPresent !== false) || null;
+    return { regs, hostReg, myLine, myReg, hostInside, inside, count, verdict };
+}
+
+// The entry tiles of the Serve panel: one per active entry type, each
+// stating the count it will reach and what it bills before it is tapped.
+async function entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }) {
+    const types = await FacilityType.findAll({ where: { companyId, isActive: true, usageMode: 'entry' }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] });
+    if (!types.length) return [];
+    const [{ setting, guestRules }, ptypes, feeTypes] = await Promise.all([
+        availability.loadRules(companyId), participantTypes.catalog(companyId), TransactionType.findAll({ where: { companyId } }),
+    ]);
+    const ctx = { patron, now, date, dayType, startOfDay, setting, guestRules, ptypes };
+    // The visitor-guest types the club keeps: more than one = the desk picks.
+    const guestTypes = who.isGuest ? ptypes.filter((t) => t.isActive !== false && participantTypes.isVisitorGuest(ptypes, t.code)).map((t) => ({ code: t.code, description: t.description })) : [];
+    const out = [];
+    for (const type of types) {
+        const f = await entryFacts(companyId, who, type, ctx);
+        const feeType = who.isGuest
+            ? pricing.defaultTypeFor(feeTypes, { chargeType: 'guest-fee', participantType: 'guest', facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId })
+            : pricing.defaultTypeFor(feeTypes, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId });
+        let fee = null;
+        if (feeType) {
+            const priced = pricing.unitPriceOf(feeType, await billing.cardsOf(feeType.id), { date, dayType, participantType: who.isGuest ? 'guest' : 'member' });
+            fee = { code: feeType.transactionType, description: feeType.description, unitAmount: priced.missing ? null : priced.unitAmount };
+        }
+        out.push({
+            facilityTypeId: type.id, code: type.code, description: type.description, iconUrl: type.iconUrl,
+            liveCount: f.count, capacity: type.capacity, willReach: f.count + 1,
+            fee, allowed: f.verdict.allowed, reason: f.verdict.reason,
+            // Where the person stands on this type: the entry they are on, and
+            // whether it is theirs to sign out here (a guest on the host's
+            // entry signs out with the host).
+            inside: f.inside && f.myReg ? {
+                registrationId: f.myReg.id, registrationNo: f.myReg.registrationNo, timeIn: f.myReg.timeIn, guestCount: f.myReg.guestCount,
+                own: !who.isGuest || f.myReg.hostPresent === false,
+            } : null,
+            hostInside: f.hostInside,
+            guestTypes: guestTypes.length > 1 ? guestTypes : [],
+        });
+    }
+    return out;
+}
+
+// Charge an entry: the facility fee once for the member, a guest fee per
+// guest line named, on the ENTRY's bill - the bill the entry already carries
+// while it is open, else the member's open bill of the day (so the member
+// keeps ONE open bill), else a new one. Returns { bill } | { error }.
+async function chargeEntry({ req, companyId, registration, type, patron, memberFee, guestLines, joinBillIds = [], date, dayType, session, stamps, warnings, transaction }) {
+    const types = await TransactionType.findAll({ where: { companyId }, transaction });
+    const feeType = memberFee ? pricing.defaultTypeFor(types, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId }) : null;
+    const guestFees = guestLines.map((l) => ({ line: l, type: pricing.defaultTypeFor(types, { chargeType: 'guest-fee', participantType: l.participantType, facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId }) }));
+    if (memberFee && !feeType) warnings.push(`No active facility-fee item is the default for members on ${type.code} - the entry fee was not charged.`);
+    for (const g of guestFees) if (!g.type) warnings.push(`No active guest-fee item is the default for '${g.line.participantType}' on ${type.code} - ${g.line.name}'s guest fee was not charged.`);
+    if (!feeType && !guestFees.some((g) => g.type)) return { bill: null };
+    const candidates = [...new Set([registration.billId, ...joinBillIds].filter(Boolean))];
+    let bill = candidates.length
+        ? await billing.Bill.findOne({ where: { companyId, id: { [Op.in]: candidates }, status: 'open', billDate: date }, order: [['createdAt', 'DESC']], transaction, lock: transaction.LOCK.UPDATE })
+        : null;
+    if (!bill) {
+        const issued = await billing.issueBillNo(req, { transaction });
+        if (issued.error) return { error: issued.error };
+        bill = await billing.Bill.create({ companyId, billNo: issued.billNo, registrationId: registration.id, patronId: patron.id, billDate: date, status: 'open', ...stamps }, { transaction });
+    }
+    const context = { date, dayType, sessionId: session ? session.id : null, sessionName: session ? session.name : null };
+    if (feeType) {
+        const added = await billing.addItem({ req, bill, type: feeType, quantity: 1, stamps, transaction, context: { ...context, participantType: 'member' } });
+        if (added.error) return { error: added.error };
+    }
+    for (const g of guestFees) {
+        if (!g.type) continue;
+        const added = await billing.addItem({ req, bill, type: g.type, quantity: 1, stamps, transaction, context: { ...context, participantType: g.line.participantType } });
+        if (added.error) return { error: `${g.line.name}: ${added.error}` };
+    }
+    await billing.recomputeTotals(bill, transaction);
+    if (registration.billId !== bill.id) { registration.billId = bill.id; await registration.save({ transaction }); }
+    return { bill };
+}
+
+// POST /admissions { facilityTypeId, the person (memberNo | guestRegistrationId
+// | memberNo with guestName), participantType (a guest, when the club keeps
+// more than one visitor-guest type), panel } - ONE person enters an entry
+// facility from the Serve panel.
+//   - The member: a new entry, or - when their guests went in ahead on a
+//     pass - the member joins that entry (hostPresent turns true).
+//   - A guest: a line on the host's live entry of that type; with the host
+//     not inside, an entry in the host's name with hostPresent false (refused
+//     when the type says the host must be present).
+// The entry fee and the guest fee go on the entry's bill.
+async function admit(req, body) {
+    const companyId = getUserContext(req).companyId;
+    if (!companyId) return { error: 'Select a workspace first.' };
+    const type = await FacilityType.findOne({ where: { companyId, id: String(body.facilityTypeId || ''), usageMode: 'entry', isActive: true } });
+    if (!type) return { error: 'Pick an entry facility.' };
+    const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
+    if (who.error) return who;
+    const standing = who.standing;
+    const [{ now, timezone }, { setting, sessions, guestRules }, ptypes] = await Promise.all([clock(companyId), availability.loadRules(companyId), participantTypes.catalog(companyId)]);
+    const date = now.date;
+    const dayType = await shared.dayTypeOf(companyId, date);
+    const startOfDay = localToDate(`${date}T00:00`, timezone);
+    let guestType = 'guest';
+    if (who.isGuest && body.participantType) {
+        const code = String(body.participantType);
+        const t = participantTypes.findType(ptypes, code);
+        if (!t || t.isActive === false || !participantTypes.isVisitorGuest(ptypes, code)) return { error: 'Pick a visitor guest type.' };
+        guestType = code;
+    }
+    const session = bookingRules.sessionOf(sessions, `${now.time}:00`);
+    const stamps = await stampsFor(req);
+    const warnings = [];
+    const result = await runTx(sequelize, async (transaction) => {
+        const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
+        const ctx = { patron, now, date, dayType, startOfDay, setting, guestRules, ptypes };
+        const f = await entryFacts(companyId, who, type, ctx, { transaction, lock: true });
+        if (f.inside) txFail(`${who.holderName} is already inside ${type.code}${f.myReg ? ` (${f.myReg.registrationNo})` : ''}.`);
+        if (!f.verdict.allowed) txFail(f.verdict.reason);
+        let registration = f.hostReg;
+        let joined = false;
+        if (!registration) {
+            const no = await issueRegistrationNo(req, { transaction });
+            if (no.error) txFail(no.error);
+            registration = await Registration.create({
+                companyId, registrationNo: no.no, patronId: patron.id, facilityTypeId: type.id, facilityId: null, bookingSlotId: null,
+                registrationDate: date, timeIn: new Date(), dayType, sessionId: session ? session.id : null, status: 'in',
+                hostPresent: !who.isGuest, ...stamps,
+            }, { transaction });
+        } else if (!who.isGuest) {
+            // The guests went in ahead: the member joins their entry.
+            registration.hostPresent = true;
+            registration.updatedBy = stamps.updatedBy;
+            await registration.save({ transaction });
+            joined = true;
+        }
+        let line = null;
+        if (who.isGuest) {
+            const taken = await RegistrationGuest.max('sortOrder', { where: { registrationId: registration.id }, transaction });
+            line = await RegistrationGuest.create({
+                companyId, registrationId: registration.id, patronId: null, participantType: guestType, name: String(who.holderName).slice(0, 255), memberNo: null,
+                sortOrder: (Number(taken) || 0) + 1, guestId: who.pass ? who.pass.guest.id : null, guestRegistrationId: who.pass ? who.pass.id : null, passCreatedHere: false,
+            }, { transaction });
+            // A guest on a pass names the guest (once per day with the pass's
+            // own visit); a guest by name draws the visit here unless an item
+            // already drew it today.
+            const counted = who.pass ? false : await nameGuestCounted(companyId, patron.id, who.holderName, date, startOfDay, { transaction });
+            if (!counted) {
+                const visit = await recordGuestVisit(companyId, { memberId: standing.memberId, visitDate: date, sourceModule: 'facility', sourceRef: line.id, guestId: line.guestId, guestName: line.name, guestCount: 1, stamps }, { transaction });
+                if (visit && visit.id) { line.guestVisitId = visit.id; await line.save({ transaction }); }
+            }
+            registration.guestCount = Number(registration.guestCount || 0) + 1;
+            await registration.save({ transaction });
+        }
+        const billed = await chargeEntry({
+            req, companyId, registration, type, patron, memberFee: !who.isGuest, guestLines: line ? [{ participantType: guestType, name: line.name }] : [],
+            joinBillIds: who.isGuest ? [] : (await IssueRecord.findAll({ where: { companyId, ...holderWhere(who, patron.id), feeBillId: { [Op.ne]: null }, issuedAt: { [Op.gte]: startOfDay } }, attributes: ['feeBillId'], transaction })).map((e) => e.feeBillId),
+            date, dayType, session, stamps, warnings, transaction,
+        });
+        if (billed.error) txFail(billed.error);
+        return { registration, joined, count: f.count + 1 };
+    });
+    if (result.error) return result;
+    if (who.isGuest && who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+    const where = type.capacity != null ? ` - ${result.count} of ${type.capacity} inside` : '';
+    const message = who.isGuest
+        ? `${who.holderName}, guest of ${standing.name}, is in ${type.code} (${result.registration.registrationNo})${where}.`
+        : `${standing.name} is in ${type.code} (${result.registration.registrationNo})${result.joined ? ', with the guests already inside' : ''}${where}.`;
+    const out = { message, registrationId: result.registration.id, warnings, standingWarning: standingWarningOf(standing) };
+    if (body.panel === true) out.panel = await servePicture(req, who);
+    return out;
+}
+
 // ---- rule 7: end of day ------------------------------------------------------------------------
 
 async function endOfDay(req, { facilityTypeId = null, date }) {
@@ -1289,5 +1575,6 @@ module.exports = {
     checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut, markNoShows,
     resolveHolder, servePicture, scan, undoIssue,
     addDoorGuest, doorPass, sendDoorPass, removeDoorGuest,
+    admit,
     classSessionsOn, enrolWalkIn,
 };

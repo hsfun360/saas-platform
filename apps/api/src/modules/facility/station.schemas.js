@@ -53,6 +53,17 @@ module.exports = {
     // Slice 6c: a guest without a pass, added while the member is at the counter.
     doorGuest: { body: z.object({ memberNo: z.string().max(50), name: z.string().max(255), mobile: str(30), email: str(255) }) },
     doorSend: { ...idParam, body: z.object({ via: z.string().max(10) }) },
+    // Slice 6d: one person enters an entry facility from the Serve panel.
+    admit: {
+        body: z.object({
+            facilityTypeId: z.string().max(64),
+            memberNo: str(50),
+            guestRegistrationId: str(64),
+            guestName: str(255),
+            participantType: str(20),
+            panel: z.boolean().optional(),
+        }),
+    },
     returnIssue: { ...idParam, body: z.object({ condition: z.string().max(10), returnedQuantity: numberish, remarks: str(255), panel: z.boolean().optional() }) },
     endOfDay: { body: z.object({ facilityTypeId: str(64), date: str(10) }) },
     markNoShows: { body: z.object({ slotIds: z.array(z.string().max(64)).min(1).max(200) }) },

@@ -26,6 +26,9 @@ router.post('/door-guests', validate(s.doorGuest), controller.addDoorGuest);
 router.get('/door-guests/:id/pass', validate(s.id), controller.doorPass);
 router.post('/door-guests/:id/send', validate(s.doorSend), controller.sendDoorPass);
 router.post('/door-guests/:id/remove', validate(s.id), controller.removeDoorGuest);
+// Slice 6d: one person enters an entry facility from the Serve panel (the
+// member, or a guest onto the host's entry).
+router.post('/admissions', validate(s.admit), controller.admit);
 router.post('/units/:id/clear', validate(s.id), controller.clearUnit);
 router.post('/end-of-day', validate(s.endOfDay), controller.endOfDay);
 router.post('/no-shows', validate(s.markNoShows), controller.markNoShows);

@@ -73,6 +73,15 @@ const Registration = sequelize.define('FacilityRegistration', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Slice 6d (structure approved 2026-11-11). false = a guest was admitted
+    // on a pass before the host arrived: the entry is in the host's name but
+    // the host is not inside, so the live count adds the guests only. The
+    // host entering later joins this entry (it turns true).
+    hostPresent: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // 'in' | 'out'.
     status: {
         type: DataTypes.STRING(10),

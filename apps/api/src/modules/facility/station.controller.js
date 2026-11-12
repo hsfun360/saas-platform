@@ -167,6 +167,16 @@ exports.removeDoorGuest = async (req, res) => {
     }
 };
 
+// POST /api/facility/station/admissions
+exports.admit = async (req, res) => {
+    try {
+        send(res, await station.admit(req, req.body || {}), 201);
+    } catch (error) {
+        console.error('Error admitting a person at the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/facility/station/units/:id/clear
 exports.clearUnit = async (req, res) => {
     try {

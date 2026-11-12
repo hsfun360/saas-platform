@@ -96,6 +96,39 @@ test('a tile states why it cannot be tapped: members only, not inside, the limit
     assert.equal(rules.serveTileVerdict({ ...base, fee: { code: 'LOCKERFEE', unitAmount: 5 } }).allowed, true);
 });
 
+test('the live count adds the host only when the host is inside', () => {
+    const regs = [
+        { status: 'in', guestCount: 2 },
+        { status: 'in', guestCount: 1, hostPresent: false },
+        { status: 'out', guestCount: 3 },
+    ];
+    assert.equal(rules.liveCount(regs), 4);
+    assert.equal(rules.partySize({ guestCount: 0, hostPresent: false }), 0);
+});
+
+test('entering from the panel: the type, the booking, the guest rules, the host and the room decide', () => {
+    const ok = { allowed: true, reason: null };
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', count: 39, capacity: 40 }), ok);
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', inside: true, closedReason: 'closed' }), { allowed: false, reason: null });
+    assert.equal(rules.entryVerdict({ code: 'POOL', closedReason: 'POOL is closed at 23:00 (open 07:00 to 22:00).' }).reason, 'POOL is closed at 23:00 (open 07:00 to 22:00).');
+    assert.match(rules.entryVerdict({ code: 'POOL', needsBooking: true, hostName: 'Ahmad Faizal' }).reason, /holding a booking today - Ahmad Faizal has none/);
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', needsBooking: true, hasBooking: true }), ok);
+    assert.equal(rules.entryVerdict({ code: 'POOL', count: 40, capacity: 40 }).reason, 'Full - 40 of 40 inside.');
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', count: 400, capacity: null }), ok);
+    // A guest.
+    const guest = { code: 'POOL', isGuest: true, hostName: 'Ahmad Faizal' };
+    assert.equal(rules.entryVerdict({ ...guest, guestsAllowed: false }).reason, 'Visitor guests are not allowed on POOL now.');
+    assert.equal(rules.entryVerdict({ ...guest, hostMustBePresent: true, hostInside: false }).reason, 'Ahmad Faizal must enter POOL first.');
+    assert.deepEqual(rules.entryVerdict({ ...guest, hostMustBePresent: true, hostInside: true }), ok);
+    assert.deepEqual(rules.entryVerdict({ ...guest, hostMustBePresent: false, hostInside: false }), ok);
+    assert.equal(rules.entryVerdict({ ...guest, guestCap: 2, guestsOnEntry: 2 }).reason, 'At most 2 visitor guests per visit on POOL.');
+    assert.equal(rules.entryVerdict({ ...guest, guestCap: 1, guestsOnEntry: 1 }).reason, 'At most 1 visitor guest per visit on POOL.');
+    assert.equal(rules.entryVerdict({ ...guest, allowanceLeft: 0 }).reason, 'Ahmad Faizal has no guest visits left this month.');
+    assert.deepEqual(rules.entryVerdict({ ...guest, allowanceLeft: 1 }), ok);
+    // The member is not held by the guest rules.
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', guestsAllowed: false, hostMustBePresent: true, allowanceLeft: 0 }), ok);
+});
+
 test('a guest keyed at the station: a contact makes a pass while the club registers door guests, a name alone is served by name, and the club may insist on the contact', () => {
     assert.match(rules.doorGuestVerdict({ name: '  ', mobile: '+60123456789' }).error, /guest's name/);
     assert.deepEqual(rules.doorGuestVerdict({ name: 'Tan', mobile: '+60123456789' }), { mode: 'pass' });
