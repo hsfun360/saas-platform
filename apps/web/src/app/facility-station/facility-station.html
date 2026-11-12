@@ -451,8 +451,8 @@
               }
 
               <h3 class="dlg-section">Holding now</h3>
-              @if (p.holding.length === 0 && p.usedToday.length === 0) {
-                <p class="cell-subtle">Nothing yet.</p>
+              @if (p.holding.length === 0) {
+                <p class="cell-subtle">Nothing out.</p>
               } @else {
                 <div class="st-holds">
                   @for (h of p.holding; track h.id) {
@@ -489,6 +489,11 @@
                       </div>
                     </div>
                   }
+                </div>
+              }
+              @if (p.usedToday.length) {
+                <h3 class="dlg-section">Used today</h3>
+                <div class="st-holds">
                   @for (h of p.usedToday; track h.id) {
                     <div class="st-hold st-hold--used" [class.st-hold--busy]="serveBusy() === h.id">
                       <div class="st-hold__main">
@@ -507,6 +512,8 @@
                     </div>
                   }
                 </div>
+              }
+              @if (panelHasUndo()) {
                 <p class="cell-subtle field-hint">Undo is for a wrong tap, in the first {{ p.undoMinutes }} minutes.</p>
               }
 
@@ -530,7 +537,7 @@
                           <button type="button" class="st-unit st-unit--available" [class.st-unit--suggested]="u.id === firstUnitId(t)" [disabled]="!!serveBusy()"
                                   (click)="serveIssue(t, u.id)" [attr.aria-label]="'Issue ' + u.code + (u.location ? ', ' + u.location : '') + ' to ' + p.person.name" [title]="u.location || u.code">
                             <span class="st-unit__code">{{ u.code }}</span>
-                            <span class="st-unit__state">{{ serveBusy() === u.id ? 'issuing' : (u.id === firstUnitId(t) ? 'next free' : 'free') }}</span>
+                            <span class="st-unit__state">{{ serveBusy() === u.id ? 'issuing' : (u.id === preferredUnit()?.id ? 'picked' : (u.id === firstUnitId(t) ? 'next free' : 'free')) }}</span>
                           </button>
                         }
                       </div>
@@ -758,7 +765,11 @@
             <button type="submit" form="stIssue" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : (currentItem()?.behaviour === 'use' ? 'Record use' : 'Issue') }}</button>
           }
           @case ('return') {
-            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            @if (returnToPanel()) {
+              <button type="button" class="btn btn--secondary" (click)="backFromReturn()" [disabled]="saving()">Back</button>
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            }
             <button type="submit" form="stReturn" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Recording…' : 'Record return' }}</button>
           }
         }

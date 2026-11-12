@@ -249,4 +249,85 @@ describe('FacilityStationComponent - scan and serve', () => {
     expect(actions?.textContent).toContain('Return');
     expect(actions?.textContent).not.toContain('Undo');
   });
+
+  it('opens the return form from the panel on Damaged, and Back returns to the person being served', async () => {
+    nextPanel = panel({ holding: [row({ undoable: false })] });
+    component.scanForm.setValue({ code: 'abc' });
+    component.submitScan();
+    await settle();
+    component.openReturn(nextPanel.holding[0], true);
+    await settle();
+    expect(component.dlgMode()).toBe('return');
+    expect(component.form.controls.condition.value).toBe('damaged');
+    // The footer steps back, it does not close the drawer on the person.
+    expect(button('Cancel')).toBeUndefined();
+    button('Back')?.click();
+    await settle();
+    expect(component.dlgMode()).toBe('serve');
+    expect(component.panel()?.person.name).toBe('Tan Wei Ming');
+    expect(host().textContent).toContain('Serve Tan Wei Ming');
+  });
+
+  it('opens the return form from the board on Good, with Cancel', async () => {
+    component.openReturn(row({}));
+    await settle();
+    expect(component.form.controls.condition.value).toBe('good');
+    expect(button('Cancel')).toBeDefined();
+    expect(button('Back')).toBeUndefined();
+  });
+
+  it('lists a use under Used today, and explains Undo only while something can be undone', async () => {
+    const use = row({ id: 'r2', utilityItemId: 'sauna', utilityUnitId: null, unit: null, status: 'used', item: { id: 'sauna', code: 'SAUNA', description: 'Sauna', behaviour: 'use' }, undoable: false });
+    nextPanel = panel({ usedToday: [use] });
+    component.scanForm.setValue({ code: 'abc' });
+    component.submitScan();
+    await settle();
+    const headings = Array.from(host().querySelectorAll('h3.dlg-section')).map((h) => h.textContent?.trim());
+    expect(headings).toEqual(['Holding now', 'Used today', 'Tap to issue']);
+    expect(host().textContent).toContain('Nothing out.');
+    expect(host().querySelector('.st-hold--used')?.textContent).toContain('SAUNA');
+    expect(host().textContent).not.toContain('Undo is for a wrong tap');
+    component.panel.set(panel({ usedToday: [{ ...use, undoable: true }] }));
+    await settle();
+    expect(host().textContent).toContain('Undo is for a wrong tap, in the first 5 minutes.');
+  });
+
+  it('marks the unit picked on the board as picked, not as the next free one', async () => {
+    component.setType('locker');
+    component.unitClicked(day.utilityItems?.[0].units[1] as StationUtilityUnit);
+    component.scanForm.setValue({ code: 'abc' });
+    component.submitScan();
+    await settle();
+    const units = Array.from(host().querySelectorAll('.st-tile .st-unit'));
+    expect(units[0].textContent).toContain('L002');
+    expect(units[0].textContent).toContain('picked');
+    expect(units[1].textContent).toContain('free');
+    expect(units[1].textContent).not.toContain('next free');
+  });
+
+  it('on a desk, keeps the focus in the next-person field when a code keyed inside the panel is refused', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: true, media: query, onchange: null, addEventListener: () => undefined, removeEventListener: () => undefined, addListener: () => undefined, removeListener: () => undefined, dispatchEvent: () => false })) as typeof window.matchMedia;
+    try {
+      fixture = TestBed.createComponent(FacilityStationComponent);
+      component = fixture.componentInstance;
+      await settle();
+      component.scanForm.setValue({ code: 'abc' });
+      component.submitScan();
+      await settle();
+      scanFails = "'NOPE' is not a guest pass of this club or a member number.";
+      const next = host().querySelector('#stScanNext') as HTMLInputElement;
+      next.value = 'NOPE';
+      next.dispatchEvent(new Event('input'));
+      component.submitScan();
+      await settle();
+      expect(component.dlgMode()).toBe('serve');
+      expect(component.errorMessage()).toContain('NOPE');
+      // The refused code stays, selected, where it was keyed - never behind the drawer.
+      expect(document.activeElement).toBe(next);
+      expect(next.value).toBe('NOPE');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
 });

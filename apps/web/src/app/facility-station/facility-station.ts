@@ -130,7 +130,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   readonly preferredUnit = signal<StationUtilityUnit | null>(null);
   readonly tilesExpanded = signal<Set<string>>(new Set());
   // A return keyed from the panel comes back to the panel.
-  private returnToPanel = false;
+  // The return form was opened from the Serve panel: it goes back there.
+  readonly returnToPanel = signal(false);
 
   // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'serve' | 'camera' ----
   readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | 'serve' | 'camera' | null>(null);
@@ -408,9 +409,11 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
 
   openReturn(i: StationIssue, fromPanel = false): void {
     this.clearMessages();
-    this.returnToPanel = fromPanel;
+    this.returnToPanel.set(fromPanel);
     this.returnTarget.set(i);
-    this.form.reset({ memberNo: '', facilityId: '', quantity: 1, remarks: '', condition: 'good', returnedQuantity: i.quantity });
+    // From the panel the form is only reached for a damaged or lost item
+    // (a good return there is one tap), so it opens on Damaged.
+    this.form.reset({ memberNo: '', facilityId: '', quantity: 1, remarks: '', condition: fromPanel ? 'damaged' : 'good', returnedQuantity: i.quantity });
     this.formVersion.update((v) => v + 1);
     this.dlgMode.set('return');
   }
@@ -432,10 +435,10 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       condition: v.condition,
       returnedQuantity: i.utilityUnitId ? null : (v.condition === 'lost' ? 0 : v.returnedQuantity),
       remarks: v.remarks.trim() || null,
-      panel: this.returnToPanel,
+      panel: this.returnToPanel(),
     }).subscribe({
       next: (res) => {
-        if (this.returnToPanel && res.panel) { this.backToPanel(res.message, res.panel); return; }
+        if (this.returnToPanel() && res.panel) { this.backToPanel(res.message, res.panel); return; }
         this.done(res.message);
       },
       error: (err) => this.fail(err, 'Failed to record the return.'),
@@ -517,8 +520,15 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.scanning.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to read that code.');
-        // The refused code stays selected, so the next scan replaces it.
-        setTimeout(() => this.scanBox()?.nativeElement.select(), 0);
+        // The refused code stays selected in the field it was keyed into, so
+        // the next scan replaces it. (A camera read has no field.)
+        const mode = this.dlgMode();
+        if (mode && mode !== 'serve') return;
+        setTimeout(() => {
+          const box = (mode === 'serve' ? this.scanNext() : this.scanBox())?.nativeElement;
+          box?.focus();
+          box?.select();
+        }, 0);
       },
     });
   }
@@ -632,9 +642,25 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Back from the return form to the person being served, nothing recorded.
+  backFromReturn(): void {
+    this.clearMessages();
+    this.returnToPanel.set(false);
+    this.returnTarget.set(null);
+    this.form.markAsPristine();
+    this.dlgMode.set('serve');
+    this.focusNext();
+  }
+
+  // Something in the panel can still be undone: the hint about Undo shows.
+  readonly panelHasUndo = computed(() => {
+    const p = this.panel();
+    return !!p && [...p.holding, ...p.usedToday].some((r) => r.undoable);
+  });
+
   private backToPanel(message: string, panel: ServePanel): void {
     this.saving.set(false);
-    this.returnToPanel = false;
+    this.returnToPanel.set(false);
     this.returnTarget.set(null);
     this.form.markAsPristine();
     this.successMessage.set(message);
@@ -733,7 +759,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.checkInSlot.set(null);
     this.guestTarget.set(null);
     this.returnTarget.set(null);
-    this.returnToPanel = false;
+    this.returnToPanel.set(false);
     this.panel.set(null);
     this.preferredUnit.set(null);
     this.serveBusy.set(null);
