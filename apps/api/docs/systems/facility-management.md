@@ -949,7 +949,7 @@ Model `FacilityClassWaitlist`, table `facility."ClassWaitlist"`, FK `classId` ca
 - API: `/venues` (GET, POST, PUT, PATCH active); `/instructors` (GET, POST, PUT, PATCH active); `/classes` (GET, POST, PUT, PATCH active), `/classes/:id/schedules` (GET, POST preview, POST, PUT, POST close, POST cancel); `/class-sessions?from&to&classId&instructorId&venueId` (GET), `POST /class-sessions` (one-off), `PATCH /class-sessions/:id`, `POST /class-sessions/:id/cancel`, `POST /class-sessions/:id/hold` (with a preview of the rows it marks), `GET /class-sessions/:id/roster`, `PUT /class-sessions/:id/attendance`; `POST /class-enrolments` (classId, sessionId or scheduleId, memberNo or visitor profile); under `/class-lifecycle` (the Class Schedule or Control Station grant, built 5c): `GET /enrolments/:id/cancel-preview`, `POST /enrolments/:id/cancel`, `POST /waitlist` (the enrol body), `POST /waitlist/:id/offer`, `POST /waitlist/:id/confirm`, `POST /waitlist/:id/withdraw`; the closure `generate-days` preview returns `classSessions` and `PUT days` cancels them; `POST /bills` accepts `classEnrolmentId`; the station's `today` picture gains `sessions` per type and `POST /station/class-enrolments` for the walk-in; the booking availability grid gains the `class` cell state. Menus the user adds: `/facility/venues`, `/facility/instructors`, `/facility/classes`, `/facility/class-schedule`.
 - Build order inside the slice: 5a venues + instructors + classes + schedules with the generated sessions and the grid blocking; 5b enrolment, billing, attendance and the station view; 5c waitlist, cancellations and the emails.
 
-### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; 6b, 6c and 6d not built)
+### Slice 6 - Utility Items and Station Arrival (approved as revised 2026-11-11; 6a BUILT 2026-11-11 and smoked on dev 2026-11-12; 6b, 6c and 6d not built - a scan-first revision of them, "Scan and serve", DRAFTED 2026-11-12 for approval)
 
 **Status:** drafted 2026-11-11, revised the same day with two changes from the user, and approved as revised.
 Sub-slice 6a built 2026-11-11: the `UtilityItem` and `UtilityUnit` models; the pure rules in utilityRules.service.js (unit-tested: the behaviour of an item from its two switches, their normalisation, the codes Generate units proposes); the master's controller, schemas and routes under /api/facility/utility-items (items, units, generate with its preview, the icon upload); `IssueRecord` re-pointed (`utilityItemId`, `utilityUnitId`, the `used` status); the station engine's issue, return, unit clear and day picture on the new tables (the picture returns `utilityItems` beside `types`; a use-only item closes as `used` and its limit counts the day's uses); the issue usage mode and its columns retired from the facility types and the facilities; the move of the existing data (see "Moving what exists"); the Utility Items screen at /facility/utility-items; the station's strip and view reading the utility items; Facility Types and Facilities without the issue mode.
@@ -958,6 +958,7 @@ Smoked on dev 2026-11-12 (Tropicana): the boot step moved the LOCKER type and it
 Polish from that smoke (2026-11-12): the day picture carries `fee` per utility item (`{ code, description, unitAmount }` before tax, null amount = no price in force) and the issue form states what it will bill or that the item is free; a use keys no quantity; the limit refusal of a use-only item counts the day's uses; the counter row keeps its button at content width and a counted item with `stockQuantity` shows its bar; the bill drawer names the item and its unit ("LOCKER L001").
 Not checked at phone width (the test browser window could not be resized).
 6b, 6c and 6d not built.
+A revision of those three steps is drafted at the end of this slice ("Scan and serve - the station starts from the person", 2026-11-12, for approval): the station starts from a scanned pass or a member number and serves the person in one panel, a tap per item.
 The user's changes: (1) a towel or a locker must not be called a facility - they become **Utility Items** with a master file of their own; (2) a guest holding a pass (registered upfront) claims utility items at the station on their own, while a guest who was not registered must be at the station together with the member.
 
 What is wrong today.
@@ -1161,6 +1162,141 @@ Sign-out of the entry lists what the party still holds, with Return beside each.
   Under `/api/facility/station`: `POST /scan` (code: the pass and that party's picture for today), `GET /party?memberNo` (the host's standing and allowance, the guests inside, the items out), `POST /arrivals/preview` and `POST /arrivals` (memberNo, hostPresent, facilityTypeId or none, facilityId, the guest lines each with an optional guestRegistrationId, the items each with its holder), `POST /issues` re-keyed to utilityItemId and utilityUnitId with the holder (the member, a registrationGuestId or a guestRegistrationId), `GET /today` returns the utility items beside the facility types and the holder and host on every issue row.
 - Build order inside the slice: 6a the Utility Item master (the two tables, the migration script, the master screen, the station's Utility Items view on the new tables, the use-only behaviour) - same behaviour as today under the new name; 6b the known guest at the door (the seam calls, the `RegistrationGuest` columns, Scan and contact on the Register form, counting once); 6c the holder (the `IssueRecord` holder columns, "For", a pass served alone, the per-person limit, the fee at the holder's type, return by pass, the sign-out list); 6d the Arrival drawer (the party in one transaction with its preview, `hostPresent`).
   On approval the slice 1 and slice 3 text above that describes the "issue" usage mode is marked superseded by this section.
+
+#### Scan and serve - the station starts from the person (DRAFT 2026-11-12, for approval; nothing built)
+
+**Status:** drafted 2026-11-12 after the 6a smoke, at the user's request; no route or screen of this section exists yet.
+It revises the build order 6b, 6c and 6d above and replaces the Arrival drawer as the station's main path.
+It adds NO table and NO column beyond the ones already approved in this slice.
+
+The user's point.
+The station has no scan of the guest's pass, and it is not friendly: the desk picks an item first and keys the person after, once per item.
+Issuing a locker and a towel to one person today takes about nine actions and the member number is typed twice.
+A guest holding a pass cannot be served alone at all, and what the guest takes is recorded under the member's name.
+The user asked for three steps: scan, assign the locker, issue the towel.
+
+##### The three steps
+
+1. **Scan.**
+   The desk scans the guest's pass.
+   One panel opens for that guest.
+2. **Assign the locker.**
+   One tap on a free locker in the panel issues it.
+3. **Issue the towel.**
+   One tap on the Towel tile issues one towel.
+
+Nothing else is keyed and nothing is confirmed separately.
+The panel stays open, so a shower or a second towel is one more tap, and the next scan replaces it with the next person.
+
+| | Today (6a) | Scan and serve |
+| --- | --- | --- |
+| A guest with a pass, alone | Not possible | 3 actions |
+| A locker and a towel for one person | About 9 actions, the member number typed twice | 3 actions |
+| Who the record names | The member | The guest, with the host as the responsible member |
+| The guest's arrival | Not recorded at the station | Marked on the first scan of the day |
+
+##### The scan box
+
+- A single field at the top of the station, above the strip, on every view: "Scan a guest pass or key a member number".
+- It holds the keyboard focus whenever no drawer is open, and takes it back when the panel closes, so a handheld scanner works without touching the screen.
+- A handheld (keyboard-wedge) scanner types the code and presses Enter; a camera button beside the field opens the shared `<app-qr-scanner>` for a tablet or a phone.
+- What was read decides who is served: a pass link (`/guest-pass/<token>`) or a bare pass token is a guest; anything else is taken as a member number.
+- A code that is neither is refused in words ("That is not a guest pass of this club or a member number").
+
+##### The Serve panel
+
+ONE drawer in the station's existing dialog (mode `serve`), full screen on a phone.
+
+- **Who.**
+  The guest's name, "guest of Ahmad Faizal (MEM26-000001)", the pass number, "valid today", and "arrived 09:52" once marked.
+  For a member: the name, the member number and the standing.
+  A warning on the host's standing shows here as it does on the forms today; a barred host refuses the panel with the reason.
+- **Holding now.**
+  What this person holds at this moment (locker L003, 1 towel), each row with Return and, for a few minutes after it was issued, Undo.
+- **The tiles.**
+  One tile per active utility item, in the item's sort order.
+  Every tile states its outcome before it is tapped, so no confirmation is needed:
+  - a numbered item (Locker) shows its free units as buttons with the next free one highlighted; a tap on a unit issues that unit;
+  - a counted item (Towel) is one button "Towel - issue 1", with "holding 1 of 2" beside it; each tap issues one piece;
+  - a use-only item (Shower) is one button "Shower - record use".
+  - Each tile carries its price line: "Free", or "5.00 before tax, on Ahmad Faizal's bill".
+- **A tile that cannot be tapped says why**: "Members only", "Limit reached - holding 1 of 1", "No unit free", "LOCKERFEE has no price today", "Only for a person inside a facility".
+- **The bill.**
+  When an item carries a fee, the panel shows the open bill and its total with a Bill button to the existing bill drawer.
+  Settling is not one of the three steps: the desk settles when the person pays, or charges the member's account.
+
+##### What a scan does
+
+1. Reads the pass through Membership: `findGuestPass(companyId, code)` (already in this slice's seam list).
+2. Refuses a pass of another club, a cancelled pass, and a pass for another day with its date ("This pass is for 14 Nov 2026").
+3. Marks the pass arrived on the first scan of the day: `markGuestArrived`.
+   The guest's visit was counted on the host's monthly allowance when the pass was registered, so the scan draws nothing more.
+4. Returns the panel's picture: the guest, the host and the host's standing, what the guest holds, and the tiles with their reasons.
+
+A typed member number returns the same picture for the member.
+
+##### Rules (binding at the desk)
+
+1. **The holder is the person scanned.**
+   The issue record names the guest (`holderName`, `guestRegistrationId`) and keeps the host as the responsible member (`patronId`), as approved above.
+2. **The limit is per holder** (`maxPerPerson`): a guest and the host may each hold up to the limit.
+3. **`guestsAllowed` OFF** refuses a guest on that item; **`requiresEntry` ON** refuses a holder who is not inside a facility today.
+4. **A numbered item** is the tapped unit, taken under a lock; a unit another desk took a second earlier is refused and the tile refreshes.
+5. **A counted item** issues one piece per tap, each its own issue record, so each can be undone or returned on its own.
+6. **Fees** follow decision 1 of this slice: priced at the holder's participant type, on the host's bill.
+   A person's paid items of one day go on ONE open bill: the first opens it, the next ones add their lines to it while it is open.
+7. **Undo** is for a wrong tap: within a few minutes, while its bill line is unpaid, it takes the item back as a good return, removes the bill line (voiding a bill left empty) and notes "Undone at the desk" on the record.
+   After that the item is returned the normal way.
+8. **Return** is found by scanning the pass again (the panel's "Holding now" list), by the member number, or on the board as today.
+9. **Every row on the board and the lists names its holder and the host** ("L003 - Tan Wei Ming, guest of Ahmad Faizal").
+10. The preview-then-save rule of the Arrival drawer is replaced by tiles that state their outcome; the same checks run when the panel is drawn and again when a tile is tapped.
+
+##### What stays and what changes in this slice
+
+- **Stays as approved:** the two tables of 6a; the holder columns of `IssueRecord`; the `RegistrationGuest` and `Registration` columns; the two door switches; the Membership seam calls; "Who the station serves"; decisions 1 to 9.
+- **Changes:** the Arrival drawer (a party keyed in one form with ticks per person and one save) is replaced by the Serve panel (one person at a time, a tap per item).
+  A member and a guest arriving together are two scans, or one scan and one member number.
+- **The strip and the boards stay** as the overview of the day and as the place for returns and the end of day.
+  Tapping a free unit on the board asks for a scan or a member number in the same panel, not in a separate form.
+
+##### Data and API
+
+- `facility.IssueRecord`: `holderName`, `guestRegistrationId` and the index `(companyId, guestRegistrationId, status)` arrive with the first step below, as approved; `registrationGuestId` arrives with the step that needs it.
+- No new status: an undone item is a `returned` record with its remark.
+- `Bill` is unchanged: its `issueRecordId` names the first item of the visit, and every further item points at the same bill through its own `feeBillId`.
+- Under `/api/facility/station`, on the station's grant:
+  - `POST /scan` `{ code }` - the panel's picture: `{ kind: 'guest' | 'member', person, host, pass, standing, holding, tiles, bill }`, each tile `{ utilityItemId, code, description, behaviour, fee, allowed, reason, held, limit, freeUnits, suggestedUnitId }`;
+  - `POST /issues` gains the holder: `guestRegistrationId` in place of `memberNo`; the server takes the host from the pass, never from the browser;
+  - `POST /issues/:id/undo`;
+  - `GET /today` carries the holder and the host on every issue row.
+
+##### Build order (replaces 6b, 6c and 6d)
+
+- **6b Scan and serve.**
+  The scan box; the Serve panel for a pass and for a member number; `findGuestPass` and `markGuestArrived`; the holder columns; a tap issues; Undo; one open bill per person per day; the holder on every row; return from the panel.
+  This step alone delivers the three steps above.
+- **6c The guest without a pass, with the member.**
+  "Add guest" in the member's panel (type, name, mobile or email); `registerGuestAtDoor`; the `RegistrationGuest` columns and the two door switches; the guest counted once; the panel then serves that guest, who holds a pass from then on.
+- **6d Entering a facility from the panel.**
+  The entry facilities (pool, gym) as tiles beside the utility items, "Pool - admit" with the count it will reach; `hostPresent` and the type's `hostMustBePresent`; the entry fee and the guest fee on the same bill; sign-out lists what the person still holds.
+
+##### Decisions proposed here and open for your change
+
+1. **A tap issues at once.**
+   The alternative is to tick the items and press one "Issue" button: safer against a wrong tap, but four actions, not three.
+   Proposed: issue at once, with Undo.
+2. **The locker is the desk's pick.**
+   The next free unit is highlighted and any free unit can be tapped, so the screen matches the key the desk hands over.
+3. **One towel per tap.**
+   A second tap issues a second one, up to the limit.
+4. **One open bill per person per day** for utility items, in the host's name.
+5. **Undo for five minutes**, and only while the bill line is unpaid.
+6. **Both scanners.**
+   A handheld scanner into the scan box, and the camera for a tablet.
+7. **A member is served by the typed member number.**
+   A scan of a member's own card can join later if the club prints one.
+8. **A party is served one person at a time**; the Arrival drawer is dropped.
+9. **The scan does not admit the guest into the pool or the gym** until 6d; in 6b it serves utility items only.
 
 ## Public API (gateway seam: `/api/facility`)
 
