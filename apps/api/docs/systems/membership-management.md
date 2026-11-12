@@ -512,6 +512,8 @@ A KNOWN guest (a ledger line carrying `guestId`) counts ONCE per host per day, h
 A line without a guest record (today's facility lines, which carry only a name) counts its own `guestCount`, as before.
 The rule lives in ONE pure function, `countVisits` in `guestVisit.service.js`, used by `usedInMonth` (the allowance) and by the enquiry's groups; `alreadyCounted` tells a producer that a further line for the guest draws nothing more.
 `recordGuestVisit` in `platform/membershipGateway.js` accepts an optional `guestId`, so a producer that knows the guest joins the rule without any other change.
+The pass itself is read across the seam too (2026-11-12, for Facility's Control Station): `findGuestPass(companyId, code)` takes the scanned pass link or the bare token and answers the pass facts (the registration number, the visit date, the state by the club clock, the guest's id and name, the host's member id, number and name) or null for a code that is no pass of that club; `getGuestPass(companyId, id)` answers the same by id; `markGuestArrived(companyId, id, { actorId })` marks a valid, not yet arrived pass as arrived and is safe to call again.
+A producer serves a guest on the pass through these three and never reads `GuestRegistration` itself.
 
 ### Registration rules (`guestRegistration.service.js`)
 
