@@ -341,9 +341,24 @@
   border-color: var(--brand); /* encapsulated base ties the global :focus rule - see styles.css */
   background: var(--surface-card);
 }
+/* Slice 6c: the contact of a visitor line, under its name. */
+.st-guest__contact {
+  grid-column: 2 / 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+  margin: 0;
+}
 @media (max-width: 767px) {
   .st-guest {
     grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+  .st-guest__contact {
+    grid-column: 1 / 4;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .st-guest .st-guest__contact input {
+    grid-column: auto;
   }
   .st-guest select {
     grid-column: 2 / 4;
@@ -586,4 +601,54 @@
   background: var(--info-surface);
   color: var(--info-text);
   font-size: var(--font-body-2);
+}
+
+/* ---- slice 6c: the guest without a pass, with the member ---- */
+/* The people of one party: step to the member, to a guest, or add one. */
+.st-party {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+/* The pass to hand over: the QR code beside the ways to send it. */
+.st-pass {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: start;
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.st-pass__qr {
+  width: 8.5rem;
+  height: 8.5rem;
+  padding: var(--space-xs);
+  border-radius: 8px;
+  background: var(--surface-qr);
+}
+.st-pass__text {
+  min-width: 0;
+}
+.st-pass__title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.st-pass__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-sm);
+}
+@media (max-width: 767px) {
+  .st-pass {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
 }

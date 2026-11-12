@@ -28,7 +28,7 @@ import { COUNTRY_CODES } from '../country-codes';
       </select>
       <input #numberInput class="phone-field__number" type="tel" inputmode="tel"
              [id]="inputId()" [value]="national()" [disabled]="disabled()"
-             [placeholder]="placeholder()"
+             [placeholder]="placeholder()" [attr.aria-label]="ariaLabel() || null"
              (input)="onNumberInput(numberInput.value)" (blur)="onTouchedFn()" />
     </div>
   `,
@@ -79,6 +79,8 @@ export class PhoneInputComponent implements ControlValueAccessor {
   /** Applied to the number input so an external `<label for>` still associates. */
   readonly inputId = input<string>('');
   readonly placeholder = input<string>('Phone number');
+  /** The number field's accessible name where no visible `<label>` exists (a row editor). */
+  readonly ariaLabel = input<string>('');
 
   readonly countries = COUNTRY_CODES;
   readonly code = signal('+60');

@@ -435,8 +435,12 @@
                 <div class="st-who__text">
                   <div class="st-who__name">{{ p.person.name }}</div>
                   @if (p.kind === 'guest') {
-                    <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · pass {{ p.pass?.registrationNo }} · valid today</div>
-                    @if (p.pass?.arrivedAt) { <div class="st-who__line">Arrived {{ p.pass?.arrivedAt | localDate:'datetime' }}</div> }
+                    @if (p.pass; as pass) {
+                      <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · pass {{ pass.registrationNo }} · valid today</div>
+                      @if (pass.arrivedAt) { <div class="st-who__line">Arrived {{ pass.arrivedAt | localDate:'datetime' }}</div> }
+                    } @else {
+                      <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · no pass - served by name, with the member</div>
+                    }
                   } @else {
                     <div class="st-who__line">Member {{ p.host.memberNo }}</div>
                   }
@@ -448,6 +452,70 @@
                   <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">warning</span></span>
                   <span>{{ p.standingWarning }}</span>
                 </div>
+              }
+
+              <!-- Slice 6c: the party is served one person at a time. A guest's
+                   panel steps back to the member; the member's panel lists the
+                   guests served under them and adds one who holds no pass. -->
+              @if (p.kind === 'guest') {
+                <div class="st-party">
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="serveHost()" [disabled]="scanning()">
+                    <span class="material-icons" aria-hidden="true">person</span>
+                    Serve {{ p.host.name }}
+                  </button>
+                  @if (p.pass) {
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="showPass()">
+                      <span class="material-icons" aria-hidden="true">qr_code_2</span>
+                      Hand over the pass
+                    </button>
+                    @if (guestRemovable()) {
+                      <button type="button" class="btn btn--link btn--sm" (click)="askRemoveGuest()" *appCan="'create'">Added by mistake - remove</button>
+                    }
+                  }
+                </div>
+                @if (passShare(); as s) {
+                  @if (p.pass && s.guestRegistrationId === p.pass.id) {
+                    <div class="st-pass">
+                      <img class="st-pass__qr" [src]="s.qrDataUrl" alt="QR code of the guest pass" />
+                      <div class="st-pass__text">
+                        <div class="st-pass__title">Pass {{ s.registrationNo }} - hand it to {{ p.person.name }}</div>
+                        <p class="cell-subtle">The guest scans the code with their phone, or receives the link. With the pass they come back to the station on their own today.</p>
+                        <div class="st-pass__actions">
+                          @if (s.whatsappUrl) {
+                            <a class="btn btn--primary btn--sm" [href]="s.whatsappUrl" target="_blank" rel="noopener" (click)="passSent('whatsapp')">
+                              <span class="material-icons" aria-hidden="true">chat</span>
+                              Share via WhatsApp
+                            </a>
+                          }
+                          @if (s.canEmail) {
+                            <button type="button" class="btn btn--secondary btn--sm" (click)="passSent('email')" [disabled]="sendingPass()">
+                              <span class="material-icons" aria-hidden="true">mail</span>
+                              {{ sendingPass() ? 'Sending…' : 'Email the pass' }}
+                            </button>
+                          }
+                          <a class="btn btn--link btn--sm" [href]="s.passUrl" target="_blank" rel="noopener">Open pass</a>
+                          <button type="button" class="btn btn--link btn--sm" (click)="passShare.set(null)">Hide</button>
+                        </div>
+                        <p class="cell-subtle field-hint">{{ s.sentVia ? 'Sent by ' + (s.sentVia === 'email' ? 'email' : 'WhatsApp') + '.' : 'Not sent yet.' }}</p>
+                      </div>
+                    </div>
+                  }
+                }
+              } @else {
+                <h3 class="dlg-section">Guests</h3>
+                <div class="st-party">
+                  @for (g of p.guests || []; track g.guestRegistrationId || g.name) {
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="serveGuest(g)" [disabled]="scanning()" [attr.aria-label]="'Serve ' + g.name + ', guest of ' + p.host.name">
+                      <span class="material-icons" aria-hidden="true">{{ g.guestRegistrationId ? 'badge' : 'person_outline' }}</span>
+                      {{ g.name }}{{ g.holding ? ' - holding ' + g.holding : '' }}
+                    </button>
+                  }
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="openAddGuest()" *appCan="'create'">
+                    <span class="material-icons" aria-hidden="true">person_add</span>
+                    Add guest
+                  </button>
+                </div>
+                <p class="cell-subtle field-hint">A guest with a pass is scanned. A guest without one is added here, while {{ p.host.name }} is at the counter.</p>
               }
 
               <h3 class="dlg-section">Holding now</h3>
@@ -566,6 +634,37 @@
                   <span>Open bill <strong>{{ b.billNo }}</strong> · {{ b.totalAmount | money }} · in {{ p.host.name }}'s name</span>
                 </div>
               }
+            }
+          }
+
+          <!-- ADD GUEST (slice 6c): a guest without a pass, at the counter with the member -->
+          @case ('addGuest') {
+            @if (panel(); as p) {
+              <form id="stAddGuest" [formGroup]="guestForm" (ngSubmit)="submitAddGuest()">
+                <p class="st-lead">Guest of <strong>{{ p.host.name }}</strong> ({{ p.host.memberNo }}), at the counter with the member.</p>
+                <div class="form-group">
+                  <label for="stGuestName">Guest name <span class="required">*</span></label>
+                  <input id="stGuestName" type="text" formControlName="name" maxlength="255" autocomplete="off"
+                         [attr.aria-invalid]="showError(guestForm.controls.name)" aria-describedby="stGuestNameErr" />
+                  @if (showError(guestForm.controls.name)) { <p id="stGuestNameErr" class="field-error" role="alert">Key in the guest's name.</p> }
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="stGuestMobile">Mobile</label>
+                    <app-phone-input formControlName="mobile" inputId="stGuestMobile" placeholder="For WhatsApp"></app-phone-input>
+                  </div>
+                  <div class="form-group">
+                    <label for="stGuestEmail">Email</label>
+                    <input id="stGuestEmail" type="email" inputmode="email" formControlName="email" maxlength="255" autocomplete="off"
+                           [attr.aria-invalid]="showError(guestForm.controls.email)" aria-describedby="stGuestEmailErr" />
+                    @if (showError(guestForm.controls.email)) { <p id="stGuestEmailErr" class="field-error" role="alert">Enter a valid email address.</p> }
+                  </div>
+                </div>
+                <div class="flash flash-info flash--static" role="status">
+                  <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">info</span></span>
+                  <span>{{ addGuestOutcome() }}</span>
+                </div>
+              </form>
             }
           }
 
@@ -713,16 +812,30 @@
                   @for (t of guestTypes(); track t.key) { <option [value]="t.key">{{ t.label }}</option> }
                 </select>
                 @if (needsName(g.controls.participantType.value)) {
-                  <input type="text" formControlName="name" maxlength="255" placeholder="Guest name" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' name'" />
+                  <input type="text" formControlName="name" maxlength="255" placeholder="Guest name" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' name'" [readOnly]="!!g.controls.guestRegistrationId.value" />
                 } @else {
                   <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' member number'" />
                 }
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeGuest(i)" [attr.aria-label]="'Remove guest ' + (i + 1)">
                   <span class="material-icons" aria-hidden="true">close</span>
                 </button>
+                <!-- Slice 6c: a visitor line with a mobile or an email is a
+                     known guest (a day pass, counted once); a saved line on a
+                     pass says so. -->
+                @if (needsName(g.controls.participantType.value)) {
+                  @if (g.controls.guestRegistrationId.value) {
+                    <p class="st-guest__contact cell-subtle"><span class="material-icons inline-icon" aria-hidden="true">qr_code_2</span> On a guest pass - counted once today.</p>
+                  } @else {
+                    <div class="st-guest__contact">
+                      <app-phone-input formControlName="mobile" [inputId]="'stLineMobile' + i" placeholder="Mobile (optional)" [ariaLabel]="'Guest ' + (i + 1) + ' mobile'"></app-phone-input>
+                      <input type="email" inputmode="email" formControlName="email" maxlength="255" placeholder="Email (optional)" autocomplete="off" [attr.aria-label]="'Guest ' + (i + 1) + ' email'" />
+                    </div>
+                  }
+                }
               </div>
             }
           </div>
+          @if (guestLines.length) { <p class="cell-subtle field-hint">A mobile or an email registers the guest: a day pass, and the visit counts once.</p> }
           @if (guestLines.length === 0) { <p class="cell-subtle">No guests.</p> }
           <button type="button" class="btn btn--secondary btn--sm" (click)="addGuest()" [disabled]="guestLines.length >= (meta()?.limits?.maxGuestsPerRegistration || 50)">
             <span class="material-icons" aria-hidden="true">add</span>
@@ -747,6 +860,10 @@
           }
           @case ('camera') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Cancel</button>
+          }
+          @case ('addGuest') {
+            <button type="button" class="btn btn--secondary" (click)="backFromAddGuest()" [disabled]="saving()">Back</button>
+            <button type="submit" form="stAddGuest" class="btn btn--primary" [disabled]="saving() || addGuestMode() === 'refused'">{{ saving() ? 'Adding…' : (addGuestMode() === 'pass' ? 'Register and serve' : 'Serve by name') }}</button>
           }
           @case ('checkin') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>

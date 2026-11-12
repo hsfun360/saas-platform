@@ -1,4 +1,5 @@
-import { Component, ElementRef, OnDestroy, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, ElementRef, OnDestroy, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -10,12 +11,15 @@ import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ClassRosterComponent } from '../shared/class-roster/class-roster';
 import { QrScannerComponent } from '../shared/qr-scanner/qr-scanner';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { MoneyPipe } from '../shared/money.pipe';
 import {
   FacilityStationService,
+  PassShare,
+  ServeGuest,
   ServePanel,
   ServeRow,
   ServeTile,
@@ -36,7 +40,19 @@ type GuestGroup = FormGroup<{
   participantType: FormControl<string>;
   memberNo: FormControl<string>;
   name: FormControl<string>;
+  // Slice 6c: a mobile or an email registers the guest (a day pass); the
+  // pass a saved line already stands on rides along unseen.
+  mobile: FormControl<string>;
+  email: FormControl<string>;
+  guestRegistrationId: FormControl<string>;
 }>;
+
+// Whether a phone-input value is a number at all: it holds the bare dialling
+// code ('+60') when nothing was typed after it.
+function hasMobile(value: string): boolean {
+  const compact = (value || '').replace(/[\s\-()]/g, '');
+  return !!compact && !/^\+?\d{0,4}$/.test(compact);
+}
 
 // Facility Management -> Control Station (/facility/station; structures
 // approved 2026-10-26, slice 3). ONE screen for the day with the club clock
@@ -58,7 +74,7 @@ type GuestGroup = FormGroup<{
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, ConfirmDialogComponent, ClassRosterComponent, LocalDatePipe, MoneyPipe,
-    QrScannerComponent, OverflowMenuComponent, MenuItemDirective,
+    QrScannerComponent, OverflowMenuComponent, MenuItemDirective, PhoneInputComponent,
   ],
   templateUrl: './facility-station.html',
   styleUrls: ['./facility-station.css'],
@@ -67,6 +83,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   private readonly service = inject(FacilityStationService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private static readonly TYPE_KEY = 'facility-station.typeId';
 
   readonly successMessage = signal('');
@@ -133,8 +150,42 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // The return form was opened from the Serve panel: it goes back there.
   readonly returnToPanel = signal(false);
 
-  // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'serve' | 'camera' ----
-  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | 'serve' | 'camera' | null>(null);
+  // ---- slice 6c: the guest without a pass, with the member ----
+  // "Add guest" in the member's panel: a name, and a mobile or an email.
+  readonly guestForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(255)]],
+    mobile: [''],
+    email: ['', [Validators.email, Validators.maxLength(255)]],
+  });
+  // The form's values as a signal, so the outcome line follows the typing.
+  private readonly guestDraft = signal({ name: '', mobile: '', email: '' });
+  // The pass of the guest in the panel, to hand over (QR, WhatsApp, email).
+  readonly passShare = signal<PassShare | null>(null);
+  readonly sendingPass = signal(false);
+  // How the guest being keyed will be served: registered (a day pass) or by name.
+  readonly addGuestMode = computed<'pass' | 'name' | 'refused'>(() => {
+    const d = this.guestDraft();
+    const door = this.panel()?.door || { passEnabled: true, contactRequired: false };
+    const contact = hasMobile(d.mobile) || !!d.email.trim();
+    if (!contact && door.contactRequired) return 'refused';
+    return contact && door.passEnabled ? 'pass' : 'name';
+  });
+  // The outcome, said before the button is pressed.
+  readonly addGuestOutcome = computed(() => {
+    const p = this.panel();
+    const host = p?.host.name || 'the member';
+    const door = p?.door || { passEnabled: true, contactRequired: false };
+    switch (this.addGuestMode()) {
+      case 'pass': return `The guest is registered and gets a day pass: with it they come back to the station on their own today. The visit counts once on ${host}'s monthly guest allowance.`;
+      case 'refused': return 'The club registers every guest at the station: key in a mobile number or an email.';
+      default: return door.passEnabled
+        ? `With a name only the guest gets no pass: every later item again needs ${host} at the counter. A mobile or an email gives them a pass.`
+        : `The guest is served by name, together with ${host} - the club issues no passes at the station.`;
+    }
+  });
+
+  // ---- the ONE drawer: 'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'serve' | 'camera' | 'addGuest' ----
+  readonly dlgMode = signal<'checkin' | 'register' | 'guests' | 'issue' | 'return' | 'roster' | 'serve' | 'camera' | 'addGuest' | null>(null);
   readonly saving = signal(false);
   readonly checkInSlot = signal<StationSlot | null>(null);
   readonly arrived = signal<Set<string>>(new Set());
@@ -164,6 +215,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       case 'roster': { const s = this.rosterSession(); return s ? `${s.class?.description || s.class?.code || 'Session'} · ${s.startTime}` : 'Roster'; }
       case 'serve': { const p = this.panel(); return p ? `Serve ${p.person.name}` : 'Serve'; }
       case 'camera': return 'Scan a guest pass';
+      case 'addGuest': { const p = this.panel(); return p ? `Add a guest of ${p.host.name}` : 'Add a guest'; }
       default: return '';
     }
   });
@@ -174,6 +226,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     // The club clock moves the check-in states: refresh each minute.
     this.refreshTimer = setInterval(() => { if (!this.dlgMode()) this.load(true); }, 60000);
     this.focusScan();
+    this.guestForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.guestDraft.set(this.guestForm.getRawValue()));
   }
 
   ngOnDestroy(): void {
@@ -283,12 +336,15 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.dlgMode.set('register');
   }
 
-  addGuest(participantType = '', memberNo = '', name = ''): void {
+  addGuest(participantType = '', memberNo = '', name = '', guestRegistrationId = ''): void {
     const code = participantType || this.guestTypes().find((t) => t.baseIdentity === 'guest')?.key || this.guestTypes()[0]?.key || 'guest';
     this.guestLines.push(this.fb.nonNullable.group({
       participantType: [code, Validators.required],
       memberNo: [memberNo, Validators.maxLength(50)],
       name: [name, Validators.maxLength(255)],
+      mobile: [''],
+      email: ['', [Validators.email, Validators.maxLength(255)]],
+      guestRegistrationId: [guestRegistrationId],
     }));
     this.guestLines.markAsDirty();
     this.guestVersion.update((v) => v + 1);
@@ -314,7 +370,10 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
       const v = this.guestLines.at(i).getRawValue();
       if (this.needsName(v.participantType)) {
         if (!v.name.trim()) return `Guest ${i + 1}: key in the guest's name.`;
-        out.push({ participantType: v.participantType, name: v.name.trim() });
+        if (this.guestLines.at(i).controls.email.invalid) return `Guest ${i + 1}: the email is not a valid address.`;
+        // A line on a pass keeps it; a mobile or an email registers the guest.
+        if (v.guestRegistrationId) out.push({ participantType: v.participantType, name: v.name.trim(), guestRegistrationId: v.guestRegistrationId });
+        else out.push({ participantType: v.participantType, name: v.name.trim(), mobile: hasMobile(v.mobile) ? v.mobile : null, email: v.email.trim() || null });
       } else {
         if (!v.memberNo.trim()) return `Guest ${i + 1}: key in the member number.`;
         out.push({ participantType: v.participantType, memberNo: v.memberNo.trim() });
@@ -342,7 +401,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.clearMessages();
     this.guestTarget.set(r);
     this.guestLines.clear();
-    for (const g of r.guests) this.addGuest(g.participantType, g.memberNo || '', g.memberNo ? '' : g.name);
+    for (const g of r.guests) this.addGuest(g.participantType, g.memberNo || '', g.memberNo ? '' : g.name, g.guestRegistrationId || '');
     this.guestLines.markAsPristine();
     this.guestVersion.update((v) => v + 1);
     this.dlgMode.set('guests');
@@ -356,7 +415,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     if (typeof guests === 'string') { this.errorMessage.set(guests); return; }
     this.saving.set(true);
     this.service.saveGuests(r.id, guests).subscribe({
-      next: (res) => this.done(res.message),
+      next: (res) => this.done(res.message, res),
       error: (err) => this.fail(err, 'Failed to save the guests.'),
     });
   }
@@ -515,6 +574,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
         this.scanning.set(false);
         this.scanForm.reset({ code: '' });
         this.tilesExpanded.set(new Set());
+        this.passShare.set(null);
         this.panel.set(res.panel);
         this.dlgMode.set('serve');
         if (res.panel.pass?.firstScan) this.successMessage.set(`${res.panel.person.name} arrived - guest of ${res.panel.host.name} (${res.panel.host.memberNo}).`);
@@ -581,10 +641,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     if (!p || this.serveBusy()) return;
     this.clearMessages();
     this.serveBusy.set(unitId || t.utilityItemId);
-    this.service.issue({
-      utilityItemId: t.utilityItemId, utilityUnitId: unitId, quantity: 1,
-      guestRegistrationId: p.pass?.id || null, memberNo: p.pass ? null : p.host.memberNo, panel: true,
-    }).subscribe({
+    this.service.issue({ utilityItemId: t.utilityItemId, utilityUnitId: unitId, quantity: 1, ...this.holderOf(p), panel: true }).subscribe({
       next: (res) => {
         this.serveBusy.set(null);
         this.preferredUnit.set(null);
@@ -638,7 +695,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   private refreshPanel(): void {
     const p = this.panel();
     if (!p) return;
-    this.service.scan(p.pass ? { guestRegistrationId: p.pass.id } : { memberNo: p.host.memberNo }).subscribe({
+    const who = this.holderOf(p);
+    this.service.scan(who.guestRegistrationId ? { guestRegistrationId: who.guestRegistrationId } : who).subscribe({
       next: (res) => { if (this.panel()) this.panel.set(res.panel); },
       error: () => { /* the panel keeps its last picture */ },
     });
@@ -659,6 +717,139 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     const p = this.panel();
     return !!p && [...p.holding, ...p.usedToday].some((r) => r.undoable);
   });
+
+  // Who a tap in the panel is for: the guest's pass, a guest served by name
+  // with the member (slice 6c), or the member.
+  private holderOf(p: ServePanel): { guestRegistrationId: string | null; memberNo: string | null; guestName?: string } {
+    if (p.pass) return { guestRegistrationId: p.pass.id, memberNo: null };
+    if (p.kind === 'guest') return { guestRegistrationId: null, memberNo: p.host.memberNo, guestName: p.person.name };
+    return { guestRegistrationId: null, memberNo: p.host.memberNo };
+  }
+
+  // ---- slice 6c: the guest without a pass, with the member ----
+
+  openAddGuest(): void {
+    this.clearMessages();
+    this.guestForm.reset({ name: '', mobile: '', email: '' });
+    this.dlgMode.set('addGuest');
+  }
+
+  // Back to the member's panel, nothing added.
+  backFromAddGuest(): void {
+    this.clearMessages();
+    this.guestForm.markAsPristine();
+    this.dlgMode.set('serve');
+    this.focusNext();
+  }
+
+  submitAddGuest(): void {
+    this.clearMessages();
+    const p = this.panel();
+    if (!p || this.saving()) return;
+    if (this.guestForm.invalid) { this.guestForm.markAllAsTouched(); return; }
+    if (this.addGuestMode() === 'refused') { this.errorMessage.set(this.addGuestOutcome()); return; }
+    const v = this.guestForm.getRawValue();
+    this.saving.set(true);
+    this.service.addDoorGuest({ memberNo: p.host.memberNo, name: v.name.trim(), mobile: hasMobile(v.mobile) ? v.mobile : null, email: v.email.trim() || null }).subscribe({
+      next: (res) => {
+        this.saving.set(false);
+        this.guestForm.markAsPristine();
+        this.successMessage.set([res.message, ...(res.warnings || [])].join(' '));
+        // The panel now serves the GUEST; the pass is ready to hand over.
+        this.passShare.set(res.share || null);
+        if (res.panel) this.panel.set(res.panel);
+        this.tilesExpanded.set(new Set());
+        this.dlgMode.set('serve');
+        this.focusNext();
+      },
+      error: (err) => this.fail(err, 'Failed to add the guest.'),
+    });
+  }
+
+  // Swap the panel to another person of the same party (the scan box is not involved).
+  private servePerson(payload: { guestRegistrationId?: string | null; memberNo?: string | null; guestName?: string | null }): void {
+    if (this.scanning()) return;
+    this.clearMessages();
+    this.scanning.set(true);
+    this.service.scan(payload).subscribe({
+      next: (res) => {
+        this.scanning.set(false);
+        this.passShare.set(null);
+        this.tilesExpanded.set(new Set());
+        this.panel.set(res.panel);
+        this.focusNext();
+      },
+      error: (err) => { this.scanning.set(false); this.errorMessage.set(err.error?.message || 'Failed to open that person.'); },
+    });
+  }
+
+  // A guest listed in the member's panel: on the pass, or by name with the member.
+  serveGuest(g: ServeGuest): void {
+    const p = this.panel();
+    if (!p) return;
+    this.servePerson(g.guestRegistrationId ? { guestRegistrationId: g.guestRegistrationId } : { memberNo: p.host.memberNo, guestName: g.name });
+  }
+
+  // From a guest's panel back to the member who brought them.
+  serveHost(): void {
+    const p = this.panel();
+    if (p) this.servePerson({ memberNo: p.host.memberNo });
+  }
+
+  // Show the pass again (the guest lost the link, or it was never sent).
+  showPass(): void {
+    const pass = this.panel()?.pass;
+    if (!pass) return;
+    this.clearMessages();
+    this.service.doorPass(pass.id).subscribe({
+      next: (res) => this.passShare.set(res.share),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load the pass.'),
+    });
+  }
+
+  // 'email' sends the pass; 'whatsapp' records that the desk shared it (the
+  // message leaves from the desk's own WhatsApp through the link).
+  passSent(via: 'email' | 'whatsapp'): void {
+    const s = this.passShare();
+    if (!s || this.sendingPass()) return;
+    this.sendingPass.set(true);
+    this.service.sendDoorPass(s.guestRegistrationId, via).subscribe({
+      next: (res) => { this.sendingPass.set(false); this.passShare.set(res.share); this.successMessage.set(res.message); },
+      error: (err) => { this.sendingPass.set(false); this.errorMessage.set(err.error?.message || 'Failed to send the pass.'); },
+    });
+  }
+
+  // A guest added by mistake: only a pass the station registered, and only
+  // while the guest has taken nothing.
+  readonly guestRemovable = computed(() => {
+    const p = this.panel();
+    return !!p && !!p.pass && p.pass.createdHere === true && p.holding.length === 0 && p.usedToday.length === 0;
+  });
+
+  askRemoveGuest(): void {
+    const p = this.panel();
+    if (!p || !p.pass) return;
+    const pass = p.pass;
+    this.confirmAction.set({
+      title: `Remove ${p.person.name}?`,
+      message: `Pass ${pass.registrationNo} is cancelled and stops working, and the visit no longer counts on ${p.host.name}'s monthly guest allowance.`,
+      confirmLabel: 'Remove guest',
+      cancelLabel: 'Keep the guest',
+      run: () => {
+        this.confirmAction.set(null);
+        this.clearMessages();
+        this.service.removeDoorGuest(pass.id).subscribe({
+          next: (res) => {
+            this.successMessage.set(res.message);
+            this.passShare.set(null);
+            if (res.panel) this.panel.set(res.panel);
+            else this.closeDialog();
+          },
+          error: (err) => this.errorMessage.set(err.error?.message || 'Failed to remove the guest.'),
+        });
+      },
+    });
+  }
 
   private backToPanel(message: string, panel: ServePanel): void {
     this.saving.set(false);
@@ -748,6 +939,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     const mode = this.dlgMode();
     if (mode === 'register' || mode === 'issue' || mode === 'return') return this.form.dirty || this.guestLines.dirty;
     if (mode === 'guests') return this.guestLines.dirty;
+    if (mode === 'addGuest') return this.guestForm.dirty;
     return false;
   }
 
@@ -763,6 +955,8 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.returnTarget.set(null);
     this.returnToPanel.set(false);
     this.panel.set(null);
+    this.passShare.set(null);
+    this.guestForm.markAsPristine();
     this.preferredUnit.set(null);
     this.serveBusy.set(null);
     // Ready for the next person.

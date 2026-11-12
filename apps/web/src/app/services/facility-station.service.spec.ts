@@ -70,6 +70,32 @@ describe('FacilityStationService', () => {
     expect(http.expectOne('/api/facility/station/issues/x1/return').request.body).toEqual({ condition: 'good', panel: true });
   });
 
+  it('adds a guest at the counter, hands the pass over again and takes a mistaken guest back', () => {
+    service.addDoorGuest({ memberNo: 'A1', name: 'Tan Wei Ming', mobile: '+60123456789', email: null }).subscribe();
+    const add = http.expectOne('/api/facility/station/door-guests');
+    expect(add.request.method).toBe('POST');
+    expect(add.request.body).toEqual({ memberNo: 'A1', name: 'Tan Wei Ming', mobile: '+60123456789', email: null });
+    add.flush({ message: 'registered', panel: null, share: null });
+
+    service.doorPass('g1').subscribe();
+    expect(http.expectOne('/api/facility/station/door-guests/g1/pass').request.method).toBe('GET');
+
+    service.sendDoorPass('g1', 'email').subscribe();
+    const sent = http.expectOne('/api/facility/station/door-guests/g1/send');
+    expect(sent.request.method).toBe('POST');
+    expect(sent.request.body).toEqual({ via: 'email' });
+
+    service.removeDoorGuest('g1').subscribe();
+    const removed = http.expectOne('/api/facility/station/door-guests/g1/remove');
+    expect(removed.request.method).toBe('POST');
+
+    // A guest served by name is found through the member, and a tap names them.
+    service.scan({ memberNo: 'A1', guestName: 'Lim' }).subscribe();
+    expect(http.expectOne('/api/facility/station/scan').request.body).toEqual({ memberNo: 'A1', guestName: 'Lim' });
+    service.issue({ utilityItemId: 'i2', quantity: 1, guestRegistrationId: null, memberNo: 'A1', guestName: 'Lim', panel: true }).subscribe();
+    expect(http.expectOne('/api/facility/station/issues').request.body.guestName).toBe('Lim');
+  });
+
   it('issues, returns, clears a unit and runs the end of day', () => {
     service.issue({ utilityItemId: 'i2', utilityUnitId: 'u1', memberNo: 'A1' }).subscribe();
     const issue = http.expectOne('/api/facility/station/issues');

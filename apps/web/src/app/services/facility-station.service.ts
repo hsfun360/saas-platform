@@ -56,6 +56,9 @@ export interface StationGuest {
   memberNo: string | null;
   guestVisitId: string | null;
   sortOrder: number;
+  // Slice 6c: the day pass behind the line, and whether the station created it.
+  guestRegistrationId?: string | null;
+  passCreatedHere?: boolean;
 }
 
 export interface StationRegistration {
@@ -206,6 +209,8 @@ export interface StationGuestLine {
   identityNo?: string | null;
   mobile?: string | null;
   email?: string | null;
+  // The day pass the line already stands on (kept when the lines are saved again).
+  guestRegistrationId?: string | null;
 }
 
 // ---- slice 6b: scan and serve ----
@@ -234,13 +239,37 @@ export interface ServeRow extends StationIssue {
   undoable: boolean;
 }
 
+// What the desk needs to hand a guest's pass over (slice 6c).
+export interface PassShare {
+  guestRegistrationId: string;
+  registrationNo: string;
+  passUrl: string;
+  qrDataUrl: string;
+  whatsappUrl: string | null;
+  canEmail: boolean;
+  sentVia: string | null;
+}
+
+// A guest served under a member today: on a pass, or by name.
+export interface ServeGuest {
+  name: string;
+  guestRegistrationId: string | null;
+  holding: number;
+}
+
 // The Serve panel of one person: a guest on a pass (the host is the
-// responsible member) or a member on their own number.
+// responsible member), a guest served by name with the member (slice 6c:
+// kind 'guest' with no pass), or a member on their own number.
 export interface ServePanel {
   kind: 'guest' | 'member';
   person: { name: string };
   host: { memberId: string; memberNo: string; name: string };
-  pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean } | null;
+  // createdHere = the station registered this pass, so it may take it back.
+  pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean; createdHere?: boolean } | null;
+  // A member's panel: the guests served under them, and how a guest keyed
+  // at the station is served (Facility Specification's two door switches).
+  guests?: ServeGuest[];
+  door?: { passEnabled: boolean; contactRequired: boolean } | null;
   standingWarning: string | null;
   holding: ServeRow[];
   usedToday: ServeRow[];
@@ -258,6 +287,8 @@ export interface StationActionResult {
   issueId?: string;
   warnings?: string[];
   standingWarning?: string | null;
+  // The pass of a guest the station just registered (slice 6c).
+  share?: PassShare | null;
   signedOut?: number;
   overdue?: number;
 }
@@ -292,9 +323,10 @@ export class FacilityStationService {
     return this.http.put<StationActionResult>(`${this.base}/registrations/${registrationId}/guests`, { guests });
   }
 
-  // The holder is the member (memberNo) or a guest on a pass
-  // (guestRegistrationId); `panel` asks for the redrawn Serve panel.
-  issue(payload: { utilityItemId: string; utilityUnitId?: string | null; quantity?: number; memberNo?: string | null; guestRegistrationId?: string | null; registrationId?: string | null; remarks?: string | null; panel?: boolean }): Observable<StationActionResult> {
+  // The holder is the member (memberNo), a guest on a pass
+  // (guestRegistrationId) or a guest served by name with the member (memberNo
+  // with guestName); `panel` asks for the redrawn Serve panel.
+  issue(payload: { utilityItemId: string; utilityUnitId?: string | null; quantity?: number; memberNo?: string | null; guestRegistrationId?: string | null; guestName?: string | null; registrationId?: string | null; remarks?: string | null; panel?: boolean }): Observable<StationActionResult> {
     return this.http.post<StationActionResult>(`${this.base}/issues`, payload);
   }
 
@@ -304,8 +336,30 @@ export class FacilityStationService {
 
   // Slice 6b: what was scanned or keyed (a pass link, a pass token or a
   // member number) opens the Serve panel; the ids redraw it.
-  scan(payload: { code?: string; guestRegistrationId?: string | null; memberNo?: string | null }): Observable<{ panel: ServePanel }> {
+  scan(payload: { code?: string; guestRegistrationId?: string | null; memberNo?: string | null; guestName?: string | null }): Observable<{ panel: ServePanel }> {
     return this.http.post<{ panel: ServePanel }>(`${this.base}/scan`, payload);
+  }
+
+  // Slice 6c: the member is at the counter with a guest who holds no pass.
+  // Keyed with a mobile or an email the guest is registered and holds a pass
+  // from then on; keyed with a name, the guest is served by name. Answers
+  // the guest's panel (and the pass to hand over).
+  addDoorGuest(payload: { memberNo: string; name: string; mobile?: string | null; email?: string | null }): Observable<StationActionResult> {
+    return this.http.post<StationActionResult>(`${this.base}/door-guests`, payload);
+  }
+
+  doorPass(guestRegistrationId: string): Observable<{ share: PassShare }> {
+    return this.http.get<{ share: PassShare }>(`${this.base}/door-guests/${guestRegistrationId}/pass`);
+  }
+
+  // Email the pass, or record that the desk shared it over its own WhatsApp.
+  sendDoorPass(guestRegistrationId: string, via: 'email' | 'whatsapp'): Observable<{ message: string; share: PassShare }> {
+    return this.http.post<{ message: string; share: PassShare }>(`${this.base}/door-guests/${guestRegistrationId}/send`, { via });
+  }
+
+  // A guest added by mistake: the pass the station registered is cancelled.
+  removeDoorGuest(guestRegistrationId: string): Observable<StationActionResult> {
+    return this.http.post<StationActionResult>(`${this.base}/door-guests/${guestRegistrationId}/remove`, {});
   }
 
   // A wrong tap, inside the undo window.
