@@ -34,12 +34,18 @@ module.exports = {
             utilityItemId: z.string().max(64),
             utilityUnitId: str(64),
             quantity: numberish,
-            memberNo: z.string().max(50),
+            // The holder: the member's number, or a guest's pass (slice 6b).
+            memberNo: str(50),
+            guestRegistrationId: str(64),
             registrationId: str(64),
             remarks: str(255),
+            panel: z.boolean().optional(),
         }),
     },
-    returnIssue: { ...idParam, body: z.object({ condition: z.string().max(10), returnedQuantity: numberish, remarks: str(255) }) },
+    // What was scanned or keyed (a pass link, a pass token or a member
+    // number), or the person already served, to redraw the panel.
+    scan: { body: z.object({ code: str(600), guestRegistrationId: str(64), memberNo: str(50) }) },
+    returnIssue: { ...idParam, body: z.object({ condition: z.string().max(10), returnedQuantity: numberish, remarks: str(255), panel: z.boolean().optional() }) },
     endOfDay: { body: z.object({ facilityTypeId: str(64), date: str(10) }) },
     markNoShows: { body: z.object({ slotIds: z.array(z.string().max(64)).min(1).max(200) }) },
 };

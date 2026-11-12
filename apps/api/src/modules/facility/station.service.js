@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { getUserContext } = require('../../platform/serviceContext');
-const { getGolfMemberStanding, getGuestAllowanceStanding, recordGuestVisit, voidGuestVisit } = require('../../platform/membershipGateway');
+const { getGolfMemberStanding, getGuestAllowanceStanding, recordGuestVisit, voidGuestVisit, findGuestPass, getGuestPass, markGuestArrived } = require('../../platform/membershipGateway');
 const { companyTimezoneById } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const FacilityType = require('./facilityType.model');
@@ -95,7 +95,11 @@ function registrationDto(r, { patron, unit, guests = [], bill = null } = {}) {
 function issueDto(i, { patron, unit, bill = null } = {}, now = new Date()) {
     return {
         id: i.id,
+        // The responsible member; the holder is that member unless holderName
+        // names a guest served on the pass (slice 6b).
         patron: patron ? { id: patron.id, name: patron.name, memberNo: patron.memberNo } : null,
+        holderName: i.holderName || null,
+        guestRegistrationId: i.guestRegistrationId || null,
         utilityItemId: i.utilityItemId,
         utilityUnitId: i.utilityUnitId,
         unit: unit ? { id: unit.id, code: unit.code, location: unit.location } : null,
@@ -625,26 +629,79 @@ async function replaceGuests(req, id, body) {
     return { message: `Guests saved on ${r.registrationNo}.` };
 }
 
-// ---- rule 5: issue (a utility item, slice 6a) -------------------------------------------------
+// ---- rule 5: issue (a utility item, slice 6a; the holder, slice 6b) --------------------------
+
+// Who the desk serves (slice 6b): a guest on the pass - the host named on it
+// is the responsible member - or a member on their own number. `code` is
+// whatever was scanned or keyed into the scan box. Returns { error } or
+// { isGuest, pass, standing, holderName, participantType }.
+async function resolveHolder(companyId, { code = null, guestRegistrationId = null, memberNo = null } = {}) {
+    let pass = null;
+    let number = memberNo ? String(memberNo).trim() : '';
+    let scanned = false;
+    if (guestRegistrationId) {
+        pass = await getGuestPass(companyId, String(guestRegistrationId));
+        if (!pass) return { error: 'That guest pass was not found.', status: 404 };
+    } else if (code !== null && code !== undefined && !number) {
+        const kind = rules.scanKind(code);
+        if (!kind) return { error: 'Scan a guest pass or key a member number.' };
+        scanned = true;
+        if (kind === 'pass') {
+            pass = await findGuestPass(companyId, String(code));
+            if (!pass) return { error: rules.passVerdict(null), status: 404 };
+        } else number = String(code).trim();
+    }
+    if (pass) {
+        const refusal = rules.passVerdict(pass);
+        if (refusal) return { error: refusal };
+        const host = await memberStanding(companyId, pass.host.memberNo, 'Host');
+        if (host.error) return host;
+        return { isGuest: true, pass, standing: host.standing, holderName: pass.guest.name, participantType: 'guest' };
+    }
+    if (scanned && !(await getGolfMemberStanding(companyId, number))) {
+        return { error: `'${number.slice(0, 50)}' is not a guest pass of this club or a member number.`, status: 404 };
+    }
+    const m = await memberStanding(companyId, number);
+    if (m.error) return m;
+    return { isGuest: false, pass: null, standing: m.standing, holderName: m.standing.name, participantType: 'member' };
+}
+
+// The rows that belong to the person served: a guest's by the pass, a
+// member's by the patron with no guest named.
+function holderWhere(who, patronId) {
+    return who.isGuest ? { guestRegistrationId: who.pass.id } : { patronId, guestRegistrationId: null };
+}
+
+async function isInside(companyId, patronId, date, { transaction } = {}) {
+    if (!patronId) return false;
+    return (await Registration.count({ where: { companyId, patronId, registrationDate: date, status: 'in' }, transaction })) > 0;
+}
+
+function standingWarningOf(standing) {
+    return standing.actionControl === 'warning' ? `Member ${standing.memberNo} is ${standing.statusLabel || 'under warning'}.` : null;
+}
 
 // `body` = { utilityItemId, utilityUnitId (a numbered item; none = the next
-// available), quantity (a counted or use-only item), memberNo,
-// registrationId, remarks }. A use-only item closes as 'used' at once.
+// available), quantity (a counted item), memberNo OR guestRegistrationId
+// (the holder), registrationId, remarks, panel (answer with the refreshed
+// Serve panel) }. A use-only item closes as 'used' at once.
 async function issue(req, body) {
     const companyId = getUserContext(req).companyId;
     const item = await UtilityItem.findOne({ where: { companyId, id: String(body.utilityItemId || ''), isActive: true } });
     if (!item) return { error: 'Pick a utility item.' };
     const behaviour = utilityRules.behaviourOf(item);
-    const m = await memberStanding(companyId, body.memberNo);
-    if (m.error) return m;
-    const standing = m.standing;
+    const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo });
+    if (who.error) return who;
+    const standing = who.standing;
+    if (who.isGuest && item.guestsAllowed === false) return { error: `${item.code} is for members only.` };
     const { now, timezone } = await clock(companyId);
     const date = now.date;
     const dayType = await shared.dayTypeOf(companyId, date);
-    const quantity = behaviour === 'units' ? 1 : Number(body.quantity || 1);
+    const quantity = behaviour === 'quantity' ? Number(body.quantity || 1) : 1;
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > STATION_LIMITS.maxIssueQuantity) return { error: `Quantity must be between 1 and ${STATION_LIMITS.maxIssueQuantity}.` };
     const stamps = await stampsFor(req);
     const warnings = [];
+    const startOfDay = localToDate(`${date}T00:00`, timezone);
     const result = await runTx(sequelize, async (transaction) => {
         let unit = null;
         if (behaviour === 'units') {
@@ -654,20 +711,25 @@ async function issue(req, body) {
             if (!unit) txFail(wanted ? 'That unit is not available.' : `No ${item.code} unit is available right now.`);
         }
         const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
-        // The limit: what the person holds now, or (a use-only item) what
-        // they have used today.
+        const mine = holderWhere(who, patron.id);
+        if (item.requiresEntry === true && !(who.isGuest ? false : await isInside(companyId, patron.id, date, { transaction }))) {
+            txFail(`${item.code} is only for a person inside a facility today.`);
+        }
+        // The limit is per HOLDER: what the person holds now, or (a use-only
+        // item) what they have used today.
         const liveWhere = behaviour === 'use'
-            ? { companyId, utilityItemId: item.id, status: 'used', patronId: patron.id, issuedAt: { [Op.gte]: localToDate(`${date}T00:00`, timezone) } }
-            : { companyId, utilityItemId: item.id, status: 'issued', patronId: patron.id };
+            ? { companyId, utilityItemId: item.id, status: 'used', ...mine, issuedAt: { [Op.gte]: startOfDay } }
+            : { companyId, utilityItemId: item.id, status: 'issued', ...mine };
         const live = await IssueRecord.findAll({ where: liveWhere, attributes: ['quantity'], transaction });
         const held = live.reduce((sum, i) => sum + Number(i.quantity || 1), 0);
         const unitWord = behaviour === 'units' ? `${item.code} units` : `${item.code} pieces`;
-        const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: standing.name, unitWord, usedToday: behaviour === 'use' ? item.code : null });
+        const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: who.holderName, unitWord, usedToday: behaviour === 'use' ? item.code : null });
         if (limitError) txFail(limitError);
         const issuedAt = new Date();
         const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date, dueDays: item.dueDays || 0, hours: null }), timezone);
         const record = await IssueRecord.create({
             companyId, patronId: patron.id, utilityItemId: item.id, utilityUnitId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
+            holderName: who.isGuest ? String(who.holderName || '').slice(0, 255) : null, guestRegistrationId: who.isGuest ? who.pass.id : null,
             quantity, issuedAt, dueBack, status: behaviour === 'use' ? 'used' : 'issued', remarks: body.remarks ? String(body.remarks).slice(0, 255) : null, ...stamps,
         }, { transaction });
         if (unit) {
@@ -680,10 +742,20 @@ async function issue(req, body) {
             const feeType = await TransactionType.findOne({ where: { companyId, id: item.feeTransactionTypeId, isActive: true }, transaction });
             if (!feeType) warnings.push(`${item.code}'s fee item is missing or disabled - no fee was charged.`);
             else {
-                const issued = await billing.issueBillNo(req, { transaction });
-                if (issued.error) txFail(issued.error);
-                const bill = await billing.Bill.create({ companyId, billNo: issued.billNo, issueRecordId: record.id, patronId: patron.id, billDate: date, status: 'open', ...stamps }, { transaction });
-                const added = await billing.addItem({ req, bill, type: feeType, quantity, stamps, transaction, context: { date, dayType, sessionId: null, sessionName: null, participantType: 'member' } });
+                // ONE open bill per person per day (slice 6b): the first paid
+                // item opens it in the responsible member's name, the next ones
+                // add their lines to it while it is open.
+                const earlier = await IssueRecord.findAll({ where: { companyId, ...mine, feeBillId: { [Op.ne]: null }, issuedAt: { [Op.gte]: startOfDay } }, attributes: ['feeBillId'], transaction });
+                const billIds = [...new Set(earlier.map((e) => e.feeBillId))];
+                let bill = billIds.length
+                    ? await billing.Bill.findOne({ where: { companyId, id: { [Op.in]: billIds }, status: 'open', billDate: date }, order: [['createdAt', 'DESC']], transaction, lock: transaction.LOCK.UPDATE })
+                    : null;
+                if (!bill) {
+                    const issued = await billing.issueBillNo(req, { transaction });
+                    if (issued.error) txFail(issued.error);
+                    bill = await billing.Bill.create({ companyId, billNo: issued.billNo, issueRecordId: record.id, patronId: patron.id, billDate: date, status: 'open', ...stamps }, { transaction });
+                }
+                const added = await billing.addItem({ req, bill, type: feeType, quantity, stamps, transaction, context: { date, dayType, sessionId: null, sessionName: null, participantType: who.participantType } });
                 if (added.error) txFail(added.error);
                 await billing.recomputeTotals(bill, transaction);
                 record.feeBillId = bill.id;
@@ -693,10 +765,15 @@ async function issue(req, body) {
         return { record, unit };
     });
     if (result.error) return result;
-    const message = behaviour === 'units' ? `${result.unit.code} issued to ${standing.name}.`
-        : behaviour === 'use' ? `${item.code}${quantity > 1 ? ` x ${quantity}` : ''} recorded for ${standing.name}.`
-            : `${quantity} ${item.code} issued to ${standing.name}.`;
-    return { message, issueId: result.record.id, warnings };
+    // Serving a guest IS the arrival, however the request came in.
+    if (who.isGuest && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+    const to = who.isGuest ? `${who.holderName}, guest of ${standing.name}` : standing.name;
+    const message = behaviour === 'units' ? `${result.unit.code} issued to ${to}.`
+        : behaviour === 'use' ? `${item.code} recorded for ${to}.`
+            : `${quantity} ${item.code} issued to ${to}.`;
+    const out = { message, issueId: result.record.id, warnings };
+    if (body.panel === true) out.panel = await servePicture(req, who);
+    return out;
 }
 
 // ---- rule 6: return ------------------------------------------------------------------------------
@@ -725,7 +802,9 @@ async function returnIssue(req, id, body) {
         }
     });
     const lost = outcome.lostQuantity ? ` ${outcome.lostQuantity} lost - charge it from the bill's tiles if the club bills losses.` : '';
-    return { message: `Returned${outcome.unitStatus === 'out-of-service' ? ' - the unit is out of service until cleared' : ''}.${lost}` };
+    const out = { message: `Returned${outcome.unitStatus === 'out-of-service' ? ' - the unit is out of service until cleared' : ''}.${lost}` };
+    if (body.panel === true) out.panel = await panelOfRecord(req, record);
+    return out;
 }
 
 async function clearUnit(req, unitId) {
@@ -737,6 +816,166 @@ async function clearUnit(req, unitId) {
     unit.updatedBy = getUserContext(req).userId;
     await unit.save();
     return { message: `${unit.code} is available again.` };
+}
+
+// ---- slice 6b: scan and serve -------------------------------------------------------------------
+
+// The Serve panel of one person: who they are, what they hold, and one tile
+// per active utility item stating whether it can be tapped and what it
+// bills. The same checks run again when a tile is tapped (issue()).
+async function servePicture(req, who, { firstScan = false } = {}) {
+    const companyId = getUserContext(req).companyId;
+    const { now, timezone } = await clock(companyId);
+    const date = now.date;
+    const startOfDay = localToDate(`${date}T00:00`, timezone);
+    const [dayType, patron, items] = await Promise.all([
+        shared.dayTypeOf(companyId, date),
+        Patron.findOne({ where: { companyId, patronType: 'member', sourceId: who.standing.memberId } }),
+        UtilityItem.findAll({ where: { companyId, isActive: true }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
+    ]);
+    const known = who.isGuest || !!patron;
+    const mine = known ? await IssueRecord.findAll({
+        where: { companyId, ...holderWhere(who, patron ? patron.id : null), [Op.or]: [{ status: 'issued' }, { issuedAt: { [Op.gte]: startOfDay } }] },
+        order: [['issuedAt', 'ASC']],
+    }) : [];
+    const itemById = new Map(items.map((it) => [it.id, it]));
+    const unitIds = [...new Set(mine.map((i) => i.utilityUnitId).filter(Boolean))];
+    const numbered = items.filter((it) => it.trackUnits === true).map((it) => it.id);
+    const [heldUnits, freeUnits] = await Promise.all([
+        unitIds.length ? UtilityUnit.findAll({ where: { id: { [Op.in]: unitIds } } }) : [],
+        numbered.length ? UtilityUnit.findAll({ where: { companyId, utilityItemId: { [Op.in]: numbered }, isActive: true, unitStatus: 'available' }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }) : [],
+    ]);
+    const unitById = new Map(heldUnits.map((u) => [u.id, u]));
+    const billIds = [...new Set(mine.map((i) => i.feeBillId).filter(Boolean))];
+    const bills = billIds.length ? await billing.Bill.findAll({ where: { companyId, id: { [Op.in]: billIds }, status: { [Op.ne]: 'voided' } }, attributes: ['id', 'billNo', 'status', 'totalAmount', 'billDate', 'createdAt'], order: [['createdAt', 'ASC']] }) : [];
+    const billById = new Map(bills.map((b) => [b.id, { id: b.id, billNo: b.billNo, status: b.status, totalAmount: Number(b.totalAmount) }]));
+    const openToday = bills.filter((b) => b.status === 'open' && String(b.billDate) === date).pop() || null;
+    // The fee of each item at the HOLDER's participant type, before tax.
+    const feeTypeIds = [...new Set(items.map((it) => it.feeTransactionTypeId).filter(Boolean))];
+    const feeTypes = feeTypeIds.length ? await TransactionType.findAll({ where: { companyId, id: { [Op.in]: feeTypeIds }, isActive: true } }) : [];
+    const feeById = new Map();
+    for (const ft of feeTypes) {
+        const priced = pricing.unitPriceOf(ft, await billing.cardsOf(ft.id), { date, dayType, participantType: who.participantType });
+        feeById.set(ft.id, { code: ft.transactionType, description: ft.description, unitAmount: priced.missing ? null : priced.unitAmount, priceRequired: ft.allowPriceOverride !== true });
+    }
+    const inside = who.isGuest ? false : await isInside(companyId, patron ? patron.id : null, date);
+    const nowDate = new Date();
+    const live = mine.filter((i) => i.status === 'issued');
+    const usedToday = mine.filter((i) => i.status === 'used' && new Date(i.issuedAt).getTime() >= startOfDay.getTime());
+    const rowOf = (i) => {
+        const it = itemById.get(i.utilityItemId);
+        const bill = i.feeBillId ? billById.get(i.feeBillId) || null : null;
+        return {
+            ...issueDto(i, { patron, unit: i.utilityUnitId ? unitById.get(i.utilityUnitId) : null, bill }, nowDate),
+            item: it ? { id: it.id, code: it.code, description: it.description, behaviour: utilityRules.behaviourOf(it) } : null,
+            undoable: !rules.undoVerdict({ status: i.status, issuedAt: i.issuedAt, now: nowDate, billStatus: bill ? bill.status : null }),
+        };
+    };
+    const tiles = items.map((it) => {
+        const behaviour = utilityRules.behaviourOf(it);
+        const held = (behaviour === 'use' ? usedToday : live).filter((i) => i.utilityItemId === it.id).reduce((sum, i) => sum + Number(i.quantity || 1), 0);
+        const free = behaviour === 'units' ? freeUnits.filter((u) => u.utilityItemId === it.id) : [];
+        const fee = it.feeTransactionTypeId ? feeById.get(it.feeTransactionTypeId) || null : null;
+        const verdict = rules.serveTileVerdict({
+            behaviour, isGuest: who.isGuest, guestsAllowed: it.guestsAllowed !== false, requiresEntry: it.requiresEntry === true, inside,
+            held, limit: Number(it.maxPerPerson || 0), freeUnits: free.length, fee, priceRequired: fee ? fee.priceRequired : true,
+        });
+        return {
+            utilityItemId: it.id, code: it.code, description: it.description, iconUrl: it.iconUrl, behaviour,
+            fee: fee ? { code: fee.code, description: fee.description, unitAmount: fee.unitAmount } : null,
+            allowed: verdict.allowed, reason: verdict.reason,
+            held, limit: Number(it.maxPerPerson || 0), dueDays: it.dueDays || 0,
+            freeUnits: free.map((u) => ({ id: u.id, code: u.code, location: u.location })),
+            suggestedUnitId: free.length ? free[0].id : null,
+        };
+    });
+    const host = { memberId: who.standing.memberId, memberNo: who.standing.memberNo, name: who.standing.name };
+    return {
+        kind: who.isGuest ? 'guest' : 'member',
+        person: { name: who.holderName },
+        host,
+        pass: who.isGuest ? { id: who.pass.id, registrationNo: who.pass.registrationNo, visitDate: who.pass.visitDate, arrivedAt: who.pass.arrivedAt, firstScan } : null,
+        standingWarning: standingWarningOf(who.standing),
+        holding: live.map(rowOf),
+        usedToday: usedToday.map(rowOf),
+        tiles,
+        bill: openToday ? billById.get(openToday.id) : null,
+        undoMinutes: rules.UNDO_MINUTES,
+        clubNow: now,
+    };
+}
+
+// POST /scan { code } - or { guestRegistrationId } / { memberNo } to redraw
+// the panel of the person already being served. The first scan of a pass on
+// its day marks the guest arrived.
+async function scan(req, body) {
+    const companyId = getUserContext(req).companyId;
+    if (!companyId) return { error: 'Select a workspace first.' };
+    const who = await resolveHolder(companyId, { code: body.code, guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo });
+    if (who.error) return who;
+    let firstScan = false;
+    if (who.isGuest && who.pass.status === 'registered') {
+        firstScan = await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+        if (firstScan) who.pass = (await getGuestPass(companyId, who.pass.id)) || who.pass;
+    }
+    return { panel: await servePicture(req, who, { firstScan }) };
+}
+
+// The panel of whoever an issue record belongs to (after a return or an
+// undo from the panel); null when that person can no longer be served.
+async function panelOfRecord(req, record) {
+    const companyId = getUserContext(req).companyId;
+    let who;
+    if (record.guestRegistrationId) who = await resolveHolder(companyId, { guestRegistrationId: record.guestRegistrationId });
+    else {
+        const patron = await Patron.findOne({ where: { companyId, id: record.patronId }, attributes: ['memberNo'] });
+        who = patron && patron.memberNo ? await resolveHolder(companyId, { memberNo: patron.memberNo }) : { error: 'no member' };
+    }
+    return who.error ? null : servePicture(req, who);
+}
+
+// POST /issues/:id/undo - a wrong tap, inside the undo window: the item is
+// taken back as a good return, its unpaid bill line removed (a bill left
+// empty is voided) and the record noted. No new status: it reads 'returned'.
+async function undoIssue(req, id) {
+    const companyId = getUserContext(req).companyId;
+    const record = await IssueRecord.findOne({ where: { companyId, id } });
+    if (!record) return { error: 'Issue record not found.', status: 404 };
+    const item = await UtilityItem.findOne({ where: { id: record.utilityItemId } });
+    const callerId = getUserContext(req).userId;
+    const result = await runTx(sequelize, async (transaction) => {
+        const row = await IssueRecord.findOne({ where: { id: record.id }, transaction, lock: transaction.LOCK.UPDATE });
+        const bill = row.feeBillId ? await billing.Bill.findOne({ where: { companyId, id: row.feeBillId }, transaction, lock: transaction.LOCK.UPDATE }) : null;
+        const refusal = rules.undoVerdict({ status: row.status, issuedAt: row.issuedAt, billStatus: bill ? bill.status : null });
+        if (refusal) txFail(refusal);
+        let billNote = '';
+        if (bill && bill.status === 'open') {
+            // The line this issue added: the fee item at this quantity, written
+            // in the same transaction as the record (no column links the two).
+            const lines = item && item.feeTransactionTypeId
+                ? await billing.BillItem.findAll({ where: { billId: bill.id, transactionTypeId: item.feeTransactionTypeId, quantity: row.quantity }, order: [['createdAt', 'ASC']], transaction })
+                : [];
+            const t0 = new Date(row.createdAt).getTime();
+            const line = lines.find((l) => { const d = new Date(l.createdAt).getTime() - t0; return d >= -1000 && d <= 5000; });
+            if (line) {
+                await billing.removeItem({ bill, item: line, transaction });
+                if ((await billing.BillItem.count({ where: { billId: bill.id }, transaction })) === 0) {
+                    Object.assign(bill, { status: 'voided', voidedAt: new Date(), voidedBy: callerId, voidReason: 'Undone at the desk', updatedBy: callerId });
+                    await bill.save({ transaction });
+                    billNote = ` Bill ${bill.billNo} is voided.`;
+                } else billNote = ` Its line is off bill ${bill.billNo}.`;
+                row.feeBillId = null;
+            } else billNote = ` Its fee stays on bill ${bill.billNo} - remove the line there.`;
+        }
+        Object.assign(row, { status: 'returned', returnedAt: new Date(), returnedQuantity: row.quantity, returnCondition: 'good', remarks: 'Undone at the desk', updatedBy: callerId });
+        await row.save({ transaction });
+        if (row.utilityUnitId) await UtilityUnit.update({ unitStatus: 'available', currentIssueId: null, updatedBy: callerId }, { where: { id: row.utilityUnitId }, transaction });
+        return { row, billNote };
+    });
+    if (result.error) return result;
+    const unit = record.utilityUnitId ? await UtilityUnit.findOne({ where: { id: record.utilityUnitId }, attributes: ['code'] }) : null;
+    const what = unit ? unit.code : `${item ? item.code : 'The item'}${record.quantity > 1 ? ` x ${record.quantity}` : ''}`;
+    return { message: `${what} undone.${result.billNote}`, panel: await panelOfRecord(req, result.row) };
 }
 
 // ---- rule 7: end of day ------------------------------------------------------------------------
@@ -797,5 +1036,6 @@ async function scanAutoSignOut() {
 module.exports = {
     localToDate, clock, registrationDto, issueDto, unitDto, dayPicture,
     checkIn, register, signOut, replaceGuests, issue, returnIssue, clearUnit, endOfDay, scanAutoSignOut, markNoShows,
+    resolveHolder, servePicture, scan, undoIssue,
     classSessionsOn, enrolWalkIn,
 };

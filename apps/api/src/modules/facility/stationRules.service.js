@@ -103,7 +103,59 @@ function returnOutcome({ condition, quantity, returnedQuantity, trackUnits }) {
     return { status: lost > 0 && back === 0 ? 'lost' : 'returned', unitStatus: null, lostQuantity: lost, returnedQuantity: back };
 }
 
+// ---- slice 6b: scan and serve ---------------------------------------------------
+
+// Minutes after an issue during which the desk may undo a wrong tap.
+const UNDO_MINUTES = 5;
+
+// What the desk scanned or keyed: a guest pass (the pass link, or the bare
+// 64-character token a handheld scanner types) or, anything else, a member
+// number. Empty = nothing to read.
+function scanKind(code) {
+    const raw = String(code || '').trim();
+    if (!raw) return null;
+    if (/[a-f0-9]{64}/i.test(raw) || /guest-pass\//i.test(raw)) return 'pass';
+    return 'member';
+}
+
+// May this pass be served today? Null = yes, else the refusal in words.
+function passVerdict(pass) {
+    if (!pass) return 'No guest pass of this club matches that code.';
+    if (pass.passState === 'cancelled') return `Pass ${pass.registrationNo} is cancelled.`;
+    if (pass.passState === 'upcoming') return `This pass is for ${pass.visitDateText} - it is not valid today.`;
+    if (pass.passState === 'expired') return `This pass was for ${pass.visitDateText} and has expired.`;
+    return null;
+}
+
+// May the person in the panel take this utility item now? Returns
+// { allowed, reason }: the reason is the line the tile shows in place of its
+// button. `held` = pieces or units the person holds (a use-only item: uses
+// today); `fee` = { code, unitAmount } or null (free); `priceRequired` =
+// the fee item refuses without a price (no manual price allowed).
+function serveTileVerdict({ behaviour, isGuest, guestsAllowed, requiresEntry, inside, held, limit, freeUnits, fee, priceRequired = true }) {
+    if (isGuest && guestsAllowed === false) return { allowed: false, reason: 'Members only.' };
+    if (requiresEntry && !inside) return { allowed: false, reason: 'Only for a person inside a facility today.' };
+    const cap = Number(limit || 0);
+    if (cap > 0 && Number(held || 0) >= cap) {
+        return { allowed: false, reason: behaviour === 'use' ? `Limit reached - used ${held} of ${cap} today.` : `Limit reached - holding ${held} of ${cap}.` };
+    }
+    if (behaviour === 'units' && !Number(freeUnits || 0)) return { allowed: false, reason: 'No unit free.' };
+    if (fee && (fee.unitAmount === null || fee.unitAmount === undefined) && priceRequired) return { allowed: false, reason: `${fee.code} has no price today.` };
+    return { allowed: true, reason: null };
+}
+
+// May the desk undo this issue? Only a live issue (or a recorded use) inside
+// the undo window, and only while its bill is not settled. Null = yes.
+function undoVerdict({ status, issuedAt, now = new Date(), billStatus = null, minutes = UNDO_MINUTES }) {
+    if (status !== 'issued' && status !== 'used') return `Already ${status} - nothing to undo.`;
+    const age = (new Date(now).getTime() - new Date(issuedAt).getTime()) / 60000;
+    if (age > minutes) return `Undo is for the first ${minutes} minutes - return it the normal way.`;
+    if (billStatus === 'settled') return 'Its bill is already settled - return it the normal way.';
+    return null;
+}
+
 module.exports = {
     checkInState, openingHours, isOpenAt, liveCount, capacityVerdict,
     heldByPatron, issueLimitVerdict, dueBackLocal, returnOutcome,
+    UNDO_MINUTES, scanKind, passVerdict, serveTileVerdict, undoVerdict,
 };

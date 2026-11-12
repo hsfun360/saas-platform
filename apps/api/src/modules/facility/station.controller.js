@@ -97,6 +97,26 @@ exports.issue = async (req, res) => {
     }
 };
 
+// POST /api/facility/station/scan { code } | { guestRegistrationId } | { memberNo }
+exports.scan = async (req, res) => {
+    try {
+        send(res, await station.scan(req, req.body || {}));
+    } catch (error) {
+        console.error('Error scanning at the facility station:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/facility/station/issues/:id/undo
+exports.undoIssue = async (req, res) => {
+    try {
+        send(res, await station.undoIssue(req, req.params.id));
+    } catch (error) {
+        console.error('Error undoing a facility issue:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/facility/station/issues/:id/return
 exports.returnIssue = async (req, res) => {
     try {

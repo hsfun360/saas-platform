@@ -416,10 +416,36 @@ async function voidGuestVisit(companyId, sourceModule, sourceRef, opts = {}) {
     return require('../modules/membership/guestVisit.service').voidVisit(companyId, sourceModule, sourceRef, opts);
 }
 
+// ---- Guest pass (the day pass of Membership's Guest Registration) ----
+// A producer that serves a guest on the pass reads it and marks the arrival
+// here (Facility's Control Station first, 2026-11-12). The pass facts:
+// { id, registrationNo, visitDate, visitDateText, status, passState
+//   ('valid' | 'upcoming' | 'expired' | 'cancelled' by the club clock),
+//   arrivedAt, guest { id, name }, host { memberId, memberNo, name } }.
+// `findGuestPass` takes whatever was scanned (the pass link or the bare
+// token) and answers null for a code that is no pass of THIS club.
+// `markGuestArrived` is idempotent and answers true when this call marked it.
+// WHEN SPLIT: GET  {internalServiceUrl('membership')}/internal/guest-passes?code | /:id
+//             POST {internalServiceUrl('membership')}/internal/guest-passes/:id/arrive
+async function findGuestPass(companyId, code, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').findPassByCode(companyId, code, opts);
+}
+
+async function getGuestPass(companyId, guestRegistrationId, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').findPassById(companyId, guestRegistrationId, opts);
+}
+
+async function markGuestArrived(companyId, guestRegistrationId, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').markArrived(companyId, guestRegistrationId, opts);
+}
+
 module.exports = {
     getGuestAllowanceStanding,
     recordGuestVisit,
     voidGuestVisit,
+    findGuestPass,
+    getGuestPass,
+    markGuestArrived,
     lookupPartyDisplay,
     searchPartyIds,
     getChargeTarget,

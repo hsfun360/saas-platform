@@ -553,7 +553,60 @@ function dto(r, guest, hostDto, today, canModify = undefined) {
     };
 }
 
+// ---- the seam for the other modules (platform/membershipGateway) ------------------
+// A producer that serves a guest on the pass (Facility's Control Station,
+// 2026-11-12) reads the pass and marks the arrival through these; it never
+// touches the tables.
+
+// What a pass says to another module: who the guest is, whose guest, for
+// which day, and where it stands today by the club clock.
+async function passFactsOf(companyId, row, { transaction } = {}) {
+    const [guest, hosts, today] = await Promise.all([
+        Guest.findOne({ where: { companyId, id: row.guestId }, attributes: ['id', 'name'], transaction }),
+        hostsById(companyId, [row.memberId]),
+        clubToday(companyId),
+    ]);
+    return {
+        id: row.id,
+        registrationNo: row.registrationNo,
+        visitDate: String(row.visitDate),
+        visitDateText: dateText(String(row.visitDate)),
+        status: row.status,
+        passState: passStateOf(row.status, row.visitDate, today),
+        arrivedAt: row.arrivedAt || null,
+        guest: guest ? { id: guest.id, name: guest.name } : { id: row.guestId, name: '' },
+        host: hosts.get(row.memberId) || { memberId: row.memberId, memberNo: '', name: '' },
+    };
+}
+
+// The pass behind a scanned link or a bare token; null when the code holds
+// no token or no pass of THIS club matches it.
+async function findPassByCode(companyId, code, opts = {}) {
+    const token = tokenFromCode(code);
+    if (!companyId || !token) return null;
+    const row = await GuestRegistration.findOne({ where: { companyId, passToken: token }, transaction: opts.transaction });
+    return row ? passFactsOf(companyId, row, opts) : null;
+}
+
+async function findPassById(companyId, id, opts = {}) {
+    if (!companyId || !id) return null;
+    const row = await GuestRegistration.findOne({ where: { companyId, id: String(id) }, transaction: opts.transaction });
+    return row ? passFactsOf(companyId, row, opts) : null;
+}
+
+// Mark a pass arrived, once: a pass already arrived, cancelled or not for
+// today is left as it is. Returns true when THIS call marked it.
+async function markArrived(companyId, id, { actorId = null, transaction } = {}) {
+    const row = await GuestRegistration.findOne({ where: { companyId, id: String(id) }, transaction });
+    if (!row || row.status !== 'registered') return false;
+    if (passStateOf(row.status, row.visitDate, await clubToday(companyId)) !== 'valid') return false;
+    Object.assign(row, { status: 'arrived', arrivedAt: new Date(), arrivedBy: actorId, updatedBy: actorId });
+    await row.save({ transaction });
+    return true;
+}
+
 module.exports = {
     passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf,
     host, searchGuests, create, update, cancel, arrive, pass, send, scan, publicPass, list, get,
+    findPassByCode, findPassById, markArrived,
 };

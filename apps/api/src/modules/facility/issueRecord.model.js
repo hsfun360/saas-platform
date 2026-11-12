@@ -20,10 +20,23 @@ const IssueRecord = sequelize.define('FacilityIssueRecord', {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // The member holding it.
+    // The member RESPONSIBLE for it (slice 6b): the holder when the two
+    // holder columns are empty, else the host whose bill carries the fee
+    // and to whom a loss is charged.
     patronId: {
         type: DataTypes.UUID,
         allowNull: false,
+    },
+    // The guest holding or using the item, as a snapshot; NULL = the member.
+    holderName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    // The guest's day pass, membership.GuestRegistration.id (a value ref
+    // across the seam, no FK); NULL for the member.
+    guestRegistrationId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     // The utility item (renamed from facilityTypeId, 2026-11-11).
     utilityItemId: {
@@ -94,6 +107,8 @@ const IssueRecord = sequelize.define('FacilityIssueRecord', {
         { name: 'IX_FacilityIssueRecord_Company_Item_Status', fields: ['companyId', 'utilityItemId', 'status'] },
         { name: 'IX_FacilityIssueRecord_Company_Patron_Status', fields: ['companyId', 'patronId', 'status'] },
         { name: 'IX_FacilityIssueRecord_Unit', fields: ['utilityUnitId'] },
+        // A guest's items, found by scanning the pass.
+        { name: 'IX_FacilityIssueRecord_Company_Pass_Status', fields: ['companyId', 'guestRegistrationId', 'status'] },
     ],
 });
 

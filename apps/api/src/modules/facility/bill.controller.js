@@ -101,6 +101,11 @@ async function sourceOf(companyId, bill) {
             UtilityItem.findOne({ where: { id: record.utilityItemId }, attributes: ['id', 'code', 'description'] }),
             record.utilityUnitId ? UtilityUnit.findOne({ where: { id: record.utilityUnitId }, attributes: ['id', 'code'] }) : null,
         ]);
+        // Slice 6b: one open bill carries a person's paid items of the day,
+        // so the title names the one item or counts them, and the guest
+        // holding them when the bill is in the host's name.
+        const onBill = await IssueRecord.count({ where: { companyId, feeBillId: bill.id } });
+        const itemsLabel = onBill > 1 ? `${onBill} utility items` : [iType ? iType.code : null, unit ? unit.code : null].filter(Boolean).join(' ') || 'utility item';
         return {
             kind: 'issue', booking: null, issue: record, label: `issue of ${unit ? unit.code : iType ? iType.code : 'item'}`, facilityTypeId: null,
             context: { date: String(bill.billDate), dayType: 'weekday', sessionId: null },
@@ -109,6 +114,8 @@ async function sourceOf(companyId, bill) {
                 date: String(bill.billDate), startTime: null, endTime: null,
                 facilityType: iType ? { id: iType.id, code: iType.code, description: iType.description } : null,
                 facilities: unit ? [unit.code] : [],
+                itemsLabel,
+                holderName: record.holderName || null,
                 booker: patron ? { id: patron.id, patronType: patron.patronType, name: patron.name, memberNo: patron.memberNo } : null,
                 slots: 0,
                 participants: [],
