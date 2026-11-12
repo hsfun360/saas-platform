@@ -802,7 +802,10 @@ async function returnIssue(req, id, body) {
         }
     });
     const lost = outcome.lostQuantity ? ` ${outcome.lostQuantity} lost - charge it from the bill's tiles if the club bills losses.` : '';
-    const out = { message: `Returned${outcome.unitStatus === 'out-of-service' ? ' - the unit is out of service until cleared' : ''}.${lost}` };
+    // The message names what came back: the unit's number, or the item's code.
+    const unit = record.utilityUnitId ? await UtilityUnit.findOne({ where: { id: record.utilityUnitId }, attributes: ['code'] }) : null;
+    const what = unit ? unit.code : (item ? item.code : 'Item');
+    const out = { message: `${what} returned${outcome.unitStatus === 'out-of-service' ? ' - the unit is out of service until cleared' : ''}.${lost}` };
     if (body.panel === true) out.panel = await panelOfRecord(req, record);
     return out;
 }
