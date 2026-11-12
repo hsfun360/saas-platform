@@ -1366,14 +1366,17 @@ async function entryTiles(companyId, who, { patron, now, date, dayType, startOfD
             ? pricing.defaultTypeFor(feeTypes, { chargeType: 'guest-fee', participantType: 'guest', facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId })
             : pricing.defaultTypeFor(feeTypes, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId });
         let fee = null;
+        let verdict = f.verdict;
         if (feeType) {
             const priced = pricing.unitPriceOf(feeType, await billing.cardsOf(feeType.id), { date, dayType, participantType: who.isGuest ? 'guest' : 'member' });
             fee = { code: feeType.transactionType, description: feeType.description, unitAmount: priced.missing ? null : priced.unitAmount };
+            // The tap would be refused at the bill: say so on the tile instead.
+            if (verdict.allowed && priced.missing && feeType.allowPriceOverride !== true) verdict = { allowed: false, reason: `${feeType.transactionType} has no price today.` };
         }
         out.push({
             facilityTypeId: type.id, code: type.code, description: type.description, iconUrl: type.iconUrl,
             liveCount: f.count, capacity: type.capacity, willReach: f.count + 1,
-            fee, allowed: f.verdict.allowed, reason: f.verdict.reason,
+            fee, allowed: verdict.allowed, reason: verdict.reason,
             // Where the person stands on this type: the entry they are on, and
             // whether it is theirs to sign out here (a guest on the host's
             // entry signs out with the host).
@@ -1396,8 +1399,10 @@ async function chargeEntry({ req, companyId, registration, type, patron, memberF
     const types = await TransactionType.findAll({ where: { companyId }, transaction });
     const feeType = memberFee ? pricing.defaultTypeFor(types, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId }) : null;
     const guestFees = guestLines.map((l) => ({ line: l, type: pricing.defaultTypeFor(types, { chargeType: 'guest-fee', participantType: l.participantType, facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId }) }));
-    if (memberFee && !feeType) warnings.push(`No active facility-fee item is the default for members on ${type.code} - the entry fee was not charged.`);
-    for (const g of guestFees) if (!g.type) warnings.push(`No active guest-fee item is the default for '${g.line.participantType}' on ${type.code} - ${g.line.name}'s guest fee was not charged.`);
+    // A facility with no fee item is free and its tile said so before the
+    // tap: nothing to warn about. A PICKED guest type with no fee item of its
+    // own does warn - the tile showed the standard guest price.
+    for (const g of guestFees) if (!g.type && g.line.participantType !== 'guest') warnings.push(`No active guest-fee item is the default for '${g.line.participantType}' on ${type.code} - ${g.line.name}'s guest fee was not charged.`);
     if (!feeType && !guestFees.some((g) => g.type)) return { bill: null };
     const candidates = [...new Set([registration.billId, ...joinBillIds].filter(Boolean))];
     let bill = candidates.length
