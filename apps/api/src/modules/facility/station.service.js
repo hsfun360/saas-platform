@@ -413,8 +413,8 @@ async function checkDoorGuests({ companyId, setting, type, guestRules, dayType, 
     const visitors = lines.filter((l) => participantTypes.isVisitorGuest(types, l.participantType));
     const memberGuests = lines.filter((l) => l.base === 'member-guest');
     const verdict = bookingRules.resolveGuestRule({ setting, type, rules: guestRules, facilityTypeId: type.id, dayType, date, startTime: time });
-    if (visitors.length && !verdict.allowGuest) return { error: `Visitor guests are not allowed on ${type.code} at ${time} on ${date}.` };
-    if (memberGuests.length && !verdict.allowMemberGuest) return { error: `Members as guests are not allowed on ${type.code} at ${time} on ${date}.` };
+    if (visitors.length && !verdict.allowGuest) return { error: `Visitor guests are not allowed on ${type.code} at ${time} on ${shared.bookingDateText(date)}.` };
+    if (memberGuests.length && !verdict.allowMemberGuest) return { error: `Members as guests are not allowed on ${type.code} at ${time} on ${shared.bookingDateText(date)}.` };
     if (type.maxGuestsPerBooking != null && visitors.length > Number(type.maxGuestsPerBooking)) return { error: `At most ${type.maxGuestsPerBooking} visitor guest${Number(type.maxGuestsPerBooking) === 1 ? '' : 's'} per visit on ${type.code}.` };
     // Only the lines that would draw a NEW visit: a known guest (slice 6c) was
     // counted when the pass was registered.
