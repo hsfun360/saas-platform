@@ -652,3 +652,7 @@
     justify-items: start;
   }
 }
+/* The outcome line of the Add guest form stands clear of the fields above it. */
+.st-outcome {
+  margin-top: var(--space-md);
+}

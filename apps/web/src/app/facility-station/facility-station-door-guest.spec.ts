@@ -113,6 +113,8 @@ describe('FacilityStationComponent - the guest without a pass, with the member',
     button('Add guest')?.click();
     await settle();
     expect(component.dlgMode()).toBe('addGuest');
+    // The name field takes the keyboard: the guest is keyed without a click.
+    expect(document.activeElement).toBe(host().querySelector('#stGuestName'));
     expect(host().querySelectorAll('app-dialog').length).toBe(1);
     expect(host().textContent).toContain('Add a guest of Ahmad Faizal');
     component.guestForm.patchValue({ name: 'Lim Ah Kow' });
@@ -173,6 +175,8 @@ describe('FacilityStationComponent - the guest without a pass, with the member',
     expect(host().textContent).toContain('The club registers every guest at the station: key in a mobile number or an email.');
     const submit = Array.from(host().querySelectorAll('button[type="submit"]')).find((b) => b.getAttribute('form') === 'stAddGuest') as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
+    // A name alone cannot be served here: the button names the only way in.
+    expect(submit.textContent).toContain('Register and serve');
     component.submitAddGuest();
     await settle();
     expect(added).toEqual([]);

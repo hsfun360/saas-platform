@@ -644,7 +644,7 @@
                 <p class="st-lead">Guest of <strong>{{ p.host.name }}</strong> ({{ p.host.memberNo }}), at the counter with the member.</p>
                 <div class="form-group">
                   <label for="stGuestName">Guest name <span class="required">*</span></label>
-                  <input id="stGuestName" type="text" formControlName="name" maxlength="255" autocomplete="off"
+                  <input #guestName id="stGuestName" type="text" formControlName="name" maxlength="255" autocomplete="off"
                          [attr.aria-invalid]="showError(guestForm.controls.name)" aria-describedby="stGuestNameErr" />
                   @if (showError(guestForm.controls.name)) { <p id="stGuestNameErr" class="field-error" role="alert">Key in the guest's name.</p> }
                 </div>
@@ -660,7 +660,7 @@
                     @if (showError(guestForm.controls.email)) { <p id="stGuestEmailErr" class="field-error" role="alert">Enter a valid email address.</p> }
                   </div>
                 </div>
-                <div class="flash flash-info flash--static" role="status">
+                <div class="flash flash-info flash--static st-outcome" role="status">
                   <span class="flash-icon"><span class="material-icons inline-icon" aria-hidden="true">info</span></span>
                   <span>{{ addGuestOutcome() }}</span>
                 </div>
@@ -863,7 +863,7 @@
           }
           @case ('addGuest') {
             <button type="button" class="btn btn--secondary" (click)="backFromAddGuest()" [disabled]="saving()">Back</button>
-            <button type="submit" form="stAddGuest" class="btn btn--primary" [disabled]="saving() || addGuestMode() === 'refused'">{{ saving() ? 'Adding…' : (addGuestMode() === 'pass' ? 'Register and serve' : 'Serve by name') }}</button>
+            <button type="submit" form="stAddGuest" class="btn btn--primary" [disabled]="saving() || addGuestMode() === 'refused'">{{ saving() ? 'Adding…' : (addGuestMode() === 'name' ? 'Serve by name' : 'Register and serve') }}</button>
           }
           @case ('checkin') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>

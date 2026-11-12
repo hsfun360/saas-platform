@@ -133,6 +133,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   static readonly UNITS_SHOWN = 12;
   private readonly scanBox = viewChild<ElementRef<HTMLInputElement>>('scanBox');
   private readonly scanNext = viewChild<ElementRef<HTMLInputElement>>('scanNext');
+  private readonly guestName = viewChild<ElementRef<HTMLInputElement>>('guestName');
   // A desk with a keyboard and a mouse (so, a handheld scanner): the scan
   // fields take the focus by themselves. A phone or a tablet keeps its
   // on-screen keyboard down and scans with the camera.
@@ -732,6 +733,9 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.clearMessages();
     this.guestForm.reset({ name: '', mobile: '', email: '' });
     this.dlgMode.set('addGuest');
+    // The view changed inside the open drawer: the name field takes the
+    // keyboard, so the guest is keyed without a click.
+    setTimeout(() => this.guestName()?.nativeElement.focus(), 0);
   }
 
   // Back to the member's panel, nothing added.
@@ -842,7 +846,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
           next: (res) => {
             this.successMessage.set(res.message);
             this.passShare.set(null);
-            if (res.panel) this.panel.set(res.panel);
+            if (res.panel) { this.panel.set(res.panel); this.focusNext(); }
             else this.closeDialog();
           },
           error: (err) => this.errorMessage.set(err.error?.message || 'Failed to remove the guest.'),
