@@ -1248,6 +1248,7 @@ Found by that smoke and fixed (the three local scenarios run again: 38, 55 and 6
 the member's Guests list now carries every guest of the day - today's passes of that member (`listGuestPassesOfHost`, a fifth seam call) and the guests on the lines of the member's entries - not only the ones who already took an item, so a guest added a moment ago is one tap away;
 "Added by mistake - remove" is no longer offered, and the removal is refused, once the guest has entered a facility on the pass (the panel's `pass.removable` says so);
 a guest's panel shows the open bill of the entry they stand on while they have no bill of their own, so the guest fee just charged is in sight.
+Those three were pushed and seen on dev the same day: the member's Guests list carried Wong Mei Ling with nothing held, her panel no longer offered the removal, and it showed "Open bill FBL-00016 - 10.00 - in Ahmad Faizal's name" with its Bill button.
 
 The user's point.
 The station has no scan of the guest's pass, and it is not friendly: the desk picks an item first and keys the person after, once per item.
