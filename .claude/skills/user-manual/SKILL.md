@@ -53,8 +53,8 @@ Voice and style:
 Every manual is written twice - the git source of truth, and the in-app copy that lights up the header's Book icon:
 
 1. **Source of truth**: `docs/user-manual/<system-slug>/<screen-slug>.md` (e.g. `docs/user-manual/membership-management/membership-fee.md`).
-   System slugs are the existing folders under `docs/user-manual/`: `general` (screens every user has, such as My Dashboard), `saas-administration`, `system-setup`, `account-receivable`, `golf-management`, `membership-management`.
-   Add a folder only when a new system ships its first screen (Facility Management has none yet).
+   System slugs are the existing folders under `docs/user-manual/`: `general` (screens every user has, such as My Dashboard), `saas-administration`, `system-setup`, `account-receivable`, `golf-management`, `membership-management`, `facility-management`.
+   Add a folder only when a new system ships its first screen.
    Maintain `docs/user-manual/README.md` as the index: one line per manual, grouped by system. Create it on first use; add new manuals every time.
 2. **In-app guide (this is how the option links to its manual)**: copy the same content to `apps/web/public/help/<route-slug>.md` and add the slug to `apps/web/public/help/index.json` as `"<route-slug>": { "title": "<Screen name>" }`.
    The route slug is the screen's route with slashes turned into hyphens: `/admin/countries` -> `admin-countries`, `/membership/fees` -> `membership-fees`.
