@@ -896,7 +896,10 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // while the guest has taken nothing.
   readonly guestRemovable = computed(() => {
     const p = this.panel();
-    return !!p && !!p.pass && p.pass.createdHere === true && p.holding.length === 0 && p.usedToday.length === 0;
+    if (!p || !p.pass) return false;
+    // The server says so when it knows (it also sees a facility entered on the pass).
+    if (p.pass.removable !== undefined) return p.pass.removable === true;
+    return p.pass.createdHere === true && p.holding.length === 0 && p.usedToday.length === 0;
   });
 
   askRemoveGuest(): void {

@@ -245,6 +245,9 @@ describe('FacilityStationComponent - the guest without a pass, with the member',
     expect(component.guestRemovable()).toBe(false);
     component.panel.set(guestOnPass);
     expect(component.guestRemovable()).toBe(true);
+    // The server's word wins: it also knows the guest entered a facility on the pass.
+    component.panel.set({ ...guestOnPass, pass: { ...guestOnPass.pass!, removable: false } });
+    expect(component.guestRemovable()).toBe(false);
   });
 
   it('sends an entry\'s guest lines with their identity: a mobile registers the guest, a line on a pass keeps it', async () => {

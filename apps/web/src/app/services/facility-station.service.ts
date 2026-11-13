@@ -287,8 +287,9 @@ export interface ServePanel {
   kind: 'guest' | 'member';
   person: { name: string };
   host: { memberId: string; memberNo: string; name: string };
-  // createdHere = the station registered this pass, so it may take it back.
-  pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean; createdHere?: boolean } | null;
+  // createdHere = the station registered this pass; removable = a guest
+  // added by mistake can still be taken back (nothing taken, no facility entered).
+  pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean; createdHere?: boolean; removable?: boolean } | null;
   // A member's panel: the guests served under them, and how a guest keyed
   // at the station is served (Facility Specification's two door switches).
   guests?: ServeGuest[];
