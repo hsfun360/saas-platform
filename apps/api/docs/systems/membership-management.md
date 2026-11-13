@@ -517,6 +517,7 @@ A producer may also REGISTER a guest who stands at its counter with the member (
 It answers the pass facts with `created`, `counted` and `share` (the pass link, its QR code, the WhatsApp link and whether it can be emailed), or `{ nameOnly, warning }` when the club has no automatic Guest Registration No. series, so the door is never refused for that.
 `cancelGuestAtDoor(companyId, id, { channel, actorId, reason })` cancels ONLY a registration that channel created and voids its visit; `getGuestPassShare(req, id)` and `sendGuestPass(req, id, via)` hand the pass over again from the producer's screen.
 The pass facts carry the registration's `channel`.
+`listGuestPassesOfHost(companyId, memberId, date)` answers the live passes of one host for a date (the id, the number, the status, the channel, the guest), so a counter can list the guests it may be serving under that member (2026-11-13).
 A producer serves a guest on the pass through these three and never reads `GuestRegistration` itself.
 
 ### Registration rules (`guestRegistration.service.js`)
