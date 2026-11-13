@@ -703,6 +703,17 @@ async function passShare(req, id) {
     return shareFactsOf(l.row, l.guest, l.host, await getCompanyProfile(l.companyId));
 }
 
+// The live passes of one host for a date - the guests a counter may be
+// serving under that member today, before any of them has taken anything.
+async function passesOfHost(companyId, memberId, date, { transaction } = {}) {
+    if (!companyId || !memberId) return [];
+    const rows = await GuestRegistration.findAll({ where: { companyId, memberId, visitDate: String(date), status: { [Op.ne]: 'cancelled' } }, order: [['createdAt', 'ASC']], transaction });
+    if (!rows.length) return [];
+    const guests = await Guest.findAll({ where: { companyId, id: { [Op.in]: rows.map((r) => r.guestId) } }, attributes: ['id', 'name'], transaction });
+    const nameOf = new Map(guests.map((g) => [g.id, g.name]));
+    return rows.map((r) => ({ id: r.id, registrationNo: r.registrationNo, status: r.status, channel: r.channel, guest: { id: r.guestId, name: nameOf.get(r.guestId) || '' } }));
+}
+
 // Undo a registration a producer's counter created (never one of the front
 // desk's or the portal's): it is cancelled with the reason and its visit no
 // longer counts. Returns true when THIS call cancelled it.
@@ -719,5 +730,5 @@ module.exports = {
     passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf,
     host, searchGuests, create, update, cancel, arrive, pass, send, scan, publicPass, list, get,
     findPassByCode, findPassById, markArrived,
-    registerAtDoor, cancelAtDoor, passShare,
+    registerAtDoor, cancelAtDoor, passShare, passesOfHost,
 };

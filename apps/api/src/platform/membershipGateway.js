@@ -461,6 +461,13 @@ async function cancelGuestAtDoor(companyId, guestRegistrationId, opts = {}) {
     return require('../modules/membership/guestRegistration.service').cancelAtDoor(companyId, guestRegistrationId, opts);
 }
 
+// The live passes of one host for a date: [{ id, registrationNo, status,
+// channel, guest { id, name } }].
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/guest-passes?memberId&date
+async function listGuestPassesOfHost(companyId, memberId, date, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').passesOfHost(companyId, memberId, date, opts);
+}
+
 async function getGuestPassShare(req, guestRegistrationId) {
     return require('../modules/membership/guestRegistration.service').passShare(req, guestRegistrationId);
 }
@@ -480,6 +487,7 @@ module.exports = {
     cancelGuestAtDoor,
     getGuestPassShare,
     sendGuestPass,
+    listGuestPassesOfHost,
     lookupPartyDisplay,
     searchPartyIds,
     getChargeTarget,
