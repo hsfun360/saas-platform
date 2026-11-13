@@ -119,3 +119,23 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Membership Type Import](membership-management/membership-type-import.md) - Excel upload of membership types into staging, review, selective migration (joining fees and standing charges excluded); includes the batch detail.
 - [Membership Analysis](membership-management/membership-membership-analysis.md) - Business Insights: KPIs, movement, status/type/age/country/nationality charts, and the click-through drill-down panel.
 - [Agent Performance](membership-management/membership-agent-performance.md) - Business Insights: memberships closed per channel and agent, monthly stacked trend, leaderboard, and the drill-down panel.
+
+## Facility Management
+
+- [Facility Specification](facility-management/facility-settings.md) - the club-wide facility rules: the booking window, day sessions, guest control, cancellation notice and no-show penalty, how the Control Station behaves (check-in window, sign-out at close, guests keyed at the station) and the classes switch.
+- [Facility Types](facility-management/facility-facility-types.md) - the kinds of facility the club runs: each type's booking, guest and fee rules, opening hours and capacity, and the slot sets of bookable times.
+- [Facilities](facility-management/facility-facilities.md) - every court, hall and room under its facility type: add and maintain them, and take one out of use.
+- [Facility Closures](facility-management/facility-closures.md) - close a facility or a whole type over a period, then generate, review and save the closure days.
+- [Participant Types](facility-management/facility-participant-types.md) - the participant categories the fee price cards are priced by: the club's own types beside the three system ones, with approval, disable and delete.
+- [Transaction Types](facility-management/facility-transaction-types.md) - the facility billing items: charge type, tax scheme and effective-dated prices by participant, day and session.
+- [Payment Types](facility-management/facility-payment-types.md) - the tenders a facility bill is settled with: code, payment class and tile icon, enable or disable.
+- [Numbering Control](facility-management/facility-numbering.md) - how the three facility series (Booking No., Registration No., Bill No.) are numbered: an automatic format and counter or manual entry, plus copy from another company.
+- [Utility Items](facility-management/facility-utility-items.md) - the lockers, towels and showers the Control Station hands out: numbered units and Generate units, limits, fees and who may be served.
+- [Venues](facility-management/facility-venues.md) - where classes are held, and whether a session blocks the linked facility from booking.
+- [Instructors](facility-management/facility-instructors.md) - the people who lead the club's classes, with contact details, specialities and photo.
+- [Classes](facility-management/facility-classes.md) - instructor-led classes with their fees and enrolment mode, and the schedules that generate the dated sessions after a preview.
+- [Class Schedule](facility-management/facility-class-schedule.md) - the weekly timetable: open a roster, enrol, run the waitlist, mark attendance, hold, move or cancel a session, add a one-off.
+- [Facility Bookings](facility-management/facility-bookings.md) - the slot booking desk: pick a type and day, hold a run of slots, key the booker and participants, cancel with the charge shown first, and the one bill drawer (settle, charge to account, void).
+- [Control Station](facility-management/facility-station.md) - the desk's day: scan a guest pass or key a member number to issue lockers, towels and showers, add a guest, admit people to the gym or pool, check in booked slots and close the day.
+- [No-show Charges](facility-management/facility-no-show-charges.md) - the penalty follow-up: post pending no-show and late cancellation charges to the booker's account, re-price unpriced ones, waive with a reason and clear a strike.
+- [Booking Suspensions](facility-management/facility-suspensions.md) - the members barred from booking: automatic strike suspensions, suspending a member by hand for a period, and lifting a suspension early with a reason.

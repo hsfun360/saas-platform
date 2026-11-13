@@ -298,5 +298,56 @@
   },
   "admin-access-requests": {
     "title": "Access Requests"
+  },
+  "facility-settings": {
+    "title": "Facility Specification"
+  },
+  "facility-facility-types": {
+    "title": "Facility Types"
+  },
+  "facility-facilities": {
+    "title": "Facilities"
+  },
+  "facility-closures": {
+    "title": "Facility Closures"
+  },
+  "facility-participant-types": {
+    "title": "Participant Types"
+  },
+  "facility-transaction-types": {
+    "title": "Transaction Types"
+  },
+  "facility-payment-types": {
+    "title": "Payment Types"
+  },
+  "facility-numbering": {
+    "title": "Numbering Control"
+  },
+  "facility-utility-items": {
+    "title": "Utility Items"
+  },
+  "facility-venues": {
+    "title": "Venues"
+  },
+  "facility-instructors": {
+    "title": "Instructors"
+  },
+  "facility-classes": {
+    "title": "Classes"
+  },
+  "facility-class-schedule": {
+    "title": "Class Schedule"
+  },
+  "facility-bookings": {
+    "title": "Facility Bookings"
+  },
+  "facility-station": {
+    "title": "Control Station"
+  },
+  "facility-no-show-charges": {
+    "title": "No-show Charges"
+  },
+  "facility-suspensions": {
+    "title": "Booking Suspensions"
   }
 }
