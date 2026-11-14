@@ -43,7 +43,7 @@ Staff come here when the club introduces a charge, changes a price (a future eff
 
 ### Golfer-type defaults (green fee, buggy fee, caddy fee)
 
-**Default for golfer type** names the category of golfer an item is *the* item for: **Member**, **Member as Guest** or **Guest / Visitor**.
+**Default for golfer type** names the category of golfer an item is *the* item for: one of the club's player types, such as **Member**, **Member as Guest**, **Guest** or **Visitor**.
 At most one active item per charge type may be the default for a category.
 
 - On a **green fee** it is the fee auto-charged at registration for that category.
@@ -117,7 +117,7 @@ A club charges caddies at 64.00 (9 holes) / 128.00 (18 holes) for members and me
 
 1. Create `CADDY-M` - Charge Type **Caddy Fee**, Default for golfer type **Member**, Tax Scheme SST; under Default Price enter 64.00 / 128.00 in the weekday cells and **Copy weekday prices** to the weekend cells.
 2. Create `CADDY-MG` the same way with Default for golfer type **Member as Guest**.
-3. Create `CADDY-V` with Default for golfer type **Guest / Visitor** and 69.10 / 138.25.
+3. Create `CADDY-V` with Default for golfer type **Visitor** and 69.10 / 138.25.
 
 On a bill, a member sees only `CADDY-M`, a member's guest only `CADDY-MG`, a visitor only `CADDY-V` - the price follows the player, and a tile of the wrong category is refused if someone tries it another way.
 Buggy rates (e.g. 75.60 / 129.60 for members, 91.80 / 167.40 for visitors) are keyed exactly the same way with Charge Type **Buggy Fee**.
@@ -150,7 +150,7 @@ Items that are not billable lines (e.g. a food-and-beverage share) are not model
 | **Transaction Type** | Yes | The item's code shown on bills and tiles, e.g. `GF18`, `BUGGY-M`, `PKG-JR`. | Up to 50 characters; unique within the club. |
 | **Charge Type** | Yes | Green Fee, Caddy Fee, Buggy Fee, No Show Charges, Miscellaneous or Package. | Decides whether the price is a four-cell table or a flat amount. |
 | **Usage type** | Buggy and caddy fees: Yes | Single (one buggy or caddy per fee) or Shared (one per two fees, the half price). | Buggy and caddy fees only; decides how many buggies or caddies the stations assign for the line. |
-| **Default for golfer type** | No | Member, Member as Guest or Guest / Visitor - the category this item is the default for. | Green, buggy and caddy fees only; one active default per charge type and category (per usage type for buggy fees). |
+| **Default for golfer type** | No | One of the club's player types (Member, Member as Guest, Guest, Visitor, or a type the club added) - the category this item is the default for. | Green, buggy and caddy fees only; one active default per charge type and category (per usage type for buggy fees). |
 | **Description** | No | What the item is, e.g. `18 Holes Green Fee`. | Up to 255 characters. |
 | **Tax Scheme** | No | The tax applied when the item is billed; None = tax-free. | Must be one of the club's usable output-tax schemes. On a package it applies to every generated line. |
 | **Auto Transaction Type** | Packages: Yes | The item that receives the package's balance line. | An active, non-package item of this club; not the package itself. |

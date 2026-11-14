@@ -59,16 +59,26 @@ Public holidays follow the weekend rule.
 A booking passes when its own players meet the minimum - or when joining an existing flight brings that flight's total up to it.
 When several exceptions could apply, the most specific wins: a specific course beats Every course, a time band beats the whole day, and a specific day (e.g. Sunday) beats Weekend & Holiday, which beats All days.
 
-### Restrict guests
+### Restrict guests and visitors
+
+The club deals with five kinds of patron, and the system treats each differently:
+
+- A **member** plays in their own right.
+- A **guest** is always brought by a member - the host - and plays under that member's rights and the club's guest rules.
+- A **visitor** has no host member and registers at the front desk.
+- A member of an **affiliated club** and a member of a **reciprocal club** arrive on a letter of introduction; their club record sets their terms.
 
 1. Open **Who may play** and switch **Guest control** on.
-   While it is off, guests are always welcome and the settings below are ignored.
-2. Under **Weekday** and **Weekend & Holiday**, tick or untick **Allow guest (visitor)** and **Allow member as guest** (a member playing under another member's booking).
-3. For finer control - e.g. no guests on Sunday mornings on the West course - click **Add exception** and fill the row with the same Course / Days / From / To scoping plus the two guest tick boxes.
+   While it is off, guests and visitors are always welcome and the settings below are ignored.
+2. Under **Weekday** and **Weekend & Holiday**, tick or untick **Allow guests** (the guests members bring) and **Allow visitors** (golfers with no host member).
+3. For finer control - e.g. no guests on Sunday mornings on the West course - click **Add exception** and fill the row with the same Course / Days / From / To scoping plus the **Guests** and **Visitors** tick boxes.
+   Untick both for a members-only time.
 4. Click **Save**.
 
-Guest control is enforced when a booking is made and checked again when players register.
-How *many* guests a member may bring is not set here - it is the guest quota on the Membership Type.
+Guest control is followed strictly, on the Booking screen and at the front desk alike: a booking, a change or a walk-in that breaks it is refused.
+A member who plays on another member's booking without a playing right of their own for that flight plays as the booker's guest - the system decides this itself - so the **Allow guests** answer covers them too.
+Members of affiliated and reciprocal clubs are not affected by these answers.
+How *many* guests a member may bring is not set here: the guest quota per booking and the monthly guest allowance both live on the Membership Type.
 
 ### Apply handicap limits and accompaniment rules
 
@@ -147,7 +157,10 @@ Off, the Caddies register, grades and groups can still be keyed.
    The most specific row wins: a club over a player type, a named membership type over every type, a specific day over weekday or weekend over all days.
 4. Click **Save**.
 
-The booking screen refuses a booking whose player falls outside their playing rights or would exceed their quota, and says why ("already has 4 weekend rounds this month - Ordinary member allows 4"); the Tee Time Sheet warns on registration.
+The member who makes a booking must hold the playing right for the flight and have room in their round quota; otherwise the booking screen refuses and says why ("already has 4 weekend rounds this month - Ordinary member allows 4").
+Another member on that booking who has no right of their own, or has used up their quota, is not refused: they play as the booker's guest.
+The guest rules then apply to them - the Allow guests answer, the booker's guest quota and monthly guest allowance - they are priced as Member as Guest, and the round does not count toward their own quota.
+At the front desk a walk-in member with no right for the flight is registered only as the guest of a host member named on the form.
 An affiliated visit's confirmation preview applies the club's playing rights too.
 Rows are kept while the switch is off.
 
@@ -217,11 +230,11 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Guest control** (switch) | No | The master switch; off = guests always welcome. | Reveals the settings below. |
-| **Allow guest (visitor)** (Weekday / Weekend & Holiday) | No | Whether bookings may include visitors on that day type. | Ticked by default. |
-| **Allow member as guest** (Weekday / Weekend & Holiday) | No | Whether a member may play under another member's booking on that day type. | Ticked by default. |
+| **Guest control** (switch) | No | The master switch; off = guests and visitors always welcome. | Reveals the settings below. |
+| **Allow guests** (Weekday / Weekend & Holiday) | No | Whether members may bring guests on that day type - guest lines and members playing as another member's guest. | Ticked by default. |
+| **Allow visitors** (Weekday / Weekend & Holiday) | No | Whether a golfer with no host member may play on that day type (front-desk walk-ins). | Ticked by default. |
 | **Exception - Course / Days / From / To** | As above | The scope of the exception, same rules as the Minimum Players exceptions. | Most specific row wins. |
-| **Exception - Guest / Member guest** | No | The two answers for that scope. | Untick to forbid. |
+| **Exception - Guests / Visitors** | No | The two answers for that scope. | Untick to forbid; untick both for a members-only time. |
 
 #### Handicap control
 

@@ -30,7 +30,7 @@ Staff come here when the club signs a new arrangement, when its terms change, an
 
 [Screenshot: New affiliated club drawer]
 
-1. On Golf Management → Player Types, make sure an **Affiliated / Reciprocal** base player type exists for this club's visitors, and give it a green-fee rate card on Transaction Type; if the host collects a visit fee, create a flat-priced miscellaneous golf transaction type for it.
+1. On Golf Management → Player Types, make sure a player type of the matching base exists for this club's visitors - **Affiliated club member** for an affiliated association, **Reciprocal club member** for a reciprocal club - and give it a green-fee rate card on Transaction Type; if the host collects a visit fee, create a flat-priced miscellaneous golf transaction type for it.
 2. Click **New affiliated club**.
 3. Under **Club**, enter the **Code** (e.g. `MGA`), pick the **Kind**, enter the **Name** and pick the player type under **Billed as player type**.
 4. Under **Terms of the arrangement**, set the **Agreement from** / **to** dates (leave both blank for an open-ended arrangement), the **Visits per player** and the period it is **Counted** over (e.g. 14 per year), the **Inbound visits per year (club-wide)** quota, the **Visit fee item**, the **Guests per visit** (0 = none, blank = no cap), and tick **Charges may be signed back to the home club** or **Visits from this club need approval** where the arrangement says so.
@@ -60,7 +60,7 @@ If you leave the drawer with unsaved changes (Cancel, ✕, Esc or the browser ba
 | **Code** | Yes | A short code, e.g. `MGA` or `SAUJANA`. | Letters, digits and hyphens, up to 20 characters, stored in capitals; unique in your company. |
 | **Kind** | Yes | **Affiliated association** (its members hold the association's card) or **Reciprocal club** (mutual visiting rights). | The terms below apply to both. |
 | **Name** | Yes | The full name of the association or club. | Up to 255 characters. |
-| **Billed as player type** | Yes | The golf player type of base Affiliated / Reciprocal whose green-fee rate card prices this club's visitors. | Must be an active affiliate-base player type. |
+| **Billed as player type** | Yes | The golf player type whose green-fee rate card prices this club's visitors. | Must be an active player type of the base that matches the Kind: Affiliated club member for an association, Reciprocal club member for a reciprocal club. The list shows the matching types once the Kind is picked. A club saved before the two bases were separated keeps its type until you change its Kind or type. |
 | **Agreement from** / **to** | No | The validity of the arrangement. | Both blank = open-ended; the end cannot precede the start; visits outside the dates are refused. |
 | **Visits per player** / **Counted** | No | How many visits one member may make per week, month or year, in either direction. | 1 to 999; blank = no cap; the period is required when a number is given. |
 | **Inbound visits per year (club-wide)** | No | The partnership's annual quota: visits from this club the arrangement admits in a calendar year, all members together. | 1 to 9999; blank = no cap. |
@@ -76,7 +76,8 @@ If you leave the drawer with unsaved changes (Cancel, ✕, Esc or the browser ba
 ## Tips & troubleshooting
 
 - If you see "Affiliated club 'X' already exists.", another club in your company already uses that code.
-- If you see "Pick the player type this club's visitors are billed as." or "'GUEST' is not an affiliated / reciprocal player type.", create or pick a player type with the Affiliated / Reciprocal base on Player Types first.
+- If you see "Pick the player type this club's visitors are billed as.", create or pick a player type with the matching base on Player Types first.
+- If you see "A reciprocal club is billed as a player type of base Reciprocal club member - 'X' is an Affiliated club member type." (or the reverse for an association), add a player type of the right base on Golf Management → Player Types and pick it.
 - If you see "Player type 'X' is disabled - enable it or pick another.", the chosen type is switched off.
 - If you see "The agreement cannot end before it starts.", swap or correct the dates.
 - If you see "Pick the period the visit cap counts over.", choose per week, month or year next to the visit number.
@@ -88,6 +89,6 @@ If you leave the drawer with unsaved changes (Cancel, ✕, Esc or the browser ba
 ## Related options
 
 - Membership Management → Affiliated Visits - where letters of introduction are recorded, confirmed and issued.
-- Golf Management → Common Setup → Player Types - the Affiliated / Reciprocal base type each club is billed as.
+- Golf Management → Common Setup → Player Types - the Affiliated club member or Reciprocal club member type each club is billed as.
 - Golf Management → Transaction Type - the green-fee rate card for that player type and the visit fee item.
 - Golf Management → Golf Specification - playing rights and round quotas may target a club (blackout days, time bands, courses).

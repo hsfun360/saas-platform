@@ -65,11 +65,21 @@ A group player's own bill opens empty - the package is billed on the group's fol
 
 Two ways:
 
-- From a flight with a free seat: click **+ Add walk-in** in the first free slot (the other free seats read **Available**), pick the **Player Type** and **No of Holes**, enter the **Member No** (member or member-as-guest) or the **Guest Name** with optional **Identity / Passport No.** and **Mobile** (pick the country code, then type the number), then click **Register walk-in**.
+- From a flight with a free seat: click **+ Add walk-in** in the first free slot (the other free seats read **Available**), pick the **Player Type** and **No of Holes**, fill the fields for that type (below), then click **Register walk-in**.
 - From the **Walk-in** button: the **Walk-in registration** drawer additionally asks for the **Course** and **Flight Time**.
 
+What you key depends on who is at the counter:
+
+- **Member** - the **Member No**.
+  A member who has no playing right of their own for this flight cannot register alone; enter the **Host Member No** of the member they are playing with and they register as that member's guest.
+- **Guest** - a guest is always brought by a member, so the **Host Member No** is required, then the **Guest Name** with optional **Identity / Passport No.** and **Mobile** (pick the country code, then type the number).
+  When you leave the host field the system shows the host's name, membership type and how many monthly guest visits they have left.
+  **Guest Pass** lists the passes the host registered for today; picking one names the guest and marks the pass as arrived.
+- **Visitor** - a golfer with no host member: the **Visitor Name** with optional identity and mobile.
+
 A walk-in takes a seat only on a flight that is on the tee sheet, open for new tee-offs (not crossover-only, not closed) and not full; an 18-hole walk-in also needs a free, open crossover flight.
-Returning guests are matched by identity number, then mobile, so one guest profile is kept.
+The club's guest rules are followed at the desk exactly as on the Booking screen: a guest is refused when guests are not allowed on the flight, when the host may not play the flight themselves, or when the host has no monthly guest visits left, and a visitor is refused when visitors are not allowed on the flight.
+Returning guests and visitors are matched by identity number, then mobile, so one profile is kept.
 
 ### Bill a player
 
@@ -173,9 +183,11 @@ With the rule off, no-shows are recorded without charges.
 | **Course** | Walk-in button: Yes | The course the golfer tees off on. | Type to search the course list. |
 | **Flight Time** | Walk-in button: Yes | The tee time, picked from the time control. | Must be a time on the course's tee sheet for the day, open to new tee-offs and not full. |
 | **No of Holes** | Yes | 9 or 18 holes. | 18 holes needs a free crossover flight; a "9H only" flight offers 9 only. |
-| **Player Type** | Yes | Member, Member as Guest or Guest. | Decides the green fee category and which tiles the bill shows. |
-| **Member No** | Member / Member as Guest: Yes | The member's number, e.g. `A0018`. | The member must exist; a barred member cannot register. |
-| **Guest Name** | Guest: Yes | The visitor's name. | Up to 100 characters. |
+| **Player Type** | Yes | Member, Guest or Visitor (plus the club's own types). | Decides the green fee category, which tiles the bill shows and whether a host member is asked for. |
+| **Member No** | Member: Yes | The member's number, e.g. `A0018`. | The member must exist; a barred member cannot register. |
+| **Host Member No** | Guest: Yes; Member: No | The member whose guest the golfer is. | For a member, only when they play as another member's guest. The host must exist, not be barred, hold the playing right for the flight and have guest visits left. Not asked for a visitor. |
+| **Guest Pass** | No | One of the host's guest passes for today. | Shown only for a guest whose host has passes today. |
+| **Guest Name** / **Visitor Name** | Guest and Visitor: Yes | The golfer's name. | Up to 100 characters. |
 | **Identity / Passport No.** | No | Used to recognise a returning guest. | Up to 50 characters. |
 | **Mobile** | No | Also used to recognise a returning guest; pick the country code, then type the number. | Up to 30 characters. |
 
@@ -234,7 +246,12 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Configure the Registration No. (or Bill No.) numbering scheme first", set the series under Numbering Control.
 - If you see "<name> is already registered (R...)", the player was registered in the meantime - reload the day.
 - If you see "Bill G... exists for this registration - void it first", void the bill before cancelling the registration.
-- If you see "'BUGGY-V' is the Guest / Visitor item - this player is billed as Member", the tile belongs to another golfer category - use that category's item.
+- If you see "'BUGGY-V' is the Visitor item - this player is billed as Member", the tile belongs to another golfer category - use that category's item.
+- If you see "Name the host member - a guest plays as the guest of a member. A golfer with no host registers as a Visitor.", enter the host's member number, or change the Player Type to Visitor.
+- If you see "X holds no playing right for this flight - ... To play as a member's guest, name the host member.", the member may not play this flight on their own; enter the member they are playing with as the host.
+- If you see "X cannot host a guest on this flight - ...", the host member may not play this flight themselves, so they cannot bring a guest onto it.
+- If you see "Guests are not allowed on this flight (guest control)." or "Visitors are not allowed on this flight (guest control).", the club's guest rules in Golf Specification forbid that patron at this course, day or time.
+- If you see "X has 0 of 4 monthly guest visits left - this registration needs 1.", the host's monthly guest allowance is used up.
 - If you see "'PKG-JR' - Age 18 and under", the golfer does not qualify for the package; the greyed tile shows the same reason.
 - If you see "Payments (x) must equal the bill total (y)", adjust the amounts until Remaining reads 0.00.
 - If you see "Charge to member account needs a member bill", "Member ... is barred from charging to account", "Open an AR invoice transaction type to the Golf module first" or "Several AR transaction types are opened to Golf", the Member tender cannot post - settle with another tender or fix the setup.

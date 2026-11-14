@@ -52,13 +52,19 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 7. The flight is now held for you: the banner reads "Flight held - confirm within m:ss" (the hold length comes from Golf Specification; five minutes unless changed).
    A summary underneath names the course, date, tee time, crossover time and holes, and "n player(s) already booked on this flight" when you are joining others.
    If the countdown runs out the hold is released and you are returned to the flight list.
-8. Player 1 is the booker and is fixed; its line carries a **Booker** tag instead of a remove button.
-   For each other line pick the **Type** - **Member**, **Member as Guest** or **Guest** - and key in the **Member ID** or the **Guest Name** (a plain `Guest` is accepted; the guest's details are captured at registration).
+8. A line above the players states the booker's guest standing, e.g. "Guests of G-001: Up to 3 guests per booking · 2 of 4 monthly guest visits left", and counts the guests as you key them.
+9. Player 1 is the booker and is fixed; its line carries a **Booker** tag instead of a remove button.
+   For each other line pick the **Type** - **Member** or **Guest** - and key in the **Member ID** or the **Guest Name** (a plain `Guest` is accepted; the guest's details are captured at registration).
+   When you leave a Member ID field the system says how that member will play on this flight: "plays as a member", or "plays as a guest of the booker" with the reason when the member has no playing right of their own for it.
+   Nobody picks Member as Guest - the system decides it from the club's playing rights and round quotas.
+   On a Guest line, **Guest pass** lists the passes the booker registered for that day (Membership → Guest Registration); picking one names the guest, and the visit then counts once for the day across the club.
+   Visitors, who have no host member, are not booked here - they register at the Tee Time Sheet.
    Use **Add player** (up to the seats left) and the ✕ button to adjust the lines.
-9. Optionally enter the **Contact Mobile** and **Remarks**.
-10. Click **Confirm booking**.
+10. Optionally enter the **Contact Mobile** and **Remarks**.
+11. Click **Confirm booking**.
 
 The system re-checks every rule at this moment, issues the Booking No., saves the booking and sends one confirmation email addressed to every player who has an email on their member record.
+Each guest on the booking - a Guest line or a member playing as a guest - uses one of the booker's monthly guest visits; the confirmation message names any member the system turned into a guest.
 The list jumps to the play date with the new booking highlighted.
 Clicking **« Back** on the players step releases the hold; closing the dialog before confirming asks "Abandon this booking?" because the flight is released.
 
@@ -155,8 +161,9 @@ A posted charge is shown on the No-show Charges screen.
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Type** (per line) | Yes | **Member** - a member playing in their own right. **Member as Guest** - a member playing under this booking as the booker's guest. **Guest** - a visitor. | Player 1 is always the booker (Member). Guest and Member-as-Guest lines count against the booker's guest quota and the guest-control rules. |
-| **Member ID / Guest Name** (per line) | Yes | The member number for Member and Member as Guest lines; a name (or `Guest`) for a Guest line. | Member lines must resolve to existing members who are not barred; a guest name is up to 100 characters. |
+| **Type** (per line) | Yes | **Member** - a member of the club. **Guest** - a guest the booker brings. | Player 1 is always the booker (Member). A member with no playing right of their own for the flight plays as the booker's guest; the system decides this and says so under the line. Guests count against the booker's guest quota, monthly guest allowance and the guest-control rules. |
+| **Member ID / Guest Name** (per line) | Yes | The member number for a Member line; a name (or `Guest`) for a Guest line. | Member lines must resolve to existing members who are not barred; a guest name is up to 100 characters. |
+| **Guest pass** (Guest lines) | No | One of the booker's guest passes for the play date. | Shown only when the booker has passes that day; a pass can be named on one line only. |
 | **Add player** | - | Adds a line while seats remain on the held flight. | Lines cannot exceed the seats left. |
 | **Contact Mobile** | No | A mobile number for the booking; pick the country code, then type the number. | Up to 30 characters. |
 | **Remarks** | No | Any note for the front desk. | Up to 255 characters. |
@@ -201,8 +208,10 @@ A posted charge is shown on the No-show Charges screen.
 - If you see "The flight is now blocked by a course closure." a closure plan, or a group booking's shotgun hold on that course, was saved while you were keying players; choose another time.
 - If you see "That flight time is reserved for front-desk registration - it cannot be booked in advance." or "That flight time is closed for crossover - no new tee-offs." the tee-time set marks that time as a Front desk or X-over slot; the list refreshes and you pick another flight.
 - If you see "This flight needs at least n player(s)." add players, or join a flight that already has players so the flight total meets the minimum.
-- If you see "Guests are not allowed on this flight (guest control)." or "Members as guests are not allowed on this flight (guest control)." the club's guest rules forbid that player type at this course, day or time.
-- If you see "Membership type X can bring up to n guest(s) per booking - this booking has m (members as guests count)." or "Membership type X cannot bring guests." the booker's membership type caps guests; the quota is set on the Membership Type master.
+- If you see "Guests are not allowed on this flight (guest control)." the club does not allow members to bring guests at this course, day or time; the message names any member who would have played as a guest and why.
+- If you see "Membership type X can bring up to n guest(s) per booking - this booking has m (members playing as guests count)." or "Membership type X cannot bring guests." the booker's membership type caps guests per booking; the quota is set on the Membership Type master.
+- If you see "<booker> has 1 of 4 monthly guest visits left - this booking needs 2." the booker's monthly guest allowance is used up; bring fewer guests, or review the allowance on the Membership Type master.
+- If you see "That guest pass is no longer one of this member's passes for the date - pick again." the pass was cancelled or belongs to another day; reopen the Guest pass list.
 - If you see a handicap message (for example a player exceeding the course's maximum handicap, or a beginner needing established companions) the Handicap Control rules refused the flight; check the golfer's index and status on the Golfers screen and the rules in Golf Specification.
 - If you see "X is a junior member and must play with their principal (parent), who is not in this booking." or "...must be accompanied by an adult member." add the parent or an adult member to the booking.
 - If you see "Configure the Booking No. numbering scheme first (Golf Management → Numbering Control)." or "The Booking No. scheme is manual - key in a booking number." set the Booking No. series to Auto-generate on Numbering Control.

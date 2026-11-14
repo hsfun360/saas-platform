@@ -9,8 +9,9 @@
 
 The Player Types screen maintains the club's catalog of player categories - who a player on a booking or a registration is, for pricing and for the rules.
 The code of a player type is what the Transaction Type rate card prices by (the "default for" category on a green fee, buggy or caddy item) and what every booking line, roster line and registration carries.
-Every player type behaves as one **base identity**, which decides the rules the system applies: a member of this club, a member playing as another member's guest, a visitor, or a member of an affiliated or reciprocal club.
-Three types are built in and present in every club - **member**, **member-guest** and **guest** - and cannot be removed or switched off.
+Every player type behaves as one **base identity**, which decides the rules the system applies: a member of this club, a member playing as another member's guest, a guest brought by a member, a visitor with no host member, a member of an affiliated club, or a member of a reciprocal club.
+Four types are built in and present in every club - **member**, **member-guest**, **guest** and **visitor** - and cannot be removed or switched off.
+The **member-guest** type is never picked by staff: the system gives it to a member who plays on another member's booking without a playing right of their own for the flight.
 Staff come here when the club starts taking a new category of player, such as the members of a golf association it is affiliated to, the members of a reciprocal club, or a hotel guest rate.
 
 ## The screen at a glance
@@ -61,7 +62,7 @@ On a club-defined type the code and base identity can change only while nothing 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
 | **Code** | Yes | A short code, e.g. `MGA` or `RECIP`. | Letters, digits and hyphens, up to 20 characters, stored in capitals; unique in your company; fixed on a system type and on a type already in use. |
-| **Base Identity** | Yes | **Member** - a member of this club (standing, golfing right, booking limit, junior and handicap checks; books in advance). **Member as Guest** - a member under another member's booking (member standing, the guest-control switch for members as guests, the booker's guest quota). **Guest / Visitor** - no standing (guest control, the booker's guest quota; may walk in). **Affiliated / Reciprocal** - a member of an affiliated or reciprocal club, who enters only through a confirmed Affiliated Visit and counts as a guest for guest control and quota. | Pick one of the fixed choices; fixed on a system type and on a type already in use. |
+| **Base Identity** | Yes | **Member** - a member of this club (standing, golfing right, booking limit, junior and handicap checks; books in advance). **Member as Guest** - a member playing as another member's guest; the host's guest rules, quota and monthly allowance apply. The system decides this itself, but a type you add on this base can be picked on purpose, e.g. a spouse priced as a guest. **Guest** - a guest brought by a member: the Allow guests answer, the host's guest quota and monthly guest allowance apply; the host is the booker, or the member named at the front desk. **Visitor** - no host member: the Allow visitors answer applies; front desk only. **Affiliated club member** and **Reciprocal club member** - enter only through a confirmed visit on a letter of introduction; guest control does not apply, the club record sets the caps and the visit fee. | Pick one of the fixed choices; fixed on a system type and on a type already in use. |
 | **Description** | Yes | The label shown everywhere for this type. | Up to 255 characters. |
 | **Sort Order** | Yes | The position in the pickers; lower numbers first. | Whole number from 1 to 999; new types start at 100. |
 | **Bookings with a player of this type need approval** | No | Tick to hold a booking carrying this type pending approval through the Workflow engine (purpose Golf flight booking). | With no approval chain configured the booking approves at once. |
@@ -71,14 +72,17 @@ On a club-defined type the code and base identity can change only while nothing 
 - If you see "Player type 'X' already exists.", another type in your company already uses that code.
 - If you see "Code may only contain letters, digits and hyphens.", remove spaces and other characters from the code.
 - If you see "Player type 'X' is used by 12 player line(s), 2 transaction type(s) - its code cannot change." (or "- its base identity cannot change" / "- disable it instead"), the type is already on records; keep the code, or disable the type rather than deleting it.
-- If you see "'member' is a system player type and stays active." or "... cannot be deleted.", the three built-in types are permanent.
+- If you see "'member' is a system player type and stays active." or "... cannot be deleted.", the four built-in types are permanent.
 - If you see "Your role's data scope does not allow amending this record.", the type was created by someone outside your data scope.
-- A player type with the Affiliated / Reciprocal base never appears in the booking screen's player picker or the walk-in forms; its players arrive through a confirmed Affiliated Visit with a letter of introduction.
-- The three built-in codes are the categories the rate cards were priced for before this screen existed, so existing prices and bookings keep working unchanged.
+- A player type with the Affiliated club member or Reciprocal club member base never appears in the booking screen's player picker or the walk-in forms; its players arrive through a confirmed visit with a letter of introduction.
+- A Visitor type is offered on the Tee Time Sheet's walk-in forms only, never on the Booking screen.
+- The built-in **guest** type used to read "Guest / Visitor"; it is now **Guest**, and visitors have their own built-in type.
+  Walk-ins registered before the change keep the type and rate they were registered under; give the **visitor** type its own green-fee rate card on Transaction Type before registering visitors.
+- The built-in codes are the categories the rate cards were priced for before this screen existed, so existing prices and bookings keep working unchanged.
 
 ## Related options
 
 - Golf Management → Transaction Type - the "default for" category on a green fee, buggy or caddy item names a player type code.
 - Golf Management → Golf Booking and Front Desk → Tee Time Sheet - the player type picked on every line and walk-in.
 - Golf Management → Group Bookings - the roster lines carry a player type.
-- Golf Management → Golf Specification - guest control and the guest quota act on the guest, member-as-guest and affiliate bases.
+- Golf Management → Golf Specification - guest control (Allow guests acts on the guest and member-as-guest bases, Allow visitors on the visitor base) and the playing rights that decide when a member plays as a guest.

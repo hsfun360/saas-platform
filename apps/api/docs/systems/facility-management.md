@@ -19,7 +19,8 @@ Manage the club's bookable and walk-in facilities: courts booked by time slot, t
   The rate-card axis is player type x day type x session band (peak / off-peak); per-slot price only in slice 2, day and half-day packages later as package transaction types.
 - **Visitor profiles stay per module for now.** A non-member exists once in golf and once in facility; a platform visitor master may come later with a re-point.
 - **Guest allowance.** `MembershipType.guestQuota` STAYS the golf per-booking cap (live since 2026-09-28).
-  Membership Type gains a NEW monthly club-wide guest allowance, and Membership OWNS the guest-usage ledger (`membership.GuestVisit`) that every producer writes through the membership seam; facility is the first producer, golf is wired later.
+  Membership Type gains a NEW monthly club-wide guest allowance, and Membership OWNS the guest-usage ledger (`membership.GuestVisit`) that every producer writes through the membership seam; facility is the first producer; golf joined on 2026-11-14 (see golf-management.md, MONTHLY GUEST ALLOWANCE).
+  Golf also split Guest (always a member's guest) from Visitor (no host) on 2026-11-13; facility's participant types still carry the two under one "visitor guest" class - a facility-session topic, not changed here.
   Facility Type caps per booking / per visit are facility's own and tighten within the allowance.
 - **No-show** = a charge (transaction type, posted to AR, pending / posted / waived like golf) AND a strike rule (N no-shows in M days suspends booking for S days), each switchable per Facility Type under one master switch.
 - **Build order:** (1) masters - Specification, Facility Type, Facility; (2) slot Booking with guest control and billing; (3) Control Station; (4) No show; (5) Classes.
