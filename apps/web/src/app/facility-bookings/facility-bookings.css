@@ -587,7 +587,10 @@
 }
 .fb-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 110px 80px 90px auto;
+  /* The last track is FIXED (the 44px remove button): an `auto` track is 0
+     wide on the heading row, which pushed every heading one gap and a button
+     to the right of its column (seen on dev 2026-11-14). */
+  grid-template-columns: minmax(0, 1fr) 64px 110px 80px 90px 44px;
   gap: var(--space-sm);
   align-items: center;
   padding: var(--space-xs) 0;
@@ -634,7 +637,7 @@
    button share the next one; the tax column is dropped (the totals show it). */
 @media (max-width: 767px) {
   .fb-item {
-    grid-template-columns: 64px 100px minmax(0, 1fr) auto;
+    grid-template-columns: 64px 100px minmax(0, 1fr) 44px;
   }
   .fb-item__desc {
     grid-column: 1 / -1;
