@@ -534,6 +534,10 @@ Facility records a visit per guest participant when the booking is confirmed (in
 Golf is wired to the same ledger in a later golf slice; nothing in golf changes now.
 Since 2026-11-10 Membership is a producer itself (Guest Registration) and the ledger counts by the once-per-day rule: `recordGuestVisit` accepts an optional `guestId`, a line that carries it counts once per host per day however many modules write one, and a line without it (every facility line today, which holds only a name) counts its own `guestCount` as before.
 Facility passes nothing new yet; giving its guest lines an identity, and with it the day pass, is a later slice (see "Built: Guest Registration and the day pass" in membership-management.md).
+Registration Counter (2026-11-14, built in the Membership session): the same pass is now also issued to a visiting affiliated or reciprocal member and to the guests they bring, so `findGuestPass` / `getGuestPass` may answer a pass whose `patronGroup` is `affiliate` or `reciprocal`.
+On such a pass `host` is NULL and `club`, `visit` and `accompanying` say who the holder is.
+`stationRules.passVerdict` refuses it with a clear message for now ("the station does not serve these passes yet"); serving it (the item's own answer for these holders, entering a facility on the pass, the entry fee, charge to home club, completion held while an item is out or a facility bill is open) is the station part still to be built in the Facility session.
+The station message "cancel it under Guest Registrations" still names the old screen; the screen is the Registration Counter now.
 
 #### Booking rules (binding, enforced in the booking channel; the desk warns where golf's desk warns)
 

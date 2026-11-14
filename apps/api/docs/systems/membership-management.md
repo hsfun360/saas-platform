@@ -43,6 +43,8 @@ Every table lives in the `membership` schema; `companyId`, `userId` and the subs
   Emails: `membership.visit.confirmed`, `membership.visit.declined`, `membership.visit.loi`.
 - Guests (the guest-usage ledger 2026-10-25, Guest Registration 2026-11-10): `GuestVisit` (the ledger behind `MembershipType.monthlyGuestAllowance`, written by the producer modules through `platform/membershipGateway.js` and by Guest Registration itself), `Guest` (the guest person) and `GuestRegistration` (one guest, one host member, one date = one day pass).
   See "Built: Guest Registration and the day pass" below.
+- The Registration Counter (2026-11-14): `GuestRegistration` is widened to every patron group (`patronGroup` guest | affiliate | reciprocal, `affiliatedVisitId`, `affiliatedClubId`; `memberId` and `guestId` nullable), `AffiliatedVisit` gains `visitDateTo` (a letter may cover several days) and `AffiliatedVisitFlight` holds the letter's golf flights, one booking per play day.
+  See "Built: Registration Counter" below.
 - Settings: `MembershipSetting` (Club Specification singleton), `NumberingScheme` (the `membership` purpose; shared shape from `platform/numberingSchemeDef.js`).
 - Billing: `BillingSchedule`, `BillingScheduleItem` (the fee runs that post into AR).
 - Import staging: `MembershipImportBatch`, `MembershipImportRow`, `MembershipTypeImportBatch`, `MembershipTypeImportRow`.
@@ -63,8 +65,10 @@ Every route that reads a request part mounts `validate()` with a schema from the
 - `/sales-agencies` ('/membership/sales-agencies'): `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`.
 - `/sales-agents` ('/membership/sales-agents'): `GET /meta`, `GET /`, `POST /`, `POST /:id/invite`, `PUT /:id`, `PATCH /:id`.
 - `/affiliated-clubs` ('/membership/affiliated-clubs', 2026-10-16): `GET /meta` (kinds, periods, the club-visitor golf player types - base `affiliate` or `reciprocal`, matched to the record's kind on save since 2026-11-13, a pairing saved earlier standing until its kind or type changes - and the miscellaneous golf fee items through the golf seam), `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`, `DELETE /:id` (refused while visits reference the club).
-- `/affiliated-visits` ('/membership/affiliated-visits', 2026-10-16): `GET /meta` · `GET /?status&direction&dateFrom&dateTo&affiliatedClubId` · `POST /` · `POST /letter` (multipart field `letter`, 5 MB) · `GET /:id` · `PUT /:id` (requested only) · `GET /:id/confirm-preview` · `POST /:id/confirm` · `POST /:id/issue` (outbound) · `POST /:id/decline { reason }` · `POST /:id/cancel { reason }` · `POST /:id/arrive { letterSighted, idSighted }` · `POST /:id/complete`.
-- `/guest-registrations` ('/membership/guest-registrations', 2026-11-10): `GET /?status&dateFrom&dateTo` (rows + `today`, the club's own date, + `numberingMode`) · `GET /host?memberNo&visitDate` (the host's standing and the month's allowance) · `GET /guests?q` (returning guests) · `POST /` (register; needs the Create grant) · `GET /:id` · `GET /:id/pass` (link, QR code, WhatsApp link) · and the desk actions, all `PUT` so they need the Edit grant: `PUT /:id` (correct the guest's details or remarks), `PUT /:id/cancel` (reason required), `PUT /:id/arrive`, `PUT /:id/send` (`via` email | whatsapp), `PUT /scan` (the registration behind a scanned pass; the code travels in the body because it holds the pass token).
+- `/affiliated-visits` ('/membership/affiliated-visits', 2026-10-16): `GET /meta` · `GET /?status&direction&dateFrom&dateTo&affiliatedClubId` · `POST /` · `POST /letter` (multipart field `letter`, 5 MB) · `GET /:id` · `PUT /:id` (requested only) · `GET /:id/confirm-preview` · `POST /:id/confirm` · `POST /:id/issue` (outbound) · `POST /:id/decline { reason }` · `POST /:id/cancel { reason }` · `POST /:id/complete` · and the golf flights of a confirmed letter, one booking per play day (2026-11-14): `POST /:id/flights/preview`, `POST /:id/flights`, `POST /:id/flights/:flightId/remove`.
+  The visitor's arrival is no longer a route of this router: it is recorded at the Registration Counter (below), which issues the day pass.
+- `/guest-registrations` (the Registration Counter since 2026-11-14: '/membership/registration-counter', and '/membership/guest-registrations' while a Menu row still carries it): `GET /?status&group&dateFrom&dateTo` (rows of every patron group + `today`, the club's own date, + `numberingMode`, + `expectedVisits` and `clubs` for the visiting-member side) · `GET /host?memberNo&visitDate` (the host's standing and the month's allowance) · `GET /guests?q` (returning guests) · `POST /` (register; needs the Create grant) · `GET /:id` · `GET /:id/pass` (link, QR code, WhatsApp link) · and the desk actions, all `PUT` so they need the Edit grant: `PUT /:id` (correct the guest's details or remarks), `PUT /:id/cancel` (reason required), `PUT /:id/arrive`, `PUT /:id/send` (`via` email | whatsapp), `PUT /scan` (the registration behind a scanned pass; the code travels in the body because it holds the pass token).
+  The visiting-member side (2026-11-14), each a `POST` that issues a new pass and needs the Create grant: `POST /visits/:id/receive { letterSighted, idSighted }`, `POST /walk-ups`, `POST /:id/guests`.
 - `/guest-visits` ('/membership/guest-visits', 2026-11-10): `GET /?dateFrom&dateTo&memberNo` - the enquiry over the guest-usage ledger, every module, grouped by host member and by known guest.
 - `/imports` ('/membership/import') and `/type-imports` ('/membership/type-import'): `GET /template`, `GET /`, `GET /:id`, `POST /` (multipart `file`), `POST /:id/migrate`, `DELETE /:id`.
 - `/memberships` ('/membership/memberships'): `GET /meta`, `GET /options`, `POST /photo`, `GET /`, `POST /`, `GET /:id`, `PUT /:id`, `GET /:id/ar-credit[?memberId=]`, `GET /:id/members/suggest-no`, `POST /:id/members`, `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
@@ -543,11 +547,13 @@ A producer serves a guest on the pass through these three and never reads `Guest
 
 ### Web
 
+- Since 2026-11-14 the screen below is the Registration Counter (`/membership/registration-counter`, component `membership-registration-counter`); what follows describes its member's-guest side, and "Built: Registration Counter" the rest.
 - `/membership/guest-registrations` (`membership-guest-registrations`): listing with the date range and status filters, the "Scan pass" button, one chip per row read from the status and the pass date (Expected today / Registered / Arrived / Did not arrive / Cancelled), "Mark arrived" as the visible action on the day and "Pass" otherwise.
   ONE `<app-dialog>` with four views (form, pass, scan, cancel) per the single-dialog standard: registering moves the same dialog from the form to the pass view.
 - `/membership/guest-visits` (`membership-guest-visits`): the read-only enquiry, grouped by host member or by guest, each card opening to its ledger lines.
 - `/guest-pass/:token` (`guest-pass`): the public pass on the shared auth card.
 - Club setup after deploy: the two menus (`/membership/guest-registrations`, `/membership/guest-visits`) and a "Guest Registration No." series under Membership Numbering Control.
+  Since 2026-11-14 the first menu's route is `/membership/registration-counter` (the old route keeps working until the row is changed), and the same series numbers every day pass.
 
 ### Not built yet
 
@@ -557,6 +563,121 @@ A producer serves a guest on the pass through these three and never reads `Guest
   Golf IS a producer of the ledger since 2026-11-14 (`sourceModule` 'golf', `sourceRef` = the starting-nine `golf.Player` id; a guest line may name one of the host's existing passes, which carries `guestId` and marks the pass arrived at registration - see golf-management.md, MONTHLY GUEST ALLOWANCE); creating a pass from a golf line is still deferred.
   The gateway gained `guestAlreadyCounted(companyId, memberId, guestId, date)` for a producer counting the visits a save needs.
 - A cap on how often the same guest may visit.
+
+## Built: Registration Counter (2026-11-14)
+
+The club's ONE control counter for everyone who is not a member.
+A member's guest, and a visiting member of an affiliated or reciprocal club, both leave it with the same thing: a day pass (QR code) that the golf desk, the Facility station and the outlets scan.
+Raised in the Facility Management session (a visiting member must not present the letter at a station) and decided with the user on 2026-11-14; structures approved the same day.
+It replaces the Guest Registration screen, which becomes one side of the counter; Affiliated Visits stays the Membership office's letter file.
+
+### User decisions (2026-11-14)
+
+- The QR code is ALWAYS a daily pass.
+- A letter of introduction may cover several days, and the visitor stops at the counter on EACH day they come ("counter every day").
+- Each such day counts as one visit against the club's limits ("count each day").
+- What the visitor uses differs by day (golf on the first, a facility on the second, both on the third), so golf hangs off the letter one flight per play day.
+- A walk-up with no letter on file is recorded and received on the spot only where the arrangement needs no approval; where it does, the request is recorded and submitted and no pass is issued until it is approved.
+- The guests a visiting member brings get a pass each, up to the club's guests per visit.
+- A plain Visitor (no member, no club) is not registered at the counter yet; a dining-only visitor waits for POS and for the club's policy on who may enter.
+- The screen and the menu are named "Registration Counter".
+
+### Structures
+
+`membership.AffiliatedVisit` gains one column.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `visitDateTo` | DATEONLY | yes | The letter's last day when it covers several; NULL = a one-day letter. |
+
+`bookingProfileId` on the same table is LEGACY and unused: boot copies it into the flights table below (guarded, idempotent) and nothing writes it any more.
+`facilities.golf` (JSONB) gains `playDate`, the day of the letter the requested flight is played (default: its first day).
+
+`membership.AffiliatedVisitFlight` (new) - the golf flight a letter holds for one of its days.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | no | Key. |
+| `companyId` | UUID | no | Value ref. |
+| `affiliatedVisitId` | UUID | no | The letter (FK inside the service). |
+| `playDate` | DATEONLY | no | A day of the letter. |
+| `bookingProfileId` | UUID | no | The golf flight booking (value ref), unique. |
+| `createdBy`, `createdByDepartmentId`, `updatedBy` | UUID | yes | Ownership stamps. |
+
+`membership.GuestRegistration` is widened to every patron group; the table keeps its name.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `patronGroup` | STRING(20) | no | New, default `guest`; `guest` / `affiliate` / `reciprocal` (`guestRegistration.constants`). |
+| `memberId` | UUID | yes | Was required; the host member, a member's guest only. |
+| `guestId` | UUID | yes | Was required; NULL on the row of the visitor a letter names, set on a guest that visitor brought. |
+| `affiliatedVisitId` | UUID | yes | New; the letter the pass was issued on (FK inside the service). |
+| `affiliatedClubId` | UUID | yes | New; the home club (value ref). |
+
+Two partial unique indexes guard the day: one live pass per letter per date for the visitor (`UX_GuestRegistration_Live_Visit_Date`), and one per guest of that visitor (`UX_GuestRegistration_Live_Visit_Guest_Date`).
+The alter-sync never relaxes NOT NULL, so `app.js` drops it on `memberId` and `guestId` in a guarded boot step outside the fingerprint gate.
+One registration row is one day at the club: for a visiting member it is the day that counts.
+
+### The letter over several days (`affiliatedVisit.service.js`)
+
+- `normalize` reads `visitDateTo` (not before the first day, at most 31 days, the agreement must cover the last day) and refuses an alternate date on a several-day letter.
+- The limits count DAYS: `countedDays(visit, attended, today)` (pure, unit-tested) answers the days of one letter that count.
+  An outbound letter counts every day.
+  An inbound letter not yet received counts the days still to come, so the office cannot over-promise; a day that passed without the visitor is given back.
+  A received letter counts the days attended plus the days still to come; a completed one the days attended.
+  A letter received before the counter existed has no attended day on record and counts its arrival day.
+- `capBreach` (pure, unit-tested) adds the new letter's days to the counted days of the other letters in each calendar period the letter touches, for the per-member cap and the club-wide annual quota.
+- Flights: `POST /:id/flights/preview` shows the flight a further day would book, `POST /:id/flights` books it through the same golf seam call the confirmation uses, `POST /:id/flights/:flightId/remove` cancels one day's flight (golf refuses while a player of it is registered).
+  Cancelling the letter cancels every flight.
+- The golf desk's questions, all asked through `platform/membershipGateway.js`:
+  `registrationGate` lets a flight's players register only once the visitor has registered at the counter for that play date;
+  `byBooking` answers the standing for THAT flight's day (`confirmed` until then, `arrived` after), with the letter's own status as `letterStatus`, so the tee sheet offers the arrival check on each day of a longer letter;
+  `completeIfSettled` completes the letter only when its last day has come and no flight still owes a bill (`golfGateway.bookingUnsettledCount`).
+- The worker tick (`scanVisits`) expires an unreceived letter after its LAST day and completes a received one after it, once no flight owes a bill.
+
+### The counter (`registrationCounter.service.js`)
+
+- `list` answers the registrations of the period (every patron group, `group` filter) plus `expectedVisits` (the confirmed or running inbound letters valid today whose visitor has not registered yet today) and `clubs` (where a walk-up may come from, with `needsApproval`).
+- `receiveVisit(req, visitId, { letterSighted, idSighted }, { channel })` registers the visitor for TODAY and issues the pass.
+  The first time both ticks are required and the letter turns `arrived`; on a later day of the same letter the ID alone.
+  Receiving twice on one day answers the pass already issued; the letter row is locked so two desks cannot both issue it.
+  A one-day letter may also be received on its alternate date (`receivableOn`, pure, unit-tested).
+  The golf desk's own "Receive" on the tee sheet reaches the same function through the seam (`receiveAffiliatedVisit`, channel `golf`), so there is one rule and the day pass is issued either way.
+- `walkUp` keys the letter (no golf), confirms it and receives the visitor in one go; where the club or its player type needs approval it stops after submitting and answers `issued: false`.
+- `addVisitorGuest` issues a pass to a guest the visitor brought, on the visitor's own registration of today, inside the club's `maxGuestsPerVisit`; the guest is a `membership.Guest` like any other and no member's allowance is drawn.
+- `guestRegistration.service.js` reads every row through one `party` (person, host member, letter, home club, accompanying), so the listing, the pass, the email and the seam ask one question.
+  A visiting member keeps the name of the letter on edit (only contact details and remarks change, written to the letter) and needs no contact detail.
+  Cancelling a visitor's day follows the DATE, not the status (these rows are born arrived): a day that has passed stands; the visitor's own day takes that day's guests with it, and a letter left with no day attended goes back to `confirmed`.
+- The pass page and the seam's pass facts carry `patronGroup`, and `host` is NULL on an affiliated or reciprocal pass, which carries `club`, `visit` and `accompanying` instead.
+  The Facility station refuses such a pass with a clear message until its own rules for these holders are built (`stationRules.passVerdict`).
+- Email: `membership.visitor.pass` (the day pass of a visiting member or of a guest they brought); a member's guest keeps `membership.guest.pass`.
+
+### API
+
+Mounted at `/api/membership/guest-registrations` behind `requireAnyMenuAction(['/membership/registration-counter', '/membership/guest-registrations'])`, so a Menu row that still carries the old route keeps working until it is changed.
+New routes: `POST /visits/:id/receive`, `POST /walk-ups`, `POST /:id/guests` (each issues a NEW pass and needs the Create grant); `GET /` takes `group`.
+
+### Web
+
+- `/membership/registration-counter` (`membership-registration-counter`, the renamed Guest Registrations component; the old path opens the same screen).
+  "Visiting members expected today" sits above the registrations with a Receive action; "New registration" asks who is at the counter (the global `.dlg-pick` rows: a member's guest, or a visiting member), then lists today's letters with a walk-up entry.
+  ONE `<app-dialog>` with a mode signal (pick / visit / form / receive / walkup / pass / scan / cancel); issuing a pass moves the same dialog on to the pass view.
+  A visitor's row of today offers "Register their guest" in its kebab.
+- `/membership/affiliated-visits`: "Last day" on the letter, the play date of the requested flight, the days at the counter on the card, and "Golf flights" (a centred dialog: the bookings of the letter, and add a flight with a check-then-book step).
+- `/guest-pass/:token`: the title reads "Day pass" and the chip "Member of <home club>" for a visiting member.
+
+### Verified
+
+API unit tests 309 and web unit tests 420 pass; the production build is clean.
+A service-level smoke against the local dev database passed 40 checks (a 3-day letter, the first-day ticks, the pass, the golf gate by day, the visitor's guest and its limit, the public pass, the seam facts and the station refusal, the day-counted limit, cancel and re-receive, a walk-up) and removed its rows.
+Not yet exercised: the screens in a browser against a deployed API, a real golf flight on a second day, and a walk-up that routes through an approval chain.
+
+### Not built yet
+
+- The Facility station serving an affiliated or reciprocal pass (the item's own answer for these holders, entering a facility on the pass, the entry fee, charge to home club, completion held while an item is out or a facility bill is open): the Facility Management session.
+- A plain Visitor at the counter.
+- The user manuals of the Registration Counter and the changed Affiliated Visits screen.
+
 
 ## Built: Business Insights (analytics, 2026-07-22)
 

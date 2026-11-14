@@ -75,6 +75,7 @@ A member's guest has no login, so the digital day pass is a public page behind a
 
 - **The token is the credential**: 32 random bytes (64 hex characters) from `crypto.randomBytes`, unique per registration; guessing one is not feasible, and the route validates its exact shape before any lookup.
 - **Read-only and minimal**: the response carries the club name and logo, the guest's name, the host's NAME, the date, the registration number and the live state - no contact details, no member number, no ids.
+  Since 2026-11-14 the same page serves the day pass of a visiting affiliated or reciprocal member: it then names the visitor and the home CLUB ("Member of ..."), never the home-club membership number.
 - **Short-lived by design**: the pass works on its visit date only (the club's own date), cancelling the registration stops it at once, and the QR code is drawn only while the pass can still be used.
 - **Live state, never a cached claim**: the page asks the API on every open, so a screenshot of yesterday's pass shows yesterday's date and proves nothing.
 - **Per-IP limit**: `guestPassLimiter`, 300 requests / 15 minutes / IP - roomy because a whole day's guests share the club Wi-Fi's one address, still a ceiling against scripted hammering.
