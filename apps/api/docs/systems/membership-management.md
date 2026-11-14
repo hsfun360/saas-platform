@@ -670,7 +670,10 @@ New routes: `POST /visits/:id/receive`, `POST /walk-ups`, `POST /:id/guests` (ea
 
 API unit tests 309 and web unit tests 420 pass; the production build is clean.
 A service-level smoke against the local dev database passed 40 checks (a 3-day letter, the first-day ticks, the pass, the golf gate by day, the visitor's guest and its limit, the public pass, the seam facts and the station refusal, the day-counted limit, cancel and re-receive, a walk-up) and removed its rows.
-Not yet exercised: the screens in a browser against a deployed API, a real golf flight on a second day, and a walk-up that routes through an approval chain.
+Smoked on dev 2026-11-14 at Tropicana, in the user's Chrome (club SAUJANA, reciprocal, no approval): a 3-day letter L261100004 recorded and confirmed in Affiliated Visits (the preview counted 3 visit days, club total 5 with two older one-day visits counted on their arrival day); expected at the counter; Receive refused with only the ID ticked, then issued GR00007; the public pass read "Day pass / Member of Saujana Golf & Country Club" without a login; the visitor's guest got GR00008; a walk-up was recorded and received in one step (L261100005, GR00009), then its registration cancelled and the letter went back to expected; the Facility station refused the visitor's pass with the intended message; a flight for day 2 was checked (refused with the nearest times, then previewed), booked (B261100033) and cancelled, and while it stood tomorrow's tee sheet tagged it not yet received although the letter was already arrived today.
+Test data kept on Tropicana: letters L261100004 (arrived, 14 to 16 Nov) and L261100005 (confirmed, 14 Nov), registrations GR00007, GR00008 and GR00009 (cancelled), guest "E2E Companion".
+The smoke brought four polish fixes: the sighting ticks stand as one block, the cancel prompt no longer nests brackets, a refused flight says "Pick another tee time" in the flights dialog, and completing a letter that still has days to run asks first.
+Not yet exercised: registering a flight's players on a later day at the golf desk, a walk-up that routes through an approval chain, camera scanning, a real email send.
 
 ### Not built yet
 
