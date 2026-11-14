@@ -678,7 +678,7 @@ Not yet exercised: registering a flight's players on a later day at the golf des
 
 ### Not built yet
 
-- The rest of the Facility station's part, in the Facility Management session (utility items on the pass are built, its slice 7a): entering a facility on the pass and the entry fee (7b); charge to home club, a letter's completion held while an item is out or a facility bill is open, and no cancelling of a day that was used at the station (7c).
+- The rest of the Facility station's part, in the Facility Management session (utility items on the pass and entering a facility on it are built, its slices 7a and 7b): charge to home club, a letter's completion held while an item is out or a facility bill is open, and no cancelling of a day that was used at the station (7c).
 - A plain Visitor at the counter.
 - The user manuals of the Registration Counter and the changed Affiliated Visits screen.
 

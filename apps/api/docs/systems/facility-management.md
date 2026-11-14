@@ -1388,7 +1388,7 @@ A typed member number returns the same picture for the member.
 8. **A party is served one person at a time**; the Arrival drawer is dropped.
 9. **The scan does not admit the guest into the pool or the gym** until 6d; in 6b it serves utility items only.
 
-### Slice 7 - Visiting members at the station (approved 2026-11-14; step 7a BUILT 2026-11-14)
+### Slice 7 - Visiting members at the station (approved 2026-11-14; step 7a BUILT and smoked on dev 2026-11-14; step 7b BUILT 2026-11-14)
 
 A member of an affiliated or reciprocal club is a VISITING MEMBER.
 They present their letter at Membership's Registration Counter (the club's main control counter), never at the Facility station, and leave the counter with a day pass.
@@ -1451,10 +1451,46 @@ New values in existing columns:
   An item that `requiresEntry` stays closed, because no facility is entered on this pass until 7b.
   Issue fees are flat, so they bill at once without a new price.
   `POST /admissions` refuses a visiting pass in words, and the panel's `entries` is empty.
-- **7b - entering a facility.**
-  The type's `visitingMembersAllowed`; the two system participant types and their rate-card cells (a facility with a fee and no price for them shows "has no price today"); a guest they brought enters under them by the type's visitor-guest rule and cap.
+- **7b (BUILT) - entering a facility.**
+  - **The two price groups.**
+    `SYSTEM_PARTICIPANT_TYPES` gains `affiliate` (Affiliated Member) and `reciprocal` (Reciprocal Member), seeded lazily like the first three (`ensureSystemTypes` adds what a company is missing).
+    Their codes equal Membership's patron groups, so the station prices a visiting member by the group on the pass.
+    Their base identities are `systemOnly`: a club prices them and cannot define a type of its own on them (`participantType.controller` refuses, the form does not offer them).
+    They are price groups only - not offered on a booking's roster (`booking.controller` meta and `resolveRoster`) nor as a guest line at the desk (`station.controller` meta now offers guest-like types only).
+  - **The entry fee.**
+    `entryFeeTypeOf`: the type's explicit entry fee item, else the default facility-fee item of the visiting member's participant type, else the members' default item - priced at the visiting member's OWN cell of its rate card.
+    No cell is no price: the tile closes with "<CODE> has no price today." and the tap is refused, never the member price and never a silent zero.
+    A type with no fee item is free for them as for a member.
+  - **The switch.**
+    `FacilityType.visitingMembersAllowed` OFF closes the tile with "<CODE> is not open to visiting members." (their guest: "... to a visiting member's guests."), ahead of the hours.
+    It is always in force, whatever the Specification's guest control says.
+  - **The visiting member's entry.**
+    `POST /admissions` on their own pass opens an entry in their own name (`Registration.patronId` = the letter's patron, `hostPresent` true), the fee on the entry's bill, which is their ONE open bill of the day (a paid utility item joins it).
+    An entry type that admits only members holding a booking refuses them in the same words as a member without one.
+  - **The guest they brought.**
+    A line on the visiting member's live entry, on the guest's own pass, by the type's visitor-guest rule (`resolveGuestRule`) and cap (`maxGuestsPerBooking`), with the guest fee on that entry's bill.
+    The guest enters ONLY once the visiting member is inside, whatever the type's "host must be present" says of a member's guests ("<visiting member> must enter <CODE> first.").
+    No visit is drawn on any member's monthly allowance.
+  - **The desk.**
+    An item that `requiresEntry` now opens to a visiting member (and their guest) who is inside.
+    The day board tags the entry "(reciprocal member)" / "(affiliated member)" and offers no "Guests" editing on it: `replaceGuests` refuses with "... is a visiting member - their guests are registered at the Registration Counter and enter on their own pass."
+    Sign-out lists what the party still holds, as for a member.
 - **7c - settlement and the letter.**
   The member tender is refused on a visiting member's bill (already true: it needs a member patron); the debtor tender (charge to home club) only where the arrangement's `allowChargeToHomeClub` is ON; a first `platform/facilityGateway.js` so a letter does not complete while an item is out or a facility bill is open, and the counter does not cancel a day used at the station.
+
+#### Web (7b)
+
+- Facility Types: an entry type's form has a "Visiting members" section with the "Visiting members allowed" switch and its (i); a card says "No visiting members" when it is OFF.
+- Participant Types: the two system rows are listed with their own base label; the Base Identity select of a club-defined type does not offer them.
+- Transaction Types: the rate-card cell picker and the default-category picker list the two groups like any participant type, which is how a club prices them.
+- Control Station: the "Enter a facility" tiles show on a visiting member's panel, priced in their own name, and on their guest's panel "on <visiting member>'s bill"; "Sign out with N guests" on the visiting member's own tile.
+
+#### Verified (7b)
+
+- API unit tests 315, web unit tests 437, production web build clean.
+- A 46-check run of the station services on a throwaway Postgres: the seeded price groups, the reciprocal price against the member price, a missing affiliated price and its later arrival, the switch, the guest waiting for the visiting member, the cap and the club's guest rule, one open bill, the day board, sign-out, the pickers, and the members of the club unchanged.
+- Committed locally; NOT pushed, not seen in a browser.
+- After deploy: a club that charges an entry fee adds the Affiliated Member and Reciprocal Member prices to that fee item's price card, or those members stay out of that facility with "has no price today".
 
 #### Web (7a)
 
@@ -1509,4 +1545,4 @@ New values in existing columns:
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [x] Slice 7a visiting affiliated and reciprocal members: utility items on the day pass, due-days setting dropped (2026-11-14, local only) · [ ] Slice 7b entering a facility on the pass · [ ] Slice 7c settlement and the letter's completion hold · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [x] Slice 7a visiting affiliated and reciprocal members: utility items on the day pass, due-days setting dropped (2026-11-14, local only) · [x] Slice 7b visiting members entering a facility on the pass: the type switch, the two price groups (2026-11-14, local only) · [ ] Slice 7c settlement and the letter's completion hold · [ ] Events · [ ] Own DB · [ ] Own deploy

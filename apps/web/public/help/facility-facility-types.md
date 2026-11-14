@@ -177,6 +177,14 @@ These settings take effect only while guest control is switched on in Facility S
 | **The host member must be present for guests to be admitted** | No | Tick when guests are admitted only with their host member. | Ticked by default. |
 | **Max guests per booking** (time-slot) / **Max guests per visit** (entry) | No | The most visitor guests one booking or one visit may bring. Guests also count against the member's monthly allowance. | A whole number from 0 to 100; blank = no limit; 0 = none at all. |
 
+### New / Edit facility type dialog - Visiting members
+
+Shown for an entry type only.
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Visiting members allowed** | No | On = a member of an affiliated or reciprocal club may enter on the day pass they received at the Registration Counter, and a guest they brought may enter once they are inside. Off = neither may enter; the card then shows a **No visiting members** chip. | On by default. Always in force, whatever guest control says. Their entry fee is the price of Affiliated Member or Reciprocal Member on the entry fee item's price card; with a fee item and no such price the station keeps the facility closed to them. |
+
 ### New / Edit facility type dialog - Fees and approval
 
 | Field | Required | What to enter | Rules |
