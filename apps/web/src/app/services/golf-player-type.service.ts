@@ -5,7 +5,10 @@ import { environment } from '../../environments/environment';
 import { MembershipStatusOption } from '../models/auth.models';
 
 // The engine class a player type behaves as (fixed vocabulary, native select).
-export type GolfPlayerBaseIdentity = 'member' | 'member-guest' | 'guest' | 'affiliate';
+// Six classes since 2026-11-13: the club's patron groups are Member (member,
+// and member-guest - DERIVED, never picked), Guest (always a member's guest),
+// Visitor (no host, desk only), Affiliated and Reciprocal club members.
+export type GolfPlayerBaseIdentity = 'member' | 'member-guest' | 'guest' | 'visitor' | 'affiliate' | 'reciprocal';
 
 // One row of the club's Player Type master (golf.PlayerType, spec 2.3.1).
 export interface GolfPlayerType {
@@ -28,12 +31,24 @@ export interface GolfPlayerTypeOption extends MembershipStatusOption {
   requiresApproval?: boolean;
 }
 
-// Whether a picked type takes a guest name (guest or affiliate base) rather
-// than a member number; an unknown code falls back to its own value as the
-// base (the three system codes equal their base).
+// The base identity of a code; an unknown code falls back to its own value
+// (the four system codes equal their base).
+export function playerTypeBase(options: GolfPlayerTypeOption[] | null | undefined, code: string): string {
+  return (options || []).find((o) => o.key === code)?.baseIdentity || code;
+}
+
+// Whether a picked type takes a name (guest, visitor or a club-visitor base)
+// rather than a member number.
 export function playerTypeNeedsGuestName(options: GolfPlayerTypeOption[] | null | undefined, code: string): boolean {
-  const base = (options || []).find((o) => o.key === code)?.baseIdentity || code;
-  return base === 'guest' || base === 'affiliate';
+  const base = playerTypeBase(options, code);
+  return base === 'guest' || base === 'visitor' || base === 'affiliate' || base === 'reciprocal';
+}
+
+// Whether a line of this type is a MEMBER'S GUEST: it needs a host member,
+// and draws on the host's guest quota and monthly guest allowance.
+export function playerTypeIsHostedGuest(options: GolfPlayerTypeOption[] | null | undefined, code: string): boolean {
+  const base = playerTypeBase(options, code);
+  return base === 'guest' || base === 'member-guest';
 }
 
 export function playerTypeLabel(options: GolfPlayerTypeOption[] | null | undefined, code: string): string {

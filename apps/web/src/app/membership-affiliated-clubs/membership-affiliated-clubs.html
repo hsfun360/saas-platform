@@ -142,7 +142,7 @@
             </div>
             <div class="form-group">
               <label for="gacKind">Kind <span class="required">*</span></label>
-              <select id="gacKind" formControlName="kind" [attr.aria-invalid]="showError(form.controls.kind)" aria-describedby="gacKindErr">
+              <select id="gacKind" formControlName="kind" (change)="onKindChange()" [attr.aria-invalid]="showError(form.controls.kind)" aria-describedby="gacKindErr">
                 <option value="">- Select -</option>
                 @for (k of kinds(); track k.key) {
                   <option [value]="k.key">{{ k.label }}</option>
@@ -168,9 +168,9 @@
               <app-combobox inputId="gacType" formControlName="playerTypeId" [options]="playerTypeOptions()" [allowEmpty]="false"
                             placeholder="Type to search…" [invalid]="showError(form.controls.playerTypeId)" describedBy="gacTypeErr" />
               @if (showError(form.controls.playerTypeId)) {
-                <p id="gacTypeErr" class="field-error" role="alert">Pick the affiliate player type.</p>
+                <p id="gacTypeErr" class="field-error" role="alert">Pick the player type this club's visitors are billed as.</p>
               }
-              <p class="cell-subtle field-hint">A golf player type of base Affiliated / Reciprocal (Golf Management → Player Types); its green-fee rate card prices this club's visitors.</p>
+              <p class="cell-subtle field-hint">A golf player type of the matching base - Affiliated club member for an association, Reciprocal club member for a reciprocal club (Golf Management → Player Types); its green-fee rate card prices this club's visitors.</p>
             </div>
           </div>
         </details>

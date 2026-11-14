@@ -326,11 +326,14 @@
                   <div class="fd-grid" style="width: 100%;">
                     <div class="form-group">
                       <label for="fdswType">Player Type <span class="required">*</span></label>
-                      <select id="fdswType" formControlName="playerType">
+                      <select id="fdswType" formControlName="playerType" (change)="onWalkinTypeChange(slotWalkinForm)">
                         @for (p of meta()?.playerTypes || []; track p.key) {
                           <option [value]="p.key">{{ p.label }}</option>
                         }
                       </select>
+                      @if (walkinTypeHint(slotWalkinForm.controls.playerType.value); as th) {
+                        <p class="cell-subtle field-hint">{{ th }}</p>
+                      }
                     </div>
                     <div class="form-group">
                       <label for="fdswHoles">No of Holes <span class="required">*</span></label>
@@ -339,9 +342,40 @@
                         <option [ngValue]="18" [disabled]="flight()?.nineHolesOnly === true">18 holes</option>
                       </select>
                     </div>
+                    <!-- The host member: required for a member's guest, optional for a member. -->
+                    @if (needsHost(slotWalkinForm.controls.playerType.value) || mayNameHost(slotWalkinForm.controls.playerType.value)) {
+                      <div class="form-group">
+                        <label for="fdswHost">Host Member No @if (needsHost(slotWalkinForm.controls.playerType.value)) { <span class="required">*</span> }</label>
+                        <input id="fdswHost" #swHost type="text" formControlName="hostMemberNo" maxlength="50" autocomplete="off"
+                               placeholder="e.g. A0018" (blur)="lookupHost(swHost.value)" />
+                        @if (hostError()) {
+                          <p class="field-error" role="alert">{{ hostError() }}</p>
+                        } @else if (hostLoading()) {
+                          <p class="cell-subtle field-hint">Checking the host…</p>
+                        } @else if (hostInfo(); as h) {
+                          <p class="field-hint fd-host" [class.fd-host--blocked]="hostBlocked()" role="status">
+                            <strong>{{ h.host.name }}</strong> ({{ h.host.memberNo }}){{ h.host.membershipTypeCategory ? ' · ' + h.host.membershipTypeCategory : '' }} - {{ hostStandingText() }}.
+                          </p>
+                        } @else if (mayNameHost(slotWalkinForm.controls.playerType.value)) {
+                          <p class="cell-subtle field-hint">Only when the member plays as another member's guest - otherwise leave blank.</p>
+                        }
+                      </div>
+                    }
+                    @if (isGuestType(slotWalkinForm.controls.playerType.value) && hostPasses().length > 0) {
+                      <div class="form-group">
+                        <label for="fdswPass">Guest Pass</label>
+                        <select id="fdswPass" #swPass [value]="slotWalkinForm.controls.guestId.value" (change)="pickHostPass(slotWalkinForm, swPass.value)">
+                          <option value="">No pass - name only</option>
+                          @for (p of hostPasses(); track p.guestId) {
+                            <option [value]="p.guestId">{{ p.guestName }}{{ p.registrationNo ? ' (' + p.registrationNo + ')' : '' }}</option>
+                          }
+                        </select>
+                        <p class="cell-subtle field-hint">A pass names the guest - the visit then counts once for the day across the club.</p>
+                      </div>
+                    }
                     @if (needsGuestName(slotWalkinForm.controls.playerType.value)) {
                       <div class="form-group">
-                        <label for="fdswGName">Guest Name <span class="required">*</span></label>
+                        <label for="fdswGName">{{ isVisitorType(slotWalkinForm.controls.playerType.value) ? 'Visitor Name' : 'Guest Name' }} <span class="required">*</span></label>
                         <input id="fdswGName" type="text" formControlName="guestName" maxlength="100" autocomplete="off" />
                       </div>
                       <div class="form-group">
@@ -386,7 +420,7 @@
         <!-- ---- Free-form walk-in registration (the FAB) ---- -->
         @case ('walkin') {
           <form id="fdWalkin" [formGroup]="walkinForm" (ngSubmit)="submitWalkIn()" class="saas-form saas-form--dialog">
-            <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} - the desk needs only a free seat on the flight.</p>
+            <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} on a flight with a free seat. A guest is registered under a host member; a golfer with no host is a visitor.</p>
             <div class="fd-grid">
               <div class="form-group">
                 <label for="fdwCourse">Course <span class="required">*</span></label>
@@ -414,15 +448,49 @@
               </div>
               <div class="form-group">
                 <label for="fdwType">Player Type <span class="required">*</span></label>
-                <select id="fdwType" formControlName="playerType">
+                <select id="fdwType" formControlName="playerType" (change)="onWalkinTypeChange(walkinForm)">
                   @for (p of meta()?.playerTypes || []; track p.key) {
                     <option [value]="p.key">{{ p.label }}</option>
                   }
                 </select>
+                @if (walkinTypeHint(walkinForm.controls.playerType.value); as th) {
+                  <p class="cell-subtle field-hint">{{ th }}</p>
+                }
               </div>
+              <!-- The host member: required for a member's guest, optional for a member. -->
+              @if (needsHost(walkinForm.controls.playerType.value) || mayNameHost(walkinForm.controls.playerType.value)) {
+                <div class="form-group">
+                  <label for="fdwHost">Host Member No @if (needsHost(walkinForm.controls.playerType.value)) { <span class="required">*</span> }</label>
+                  <input id="fdwHost" #wHost type="text" formControlName="hostMemberNo" maxlength="50" autocomplete="off"
+                         placeholder="e.g. A0018" (blur)="lookupHost(wHost.value)" />
+                  @if (hostError()) {
+                    <p class="field-error" role="alert">{{ hostError() }}</p>
+                  } @else if (hostLoading()) {
+                    <p class="cell-subtle field-hint">Checking the host…</p>
+                  } @else if (hostInfo(); as h) {
+                    <p class="field-hint fd-host" [class.fd-host--blocked]="hostBlocked()" role="status">
+                      <strong>{{ h.host.name }}</strong> ({{ h.host.memberNo }}){{ h.host.membershipTypeCategory ? ' · ' + h.host.membershipTypeCategory : '' }} - {{ hostStandingText() }}.
+                    </p>
+                  } @else if (mayNameHost(walkinForm.controls.playerType.value)) {
+                    <p class="cell-subtle field-hint">Only when the member plays as another member's guest - otherwise leave blank.</p>
+                  }
+                </div>
+              }
+              @if (isGuestType(walkinForm.controls.playerType.value) && hostPasses().length > 0) {
+                <div class="form-group">
+                  <label for="fdwPass">Guest Pass</label>
+                  <select id="fdwPass" #wPass [value]="walkinForm.controls.guestId.value" (change)="pickHostPass(walkinForm, wPass.value)">
+                    <option value="">No pass - name only</option>
+                    @for (p of hostPasses(); track p.guestId) {
+                      <option [value]="p.guestId">{{ p.guestName }}{{ p.registrationNo ? ' (' + p.registrationNo + ')' : '' }}</option>
+                    }
+                  </select>
+                  <p class="cell-subtle field-hint">A pass names the guest - the visit then counts once for the day across the club.</p>
+                </div>
+              }
               @if (needsGuestName(walkinForm.controls.playerType.value)) {
                 <div class="form-group">
-                  <label for="fdwGName">Guest Name <span class="required">*</span></label>
+                  <label for="fdwGName">{{ isVisitorType(walkinForm.controls.playerType.value) ? 'Visitor Name' : 'Guest Name' }} <span class="required">*</span></label>
                   <input id="fdwGName" type="text" formControlName="guestName" maxlength="100" autocomplete="off" />
                 </div>
                 <div class="form-group">

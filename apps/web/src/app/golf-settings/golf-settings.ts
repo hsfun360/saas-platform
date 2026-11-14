@@ -8,7 +8,7 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, Reacti
 // are mapped back to null (and clamped) when the payload is built.
 type OvGroup = FormGroup<{ membershipTypeId: FormControl<string>; advanceBookingDays: FormControl<number> }>;
 type MpGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; minPlayers: FormControl<number> }>;
-type GcGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; allowGuest: FormControl<boolean>; allowMemberGuest: FormControl<boolean> }>;
+type GcGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; allowGuest: FormControl<boolean>; allowVisitor: FormControl<boolean> }>;
 type HlGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; gender: FormControl<string>; maxHandicap: FormControl<number>; latestTeeOff: FormControl<string> }>;
 type HaGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; appliesToBeginner: FormControl<boolean>; appliesToProvisional: FormControl<boolean>; minCompanions: FormControl<number>; companionMaxHandicapMen: FormControl<number>; companionMaxHandicapWomen: FormControl<number>; latestTeeOff: FormControl<string> }>;
 type SsGroup = FormGroup<{ name: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string> }>;
@@ -114,7 +114,8 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
   // these are the moved paragraphs, bound with [text]="hint.x".
   readonly hint = {
     typeOverride: 'Grants selected membership types the privilege to book earlier than the general rule. The hours above always apply club-wide.',
-    bookingLimit: 'Counted as the booking maker or a Member player line; playing as a member-guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions\' flights.',
+    guestControl: 'A guest is brought by a member: the host\'s guest quota and monthly guest allowance apply, on the booking screen and at the front desk alike. A member who has no playing right of their own for a flight plays as the booker\'s guest automatically, so the guests answer covers them too. A visitor has no host and registers at the front desk. Members of affiliated and reciprocal clubs are not affected by these answers - their club record sets their terms.',
+    bookingLimit: 'Counted as the booking maker or a Member player line; playing as another member\'s guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions\' flights.',
     sessions: 'The club\'s day parts - e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each; a tee time outside every session is unrestricted.',
     sameDay: 'When off, bookings start from tomorrow up to the advance window - golfers take today\'s flights by registering at the front desk.',
     merge: 'When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.',
@@ -127,7 +128,7 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
     prorate: 'Ticked: the value is the basis times the unplayed share (the desk keys the holes played). Unticked: the full basis whatever was played.',
     buggy: 'On: the Buggy Station issues a unit per buggy slot - a single buggy fee is one slot, two shared buggy fees in the same flight are one slot for both riders - and only once the fees are paid. Off: the fleet register and buggy types can still be keyed, nothing is issued. Which courses make the buggy compulsory (the fee auto-charged at registration) is set per course under Courses; the single and shared fee items under Transaction Type.',
     caddy: 'On: the Caddy Station checks caddies in (first in is next up, back of the queue after each round), assigns one caddy per caddy slot - a single caddy fee is one slot, two shared caddy fees in the same flight are one slot for both golfers - only once the fees are paid, and records each round with the holes played. A caddy is assigned out of turn only when the player asked for them. Off: the register, grades and groups can still be keyed. The single and shared caddy fee items live under Transaction Type.',
-    rights: 'On: a booking is refused when a player\'s target has playing-right rules and the flight falls outside every one of them, or when the player would exceed their round quota; the front desk warns. A target with no playing-right rows is unrestricted. Rules are kept while off.',
+    rights: 'On: the booker must hold the right to the flight and have room in their round quota, or the booking is refused. Another member on the booking who has no right of their own, or has used up their round quota, plays as the booker\'s guest instead - the guest answers above, the booker\'s guest quota and the monthly guest allowance then apply, and that round does not count toward the member\'s own quota. A walk-in member with no right registers only as the guest of a named host member. A target with no playing-right rows is unrestricted. Rules are kept while off.',
     group: 'Off: a group booking is confirmed the moment it is created - the committee club keying its own events. On: a new booking is tentative, its reserved flights expire unless it is submitted for approval, approval starts the deposit clock, and the booking is confirmed when the deposit is received. The approval chain itself is set up under Workflow (purpose Golf group booking); with no chain, submitting approves at once.',
     shareCaps: 'The hard ceiling on the share of a course\'s tee times that all group bookings together may hold on one day - whatever an approver decides. Reserve flights refuses past it. Club events are exempt and do not count.',
   };
@@ -163,9 +164,9 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
     allowSameDayBooking: [false],
     guestControlEnabled: [false],
     allowGuestWeekday: [true],
-    allowMemberGuestWeekday: [true],
+    allowVisitorWeekday: [true],
     allowGuestWeekend: [true],
-    allowMemberGuestWeekend: [true],
+    allowVisitorWeekend: [true],
     handicapControlEnabled: [false],
     juniorBookingControlEnabled: [false],
     noShowControlEnabled: [false],
@@ -415,9 +416,9 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
           allowSameDayBooking: doc.setting.allowSameDayBooking,
           guestControlEnabled: doc.setting.guestControlEnabled,
           allowGuestWeekday: doc.setting.allowGuestWeekday,
-          allowMemberGuestWeekday: doc.setting.allowMemberGuestWeekday,
+          allowVisitorWeekday: doc.setting.allowVisitorWeekday,
           allowGuestWeekend: doc.setting.allowGuestWeekend,
-          allowMemberGuestWeekend: doc.setting.allowMemberGuestWeekend,
+          allowVisitorWeekend: doc.setting.allowVisitorWeekend,
           handicapControlEnabled: doc.setting.handicapControlEnabled,
           juniorBookingControlEnabled: doc.setting.juniorBookingControlEnabled,
           noShowControlEnabled: doc.setting.noShowControlEnabled === true,
@@ -484,7 +485,7 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
     return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope as string], startTime: [r.startTime || ''], endTime: [r.endTime || ''], minPlayers: [r.minPlayers] });
   }
   private newGuestRule(r: GolfGuestControlRule): GcGroup {
-    return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope as string], startTime: [r.startTime || ''], endTime: [r.endTime || ''], allowGuest: [r.allowGuest], allowMemberGuest: [r.allowMemberGuest] });
+    return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope as string], startTime: [r.startTime || ''], endTime: [r.endTime || ''], allowGuest: [r.allowGuest], allowVisitor: [r.allowVisitor] });
   }
   private newLimitRule(r: GolfHandicapLimitRule): HlGroup {
     return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope], holes: [r.holes === null ? '' : String(r.holes)], gender: [r.gender as string], maxHandicap: [r.maxHandicap], latestTeeOff: [r.latestTeeOff || ''] });
@@ -542,7 +543,7 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
     return this.minPlayerRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope as GolfMinPlayerRule['dayScope'], startTime: v.startTime || null, endTime: v.endTime || null, minPlayers: clampInt(v.minPlayers, 1, 10, 1) }; });
   }
   private readGuestRules(): GolfGuestControlRule[] {
-    return this.guestRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope as GolfGuestControlRule['dayScope'], startTime: v.startTime || null, endTime: v.endTime || null, allowGuest: v.allowGuest, allowMemberGuest: v.allowMemberGuest }; });
+    return this.guestRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope as GolfGuestControlRule['dayScope'], startTime: v.startTime || null, endTime: v.endTime || null, allowGuest: v.allowGuest, allowVisitor: v.allowVisitor }; });
   }
   private readLimitRules(): GolfHandicapLimitRule[] {
     return this.limitRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope, holes: v.holes === '' ? null : Number(v.holes), gender: v.gender as GolfHandicapLimitRule['gender'], maxHandicap: clampHcp(v.maxHandicap), latestTeeOff: v.latestTeeOff || null }; });
@@ -574,7 +575,7 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
   }
 
   addGuestRule(): void {
-    this.push(this.guestRules, this.newGuestRule({ courseId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowMemberGuest: true }));
+    this.push(this.guestRules, this.newGuestRule({ courseId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowVisitor: true }));
   }
   removeGuestRule(index: number): void { this.drop(this.guestRules, index); }
 
@@ -723,9 +724,9 @@ export class GolfSettingsComponent implements OnInit, UnsavedChangesAware {
       allowSameDayBooking: v.allowSameDayBooking,
       guestControlEnabled: v.guestControlEnabled,
       allowGuestWeekday: v.allowGuestWeekday,
-      allowMemberGuestWeekday: v.allowMemberGuestWeekday,
+      allowVisitorWeekday: v.allowVisitorWeekday,
       allowGuestWeekend: v.allowGuestWeekend,
-      allowMemberGuestWeekend: v.allowMemberGuestWeekend,
+      allowVisitorWeekend: v.allowVisitorWeekend,
       handicapControlEnabled: v.handicapControlEnabled,
       juniorBookingControlEnabled: v.juniorBookingControlEnabled,
       noShowControlEnabled: v.noShowControlEnabled,

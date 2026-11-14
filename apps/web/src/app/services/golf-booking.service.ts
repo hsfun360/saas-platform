@@ -19,9 +19,40 @@ export interface GolfBookingMember {
   actionControl: 'allow' | 'warning' | 'barred';
 }
 
+// The booker's guest standing (2026-11-13): the per-booking guest quota of
+// the membership type (null = no limit, 0 = no guests) and the monthly guest
+// allowance in the month of `date` (allowance null = no limit), counted
+// club-wide on Membership's guest ledger.
+export interface GolfGuestStanding {
+  quota: number | null;
+  allowance: number | null;
+  used: number;
+  remaining: number | null;
+  date: string;
+}
+
+// One of the booker's guest passes for the play date (Guest Registration).
+export interface GolfGuestPass {
+  guestId: string;
+  guestName: string;
+  registrationNo: string | null;
+  status: string;
+}
+
+// The class a member line will take on the flight (the save re-derives it).
+export interface GolfLineCheck {
+  memberNo: string;
+  name: string;
+  playerType: string;
+  playerTypeLabel: string;
+  playsAsGuest: boolean;
+  reason: string | null;
+}
+
 export interface GolfBookingContext {
   member: GolfBookingMember;
   window: { dateFrom: string; dateTo: string; effectiveDays: number };
+  guests?: GolfGuestStanding;
   courses: { id: string; courseCode: string; description?: string | null }[];
   meta: { holesOptions: number[]; lockMinutes: number };
 }
@@ -59,6 +90,8 @@ export interface GolfBookingPlayerLine {
   playerType: string;
   memberNo?: string;
   guestName?: string;
+  // The membership.Guest of one of the booker's passes for the date.
+  guestId?: string;
 }
 
 export interface GolfBookingPlayer {
@@ -111,6 +144,7 @@ export interface GolfChangeLine {
   playerType?: string;
   memberNo?: string;
   guestName?: string;
+  guestId?: string;
 }
 
 export interface GolfChangePayload {
@@ -142,7 +176,9 @@ export interface GolfChangePreview {
   after: GolfChangeFlight;
   kept: { playerId: string; playerName: string; memberNo: string | null; playerType: string; status: string }[];
   dropped: { playerId: string; playerName: string; memberNo: string | null; playerType: string }[];
-  added: { playerName: string; memberNo: string | null; playerType: string }[];
+  // playsAsGuestReason: the engine turned this added member into the booker's
+  // guest (no playing right of their own on the flight).
+  added: { playerName: string; memberNo: string | null; playerType: string; playsAsGuestReason?: string | null }[];
   controlled: boolean;
   late: boolean;
   deadline: { date: string; time: string } | null;
@@ -171,8 +207,24 @@ export class GolfBookingService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/golf/bookings`;
 
-  context(memberNo: string): Observable<GolfBookingContext> {
-    return this.http.get<GolfBookingContext>(`${this.base}/context`, { params: { memberNo } });
+  // `playDate` names the month the guest allowance is read for.
+  context(memberNo: string, playDate?: string): Observable<GolfBookingContext> {
+    return this.http.get<GolfBookingContext>(`${this.base}/context`, { params: playDate ? { memberNo, playDate } : { memberNo } });
+  }
+
+  // The booker's guest passes for the play date + their guest standing in
+  // that month - shown on the Players step before guests are keyed.
+  guestPasses(memberNo: string, playDate: string): Observable<{ passes: GolfGuestPass[]; guests: GolfGuestStanding }> {
+    return this.http.get<{ passes: GolfGuestPass[]; guests: GolfGuestStanding }>(`${this.base}/guest-passes`, { params: { memberNo, playDate } });
+  }
+
+  // The class a member line will take on the flight: Member, or - when the
+  // member holds no playing right of their own - Member as Guest with the reason.
+  lineCheck(q: { memberNo: string; lineMemberNo: string; playerType: string; lockGroupId?: string; bookingId?: string }): Observable<GolfLineCheck> {
+    const params: Record<string, string> = { memberNo: q.memberNo, lineMemberNo: q.lineMemberNo, playerType: q.playerType };
+    if (q.lockGroupId) params['lockGroupId'] = q.lockGroupId;
+    if (q.bookingId) params['bookingId'] = q.bookingId;
+    return this.http.get<GolfLineCheck>(`${this.base}/line-check`, { params });
   }
 
   availability(payload: GolfSearchPayload): Observable<{ playDate: string; dayType: string; groups: GolfFlightGroup[]; memberWarning: string | null }> {
@@ -199,10 +251,12 @@ export class GolfBookingService {
     return this.http.post<{ message: string; booking: GolfBookingRow }>(this.base, payload);
   }
 
-  // `playerTypes` = the club's pickable player types (code, label, base identity);
+  // `playerTypes` = the types the booking screen may pick (code, label, base
+  // identity); `allPlayerTypes` = every type, for the labels of stored lines
+  // (a derived Member as Guest line carries a type nobody picks);
   // `caddyManagementEnabled` = whether a caddy may be requested on a booking.
-  list(playDate: string): Observable<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }> {
-    return this.http.get<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }>(this.base, { params: { playDate } });
+  list(playDate: string): Observable<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; allPlayerTypes?: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }> {
+    return this.http.get<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[]; allPlayerTypes?: GolfPlayerTypeOption[]; caddyManagementEnabled?: boolean }>(this.base, { params: { playDate } });
   }
 
   // What cancelling NOW means under the cancellation-notice rule (show

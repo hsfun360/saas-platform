@@ -14,7 +14,7 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
-import { playerTypeNeedsGuestName, playerTypeLabel } from '../services/golf-player-type.service';
+import { playerTypeNeedsGuestName, playerTypeLabel, playerTypeBase } from '../services/golf-player-type.service';
 import {
   GolfFrontDeskService,
   FrontDeskCourseSheet,
@@ -25,6 +25,7 @@ import {
   FrontDeskMeta,
   GolfBillDoc,
   WalkInPayload,
+  FrontDeskHostGuests,
   FrontDeskNoShowReview,
   GolfRainCheck,
   GolfRainCheckQuote,
@@ -333,11 +334,24 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   readonly slotWalkinForm = this.fb.nonNullable.group({
     playerType: ['member', [Validators.required]],
     memberNo: [''],
+    hostMemberNo: [''],
+    guestId: [''],
     guestName: [''],
     guestIdentityNo: [''],
     guestMobile: [''],
     holes: [18, [Validators.required]],
   });
+
+  // The HOST MEMBER of a walk-in guest (user decisions 2026-11-13). A guest
+  // is always a member's guest, so the desk names the host; a member names
+  // one only to play as that member's guest; a visitor has none. The host's
+  // guest standing and passes are read as soon as the number is keyed, so
+  // the desk sees the outcome before registering (show expected results).
+  // One state for both walk-in forms: only one is open at a time.
+  readonly hostInfo = signal<FrontDeskHostGuests | null>(null);
+  readonly hostError = signal('');
+  readonly hostLoading = signal(false);
+  private hostLookupNo = '';
 
   // Free-form walk-in (the FAB).
   readonly walkinForm = this.fb.nonNullable.group({
@@ -346,6 +360,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     holes: [18, [Validators.required]],
     playerType: ['member', [Validators.required]],
     memberNo: [''],
+    hostMemberNo: [''],
+    guestId: [''],
     guestName: [''],
     guestIdentityNo: [''],
     guestMobile: [''],
@@ -523,9 +539,147 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     return playerTypeLabel(m ? (m.allPlayerTypes || m.playerTypes) : [], key);
   }
 
-  // A guest-base type takes a name, the member bases a member number.
+  // A guest-, visitor- or club-visitor-base type takes a name, the member
+  // bases a member number.
   needsGuestName(code: string): boolean {
     return playerTypeNeedsGuestName(this.meta()?.playerTypes, code);
+  }
+
+  // ---------- the walk-in's patron class (2026-11-13) ----------
+
+  private walkinBase(code: string): string {
+    return playerTypeBase(this.meta()?.playerTypes, code);
+  }
+
+  // A member's GUEST: the host member is required.
+  needsHost(code: string): boolean {
+    const base = this.walkinBase(code);
+    return base === 'guest' || base === 'member-guest';
+  }
+
+  // A MEMBER may name a host - only to play as that member's guest.
+  mayNameHost(code: string): boolean {
+    return this.walkinBase(code) === 'member';
+  }
+
+  isVisitorType(code: string): boolean {
+    return this.walkinBase(code) === 'visitor';
+  }
+
+  // A guest-base walk-in may name one of the host's guest passes.
+  isGuestType(code: string): boolean {
+    return this.walkinBase(code) === 'guest';
+  }
+
+  readonly hostPasses = computed(() => this.hostInfo()?.passes || []);
+
+  // What the picked class means at the desk, in one line under the picker.
+  walkinTypeHint(code: string): string {
+    switch (this.walkinBase(code)) {
+      case 'guest': return 'A member\'s guest: name the host member - their guest quota and monthly guest allowance apply.';
+      case 'member-guest': return 'A member playing as another member\'s guest: name the host member - the host\'s guest rules apply.';
+      case 'visitor': return 'No host member: plays when the club allows visitors on this flight.';
+      default: return '';
+    }
+  }
+
+  private resetHost(): void {
+    this.hostInfo.set(null);
+    this.hostError.set('');
+    this.hostLoading.set(false);
+    this.hostLookupNo = '';
+  }
+
+  // The host number was keyed: read the host's guest standing and passes
+  // for the day.
+  lookupHost(memberNo: string): void {
+    const no = memberNo.trim();
+    if (!no) {
+      this.resetHost();
+      return;
+    }
+    if (no === this.hostLookupNo && (this.hostInfo() || this.hostError())) return;
+    this.hostLookupNo = no;
+    this.hostLoading.set(true);
+    this.hostError.set('');
+    this.service.hostGuests(no, this.listDate()).subscribe({
+      next: (res) => {
+        if (this.hostLookupNo !== no) return;
+        this.hostLoading.set(false);
+        this.hostInfo.set(res);
+        if (res.host.actionControl === 'barred') this.hostError.set(`Host member ${res.host.memberNo} (${res.host.statusLabel || 'status'}) is barred.`);
+      },
+      error: (err) => {
+        if (this.hostLookupNo !== no) return;
+        this.hostLoading.set(false);
+        this.hostInfo.set(null);
+        this.hostError.set(err.error?.message || 'Could not find the host member.');
+      },
+    });
+  }
+
+  hostStandingText(): string {
+    const h = this.hostInfo();
+    if (!h) return '';
+    const g = h.guests;
+    const parts: string[] = [];
+    if (g.quota === 0) parts.push('this membership type cannot bring guests');
+    if (g.allowance !== null) parts.push(`${g.remaining} of ${g.allowance} monthly guest visits left`);
+    return parts.length ? parts.join(' · ') : 'no guest limits on this membership type';
+  }
+
+  // The host cannot take this guest (the registration would be refused).
+  hostBlocked(): boolean {
+    const h = this.hostInfo();
+    if (!h) return false;
+    return h.guests.quota === 0 || (h.guests.remaining !== null && h.guests.remaining < 1);
+  }
+
+  // A host pass picked on a guest walk-in: the walk-in names that guest.
+  pickHostPass(form: FormGroup, guestId: string): void {
+    form.get('guestId')?.setValue(guestId);
+    const pass = this.hostInfo()?.passes.find((x) => x.guestId === guestId);
+    if (pass) form.get('guestName')?.setValue(pass.guestName);
+  }
+
+  // The picked class changed: a host or pass keyed for another class is dropped.
+  onWalkinTypeChange(form: FormGroup): void {
+    const code = String(form.get('playerType')?.value || '');
+    form.get('guestId')?.setValue('');
+    if (!this.needsHost(code) && !this.mayNameHost(code)) {
+      form.get('hostMemberNo')?.setValue('');
+      this.resetHost();
+    }
+  }
+
+  // The patron part of a walk-in payload from either form's values; sets the
+  // error and answers false when something required is missing.
+  private fillWalkInPatron(payload: WalkInPayload, v: { playerType: string; memberNo: string; hostMemberNo: string; guestId: string; guestName: string; guestIdentityNo: string; guestMobile: string }): boolean {
+    const host = v.hostMemberNo.trim();
+    if (this.needsHost(v.playerType) && !host) {
+      this.errorMessage.set('Name the host member - a guest plays as the guest of a member. A golfer with no host registers as a Visitor.');
+      return false;
+    }
+    if (host && !this.isVisitorType(v.playerType)) payload.hostMemberNo = host;
+    if (this.needsGuestName(v.playerType)) {
+      if (!v.guestName.trim()) {
+        this.errorMessage.set(this.isVisitorType(v.playerType) ? "Key in the visitor's name." : "Key in the guest name (or 'Guest').");
+        return false;
+      }
+      payload.guest = {
+        name: v.guestName.trim(),
+        identityNo: v.guestIdentityNo.trim() || undefined,
+        mobile: v.guestMobile.trim() || undefined,
+      };
+      if (v.guestId && payload.hostMemberNo) payload.guestId = v.guestId;
+    } else {
+      if (!v.memberNo.trim()) {
+        this.errorMessage.set('Key in the member number.');
+        return false;
+      }
+      payload.memberNo = v.memberNo.trim();
+    }
+    return true;
   }
 
   setListDate(value: string): void {
@@ -618,9 +772,10 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     // A 9-holes-only flight (crossover closed / day ends first) seeds 9 -
     // its 18-hole option is disabled in the select.
     this.slotWalkinForm.reset({
-      playerType: 'member', memberNo: '', guestName: '', guestIdentityNo: '', guestMobile: '',
+      playerType: 'member', memberNo: '', hostMemberNo: '', guestId: '', guestName: '', guestIdentityNo: '', guestMobile: '',
       holes: this.flight()?.nineHolesOnly === true ? 9 : 18,
     });
+    this.resetHost();
   }
 
   registerSelected(): void {
@@ -673,23 +828,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       holes: Number(v.holes),
       playerType: v.playerType,
     };
-    if (this.needsGuestName(v.playerType)) {
-      if (!v.guestName.trim()) {
-        this.errorMessage.set("Key in the guest name (or 'Guest').");
-        return;
-      }
-      payload.guest = {
-        name: v.guestName.trim(),
-        identityNo: v.guestIdentityNo.trim() || undefined,
-        mobile: v.guestMobile.trim() || undefined,
-      };
-    } else {
-      if (!v.memberNo.trim()) {
-        this.errorMessage.set('Key in the member number.');
-        return;
-      }
-      payload.memberNo = v.memberNo.trim();
-    }
+    if (!this.fillWalkInPatron(payload, v)) return;
     this.busy.set(true);
     this.service.registerWalkIn(payload).subscribe({
       next: (res) => {
@@ -717,10 +856,13 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       holes: 18,
       playerType: 'member',
       memberNo: '',
+      hostMemberNo: '',
+      guestId: '',
       guestName: '',
       guestIdentityNo: '',
       guestMobile: '',
     });
+    this.resetHost();
     this.flightRef.set(null);
     this.dlgMode.set('walkin');
   }
@@ -739,23 +881,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       holes: Number(v.holes),
       playerType: v.playerType,
     };
-    if (this.needsGuestName(v.playerType)) {
-      if (!v.guestName.trim()) {
-        this.errorMessage.set("Key in the guest name (or 'Guest').");
-        return;
-      }
-      payload.guest = {
-        name: v.guestName.trim(),
-        identityNo: v.guestIdentityNo.trim() || undefined,
-        mobile: v.guestMobile.trim() || undefined,
-      };
-    } else {
-      if (!v.memberNo.trim()) {
-        this.errorMessage.set('Key in the member number.');
-        return;
-      }
-      payload.memberNo = v.memberNo.trim();
-    }
+    if (!this.fillWalkInPatron(payload, v)) return;
     this.busy.set(true);
     this.service.registerWalkIn(payload).subscribe({
       next: (res) => {

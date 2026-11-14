@@ -88,10 +88,33 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  readonly playerTypeOptions = computed(() => (this.meta()?.playerTypes || []).map((t) => ({
-    value: t.id,
-    label: `${t.code} - ${t.description}${t.isActive ? '' : ' (disabled)'}`,
-  })));
+  // The picked kind as a signal (control values are not signals): the "billed
+  // as" picker offers the player types of the matching class - Affiliated club
+  // member types for an association, Reciprocal club member types for a
+  // reciprocal club (2026-11-13). The type a record already carries stays
+  // offered, so a pairing saved before the two classes split still shows.
+  readonly kindValue = signal<string>('');
+  private readonly originalTypeId = signal<string>('');
+  readonly playerTypeOptions = computed(() => {
+    const kind = this.kindValue();
+    const keep = this.originalTypeId();
+    return (this.meta()?.playerTypes || [])
+      .filter((t) => !kind || !t.baseIdentity || t.baseIdentity === kind || t.id === keep)
+      .map((t) => ({
+        value: t.id,
+        label: `${t.code} - ${t.description}${t.isActive ? '' : ' (disabled)'}`,
+      }));
+  });
+
+  // The kind changed: a type of the other class no longer fits - clear it.
+  onKindChange(): void {
+    const kind = this.form.controls.kind.value;
+    this.kindValue.set(kind);
+    const picked = (this.meta()?.playerTypes || []).find((t) => t.id === this.form.controls.playerTypeId.value);
+    if (picked && picked.baseIdentity && kind && picked.baseIdentity !== kind && picked.id !== this.originalTypeId()) {
+      this.form.controls.playerTypeId.setValue('');
+    }
+  }
   readonly countryOptions = computed(() => this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji} ${c.name}` })));
   readonly visitFeeOptions = computed(() => (this.meta()?.visitFeeTypes || []).map((t) => ({
     value: t.id,
@@ -186,6 +209,8 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
       contactName: '', contactEmail: '', contactPhone: '', addressLine1: '', addressLine2: '', city: '', state: '', postcode: '', countryCode: '',
       remarks: '', sortOrder: 100,
     });
+    this.kindValue.set('');
+    this.originalTypeId.set('');
     this.dialogOpen.set(true);
   }
 
@@ -203,6 +228,8 @@ export class MembershipAffiliatedClubsComponent implements OnInit {
       postcode: c.address.postcode || '', countryCode: c.address.countryCode || '',
       remarks: c.remarks || '', sortOrder: c.sortOrder,
     });
+    this.kindValue.set(c.kind);
+    this.originalTypeId.set(c.playerTypeId);
     this.dialogOpen.set(true);
   }
 

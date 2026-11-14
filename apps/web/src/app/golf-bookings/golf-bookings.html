@@ -279,6 +279,16 @@
           }
 
           @if (lock() || isChange()) {
+            @if (guestStanding()) {
+              <p class="gb-guests" [class.gb-guests--over]="guestsOverLimit()" role="status">
+                <span class="material-icons" aria-hidden="true">{{ guestsOverLimit() ? 'warning' : 'group_add' }}</span>
+                <span>
+                  <strong>Guests of {{ searchForm.controls.memberNo.value }}:</strong> {{ guestStandingText() }}.
+                  @if (guestCount() > 0) { This booking brings {{ guestCount() }}. }
+                  @if (guestsOverLimit()) { That is more than the member may bring - the save will refuse it. }
+                </span>
+              </p>
+            }
             <div class="gb-players" formArrayName="lines">
               <div class="gb-player-row gb-player-row--head" aria-hidden="true">
                 <span></span>
@@ -305,7 +315,7 @@
                       <span class="gb-booker-tag">Desk</span>
                     }
                   } @else {
-                    <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
+                    <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'" (change)="onLineTypeChange(g)">
                       @for (t of playerTypes(); track t.key) {
                         <option [value]="t.key">{{ t.label }}</option>
                       }
@@ -315,7 +325,7 @@
                              [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
                     } @else {
                       <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No"
-                             [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
+                             [attr.aria-label]="'Player ' + (i + 1) + ' member number'" (blur)="checkLine(g)" />
                     }
                     @if (i > 0 || isChange()) {
                       <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Remove player ' + (i + 1)">
@@ -323,6 +333,31 @@
                       </button>
                     } @else {
                       <span class="gb-booker-tag">Booker</span>
+                    }
+                    <!-- The class the member takes on this flight, said before the save. -->
+                    @if (lineNote(g); as note) {
+                      @if (note.error) {
+                        <span class="gb-line-note gb-line-note--error" role="alert">{{ note.error }}</span>
+                      } @else if (note.playsAsGuest) {
+                        <span class="gb-line-note gb-line-note--guest" role="status">
+                          <span class="material-icons" aria-hidden="true">info</span>
+                          {{ note.name }} plays as a guest of the booker - {{ note.reason || 'no playing right of their own on this flight' }}.
+                        </span>
+                      } @else {
+                        <span class="gb-line-note" role="status">{{ note.name }} - plays as a member.</span>
+                      }
+                    }
+                    <!-- A guest line may name one of the booker's guest passes for the date. -->
+                    @if (canPickPass(g)) {
+                      <span class="gb-line-note gb-line-pass">
+                        <label [attr.for]="'gbPass' + i">Guest pass</label>
+                        <select #passSel [id]="'gbPass' + i" [value]="g.controls.guestId.value" (change)="pickPass(g, passSel.value)">
+                          <option value="">No pass - name only</option>
+                          @for (p of guestPasses(); track p.guestId) {
+                            <option [value]="p.guestId" [disabled]="passTaken(g, p.guestId)">{{ p.guestName }}{{ p.registrationNo ? ' (' + p.registrationNo + ')' : '' }}</option>
+                          }
+                        </select>
+                      </span>
                     }
                   }
                 </div>
@@ -367,7 +402,7 @@
                   <span class="gb-review__line">{{ k.playerName }}{{ k.memberNo ? ' (' + k.memberNo + ')' : '' }}</span>
                 }
                 @for (a of p.added; track $index) {
-                  <span class="gb-review__line gb-review__line--added">+ {{ a.playerName }}{{ a.memberNo ? ' (' + a.memberNo + ')' : '' }}</span>
+                  <span class="gb-review__line gb-review__line--added">+ {{ a.playerName }}{{ a.memberNo ? ' (' + a.memberNo + ')' : '' }}@if (a.playsAsGuestReason) { - plays as a guest of the booker ({{ a.playsAsGuestReason }}) }</span>
                 }
                 @for (d of p.dropped; track d.playerId) {
                   <span class="gb-review__line gb-review__line--dropped">- {{ d.playerName }}{{ d.memberNo ? ' (' + d.memberNo + ')' : '' }}</span>

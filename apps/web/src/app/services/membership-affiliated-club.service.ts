@@ -68,9 +68,11 @@ export interface GolfAffiliatedClubPayload {
 export interface GolfAffiliatedClubMeta {
   kinds: MembershipStatusOption[];
   periods: MembershipStatusOption[];
-  // The affiliate-base golf player types and the miscellaneous golf fee items
-  // (served here through the golf seam, no golf grants needed).
-  playerTypes: { id: string; code: string; description: string; isActive: boolean }[];
+  // The club-visitor golf player types (base 'affiliate' for an affiliated
+  // association, 'reciprocal' for a reciprocal club - matched to the record's
+  // kind since 2026-11-13) and the miscellaneous golf fee items (served here
+  // through the golf seam, no golf grants needed).
+  playerTypes: { id: string; code: string; description: string; baseIdentity?: string; isActive: boolean }[];
   visitFeeTypes: { id: string; transactionType: string; description: string | null; isActive: boolean }[];
 }
 

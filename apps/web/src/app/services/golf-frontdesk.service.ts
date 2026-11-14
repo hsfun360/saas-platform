@@ -310,7 +310,22 @@ export interface WalkInPayload {
   holes: number;
   playerType: string;
   memberNo?: string;
+  // The member whose GUEST the walk-in is (2026-11-13): required for a
+  // guest, optional for a member (who then plays as that member's guest
+  // when they hold no playing right of their own), never for a visitor.
+  hostMemberNo?: string;
+  // The membership.Guest of one of the host's passes for the date.
+  guestId?: string;
   guest?: { name?: string; identityNo?: string; mobile?: string; email?: string };
+}
+
+// The walk-in form's view of a named host member: who they are, their guest
+// standing (per-booking quota + monthly guest allowance) and their guest
+// passes for the play date.
+export interface FrontDeskHostGuests {
+  host: { memberNo: string; name: string; membershipTypeCategory: string | null; statusLabel: string | null; actionControl: 'allow' | 'warning' | 'barred' };
+  guests: { quota: number | null; allowance: number | null; used: number; remaining: number | null; date: string };
+  passes: { guestId: string; guestName: string; registrationNo: string | null; status: string }[];
 }
 
 export interface FrontDeskNoShowCharge {
@@ -395,6 +410,12 @@ export class GolfFrontDeskService {
 
   registerBooked(playerId: string, guest?: GuestIdentityPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {
     return this.http.post<{ message: string; registration: FrontDeskRegistration }>(`${this.base}/registrations`, { playerId, guest });
+  }
+
+  // The host member's guest standing and passes, read before a guest is
+  // registered so the desk sees the outcome first.
+  hostGuests(memberNo: string, playDate: string): Observable<FrontDeskHostGuests> {
+    return this.http.get<FrontDeskHostGuests>(`${this.base}/host-guests`, { params: { memberNo, playDate } });
   }
 
   registerWalkIn(walkIn: WalkInPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {

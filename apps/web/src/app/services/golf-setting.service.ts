@@ -20,14 +20,15 @@ export interface GolfMinPlayerRule {
 }
 
 // One guest-control exception rule (same scoping as the minimum-players
-// rules; two switches per scope - visitor guests vs members-as-guests).
+// rules; two switches per scope since 2026-11-13 - a member's guests, and
+// visitors who have no host).
 export interface GolfGuestControlRule {
   courseId: string | null;
   dayScope: 'all' | 'weekday' | 'weekend';
   startTime: string | null;
   endTime: string | null;
   allowGuest: boolean;
-  allowMemberGuest: boolean;
+  allowVisitor: boolean;
 }
 
 // One handicap LIMIT rule (Tropicana procedure 2.1): the maximum handicap
@@ -129,9 +130,9 @@ export interface GolfSettingDoc {
     allowSameDayBooking: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
-    allowMemberGuestWeekday: boolean;
+    allowVisitorWeekday: boolean;
     allowGuestWeekend: boolean;
-    allowMemberGuestWeekend: boolean;
+    allowVisitorWeekend: boolean;
     handicapControlEnabled: boolean;
     juniorBookingControlEnabled: boolean;
     noShowControlEnabled: boolean;
@@ -243,9 +244,9 @@ export class GolfSettingService {
     allowSameDayBooking: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
-    allowMemberGuestWeekday: boolean;
+    allowVisitorWeekday: boolean;
     allowGuestWeekend: boolean;
-    allowMemberGuestWeekend: boolean;
+    allowVisitorWeekend: boolean;
     handicapControlEnabled: boolean;
     juniorBookingControlEnabled: boolean;
     noShowControlEnabled: boolean;

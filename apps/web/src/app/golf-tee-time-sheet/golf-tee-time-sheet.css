@@ -790,3 +790,15 @@
   white-space: normal;
   line-height: 1.2;
 }
+
+/* The named host member of a walk-in guest (2026-11-13): who they are and
+   their guest standing, read before the guest is registered; danger when the
+   host cannot take another guest. Tokens only. */
+.fd-host {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--info-text);
+}
+.fd-host--blocked {
+  color: var(--danger-text);
+}

@@ -15,8 +15,9 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 // Golf Management → Common Setup → Player Types (/golf/player-types; spec
 // 2.3.1, user decisions 2026-10-15). The club's catalog of player
 // categories: code + base identity (the engine class, a fixed vocabulary -
-// native select) + description + the approval flag. Three system rows per
-// club (Member / Member as Guest / Guest) keep their codes and stay active;
+// native select) + description + the approval flag. Four system rows per
+// club (Member / Member as Guest / Guest / Visitor) keep their codes and stay
+// active;
 // club-defined rows (an association's members, a reciprocal club, a hotel
 // guest) are edited, enabled / disabled and, while nothing references
 // their code, deleted. The code is what the rate card prices by and what
@@ -97,9 +98,11 @@ export class GolfPlayerTypesComponent implements OnInit {
   baseHint(): string {
     switch (this.form.controls.baseIdentity.value) {
       case 'member': return 'A member of this club: standing, golfing right, booking limit, junior and handicap checks; books in advance.';
-      case 'member-guest': return 'A member playing under another member\'s booking: member standing, but the guest-control switch for members as guests and the booker\'s guest quota apply.';
-      case 'guest': return 'A visitor with no standing: guest control and the booker\'s guest quota apply; may walk in at the desk.';
-      case 'affiliate': return 'A member of an affiliated or reciprocal club: enters only through a confirmed Affiliated Visit (letter of introduction), never the booking screen or a walk-in; counts as a guest for guest control and quota.';
+      case 'member-guest': return 'A member playing as another member\'s guest. The system decides this itself when a member on someone else\'s booking has no playing right of their own for the flight; a type you add here can also be picked on purpose (for example a spouse priced as a guest). The host\'s guest rules, quota and monthly allowance apply.';
+      case 'guest': return 'A guest brought by a member: the Allow guests answer, the host\'s guest quota and monthly guest allowance apply. On a booking the host is the booker; at the front desk the host member is named.';
+      case 'visitor': return 'A member of the public with no host member: the Allow visitors answer applies. Registers at the front desk only - not offered on the booking screen.';
+      case 'affiliate': return 'A member of an affiliated club: enters only through a confirmed Affiliated Visit (letter of introduction), never the booking screen or a walk-in. Not affected by guest control - the club record sets the caps and the visit fee.';
+      case 'reciprocal': return 'A member of a reciprocal club: enters only through a confirmed visit (letter of introduction), never the booking screen or a walk-in. Not affected by guest control - the club record sets the caps and the visit fee.';
       default: return '';
     }
   }

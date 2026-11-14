@@ -335,3 +335,66 @@
     grid-column: 2 / 4;
   }
 }
+
+/* The booker's guests (2026-11-13): the standing stated above the roster
+   (info band; danger when the roster asks for more than the member may
+   bring), the per-line verdict under a keyed member number, and the guest
+   pass picker of a guest line. Tokens only. */
+.gb-guests {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  color: var(--info-text);
+  font-size: var(--font-body-2);
+}
+.gb-guests .material-icons {
+  font-size: var(--icon-md);
+}
+.gb-guests--over {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+/* A note row under a player line: it spans the type + input + action cells. */
+.gb-line-note {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: calc(var(--space-xs) * -1);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.gb-line-note .material-icons {
+  font-size: var(--icon-sm);
+}
+.gb-line-note--guest {
+  color: var(--info-text);
+}
+.gb-line-note--error {
+  color: var(--danger-text);
+}
+.gb-line-pass {
+  flex-wrap: wrap;
+  margin-top: 0;
+}
+.gb-line-pass label {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gb-line-pass select {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .gb-player-row .gb-line-pass select {
+    grid-column: auto;
+  }
+}

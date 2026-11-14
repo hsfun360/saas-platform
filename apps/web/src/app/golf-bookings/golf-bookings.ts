@@ -11,11 +11,13 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
-import { GolfPlayerTypeOption, playerTypeNeedsGuestName, playerTypeLabel } from '../services/golf-player-type.service';
+import { GolfPlayerTypeOption, playerTypeNeedsGuestName, playerTypeLabel, playerTypeBase } from '../services/golf-player-type.service';
 import { Injector } from '@angular/core';
 import {
   GolfBookingService,
   GolfBookingContext,
+  GolfGuestStanding,
+  GolfGuestPass,
   GolfBookingRow,
   GolfFlightGroup,
   GolfFlightLock,
@@ -34,8 +36,16 @@ import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog
 // screens): a day listing of bookings + a single drawer dialog whose views
 // follow the wizard - Search (member no first: standing + window resolve) →
 // Available flights (5 nearest per course) → Players (flight LOCKED with a
-// live countdown; Member vs Guest / Member-as-Guest lines) → confirm. Every
-// rule is re-validated server-side at save; the screen only mirrors them.
+// live countdown; Member and Guest lines) → confirm. Every rule is
+// re-validated server-side at save; the screen only mirrors them.
+//
+// THE MEMBER'S GUESTS (user decisions 2026-11-13): the Players step states
+// the booker's guest standing (per-booking quota + monthly guest allowance)
+// before anything is keyed; a keyed member number is checked against the
+// flight at once - a member with no playing right of their own is shown as
+// "plays as a guest" (the system decides the class, nobody picks it); and a
+// guest line may name one of the booker's guest passes for the date. Visitors
+// are not offered here - they register at the front desk.
 // One player line: a typed FormGroup inside the players form's FormArray (house
 // standard - the form's own dirty state feeds the unsaved-changes guard).
 //
@@ -54,9 +64,20 @@ type PlayerLineGroup = FormGroup<{
   playerType: FormControl<PlayerType>;
   memberNo: FormControl<string>;
   guestName: FormControl<string>;
+  // The membership.Guest of the booker's pass this guest line names ('' = none).
+  guestId: FormControl<string>;
   playerName: FormControl<string>;
   status: FormControl<string>;
 }>;
+
+// What the server said about a keyed member line (the class it will take).
+interface LineNote {
+  checkedNo: string;
+  name?: string;
+  playsAsGuest?: boolean;
+  reason?: string | null;
+  error?: string;
+}
 
 // The DEVICE-local calendar date as 'YYYY-MM-DD'. toISOString() would give
 // the UTC date - in Malaysia that is yesterday until 8am.
@@ -126,6 +147,15 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     contactMobile: ['', [Validators.maxLength(30)]],
     remarks: ['', [Validators.maxLength(255)]],
   });
+
+  // ---- the booker's guests (2026-11-13) ----
+  // Standing + passes for the play date, loaded when the Players step opens.
+  readonly guestStanding = signal<GolfGuestStanding | null>(null);
+  readonly guestPasses = signal<GolfGuestPass[]>([]);
+  // The server's verdict per keyed member line. Notes live beside the form
+  // groups; the tick is the signal the zoneless template re-renders on.
+  private readonly lineNotes = new WeakMap<PlayerLineGroup, LineNote>();
+  readonly lineTick = signal(0);
 
   // ---- change review (the server's preview, shown before the change applies) ----
   readonly changePreview = signal<GolfChangePreview | null>(null);
@@ -247,6 +277,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.bookings.set(res.bookings);
         this.playerTypes.set(res.playerTypes || []);
+        this.allPlayerTypes.set(res.allPlayerTypes || res.playerTypes || []);
         this.caddyManagementEnabled.set(res.caddyManagementEnabled === true);
         this.loading.set(false);
         this.returnScroll.consume('/golf/bookings', this.injector);
@@ -395,6 +426,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
           this.playersForm.markAsPristine();
         }
         this.startCountdown(lock);
+        this.loadGuests(this.searchForm.controls.playDate.value);
         this.step.set('players');
       },
       error: (err) => {
@@ -442,12 +474,138 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.search();
   }
 
+  // ---------- the booker's guests ----------
+
+  // The booker's guest standing in the month of `playDate` and their guest
+  // passes for that date. A failure leaves the step usable - the save is
+  // the authority either way.
+  private loadGuests(playDate: string): void {
+    const memberNo = this.searchForm.controls.memberNo.value.trim();
+    this.guestStanding.set(null);
+    this.guestPasses.set([]);
+    if (!memberNo || !playDate) return;
+    this.service.guestPasses(memberNo, playDate).subscribe({
+      next: (res) => {
+        this.guestStanding.set(res.guests);
+        this.guestPasses.set(res.passes || []);
+      },
+      error: () => {},
+    });
+  }
+
+  // The standing in the desk's words (show expected results).
+  guestStandingText(): string {
+    const s = this.guestStanding();
+    if (!s) return '';
+    const parts: string[] = [];
+    if (s.quota === 0) parts.push('This membership type cannot bring guests');
+    else if (s.quota !== null) parts.push(`Up to ${s.quota} guest${s.quota === 1 ? '' : 's'} per booking`);
+    if (s.allowance !== null) parts.push(`${s.remaining} of ${s.allowance} monthly guest visits left`);
+    return parts.length ? parts.join(' · ') : 'No guest limits on this membership type';
+  }
+
+  // Guests the roster brings: guest lines + members the server said will
+  // play as a guest (new lines), + the stored guest lines of the booking.
+  guestCount(): number {
+    this.lineTick();
+    return this.playerLines.controls.filter((g) => {
+      const base = playerTypeBase(this.allPlayerTypes(), g.controls.playerType.value);
+      if (base === 'guest' || base === 'member-guest') return true;
+      return !g.controls.playerId.value && this.lineNotes.get(g)?.playsAsGuest === true;
+    }).length;
+  }
+
+  // The roster asks for more guests than the standing allows (the save
+  // refuses; this only warns early). Passes already counted today may make
+  // the server more lenient - hence a warning, not a block.
+  guestsOverLimit(): boolean {
+    const s = this.guestStanding();
+    if (!s) return false;
+    const n = this.guestCount();
+    if (!n) return false;
+    if (s.quota !== null && n > s.quota) return true;
+    // The monthly allowance is drawn by the guests this save ADDS (the
+    // booking's stored guests already count in "used").
+    const fresh = this.playerLines.controls.filter((g) => {
+      if (g.controls.playerId.value) return false;
+      const base = playerTypeBase(this.allPlayerTypes(), g.controls.playerType.value);
+      return base === 'guest' || base === 'member-guest' || this.lineNotes.get(g)?.playsAsGuest === true;
+    }).length;
+    return s.remaining !== null && fresh > s.remaining;
+  }
+
+  lineNote(g: PlayerLineGroup): LineNote | null {
+    this.lineTick();
+    return this.lineNotes.get(g) || null;
+  }
+
+  // A member number was keyed on a NEW line: ask the server which class the
+  // member takes on this flight - Member, or (no right of their own) the
+  // booker's guest. Never blocks typing; the save decides again.
+  checkLine(g: PlayerLineGroup): void {
+    if (g.controls.playerId.value || this.needsGuestName(g.controls.playerType.value)) return;
+    const lineNo = g.controls.memberNo.value.trim();
+    const booker = this.searchForm.controls.memberNo.value.trim();
+    if (!lineNo || lineNo.toLowerCase() === booker.toLowerCase()) {
+      this.lineNotes.delete(g);
+      this.lineTick.update((n) => n + 1);
+      return;
+    }
+    const known = this.lineNotes.get(g);
+    if (known && known.checkedNo === lineNo) return;
+    const lock = this.lock();
+    const target = this.changeTarget();
+    if (!lock && !target) return;
+    this.service.lineCheck({
+      memberNo: booker, lineMemberNo: lineNo, playerType: g.controls.playerType.value,
+      lockGroupId: lock ? lock.groupId : undefined, bookingId: target ? target.id : undefined,
+    }).subscribe({
+      next: (res) => {
+        this.lineNotes.set(g, { checkedNo: lineNo, name: res.name, playsAsGuest: res.playsAsGuest, reason: res.reason });
+        this.lineTick.update((n) => n + 1);
+      },
+      error: (err) => {
+        this.lineNotes.set(g, { checkedNo: lineNo, error: err.error?.message || 'Could not check this member.' });
+        this.lineTick.update((n) => n + 1);
+      },
+    });
+  }
+
+  // The type of a new line changed: what was checked or picked no longer holds.
+  onLineTypeChange(g: PlayerLineGroup): void {
+    this.lineNotes.delete(g);
+    g.controls.guestId.setValue('');
+    this.lineTick.update((n) => n + 1);
+  }
+
+  // Whether a new line may name one of the booker's guest passes.
+  canPickPass(g: PlayerLineGroup): boolean {
+    return !g.controls.playerId.value && this.guestPasses().length > 0
+      && playerTypeBase(this.allPlayerTypes(), g.controls.playerType.value) === 'guest';
+  }
+
+  // A pass picked on a guest line: the line names that guest.
+  pickPass(g: PlayerLineGroup, guestId: string): void {
+    g.controls.guestId.setValue(guestId);
+    const pass = this.guestPasses().find((p) => p.guestId === guestId);
+    if (pass) g.controls.guestName.setValue(pass.guestName);
+    g.markAsDirty();
+    this.lineTick.update((n) => n + 1);
+  }
+
+  // A pass another line of this roster already names is not offered twice.
+  passTaken(g: PlayerLineGroup, guestId: string): boolean {
+    this.lineTick();
+    return this.playerLines.controls.some((o) => o !== g && o.controls.guestId.value === guestId);
+  }
+
   private newLineGroup(memberNo: string, booker: boolean): PlayerLineGroup {
     const g: PlayerLineGroup = this.fb.nonNullable.group({
       playerId: [''],
       playerType: ['member' as PlayerType],
       memberNo: [memberNo],
       guestName: [''],
+      guestId: [''],
       playerName: [''],
       status: ['booked'],
     });
@@ -467,6 +625,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       playerType: [p.playerType as PlayerType],
       memberNo: [p.memberNo || ''],
       guestName: [this.needsGuestName(p.playerType) ? p.playerName : ''],
+      guestId: [''],
       playerName: [p.playerName],
       status: [p.status],
     });
@@ -491,14 +650,16 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.playerLines.markAsDirty();
   }
 
-  // The club's pickable player types (from the listing); a guest-base or
-  // affiliate-base type takes a name, the member bases a member number.
+  // The types this screen may PICK (from the listing) and every type of the
+  // club for the labels of stored lines; a guest-base or club-visitor type
+  // takes a name, the member bases a member number.
   readonly playerTypes = signal<GolfPlayerTypeOption[]>([]);
+  readonly allPlayerTypes = signal<GolfPlayerTypeOption[]>([]);
   needsGuestName(code: string): boolean {
-    return playerTypeNeedsGuestName(this.playerTypes(), code);
+    return playerTypeNeedsGuestName(this.allPlayerTypes(), code);
   }
   playerTypeLabel(code: string): string {
-    return playerTypeLabel(this.playerTypes(), code);
+    return playerTypeLabel(this.allPlayerTypes(), code);
   }
 
   isExistingLine(g: PlayerLineGroup): boolean {
@@ -521,7 +682,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       }
     }
     return lines.map((l) => (this.needsGuestName(l.playerType)
-      ? { playerType: l.playerType, guestName: l.guestName.trim() }
+      ? { playerType: l.playerType, guestName: l.guestName.trim(), ...(l.guestId ? { guestId: l.guestId } : {}) }
       : { playerType: l.playerType, memberNo: l.memberNo.trim() }));
   }
 
@@ -595,6 +756,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.changeReason.set('');
     this.changeWaive.set(false);
     this.changeWaiveReason.set('');
+    this.loadGuests(b.playDate);
     this.step.set('players');
     this.dialogOpen.set(true);
   }
@@ -618,6 +780,8 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.lock.set(null);
     this.lockedGroup.set(null);
     this.stopCountdown();
+    const target = this.changeTarget();
+    if (target) this.loadGuests(target.playDate);
     this.step.set('players');
   }
 
