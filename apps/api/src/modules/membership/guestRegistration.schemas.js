@@ -7,6 +7,7 @@
 const { z, fields } = require('../../platform/validate');
 
 const str = (max = 255) => z.string().max(max).nullable().optional();
+const bool = z.boolean().optional();
 const id = fields.uuid;
 
 const guest = z.object({
@@ -20,7 +21,35 @@ const guest = z.object({
 const idParam = { params: z.object({ id }) };
 
 module.exports = {
-    list: { query: z.object({ status: str(20), dateFrom: str(10), dateTo: str(10) }) },
+    list: { query: z.object({ status: str(20), group: str(20), dateFrom: str(10), dateTo: str(10) }) },
+    // A visiting member registers for today on their letter (:id = the visit).
+    receive: { ...idParam, body: z.object({ letterSighted: bool, idSighted: bool, registrationNo: str(50), remarks: str(255) }) },
+    // A walk-up: the letter is keyed at the counter (no golf - flights are
+    // added on the confirmed letter).
+    walkUp: {
+        body: z.object({
+            affiliatedClubId: str(64),
+            visitNo: str(50),
+            registrationNo: str(50),
+            visitorName: str(255),
+            visitorMemberNo: str(50),
+            visitorIdentityNo: str(50),
+            visitorMobile: str(30),
+            visitorEmail: str(255),
+            loiReference: str(100),
+            loiDocumentUrl: str(500),
+            visitDateTo: str(10),
+            dining: str(255),
+            accommodation: str(255),
+            sports: str(255),
+            other: str(255),
+            remarks: str(255),
+            letterSighted: bool,
+            idSighted: bool,
+        }),
+    },
+    // A guest the visitor brought (:id = the visitor's registration of today).
+    visitorGuest: { ...idParam, body: z.object({ guestId: str(64), guest, registrationNo: str(50), remarks: str(255), sendEmail: bool }) },
     host: { query: z.object({ memberNo: str(50), visitDate: str(10) }) },
     guests: { query: z.object({ q: str(100) }) },
     id: idParam,

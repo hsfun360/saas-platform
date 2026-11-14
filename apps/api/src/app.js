@@ -871,6 +871,42 @@ async function initializeDB() {
             console.log('facility.Bill.bookingId made nullable (bills on registrations, issues and class enrolments).');
         }
 
+        // Registration Counter (2026-11-14, deliberately OUTSIDE the
+        // fingerprint gate; both steps idempotent).
+        // 1. membership.GuestRegistration.memberId / guestId nullable: a
+        //    visiting affiliated / reciprocal member's day pass has no host
+        //    member, and the visitor's own row no guest record. The model
+        //    allows null, but the alter-sync never relaxes NOT NULL.
+        for (const column of ['memberId', 'guestId']) {
+            const [[col]] = await sequelize.query(
+                `SELECT is_nullable FROM information_schema.columns
+                 WHERE table_schema = 'membership' AND table_name = 'GuestRegistration' AND column_name = '${column}'`,
+            ).catch(() => [[null]]);
+            if (col && col.is_nullable === 'NO') {
+                await sequelize.query(`ALTER TABLE membership."GuestRegistration" ALTER COLUMN "${column}" DROP NOT NULL`);
+                console.log(`membership.GuestRegistration.${column} made nullable (day passes for affiliated and reciprocal visitors).`);
+            }
+        }
+        // 2. The one flight a letter of introduction held
+        //    (AffiliatedVisit.bookingProfileId) moves to
+        //    membership.AffiliatedVisitFlight, one row per booking, played on
+        //    the letter's own date. The old column stays, unused.
+        const [[visitTables]] = await sequelize.query(
+            `SELECT to_regclass('membership."AffiliatedVisit"') AS v, to_regclass('membership."AffiliatedVisitFlight"') AS f`,
+        ).catch(() => [[null]]);
+        if (visitTables && visitTables.v && visitTables.f) {
+            const [, moved] = await sequelize.query(
+                `INSERT INTO membership."AffiliatedVisitFlight"
+                    (id, "companyId", "affiliatedVisitId", "playDate", "bookingProfileId", "createdBy", "createdByDepartmentId", "updatedBy", "createdAt", "updatedAt")
+                 SELECT gen_random_uuid(), v."companyId", v.id, v."visitDate", v."bookingProfileId", v."createdBy", v."createdByDepartmentId", v."updatedBy", now(), now()
+                 FROM membership."AffiliatedVisit" v
+                 WHERE v."bookingProfileId" IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM membership."AffiliatedVisitFlight" f WHERE f."bookingProfileId" = v."bookingProfileId")`,
+            );
+            const movedCount = moved && moved.rowCount !== undefined ? moved.rowCount : moved;
+            if (movedCount) console.log(`${movedCount} affiliated-visit flight(s) moved to membership.AffiliatedVisitFlight.`);
+        }
+
         // Stranded-approval healer (2026-09-01, deliberately OUTSIDE the
         // fingerprint gate). Before the workflowGateway fix of the same date,
         // an approval chain whose every step was skipped completed 'approved'

@@ -93,7 +93,11 @@ router.use('/affiliated-visits', requireMenuAction('/membership/affiliated-visit
 
 // --- Guest Registration (a member's guest + the day pass) and the Guest
 // Visits enquiry over the guest-usage ledger, all modules (2026-11-10) ---
-router.use('/guest-registrations', requireMenuAction('/membership/guest-registrations'), guestRegistrationsRoutes);
+// The screen is the Registration Counter since 2026-11-14 (every patron
+// group at one counter). A Menu row that still carries the old Guest
+// Registrations route grants it too, so the screen keeps working until the
+// row's route is changed.
+router.use('/guest-registrations', requireAnyMenuAction(['/membership/registration-counter', '/membership/guest-registrations']), guestRegistrationsRoutes);
 router.get('/guest-visits', requireMenuAction('/membership/guest-visits'), validateRequest(guestRegistrationSchemas.visits), guestRegistrationController.visits);
 
 // --- Membership import (Excel -> staging -> selective migration) ---

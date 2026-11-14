@@ -653,6 +653,43 @@ module.exports = [
         `),
     },
     {
+        // Registration Counter (2026-11-14): the day pass of a visiting
+        // affiliated / reciprocal member, or of a guest that visitor brought.
+        // Same public pass page as the guest pass; valid on its date only.
+        key: 'membership.visitor.pass',
+        name: 'Visitor day pass',
+        description: 'Sent to a visiting affiliated or reciprocal club member (or the guest they brought) when the Registration Counter issues the day pass.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'guestName', description: "The pass holder's name." },
+            { name: 'relationText', description: "How they visit, e.g. 'a member of Royal Selangor Golf Club' or 'the guest of John Tan (Royal Selangor Golf Club)'." },
+            { name: 'visitDateText', description: "The day the pass is valid, e.g. '14 Nov 2026'." },
+            { name: 'registrationNo', description: 'The registration number.' },
+            { name: 'passLink', description: 'The link to the digital day pass.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            guestName: 'John Tan', relationText: 'a member of Royal Selangor Golf Club', visitDateText: '14 Nov 2026', registrationNo: 'GR-000124',
+            passLink: 'https://app.example.com/guest-pass/SAMPLE', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Your day pass for {{companyName}} on {{visitDateText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your day pass</h2>
+            <p>Dear {{guestName}},</p>
+            <p><strong>{{companyName}}</strong> welcomes you on <strong>{{visitDateText}}</strong> as {{relationText}} (registration no. {{registrationNo}}).</p>
+            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
+                <p style="margin: 0 0 12px;">Open your digital day pass and show it at the golf desk, the facilities and the outlets.</p>
+                ${button('{{passLink}}', 'Open my day pass')}
+                <p style="margin: 12px 0 0; font-size: 12px; color: #777;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    {{passLink}}
+                </p>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">The pass is valid on {{visitDateText}} only - please register at the Registration Counter again on each further day of your visit. Keep this link to yourself.</p>
+        `),
+    },
+    {
         key: 'golf.raincheck.issued',
         name: 'Golf rain check issued',
         description: 'Sent to the golfer when the front desk issues a rain check for an abandoned round.',

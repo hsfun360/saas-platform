@@ -69,7 +69,13 @@ async function bookingFullySettled(companyId, bookingProfileId, opts) {
     return svc.bookingFullySettled(companyId, bookingProfileId, opts);
 }
 
+// Registered players of a visit's booking whose bill is still open (0 = none).
+async function bookingUnsettledCount(companyId, bookingProfileId, opts) {
+    const svc = require('../modules/golf/visitBooking.service');
+    return svc.bookingUnsettledCount(companyId, bookingProfileId, opts);
+}
+
 module.exports = {
     listAffiliatePlayerTypes, getPlayerType, listVisitFeeTypes, listCourses,
-    previewVisitFlight, bookForVisit, cancelVisitBooking, bookingNoOf, bookingFullySettled,
+    previewVisitFlight, bookForVisit, cancelVisitBooking, bookingNoOf, bookingFullySettled, bookingUnsettledCount,
 };

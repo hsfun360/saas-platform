@@ -74,6 +74,8 @@ const GolfPlayerType = require('../modules/golf/playerType.model'); // player-ca
 // (club / member / golfer / booking / workflow value refs); no associations.
 const AffiliatedClub = require('../modules/membership/affiliatedClub.model');
 const AffiliatedVisit = require('../modules/membership/affiliatedVisit.model');
+// The letter's golf flights, one row per booking (structure approved 2026-11-14; bookingProfileId is a golf value ref).
+const AffiliatedVisitFlight = require('../modules/membership/affiliatedVisitFlight.model');
 const GolfPlayingRightRule = require('../modules/golf/playingRightRule.model'); // playing-right whitelist rows (2026-10-15; player type / club / membership type / course value refs; PUT-replaced)
 const GolfRoundQuotaRule = require('../modules/golf/roundQuotaRule.model'); // round-quota rows (2026-10-15; same targets; PUT-replaced)
 // Buggy management (2026-10-17): type -> units (restrict), unit -> outings,
@@ -410,6 +412,13 @@ Guest.hasMany(GuestRegistration, { foreignKey: 'guestId', as: 'Registrations' })
 GuestRegistration.belongsTo(Guest, { foreignKey: 'guestId', as: 'Guest' });
 Member.hasMany(GuestRegistration, { foreignKey: 'memberId', as: 'GuestRegistrations' });
 GuestRegistration.belongsTo(Member, { foreignKey: 'memberId', as: 'Host' });
+// A letter of introduction -> its golf flights and the day passes issued on it
+// (intra-service FKs, 2026-11-14; no cascade - a letter is cancelled, never
+// deleted). GuestRegistration.affiliatedClubId stays a plain value ref.
+AffiliatedVisit.hasMany(AffiliatedVisitFlight, { foreignKey: 'affiliatedVisitId', as: 'Flights' });
+AffiliatedVisitFlight.belongsTo(AffiliatedVisit, { foreignKey: 'affiliatedVisitId', as: 'Visit' });
+AffiliatedVisit.hasMany(GuestRegistration, { foreignKey: 'affiliatedVisitId', as: 'DayPasses' });
+GuestRegistration.belongsTo(AffiliatedVisit, { foreignKey: 'affiliatedVisitId', as: 'Visit' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).
@@ -719,6 +728,7 @@ module.exports = {
     GuestVisit,
     Guest,
     GuestRegistration,
+    AffiliatedVisitFlight,
     GolfNoShowCharge,
     GolfGroupPlayDay,
     GolfGroupFlight,

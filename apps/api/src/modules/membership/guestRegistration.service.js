@@ -1,25 +1,35 @@
-// Guest Registration (structure approved 2026-11-10; Membership Management ->
-// Guest Registration) - the front desk registers a member's guest for a date
-// and the guest receives a digital DAY PASS.
+// Registrations and their DAY PASS (structure approved 2026-11-10; widened to
+// every patron group 2026-11-14; Membership Management -> Registration
+// Counter). One registration = one person, one date, one pass.
 //
-//   - One registration = one guest, one host member, one date. It writes the
-//     membership.GuestVisit ledger row (source 'membership') that draws on the
-//     host's monthly guest allowance; a KNOWN guest counts once per host per
-//     day across every module (guestVisit.service countVisits).
+//   A MEMBER'S GUEST (patronGroup 'guest')
+//   - One guest, one host member, one date. It writes the membership.GuestVisit
+//     ledger row (source 'membership') that draws on the host's monthly guest
+//     allowance; a KNOWN guest counts once per host per day across every
+//     module (guestVisit.service countVisits).
 //   - The host is checked like every other desk action: status Action control
 //     Barred refuses, Warning warns; an exhausted monthly allowance refuses
 //     (the same rule as the Facility desk).
-//   - The pass is a public page behind a random token (no login): QR code,
-//     club, guest, host, date and the LIVE state (valid today / not yet valid
-//     / expired / cancelled), valid on the visit date only by the club clock.
-//     It is emailed through the template engine (membership.guest.pass) or
-//     shared from the desk user's own WhatsApp (a wa.me link - the platform
-//     has no WhatsApp integration).
-//   - Guest fees, Member Portal registration and passes for Facility / Golf
-//     guest lines are later slices.
 //
-// The pure pieces (passStateOf, normalizeGuest, tokenFromCode, whatsappLink)
-// are unit-tested.
+//   A VISITING AFFILIATED / RECIPROCAL MEMBER (patronGroup 'affiliate' /
+//   'reciprocal') and the guests that visitor brings
+//   - The registration hangs off the letter of introduction
+//     (membership.AffiliatedVisit) instead of a host member and draws on no
+//     allowance; the club's own limits live on the letter. The counter issues
+//     these (registrationCounter.service); this file reads, shares, corrects
+//     and cancels them like any other registration.
+//
+//   THE PASS, the same for every group
+//   - A public page behind a random token (no login): QR code, club, person,
+//     who they come with or from, date and the LIVE state (valid today / not
+//     yet valid / expired / cancelled), valid on the visit date only by the
+//     club clock. It is emailed through the template engine or shared from the
+//     desk user's own WhatsApp (a wa.me link - the platform has no WhatsApp
+//     integration).
+//   - Guest fees and Member Portal registration are later slices.
+//
+// The pure pieces (passStateOf, normalizeGuest, tokenFromCode, whatsappLink,
+// relationOf) are unit-tested.
 
 const crypto = require('crypto');
 const { Op } = require('sequelize');
@@ -30,15 +40,20 @@ const { companyTimezoneById } = require('../../platform/calendarGateway');
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const guestVisits = require('./guestVisit.service');
-const { GUEST_REGISTRATION_STATUSES, GUEST_REGISTRATION_STATUS_KEYS, PASS_SEND_VIA_KEYS, PASS_STATES } = require('./guestRegistration.constants');
+const {
+    GUEST_REGISTRATION_STATUSES, GUEST_REGISTRATION_STATUS_KEYS, PASS_SEND_VIA_KEYS, PASS_STATES, PATRON_GROUPS, PATRON_GROUP_KEYS,
+} = require('./guestRegistration.constants');
 const Guest = require('./guest.model');
 const GuestRegistration = require('./guestRegistration.model');
+const AffiliatedVisit = require('./affiliatedVisit.model');
+const AffiliatedClub = require('./affiliatedClub.model');
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 const NUMBERING_PURPOSE = 'membership-guest';
 const SOURCE_MODULE = 'membership';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_RE = /^\+?\d{6,20}$/;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
 
 function fail(message, status = 400) {
@@ -66,6 +81,9 @@ async function clubToday(companyId) {
 function personName(m) {
     const name = [m.firstName, m.lastName].filter(Boolean).join(' ').trim();
     return name || m.localName || m.memberNo;
+}
+function capitalise(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
 
 // ---- pure rules ------------------------------------------------------------
@@ -95,7 +113,7 @@ function normalizeGuest(body) {
     const name = str(b.name);
     if (!name) return fail('Key in the guest\'s name.');
     const mobile = normalizeMobile(b.mobile);
-    if (mobile && !/^\+?\d{6,20}$/.test(mobile)) return fail('The mobile number is not valid.');
+    if (mobile && !MOBILE_RE.test(mobile)) return fail('The mobile number is not valid.');
     const email = str(b.email);
     if (email && !EMAIL_RE.test(email)) return fail('The email is not a valid address.');
     if (!mobile && !email) return fail('Key in the guest\'s mobile number or email - the pass is sent to one of them.');
@@ -121,8 +139,112 @@ function whatsappLink(mobile, text) {
     return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
-function shareText({ guestName, clubName, hostName, visitDate, passUrl }) {
-    return `Hello ${guestName}, here is your guest pass for ${clubName} on ${dateText(visitDate)}, as the guest of ${hostName}. Please show it at the front desk: ${passUrl}`;
+// `relation` reads after "as": "the guest of Ahmad Faizal", "a member of
+// Royal Selangor Golf Club". A member's guest may pass `hostName` instead.
+function shareText({ guestName, clubName, hostName, relation = null, passName = 'guest pass', visitDate, passUrl }) {
+    return `Hello ${guestName}, here is your ${passName} for ${clubName} on ${dateText(visitDate)}, as ${relation || `the guest of ${hostName}`}. Please show it at the front desk: ${passUrl}`;
+}
+
+// ---- who a registration is about ---------------------------------------------
+// A `party` describes the person behind a registration whatever its patron
+// group, so every reader (listing, pass, email, seam) asks one question:
+//   person       - { id, name, mobile, email, identityNo, remarks }; id is the
+//                  membership.Guest id, null for the visitor a letter names
+//   host         - the host member { memberId, memberNo, name } of a member's
+//                  guest, else null
+//   visit / club - the letter and the home club of an affiliated / reciprocal
+//                  registration, else null
+//   accompanying - a guest the visitor brought (the letter's own row is not)
+
+function guestDto(g) {
+    return g ? { id: g.id, name: g.name, mobile: g.mobile, email: g.email, identityNo: g.identityNo, remarks: g.remarks } : null;
+}
+
+function guestParty(guestRow, hostDto) {
+    return { person: guestDto(guestRow), host: hostDto || null, visit: null, club: null, accompanying: false };
+}
+
+function visitorParty(visitRow, clubRow, guestRow = null) {
+    return {
+        person: guestRow
+            ? guestDto(guestRow)
+            : { id: null, name: visitRow.visitorName, mobile: visitRow.visitorMobile || null, email: visitRow.visitorEmail || null, identityNo: visitRow.visitorIdentityNo || null, remarks: null },
+        host: null,
+        visit: {
+            id: visitRow.id, visitNo: visitRow.visitNo, visitorName: visitRow.visitorName, visitorMemberNo: visitRow.visitorMemberNo,
+            visitDate: String(visitRow.visitDate), lastDay: String(visitRow.visitDateTo || visitRow.visitDate),
+        },
+        club: clubRow ? { id: clubRow.id, code: clubRow.code, name: clubRow.name, kind: clubRow.kind } : null,
+        accompanying: !!guestRow,
+    };
+}
+
+const NO_PARTY = { person: null, host: null, visit: null, club: null, accompanying: false };
+
+function nameOf(party) {
+    return (party && party.person && party.person.name) || 'the guest';
+}
+
+// How the person comes to the club, lower case and without an article:
+// "guest of Ahmad Faizal (A0018)", "member of Royal Selangor Golf Club
+// (RS-1234)", "guest of John Tan (Royal Selangor Golf Club)". `numbers:
+// false` leaves the membership numbers out (the public pass, a message).
+function relationOf(party, { numbers = true } = {}) {
+    const p = party || NO_PARTY;
+    if (p.visit) {
+        const club = p.club ? p.club.name : 'the home club';
+        if (p.accompanying) return `guest of ${p.visit.visitorName} (${club})`;
+        return `member of ${club}${numbers && p.visit.visitorMemberNo ? ` (${p.visit.visitorMemberNo})` : ''}`;
+    }
+    if (!p.host) return 'guest';
+    return `guest of ${p.host.name}${numbers && p.host.memberNo ? ` (${p.host.memberNo})` : ''}`;
+}
+
+// The same with its article, to follow "as": "the guest of ...", "a member of ...".
+function relationPhrase(party) {
+    const p = party || NO_PARTY;
+    return `${p.visit && !p.accompanying ? 'a' : 'the'} ${relationOf(p, { numbers: false })}`;
+}
+
+function patronLabelOf(patronGroup, accompanying) {
+    const label = (PATRON_GROUPS.find((g) => g.key === patronGroup) || {}).label || patronGroup;
+    if (!accompanying) return label;
+    return patronGroup === 'affiliate' ? 'Guest of an affiliated member' : 'Guest of a reciprocal member';
+}
+
+async function hostsById(companyId, memberIds, { transaction } = {}) {
+    const Member = require('./member.model');
+    const map = new Map();
+    if (!memberIds.length) return map;
+    const rows = await Member.findAll({ where: { companyId, id: { [Op.in]: memberIds } }, attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName'], transaction });
+    for (const m of rows) map.set(m.id, { memberId: m.id, memberNo: m.memberNo, name: personName(m) });
+    return map;
+}
+
+// The party of each registration row: Map(row.id -> party), loaded in one go.
+async function partiesOf(companyId, rows, { transaction } = {}) {
+    const map = new Map();
+    if (!rows.length) return map;
+    const uniq = (list) => [...new Set(list.filter(Boolean))];
+    const guestIds = uniq(rows.map((r) => r.guestId));
+    const visitIds = uniq(rows.map((r) => r.affiliatedVisitId));
+    const [guests, hosts, visits] = await Promise.all([
+        guestIds.length ? Guest.findAll({ where: { companyId, id: { [Op.in]: guestIds } }, transaction }) : [],
+        hostsById(companyId, uniq(rows.map((r) => r.memberId)), { transaction }),
+        visitIds.length ? AffiliatedVisit.findAll({ where: { companyId, id: { [Op.in]: visitIds } }, transaction }) : [],
+    ]);
+    const clubIds = uniq(visits.map((v) => v.affiliatedClubId));
+    const clubs = clubIds.length ? await AffiliatedClub.findAll({ where: { companyId, id: { [Op.in]: clubIds } }, attributes: ['id', 'code', 'name', 'kind'], transaction }) : [];
+    const guestById = new Map(guests.map((g) => [g.id, g]));
+    const visitById = new Map(visits.map((v) => [v.id, v]));
+    const clubById = new Map(clubs.map((c) => [c.id, c]));
+    for (const r of rows) {
+        const guestRow = r.guestId ? guestById.get(r.guestId) || null : null;
+        const visit = r.affiliatedVisitId ? visitById.get(r.affiliatedVisitId) : null;
+        if (visit) map.set(r.id, visitorParty(visit, clubById.get(visit.affiliatedClubId), guestRow));
+        else map.set(r.id, guestParty(guestRow, hosts.get(r.memberId) || (r.memberId ? { memberId: r.memberId, memberNo: '', name: '' } : null)));
+    }
+    return map;
 }
 
 // ---- host and guest lookups --------------------------------------------------
@@ -210,7 +332,22 @@ async function resolveGuest(companyId, body, value, stamps, { transaction }) {
     return Guest.create({ companyId, ...value, ...stamps }, { transaction });
 }
 
-// ---- create ------------------------------------------------------------------
+// The next registration number, inside the caller's transaction: issued by
+// the series, or the keyed one when the series is manual. Throws a txFail.
+async function issueRegistrationNo(req, companyId, manualNo, { transaction }) {
+    const issued = await numberingGateway.issueNumber(req, NUMBERING_PURPOSE, { transaction });
+    if (issued && issued.number) return issued.number;
+    if (issued && issued.manual) {
+        const registrationNo = str(manualNo, 50);
+        if (!registrationNo) throw txFail('The Guest Registration No. scheme is manual - key in a registration number.');
+        const clash = await GuestRegistration.count({ where: { companyId, registrationNo: { [Op.iLike]: registrationNo } }, transaction });
+        if (clash) throw txFail(`Registration number ${registrationNo} is already used.`, 409);
+        return registrationNo;
+    }
+    throw txFail('Configure the Guest Registration No. numbering scheme first (Membership Management -> Numbering Control).');
+}
+
+// ---- create (a member's guest) --------------------------------------------------
 
 async function create(req, body) {
     const companyId = getUserContext(req).companyId;
@@ -234,6 +371,7 @@ async function create(req, body) {
     const callerId = getUserContext(req).userId;
     const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
     const company = await getCompanyProfile(companyId);
+    const hostDto = { memberId: standing.memberId, memberNo: standing.memberNo, name: standing.name };
 
     const out = await sequelize.transaction(async (transaction) => {
         // Serialise registrations per host: the allowance is read and drawn
@@ -258,20 +396,9 @@ async function create(req, body) {
                 : `${standing.name} (${standing.memberNo}) has used all ${allowance.allowance} guest visits for ${monthText(visitDate)}.`);
         }
 
-        const issued = await numberingGateway.issueNumber(req, NUMBERING_PURPOSE, { transaction });
-        let registrationNo = null;
-        if (issued && issued.number) registrationNo = issued.number;
-        else if (issued && issued.manual) {
-            registrationNo = str(body.registrationNo, 50);
-            if (!registrationNo) throw txFail('The Guest Registration No. scheme is manual - key in a registration number.');
-            const clash = await GuestRegistration.count({ where: { companyId, registrationNo: { [Op.iLike]: registrationNo } }, transaction });
-            if (clash) throw txFail(`Registration number ${registrationNo} is already used.`, 409);
-        } else {
-            throw txFail('Configure the Guest Registration No. numbering scheme first (Membership Management -> Numbering Control).');
-        }
-
+        const registrationNo = await issueRegistrationNo(req, companyId, body.registrationNo, { transaction });
         const row = await GuestRegistration.create({
-            companyId, registrationNo, guestId: guest.id, memberId: standing.memberId, visitDate,
+            companyId, registrationNo, patronGroup: 'guest', guestId: guest.id, memberId: standing.memberId, visitDate,
             status: 'registered', channel: 'desk', passToken: crypto.randomBytes(32).toString('hex'),
             remarks: str(body.remarks), ...stamps,
         }, { transaction });
@@ -282,7 +409,7 @@ async function create(req, body) {
 
         let emailed = false;
         if (wantsEmail && guest.email) {
-            await queuePassEmail(row, guest, standing.name, company, { transaction });
+            await queuePassEmail(row, guestParty(guest, hostDto), company, { transaction });
             Object.assign(row, { passSentAt: new Date(), passSentVia: 'email', passSentTo: guest.email });
             await row.save({ transaction });
             emailed = true;
@@ -295,20 +422,30 @@ async function create(req, body) {
     });
     if (out.error) return out;
 
-    const hostDto = { memberId: standing.memberId, memberNo: standing.memberNo, name: standing.name };
+    const party = guestParty(out.guest, hostDto);
     const parts = [`${out.guest.name} registered as ${standing.name}'s guest on ${dateText(visitDate)} (${out.row.registrationNo}).`];
     if (out.emailed) parts.push(`The pass was emailed to ${out.guest.email}.`);
     if (standing.actionControl === 'warning') parts.push(`Note: member ${standing.memberNo} is ${standing.statusLabel || 'on a warning status'}.`);
-    return { message: parts.join(' '), registration: dto(out.row, out.guest, hostDto, today), pass: await passFacts(out.row, out.guest, hostDto, company) };
+    return { message: parts.join(' '), registration: dto(out.row, party, today), pass: await passFacts(out.row, party, company) };
 }
 
-async function queuePassEmail(row, guest, hostName, company, { transaction } = {}) {
+// The pass email: a member's guest gets the guest pass, a visiting member
+// (and a guest they brought) the visitor pass.
+async function queuePassEmail(row, party, company, { transaction } = {}) {
+    const person = party.person || {};
+    const common = {
+        guestName: person.name, visitDateText: dateText(row.visitDate), registrationNo: row.registrationNo,
+        passLink: passUrlOf(row.passToken), companyName: company ? company.name : '',
+    };
+    if (party.visit) {
+        return emailAddress({
+            templateKey: 'membership.visitor.pass', companyId: row.companyId, to: person.email, transaction,
+            data: { ...common, relationText: relationPhrase(party) },
+        });
+    }
     return emailAddress({
-        templateKey: 'membership.guest.pass', companyId: row.companyId, to: guest.email, transaction,
-        data: {
-            guestName: guest.name, hostName, visitDateText: dateText(row.visitDate), registrationNo: row.registrationNo,
-            passLink: passUrlOf(row.passToken), companyName: company ? company.name : '',
-        },
+        templateKey: 'membership.guest.pass', companyId: row.companyId, to: person.email, transaction,
+        data: { ...common, hostName: party.host ? party.host.name : '' },
     });
 }
 
@@ -318,51 +455,70 @@ async function load(req, id) {
     const companyId = getUserContext(req).companyId;
     if (!companyId) return fail('Select a workspace first.');
     const row = await GuestRegistration.findOne({ where: { companyId, id } });
-    if (!row) return fail('Guest registration not found.', 404);
-    const guest = await Guest.findOne({ where: { companyId, id: row.guestId } });
-    const hostDto = (await hostsById(companyId, [row.memberId])).get(row.memberId) || { memberId: row.memberId, memberNo: '', name: '' };
-    return { row, guest, host: hostDto, companyId, today: await clubToday(companyId) };
+    if (!row) return fail('Registration not found.', 404);
+    const party = (await partiesOf(companyId, [row])).get(row.id) || NO_PARTY;
+    return { row, party, companyId, today: await clubToday(companyId) };
 }
 
-async function hostsById(companyId, memberIds) {
-    const Member = require('./member.model');
-    const map = new Map();
-    if (!memberIds.length) return map;
-    const rows = await Member.findAll({ where: { companyId, id: { [Op.in]: memberIds } }, attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName'] });
-    for (const m of rows) map.set(m.id, { memberId: m.id, memberNo: m.memberNo, name: personName(m) });
-    return map;
-}
-
-// PUT /:id - correct the guest's details or the remarks. The host and the
-// date are the registration itself: cancel and register again to change them.
+// PUT /:id - correct the person's details or the remarks. Who they come
+// with and the date ARE the registration: cancel and register again to
+// change them.
 async function update(req, id, body) {
     const l = await load(req, id);
     if (l.error) return l;
-    const { row, guest, host: hostDto, today } = l;
+    const { row, companyId, today } = l;
     if (row.status === 'cancelled') return fail(`Registration ${row.registrationNo} is cancelled.`);
     if (!(await canModifyRecord(req, row))) return fail("Your role's data scope does not allow amending this record.", 403);
+    const callerId = getUserContext(req).userId;
+
+    // The visitor a letter names: the name and the home-club number are the
+    // letter's own, so only the contact details and the remarks change here.
+    if (row.affiliatedVisitId && !row.guestId) {
+        const b = body.guest || {};
+        const mobile = normalizeMobile(b.mobile);
+        if (mobile && !MOBILE_RE.test(mobile)) return fail('The mobile number is not valid.');
+        const email = str(b.email);
+        if (email && !EMAIL_RE.test(email)) return fail('The email is not a valid address.');
+        const visit = await AffiliatedVisit.findOne({ where: { companyId, id: row.affiliatedVisitId } });
+        if (!visit) return fail('The letter of introduction behind this registration no longer exists.', 409);
+        await sequelize.transaction(async (transaction) => {
+            Object.assign(visit, { visitorMobile: mobile, visitorEmail: email ? email.toLowerCase() : null, visitorIdentityNo: str(b.identityNo, 50), updatedBy: callerId });
+            await visit.save({ transaction });
+            row.remarks = str(body.remarks);
+            row.updatedBy = callerId;
+            await row.save({ transaction });
+        });
+        const party = (await partiesOf(companyId, [row])).get(row.id);
+        return { message: `Registration ${row.registrationNo} updated.`, registration: dto(row, party, today) };
+    }
+
     const g = normalizeGuest(body.guest);
     if (g.error) return g;
-    const callerId = getUserContext(req).userId;
+    const guest = await Guest.findOne({ where: { companyId, id: row.guestId } });
+    if (!guest) return fail('The guest record no longer exists.', 409);
     await sequelize.transaction(async (transaction) => {
         Object.assign(guest, { name: g.value.name, mobile: g.value.mobile, email: g.value.email, identityNo: g.value.identityNo, updatedBy: callerId });
         await guest.save({ transaction });
         row.remarks = str(body.remarks);
         row.updatedBy = callerId;
         await row.save({ transaction });
-        // The ledger line shows the corrected name.
-        const GuestVisit = require('./guestVisit.model');
-        await GuestVisit.update({ guestName: guest.name }, { where: { companyId: row.companyId, sourceModule: SOURCE_MODULE, sourceRef: row.id }, transaction });
+        // The ledger line of a member's guest shows the corrected name.
+        if (row.memberId) {
+            const GuestVisit = require('./guestVisit.model');
+            await GuestVisit.update({ guestName: guest.name }, { where: { companyId: row.companyId, sourceModule: SOURCE_MODULE, sourceRef: row.id }, transaction });
+        }
     });
-    return { message: `Registration ${row.registrationNo} updated.`, registration: dto(row, guest, hostDto, today) };
+    const party = (await partiesOf(companyId, [row])).get(row.id);
+    return { message: `Registration ${row.registrationNo} updated.`, registration: dto(row, party, today) };
 }
 
 async function cancel(req, id, body) {
     const l = await load(req, id);
     if (l.error) return l;
-    const { row, guest, host: hostDto, companyId, today } = l;
+    const { row, party, companyId, today } = l;
     if (row.status === 'cancelled') return fail(`Registration ${row.registrationNo} is already cancelled.`);
-    if (row.status === 'arrived') return fail(`${guest.name} has already arrived - registration ${row.registrationNo} cannot be cancelled.`);
+    if (row.affiliatedVisitId) return cancelVisitorDay(req, l, body);
+    if (row.status === 'arrived') return fail(`${nameOf(party)} has already arrived - registration ${row.registrationNo} cannot be cancelled.`);
     if (!(await canModifyRecord(req, row))) return fail("Your role's data scope does not allow amending this record.", 403);
     const reason = str(body.reason);
     if (!reason) return fail('Give the reason for cancelling the registration.');
@@ -372,23 +528,67 @@ async function cancel(req, id, body) {
         await row.save({ transaction });
         await guestVisits.voidVisit(companyId, SOURCE_MODULE, row.id, { transaction, updatedBy: callerId });
     });
-    return { message: `Registration ${row.registrationNo} cancelled - the visit no longer counts against ${hostDto.name}'s allowance and the pass stops working.`, registration: dto(row, guest, hostDto, today) };
+    const whose = party.host ? `${party.host.name}'s` : 'the host\'s';
+    return { message: `Registration ${row.registrationNo} cancelled - the visit no longer counts against ${whose} allowance and the pass stops working.`, registration: dto(row, party, today) };
 }
 
-// The desk marks the guest's arrival - on the visit date only.
+// Cancel one day of an affiliated / reciprocal visitor (or of a guest they
+// brought): a registration keyed against the wrong letter or the wrong
+// person. These rows are born arrived, so the rule is the DATE: a day that
+// has passed stands. Cancelling the visitor's own day takes that day's
+// guests with it, and a letter left with no day attended goes back to
+// confirmed (its arrival and the sighting ticks are withdrawn).
+async function cancelVisitorDay(req, l, body) {
+    const { row, party, companyId, today } = l;
+    if (String(row.visitDate) < today) return fail(`${dateText(row.visitDate)} has passed - registration ${row.registrationNo} stands.`);
+    if (!(await canModifyRecord(req, row))) return fail("Your role's data scope does not allow amending this record.", 403);
+    const reason = str(body.reason);
+    if (!reason) return fail('Give the reason for cancelling the registration.');
+    const callerId = getUserContext(req).userId;
+    const stamp = { status: 'cancelled', cancelledAt: new Date(), cancelReason: reason, updatedBy: callerId };
+    let withGuests = 0;
+    await sequelize.transaction(async (transaction) => {
+        Object.assign(row, stamp);
+        await row.save({ transaction });
+        if (row.guestId) return;
+        const guests = await GuestRegistration.findAll({
+            where: { companyId, affiliatedVisitId: row.affiliatedVisitId, visitDate: row.visitDate, guestId: { [Op.ne]: null }, status: { [Op.ne]: 'cancelled' } }, transaction,
+        });
+        for (const g of guests) {
+            Object.assign(g, stamp);
+            await g.save({ transaction });
+        }
+        withGuests = guests.length;
+        const otherDays = await GuestRegistration.count({
+            where: { companyId, affiliatedVisitId: row.affiliatedVisitId, guestId: null, status: { [Op.ne]: 'cancelled' } }, transaction,
+        });
+        if (otherDays) return;
+        const visit = await AffiliatedVisit.findOne({ where: { companyId, id: row.affiliatedVisitId }, transaction });
+        if (visit && visit.status === 'arrived') {
+            Object.assign(visit, { status: 'confirmed', arrivedAt: null, letterSightedBy: null, idSightedBy: null, updatedBy: callerId });
+            await visit.save({ transaction });
+        }
+    });
+    const tail = row.guestId
+        ? 'the pass stops working.'
+        : `the pass stops working and ${dateText(row.visitDate)} no longer counts as a visit${withGuests ? `; ${withGuests} guest pass${withGuests === 1 ? '' : 'es'} issued with it ${withGuests === 1 ? 'was' : 'were'} cancelled too` : ''}.`;
+    return { message: `Registration ${row.registrationNo} for ${nameOf(party)} cancelled - ${tail}`, registration: dto(row, party, today) };
+}
+
+// The desk marks the arrival - on the visit date only.
 async function arrive(req, id) {
     const l = await load(req, id);
     if (l.error) return l;
-    const { row, guest, host: hostDto, today } = l;
+    const { row, party, today } = l;
     const state = passStateOf(row.status, row.visitDate, today);
-    if (row.status === 'arrived') return fail(`${guest.name} was already marked arrived.`);
+    if (row.status === 'arrived') return fail(`${nameOf(party)} was already marked arrived.`);
     if (state === 'cancelled') return fail(`Registration ${row.registrationNo} is cancelled.`);
     if (state === 'upcoming') return fail(`The pass is for ${dateText(row.visitDate)} - it is not valid today.`);
     if (state === 'expired') return fail(`The pass was for ${dateText(row.visitDate)} and has expired.`);
     const callerId = getUserContext(req).userId;
     Object.assign(row, { status: 'arrived', arrivedAt: new Date(), arrivedBy: callerId, updatedBy: callerId });
     await row.save();
-    return { message: `${guest.name} arrived - guest of ${hostDto.name} (${hostDto.memberNo}).`, registration: dto(row, guest, hostDto, today) };
+    return { message: `${nameOf(party)} arrived - ${relationOf(party)}.`, registration: dto(row, party, today) };
 }
 
 // ---- the pass: send, share, scan, the public page -----------------------------
@@ -399,21 +599,24 @@ async function qrDataUrl(token) {
 }
 
 // What the desk needs to hand the pass over: the link, its QR code and the
-// WhatsApp click-to-chat link (when the guest has a mobile).
-async function passFacts(row, guest, hostDto, company) {
+// WhatsApp click-to-chat link (when the person has a mobile).
+async function passFacts(row, party, company) {
     const passUrl = passUrlOf(row.passToken);
-    const text = shareText({ guestName: guest.name, clubName: company ? company.name : 'the club', hostName: hostDto.name, visitDate: row.visitDate, passUrl });
-    return { passUrl, qrDataUrl: await qrDataUrl(row.passToken), whatsappUrl: whatsappLink(guest.mobile, text), shareText: text };
+    const text = shareText({
+        guestName: nameOf(party), clubName: company ? company.name : 'the club', relation: relationPhrase(party),
+        passName: party.visit ? 'day pass' : 'guest pass', visitDate: row.visitDate, passUrl,
+    });
+    return { passUrl, qrDataUrl: await qrDataUrl(row.passToken), whatsappUrl: whatsappLink(party.person && party.person.mobile, text), shareText: text };
 }
 
 // GET /:id/pass
 async function pass(req, id) {
     const l = await load(req, id);
     if (l.error) return l;
-    const { row, guest, host: hostDto, companyId, today } = l;
+    const { row, party, companyId, today } = l;
     if (row.status === 'cancelled') return fail(`Registration ${row.registrationNo} is cancelled - it has no pass.`);
     const company = await getCompanyProfile(companyId);
-    return { registration: dto(row, guest, hostDto, today), pass: await passFacts(row, guest, hostDto, company) };
+    return { registration: dto(row, party, today), pass: await passFacts(row, party, company) };
 }
 
 // POST /:id/send { via } - 'email' queues the pass email; 'whatsapp' records
@@ -422,26 +625,27 @@ async function pass(req, id) {
 async function send(req, id, body) {
     const l = await load(req, id);
     if (l.error) return l;
-    const { row, guest, host: hostDto, companyId, today } = l;
+    const { row, party, companyId, today } = l;
+    const person = party.person || {};
     if (row.status === 'cancelled') return fail(`Registration ${row.registrationNo} is cancelled - it has no pass.`);
     if (passStateOf(row.status, row.visitDate, today) === 'expired') return fail(`The pass was for ${dateText(row.visitDate)} and has expired.`);
     const via = PASS_SEND_VIA_KEYS.includes(body.via) ? body.via : null;
     if (!via) return fail('Pick how the pass is sent.');
     const callerId = getUserContext(req).userId;
     if (via === 'email') {
-        if (!guest.email) return fail(`${guest.name} has no email address - add one, or share the pass over WhatsApp.`);
+        if (!person.email) return fail(`${nameOf(party)} has no email address - add one, or share the pass over WhatsApp.`);
         const company = await getCompanyProfile(companyId);
         await sequelize.transaction(async (transaction) => {
-            await queuePassEmail(row, guest, hostDto.name, company, { transaction });
-            Object.assign(row, { passSentAt: new Date(), passSentVia: 'email', passSentTo: guest.email, updatedBy: callerId });
+            await queuePassEmail(row, party, company, { transaction });
+            Object.assign(row, { passSentAt: new Date(), passSentVia: 'email', passSentTo: person.email, updatedBy: callerId });
             await row.save({ transaction });
         });
-        return { message: `The pass was emailed to ${guest.email}.`, registration: dto(row, guest, hostDto, today) };
+        return { message: `The pass was emailed to ${person.email}.`, registration: dto(row, party, today) };
     }
-    if (!guest.mobile) return fail(`${guest.name} has no mobile number - add one, or email the pass.`);
-    Object.assign(row, { passSentAt: new Date(), passSentVia: 'whatsapp', passSentTo: guest.mobile, updatedBy: callerId });
+    if (!person.mobile) return fail(`${nameOf(party)} has no mobile number - add one, or email the pass.`);
+    Object.assign(row, { passSentAt: new Date(), passSentVia: 'whatsapp', passSentTo: person.mobile, updatedBy: callerId });
     await row.save();
-    return { message: `Recorded: the pass was shared with ${guest.mobile} over WhatsApp.`, registration: dto(row, guest, hostDto, today) };
+    return { message: `Recorded: the pass was shared with ${person.mobile} over WhatsApp.`, registration: dto(row, party, today) };
 }
 
 // POST /scan { code } - the desk scans (or pastes) a pass; answers the
@@ -450,34 +654,38 @@ async function scan(req, body) {
     const companyId = getUserContext(req).companyId;
     if (!companyId) return fail('Select a workspace first.');
     const token = tokenFromCode(body.code);
-    if (!token) return fail('That is not a guest pass.');
+    if (!token) return fail('That is not a pass of this club.');
     const row = await GuestRegistration.findOne({ where: { companyId, passToken: token }, attributes: ['id'] });
-    if (!row) return fail('No guest pass of this club matches that code.', 404);
+    if (!row) return fail('No pass of this club matches that code.', 404);
     const l = await load(req, row.id);
     if (l.error) return l;
-    return { registration: dto(l.row, l.guest, l.host, l.today) };
+    return { registration: dto(l.row, l.party, l.today) };
 }
 
 // GET /api/membership/guest-pass/:token (PUBLIC - the token is the
-// credential). Only what the pass shows: no contact details, no member number.
+// credential). Only what the pass shows: no contact details, no membership
+// numbers.
 async function publicPass(token) {
     if (!TOKEN_RE.test(String(token || ''))) return fail('This pass link is not valid.', 404);
     const row = await GuestRegistration.findOne({ where: { passToken: token } });
     if (!row) return fail('This pass link is not valid.', 404);
-    const [guest, hosts, letterhead, today] = await Promise.all([
-        Guest.findOne({ where: { id: row.guestId }, attributes: ['name'] }),
-        hostsById(row.companyId, [row.memberId]),
+    const [parties, letterhead, today] = await Promise.all([
+        partiesOf(row.companyId, [row]),
         getCompanyLetterhead(row.companyId),
         clubToday(row.companyId),
     ]);
+    const party = parties.get(row.id) || NO_PARTY;
     const state = passStateOf(row.status, row.visitDate, today);
-    const hostDto = hosts.get(row.memberId);
     return {
         clubName: letterhead ? letterhead.name : '',
         clubLogo: letterhead ? letterhead.logo : null,
         registrationNo: row.registrationNo,
-        guestName: guest ? guest.name : '',
-        hostName: hostDto ? hostDto.name : '',
+        guestName: party.person ? party.person.name : '',
+        hostName: party.host ? party.host.name : '',
+        patronGroup: row.patronGroup || 'guest',
+        patronLabel: patronLabelOf(row.patronGroup || 'guest', party.accompanying),
+        // "Guest of Ahmad Faizal" / "Member of Royal Selangor Golf Club".
+        relationText: capitalise(relationOf(party, { numbers: false })),
         visitDate: String(row.visitDate),
         state,
         stateLabel: (PASS_STATES.find((s) => s.key === state) || {}).label || state,
@@ -494,6 +702,7 @@ async function list(req, query) {
     if (!companyId) return fail('Select a workspace first.');
     const where = { companyId };
     if (query.status && GUEST_REGISTRATION_STATUS_KEYS.includes(query.status)) where.status = query.status;
+    if (query.group && PATRON_GROUP_KEYS.includes(query.group)) where.patronGroup = query.group;
     if (query.dateFrom || query.dateTo) {
         where.visitDate = {};
         if (query.dateFrom && DATE_RE.test(String(query.dateFrom))) where.visitDate[Op.gte] = String(query.dateFrom);
@@ -502,16 +711,15 @@ async function list(req, query) {
     const rows = await GuestRegistration.findAll({ where, order: [['visitDate', 'DESC'], ['createdAt', 'DESC']], limit: 500 });
     // One flag per row, same order (the role's data scope against the stamps).
     const flags = await annotateCanModify(req, rows);
-    const [guests, hosts, today, mode] = await Promise.all([
-        rows.length ? Guest.findAll({ where: { companyId, id: { [Op.in]: [...new Set(rows.map((r) => r.guestId))] } } }) : [],
-        hostsById(companyId, [...new Set(rows.map((r) => r.memberId))]),
+    const [parties, today, mode] = await Promise.all([
+        partiesOf(companyId, rows),
         clubToday(companyId),
         numberingGateway.getMode(req, NUMBERING_PURPOSE),
     ]);
-    const guestById = new Map(guests.map((g) => [g.id, g]));
     return {
-        registrations: rows.map((r, i) => dto(r, guestById.get(r.guestId), hosts.get(r.memberId), today, flags[i])),
+        registrations: rows.map((r, i) => dto(r, parties.get(r.id), today, flags[i])),
         statuses: GUEST_REGISTRATION_STATUSES,
+        groups: PATRON_GROUPS,
         today,
         // 'auto' | 'manual' | null (no scheme yet) - the drawer asks for a
         // number only when the series is manual.
@@ -522,16 +730,16 @@ async function list(req, query) {
 async function get(req, id) {
     const l = await load(req, id);
     if (l.error) return l;
-    return { registration: dto(l.row, l.guest, l.host, l.today) };
-}
-
-function guestDto(g) {
-    return g ? { id: g.id, name: g.name, mobile: g.mobile, email: g.email, identityNo: g.identityNo, remarks: g.remarks } : null;
+    return { registration: dto(l.row, l.party, l.today) };
 }
 
 // canModify is set on listings only; absent = allowed (the write paths
 // check the data scope themselves).
-function dto(r, guest, hostDto, today, canModify = undefined) {
+function dto(r, party, today, canModify = undefined) {
+    const p = party || NO_PARTY;
+    const patronGroup = r.patronGroup || 'guest';
+    const live = r.status !== 'cancelled';
+    const visitorsOwn = !!r.affiliatedVisitId && !r.guestId;
     return {
         id: r.id,
         registrationNo: r.registrationNo,
@@ -539,8 +747,22 @@ function dto(r, guest, hostDto, today, canModify = undefined) {
         status: r.status,
         passState: passStateOf(r.status, r.visitDate, today),
         channel: r.channel,
-        guest: guestDto(guest),
-        host: hostDto || null,
+        patronGroup,
+        patronLabel: patronLabelOf(patronGroup, p.accompanying),
+        // A guest the visitor of a letter brought (never the visitor's own row).
+        accompanying: p.accompanying,
+        // "Guest of Ahmad Faizal (A0018)" / "Member of Royal Selangor Golf Club (RS-1234)".
+        relation: capitalise(relationOf(p)),
+        // The person, whichever group (`guest` is the field's first name).
+        guest: p.person,
+        host: p.host,
+        visit: p.visit,
+        club: p.club,
+        // A member's guest cancels before arrival; a visitor's day (born
+        // arrived) while its date has not passed.
+        canCancel: live && (r.affiliatedVisitId ? String(r.visitDate) >= today : r.status === 'registered'),
+        // The visitor's own live row of today takes the guests they bring.
+        canAddGuest: live && visitorsOwn && String(r.visitDate) === today,
         passSentAt: r.passSentAt,
         passSentVia: r.passSentVia,
         passSentTo: r.passSentTo,
@@ -554,18 +776,21 @@ function dto(r, guest, hostDto, today, canModify = undefined) {
 }
 
 // ---- the seam for the other modules (platform/membershipGateway) ------------------
-// A producer that serves a guest on the pass (Facility's Control Station,
+// A producer that serves someone on the pass (Facility's Control Station,
 // 2026-11-12) reads the pass and marks the arrival through these; it never
 // touches the tables.
 
-// What a pass says to another module: who the guest is, whose guest, for
-// which day, and where it stands today by the club clock.
+// What a pass says to another module: who the person is, which patron group,
+// whose guest or which club's member, for which day, and where it stands
+// today by the club clock. `host` is the host MEMBER of a member's guest and
+// null for an affiliated / reciprocal pass, which carries `club` and `visit`
+// instead - a producer reads `patronGroup` before it reads `host`.
 async function passFactsOf(companyId, row, { transaction } = {}) {
-    const [guest, hosts, today] = await Promise.all([
-        Guest.findOne({ where: { companyId, id: row.guestId }, attributes: ['id', 'name'], transaction }),
-        hostsById(companyId, [row.memberId]),
+    const [parties, today] = await Promise.all([
+        partiesOf(companyId, [row], { transaction }),
         clubToday(companyId),
     ]);
+    const party = parties.get(row.id) || NO_PARTY;
     return {
         id: row.id,
         registrationNo: row.registrationNo,
@@ -576,8 +801,13 @@ async function passFactsOf(companyId, row, { transaction } = {}) {
         arrivedAt: row.arrivedAt || null,
         // Who registered it: 'desk', or the producer module whose counter did.
         channel: row.channel,
-        guest: guest ? { id: guest.id, name: guest.name } : { id: row.guestId, name: '' },
-        host: hosts.get(row.memberId) || { memberId: row.memberId, memberNo: '', name: '' },
+        patronGroup: row.patronGroup || 'guest',
+        patronLabel: patronLabelOf(row.patronGroup || 'guest', party.accompanying),
+        accompanying: party.accompanying,
+        guest: { id: row.guestId || null, name: party.person ? party.person.name : '' },
+        host: party.host,
+        club: party.club,
+        visit: party.visit ? { id: party.visit.id, visitNo: party.visit.visitNo, visitorName: party.visit.visitorName, visitorMemberNo: party.visit.visitorMemberNo } : null,
     };
 }
 
@@ -655,7 +885,7 @@ async function registerAtDoor(req, { memberId, visitDate = null, guest, channel 
         if (!issued || !issued.number) throw Object.assign(new Error('no automatic series'), { noSeries: true });
         const arrived = date === today;
         const row = await GuestRegistration.create({
-            companyId, registrationNo: issued.number, guestId: guestRow.id, memberId, visitDate: date,
+            companyId, registrationNo: issued.number, patronGroup: 'guest', guestId: guestRow.id, memberId, visitDate: date,
             status: arrived ? 'arrived' : 'registered', arrivedAt: arrived ? new Date() : null, arrivedBy: arrived ? callerId : null,
             channel, passToken: crypto.randomBytes(32).toString('hex'), ...stamps,
         }, { transaction });
@@ -681,18 +911,18 @@ async function registerAtDoor(req, { memberId, visitDate = null, guest, channel 
         pass: await passFactsOf(companyId, out.row, { transaction: opts.transaction }),
         created: out.created,
         counted: out.counted,
-        share: await shareFactsOf(out.row, out.guestRow, hostDto, company),
+        share: await shareFactsOf(out.row, guestParty(out.guestRow, hostDto), company),
     };
 }
 
-// What a counter needs to hand the pass over, without the guest's contact
+// What a counter needs to hand the pass over, without the person's contact
 // details themselves: the link, its QR code, the WhatsApp click-to-chat link
-// (a guest with a mobile) and whether the pass can be emailed.
-async function shareFactsOf(row, guest, hostDto, company) {
-    const facts = await passFacts(row, guest, hostDto, company);
+// (a person with a mobile) and whether the pass can be emailed.
+async function shareFactsOf(row, party, company) {
+    const facts = await passFacts(row, party, company);
     return {
         guestRegistrationId: row.id, registrationNo: row.registrationNo, passUrl: facts.passUrl, qrDataUrl: facts.qrDataUrl, whatsappUrl: facts.whatsappUrl,
-        canEmail: !!guest.email, sentVia: row.passSentVia || null,
+        canEmail: !!(party.person && party.person.email), sentVia: row.passSentVia || null,
     };
 }
 
@@ -700,7 +930,7 @@ async function shareFactsOf(row, guest, hostDto, company) {
 async function passShare(req, id) {
     const l = await load(req, id);
     if (l.error || l.row.status === 'cancelled') return null;
-    return shareFactsOf(l.row, l.guest, l.host, await getCompanyProfile(l.companyId));
+    return shareFactsOf(l.row, l.party, await getCompanyProfile(l.companyId));
 }
 
 // The live passes of one host for a date - the guests a counter may be
@@ -710,8 +940,8 @@ async function passesOfHost(companyId, memberId, date, { transaction } = {}) {
     const rows = await GuestRegistration.findAll({ where: { companyId, memberId, visitDate: String(date), status: { [Op.ne]: 'cancelled' } }, order: [['createdAt', 'ASC']], transaction });
     if (!rows.length) return [];
     const guests = await Guest.findAll({ where: { companyId, id: { [Op.in]: rows.map((r) => r.guestId) } }, attributes: ['id', 'name'], transaction });
-    const nameOf = new Map(guests.map((g) => [g.id, g.name]));
-    return rows.map((r) => ({ id: r.id, registrationNo: r.registrationNo, status: r.status, channel: r.channel, guest: { id: r.guestId, name: nameOf.get(r.guestId) || '' } }));
+    const nameById = new Map(guests.map((g) => [g.id, g.name]));
+    return rows.map((r) => ({ id: r.id, registrationNo: r.registrationNo, status: r.status, channel: r.channel, guest: { id: r.guestId, name: nameById.get(r.guestId) || '' } }));
 }
 
 // Undo a registration a producer's counter created (never one of the front
@@ -719,7 +949,7 @@ async function passesOfHost(companyId, memberId, date, { transaction } = {}) {
 // longer counts. Returns true when THIS call cancelled it.
 async function cancelAtDoor(companyId, id, { channel = 'facility', actorId = null, reason = null, transaction } = {}) {
     const row = await GuestRegistration.findOne({ where: { companyId, id: String(id) }, transaction });
-    if (!row || row.status === 'cancelled' || row.channel !== channel) return false;
+    if (!row || row.status === 'cancelled' || row.channel !== channel || row.affiliatedVisitId) return false;
     Object.assign(row, { status: 'cancelled', cancelledAt: new Date(), cancelReason: str(reason) || 'Removed at the counter', updatedBy: actorId });
     await row.save({ transaction });
     await guestVisits.voidVisit(companyId, SOURCE_MODULE, row.id, { transaction, updatedBy: actorId });
@@ -727,8 +957,11 @@ async function cancelAtDoor(companyId, id, { channel = 'facility', actorId = nul
 }
 
 module.exports = {
-    passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf,
+    passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf, relationOf, relationPhrase, patronLabelOf,
     host, searchGuests, create, update, cancel, arrive, pass, send, scan, publicPass, list, get,
     findPassByCode, findPassById, markArrived,
     registerAtDoor, cancelAtDoor, passShare, passesOfHost,
+    // Shared with registrationCounter.service (the affiliated / reciprocal
+    // side of the same counter): not part of the seam.
+    internals: { fail, txFail, str, dateText, clubToday, visitorParty, nameOf, dto, passFacts, queuePassEmail, issueRegistrationNo, resolveGuest },
 };

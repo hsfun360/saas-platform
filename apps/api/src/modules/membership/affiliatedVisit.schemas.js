@@ -8,13 +8,14 @@ const { z, fields } = require('../../platform/validate');
 
 const str = (max = 255) => z.string().max(max).nullable().optional();
 const numberish = z.union([z.number(), z.string().max(32)]).nullable().optional();
-const bool = z.boolean().optional();
 const id = fields.uuid;
 
 const golf = z.object({
     courseId: str(64),
     teeTime: str(8),
     holes: numberish,
+    // The day of the letter the requested flight is played (default: its first).
+    playDate: str(10),
 }).nullable().optional();
 
 const visitBody = z.object({
@@ -31,6 +32,8 @@ const visitBody = z.object({
     loiReference: str(100),
     loiDocumentUrl: str(500),
     visitDate: str(10),
+    // The letter's last day when it covers several (empty = one day).
+    visitDateTo: str(10),
     alternateDate: str(10),
     facilities: z.object({
         golf,
@@ -52,5 +55,7 @@ module.exports = {
     create: { body: visitBody },
     update: { ...idParam, body: visitBody },
     reason: { ...idParam, body: z.object({ reason: str(255) }) },
-    arrive: { ...idParam, body: z.object({ letterSighted: bool, idSighted: bool }) },
+    // A flight for one day of the letter.
+    flight: { ...idParam, body: z.object({ playDate: str(10), courseId: str(64), teeTime: str(8), holes: numberish }) },
+    flightId: { params: z.object({ id, flightId: id }) },
 };

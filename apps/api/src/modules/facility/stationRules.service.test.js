@@ -156,3 +156,10 @@ test('undo is for a wrong tap: inside the window, on a live issue or a use, and 
     assert.match(rules.undoVerdict({ status: 'issued', issuedAt, now: at(1), billStatus: 'settled' }), /already settled/);
     assert.match(rules.undoVerdict({ status: 'returned', issuedAt, now: at(1) }), /Already returned/);
 });
+
+test('the station does not serve the pass of a visiting affiliated or reciprocal member yet', () => {
+    const pass = { registrationNo: 'G-00031', visitDateText: '14 Nov 2026', passState: 'valid' };
+    assert.equal(rules.passVerdict({ ...pass, patronGroup: 'guest' }), null);
+    assert.match(rules.passVerdict({ ...pass, patronGroup: 'reciprocal', accompanying: false }), /^Pass G-00031 belongs to a visiting reciprocal club member/);
+    assert.match(rules.passVerdict({ ...pass, patronGroup: 'affiliate', accompanying: true }), /^Pass G-00031 belongs to a guest of a visiting affiliated club member/);
+});

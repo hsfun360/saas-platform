@@ -180,4 +180,16 @@ async function bookingFullySettled(companyId, bookingProfileId, { transaction } 
     return settled >= registered.length;
 }
 
-module.exports = { findFlight, bookForVisit, cancelVisitBooking, bookingNoOf, bookingFullySettled };
+// Registered starting-nine players of a booking whose bill is not settled
+// yet: 0 when nobody registered or everyone has paid. A letter that covers
+// several days completes only when none of its flights still owes a bill
+// (2026-11-14) - a flight nobody played does not hold it open.
+async function bookingUnsettledCount(companyId, bookingProfileId, { transaction } = {}) {
+    const Bill = require('./bill.model');
+    const registered = await Player.findAll({ where: { bookingProfileId, secondNineFlag: 0, status: 'registered' }, attributes: ['id'], transaction });
+    if (!registered.length) return 0;
+    const settled = await Bill.count({ where: { companyId, playerId: { [Op.in]: registered.map((r) => r.id) }, status: 'settled' }, transaction });
+    return Math.max(0, registered.length - settled);
+}
+
+module.exports = { findFlight, bookForVisit, cancelVisitBooking, bookingNoOf, bookingFullySettled, bookingUnsettledCount };

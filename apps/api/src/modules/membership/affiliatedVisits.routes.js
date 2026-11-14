@@ -25,7 +25,12 @@ router.post('/:id/confirm', validate(s.id), controller.confirm);
 router.post('/:id/issue', validate(s.id), controller.issue);
 router.post('/:id/decline', validate(s.reason), controller.decline);
 router.post('/:id/cancel', validate(s.reason), controller.cancel);
-router.post('/:id/arrive', validate(s.arrive), controller.arrive);
+// The golf flights of a confirmed letter, one booking per play day. (The
+// visitor's arrival is recorded at the Registration Counter, which issues the
+// day pass - guestRegistrations.routes.js.)
+router.post('/:id/flights/preview', validate(s.flight), controller.previewFlight);
+router.post('/:id/flights', validate(s.flight), controller.addFlight);
+router.post('/:id/flights/:flightId/remove', validate(s.flightId), controller.removeFlight);
 router.post('/:id/complete', validate(s.id), controller.complete);
 
 module.exports = router;

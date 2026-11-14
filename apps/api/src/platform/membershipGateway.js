@@ -364,31 +364,39 @@ async function getAffiliatedClub(companyId, id) {
     return c ? { id: c.id, code: c.code, name: c.name, kind: c.kind, playerTypeId: c.playerTypeId, visitFeeTransactionTypeId: c.visitFeeTransactionTypeId, allowChargeToHomeClub: c.allowChargeToHomeClub === true, isActive: c.isActive !== false } : null;
 }
 
-// The visit behind each booking of a day: Map(bookingProfileId -> { id,
-// visitNo, status, visitorName, golferId, clubName, visitFeeTransactionTypeId,
-// allowChargeToHomeClub }).
+// The letter behind each booking of a day: Map(bookingProfileId -> { id,
+// visitNo, status, letterStatus, playDate, visitorName, golferId, clubName,
+// visitFeeTransactionTypeId, allowChargeToHomeClub }). `status` is the
+// standing for THAT flight's day ('confirmed' until the visitor has registered
+// at the Registration Counter for the play date, then 'arrived');
+// `letterStatus` is the letter's own.
 async function affiliatedVisitsByBooking(companyId, bookingProfileIds, opts = {}) {
     const visits = require('../modules/membership/affiliatedVisit.service');
     return visits.byBooking(companyId, bookingProfileIds, opts);
 }
 
-// A booked line of a visit's booking registers only once the visit is
-// arrived: an error string, or null.
+// A booked line of a letter's flight registers only once the visitor has
+// registered at the Registration Counter for that play date: an error string,
+// or null.
 async function affiliatedVisitRegistrationGate(companyId, bookingProfileId, opts = {}) {
     const visits = require('../modules/membership/affiliatedVisit.service');
     return visits.registrationGate(companyId, bookingProfileId, opts);
 }
 
-// After a settlement: completes the visit once its booking is fully settled.
+// After a settlement: completes the letter once its last day has come and no
+// flight of it still owes a bill.
 async function completeAffiliatedVisitIfSettled(companyId, bookingProfileId, opts = {}) {
     const visits = require('../modules/membership/affiliatedVisit.service');
     return visits.completeIfSettled(companyId, bookingProfileId, opts);
 }
 
-// The desk receives a confirmed visitor (letter and ID sighted).
-async function receiveAffiliatedVisit(req, visitId, body) {
-    const visits = require('../modules/membership/affiliatedVisit.service');
-    return visits.arrive(req, visitId, body);
+// A producer's desk receives a visitor for TODAY (letter and ID sighted the
+// first time, the ID on a later day of the letter): the same step the
+// Registration Counter takes, so the day pass is issued and the day counts.
+// -> { message, visit, registration, pass } | { error, status }
+async function receiveAffiliatedVisit(req, visitId, body, { channel = 'golf' } = {}) {
+    const counter = require('../modules/membership/registrationCounter.service');
+    return counter.receiveVisit(req, visitId, body, { channel });
 }
 
 // ---- Guest allowance ledger (structure approved 2026-10-25) ----
@@ -428,7 +436,12 @@ async function guestAlreadyCounted(companyId, memberId, guestId, date, opts = {}
 
 // ---- Guest pass (the day pass of Membership's Guest Registration) ----
 // A producer that serves a guest on the pass reads it and marks the arrival
-// here (Facility's Control Station first, 2026-11-12). The pass facts:
+// here (Facility's Control Station first, 2026-11-12). Since 2026-11-14 the
+// same pass is issued to a visiting affiliated / reciprocal member (and the
+// guests they bring): read `patronGroup` ('guest' | 'affiliate' |
+// 'reciprocal') first - `host` is the host MEMBER of a member's guest and
+// NULL on the others, which carry `club`, `visit` and `accompanying`.
+// The pass facts:
 // { id, registrationNo, visitDate, visitDateText, status, passState
 //   ('valid' | 'upcoming' | 'expired' | 'cancelled' by the club clock),
 //   arrivedAt, guest { id, name }, host { memberId, memberNo, name } }.

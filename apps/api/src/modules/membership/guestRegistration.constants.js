@@ -9,11 +9,21 @@ const GUEST_REGISTRATION_STATUSES = [
 ];
 const GUEST_REGISTRATION_STATUS_KEYS = GUEST_REGISTRATION_STATUSES.map((s) => s.key);
 
-// Who created the registration. Only the front desk today; the Member Portal
-// and the producer modules (a guest on a facility booking or a golf flight)
-// join later.
+// The patron group a registration belongs to (2026-11-14): a member's guest,
+// or a visiting member of an affiliated / reciprocal club (the two kinds of
+// membership.AffiliatedClub). A plain Visitor is not registered here yet.
+const PATRON_GROUPS = [
+    { key: 'guest', label: "Member's guest" },
+    { key: 'affiliate', label: 'Affiliated member' },
+    { key: 'reciprocal', label: 'Reciprocal member' },
+];
+const PATRON_GROUP_KEYS = PATRON_GROUPS.map((g) => g.key);
+
+// Who created the registration: the Registration Counter, or a producer
+// module's own counter (a guest added at the Facility station, a visitor
+// received at the golf desk). The Member Portal joins later.
 const GUEST_REGISTRATION_CHANNELS = [
-    { key: 'desk', label: 'Front desk' },
+    { key: 'desk', label: 'Registration Counter' },
     { key: 'portal', label: 'Member Portal' },
     { key: 'facility', label: 'Facility' },
     { key: 'golf', label: 'Golf' },
@@ -38,6 +48,8 @@ module.exports = {
     GUEST_REGISTRATION_STATUSES,
     GUEST_REGISTRATION_STATUS_KEYS,
     GUEST_REGISTRATION_CHANNELS,
+    PATRON_GROUPS,
+    PATRON_GROUP_KEYS,
     PASS_SEND_VIAS,
     PASS_SEND_VIA_KEYS,
     PASS_STATES,

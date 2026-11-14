@@ -61,15 +61,25 @@ const AffiliatedVisit = sequelize.define('AffiliatedVisit', {
     // The home club's letter (inbound): its reference and the uploaded document.
     loiReference: { type: DataTypes.STRING(100), allowNull: true },
     loiDocumentUrl: { type: DataTypes.STRING, allowNull: true },
+    // The first day of the letter, and its LAST day when it covers several
+    // (2026-11-14; NULL = a one-day letter). The visitor registers at the
+    // Registration Counter on each day they come; each such day is one visit
+    // against the club's limits.
     visitDate: { type: DataTypes.DATEONLY, allowNull: false },
+    visitDateTo: { type: DataTypes.DATEONLY, allowNull: true },
+    // One-day letters only: the other date the visitor may come instead.
     alternateDate: { type: DataTypes.DATEONLY, allowNull: true },
-    // { golf: { courseId, teeTime, holes } | null, dining, accommodation,
-    // other: free text or null } - what the letter asks for.
+    // { golf: { courseId, teeTime, holes, playDate } | null, dining,
+    // accommodation, sports, other: free text or null } - what the letter
+    // asks for. `golf` is the flight the confirmation books (playDate: a day
+    // of the letter, default its first); further days are added as flights.
     facilities: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     // The golf party (the visitor included) and the guests among them.
     playerCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     guestCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-    // INBOUND: the flight booking the confirmation created (golf value ref).
+    // LEGACY (unused since 2026-11-14): the one flight a confirmation booked.
+    // The letter's flights, one per play day, live in
+    // membership.AffiliatedVisitFlight; boot copied this column there.
     bookingProfileId: { type: DataTypes.UUID, allowNull: true },
     workflowInstanceId: { type: DataTypes.UUID, allowNull: true },
     confirmedAt: { type: DataTypes.DATE, allowNull: true },

@@ -128,6 +128,12 @@ function passVerdict(pass) {
     if (pass.passState === 'cancelled') return `Pass ${pass.registrationNo} is cancelled.`;
     if (pass.passState === 'upcoming') return `This pass is for ${pass.visitDateText} - it is not valid today.`;
     if (pass.passState === 'expired') return `This pass was for ${pass.visitDateText} and has expired.`;
+    // The Registration Counter also issues the pass to visiting affiliated and
+    // reciprocal members (2026-11-14). The station serves a member's guest
+    // only until its own rules for those holders are built.
+    if (pass.patronGroup && pass.patronGroup !== 'guest') {
+        return `Pass ${pass.registrationNo} belongs to ${pass.accompanying ? 'a guest of ' : ''}a visiting ${pass.patronGroup === 'reciprocal' ? 'reciprocal' : 'affiliated'} club member - the station does not serve these passes yet.`;
+    }
     return null;
 }
 

@@ -38,7 +38,9 @@ exports.confirm = handler('confirming affiliated visit', (req) => visits.confirm
 exports.issue = handler('issuing letter of introduction', (req) => visits.issue(req, req.params.id));
 exports.decline = handler('declining affiliated visit', (req) => visits.decline(req, req.params.id, req.body));
 exports.cancel = handler('cancelling affiliated visit', (req) => visits.cancel(req, req.params.id, req.body));
-exports.arrive = handler('receiving affiliated visit', (req) => visits.arrive(req, req.params.id, req.body));
+exports.previewFlight = handler('previewing affiliated visit flight', (req) => visits.previewFlight(req, req.params.id, req.body));
+exports.addFlight = handler('booking affiliated visit flight', (req) => visits.addFlight(req, req.params.id, req.body), 201);
+exports.removeFlight = handler('cancelling affiliated visit flight', (req) => visits.removeFlight(req, req.params.id, req.params.flightId));
 exports.complete = handler('completing affiliated visit', (req) => visits.complete(req, req.params.id));
 
 // POST /affiliated-visits/letter (multipart field "letter") - upload the

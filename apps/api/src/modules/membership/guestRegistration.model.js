@@ -2,14 +2,25 @@ const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 
-// membership.GuestRegistration (structure approved 2026-11-10) - one guest,
-// one host member, one date = ONE DAY PASS. The front desk registers the
-// guest (Membership Management -> Guest Registration); the registration
-// writes the membership.GuestVisit ledger row that draws on the host's
-// monthly guest allowance, and carries the pass: `passToken` is the random
-// key behind the public pass link and its QR code, valid on `visitDate` only
-// (club clock). `guestId` -> membership.Guest and `memberId` -> the host
-// Member, both inside the Membership service.
+// membership.GuestRegistration (structure approved 2026-11-10; widened to
+// every patron group 2026-11-14) - one person, one date = ONE DAY PASS,
+// issued at the club's Registration Counter (Membership Management ->
+// Registration Counter). `passToken` is the random key behind the public pass
+// link and its QR code, valid on `visitDate` only (club clock).
+//   patronGroup 'guest'      - a member's guest: `guestId` -> membership.Guest
+//                              and `memberId` -> the host Member; the row
+//                              writes the membership.GuestVisit ledger line
+//                              that draws on the host's guest allowance.
+//   patronGroup 'affiliate' /
+//               'reciprocal' - a visiting member of an affiliated / reciprocal
+//                              club: `affiliatedVisitId` -> the letter of
+//                              introduction, `affiliatedClubId` -> the home
+//                              club, no host member and no allowance. The
+//                              visitor's own row carries no `guestId` (the
+//                              person is the visitor named on the letter); a
+//                              row WITH one is a guest the visitor brought.
+//                              One row is one day at the club - the day that
+//                              counts against the club's visit limits.
 // Statuses: registered -> arrived; cancelled (guestRegistration.constants).
 // "Expired" is derived from the date, never stored.
 const GuestRegistration = sequelize.define('GuestRegistration', {
@@ -27,14 +38,31 @@ const GuestRegistration = sequelize.define('GuestRegistration', {
         type: DataTypes.STRING(50),
         allowNull: false,
     },
+    // 'guest' | 'affiliate' | 'reciprocal' (guestRegistration.constants).
+    patronGroup: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'guest',
+    },
+    // The membership.Guest person; NULL on the row of the visitor a letter names.
     guestId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
     },
-    // The HOST member whose allowance the visit draws on.
+    // The HOST member whose allowance the visit draws on (a member's guest only).
     memberId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
+    },
+    // The letter of introduction this pass was issued on, and the home club
+    // (affiliate / reciprocal only).
+    affiliatedVisitId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    affiliatedClubId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     visitDate: {
         type: DataTypes.DATEONLY,
@@ -46,7 +74,8 @@ const GuestRegistration = sequelize.define('GuestRegistration', {
         allowNull: false,
         defaultValue: 'registered',
     },
-    // 'desk' now; 'portal' | 'facility' | 'golf' later.
+    // Who registered it: 'desk' (the Registration Counter), or the producer
+    // module whose own counter did ('facility', 'golf'); 'portal' later.
     channel: {
         type: DataTypes.STRING(20),
         allowNull: false,
@@ -84,6 +113,21 @@ const GuestRegistration = sequelize.define('GuestRegistration', {
             fields: ['companyId', 'memberId', 'guestId', 'visitDate'],
             unique: true,
             where: { status: { [Op.ne]: 'cancelled' } },
+        },
+        { name: 'IX_GuestRegistration_Company_Visit_Date', fields: ['companyId', 'affiliatedVisitId', 'visitDate'] },
+        // One LIVE pass per letter per day for the visitor it names ...
+        {
+            name: 'UX_GuestRegistration_Live_Visit_Date',
+            fields: ['companyId', 'affiliatedVisitId', 'visitDate'],
+            unique: true,
+            where: { status: { [Op.ne]: 'cancelled' }, affiliatedVisitId: { [Op.ne]: null }, guestId: null },
+        },
+        // ... and one per guest the visitor brought that day.
+        {
+            name: 'UX_GuestRegistration_Live_Visit_Guest_Date',
+            fields: ['companyId', 'affiliatedVisitId', 'guestId', 'visitDate'],
+            unique: true,
+            where: { status: { [Op.ne]: 'cancelled' }, affiliatedVisitId: { [Op.ne]: null }, guestId: { [Op.ne]: null } },
         },
     ],
 });
