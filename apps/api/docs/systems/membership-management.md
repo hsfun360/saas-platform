@@ -678,7 +678,10 @@ Not yet exercised: registering a flight's players on a later day at the golf des
 
 ### Not built yet
 
-- The rest of the Facility station's part, in the Facility Management session (utility items on the pass and entering a facility on it are built, its slices 7a and 7b): charge to home club, a letter's completion held while an item is out or a facility bill is open, and no cancelling of a day that was used at the station (7c).
+- (Built 2026-11-14, Facility's slice 7: the station serves these passes - utility items, entering a facility, charge to home club only where the arrangement allows it.)
+  Two rules of that slice live HERE and ask Facility through `platform/facilityGateway.js`:
+  an inbound letter does not complete (the desk's Complete, the golf settlement hook, the worker's tick) while the station holds an item out or an open facility bill against it (`affiliatedVisit.service.facilityHold`);
+  and cancelling a visitor's day, or the day of a guest they brought, is refused once that pass was used at the station (`guestRegistration.service.cancelVisitorDay`).
 - A plain Visitor at the counter.
 - The user manuals of the Registration Counter and the changed Affiliated Visits screen.
 

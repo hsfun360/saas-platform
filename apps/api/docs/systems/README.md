@@ -63,7 +63,7 @@ Overall architecture, conventions and the migration plan: **[saas-platform.md](s
    *may this role perform the action on this screen* (`requireMenuAction` - role->menu grants with Create/Edit/Delete flags; `requireAnyMenuAction` for endpoints shared by several screens),
    and *whose records may they amend* (`canModifyRecord` / `annotateCanModify` - the role's data scope own/department/all against the record's `createdBy` + department stamps, department = same department and strictly senior by `Position.rank`).
 4. **Cross-service calls go through the seam, never `require()` across modules.**
-   Synchronous reads go through the in-process `platform/*Gateway.js` seams (`membershipGateway`, `arGateway`, `taxGateway`, `dimensionGateway`, `numberingGateway`, `identityGateway`, `notificationGateway`, `calendarGateway`, `workflowGateway`) and the Control-Plane helpers in `platform/serviceContext.js`.
+   Synchronous reads go through the in-process `platform/*Gateway.js` seams (`membershipGateway`, `arGateway`, `taxGateway`, `dimensionGateway`, `numberingGateway`, `identityGateway`, `notificationGateway`, `calendarGateway`, `workflowGateway`, `golfGateway`, `facilityGateway`) and the Control-Plane helpers in `platform/serviceContext.js`.
    Each gateway documents the HTTP call it becomes when its service splits (`internalServiceUrl('<service>')` returns the peer URL, `null` = in-process today).
    Writes / fan-out travel as events via the transactional **outbox**, not direct calls.
 5. **Each `app.use('/api/<x>', ...)` is the gateway seam.**

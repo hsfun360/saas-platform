@@ -1388,7 +1388,7 @@ A typed member number returns the same picture for the member.
 8. **A party is served one person at a time**; the Arrival drawer is dropped.
 9. **The scan does not admit the guest into the pool or the gym** until 6d; in 6b it serves utility items only.
 
-### Slice 7 - Visiting members at the station (approved 2026-11-14; step 7a BUILT and smoked on dev 2026-11-14; step 7b BUILT 2026-11-14)
+### Slice 7 - Visiting members at the station (approved 2026-11-14; step 7a BUILT and smoked on dev 2026-11-14; steps 7b and 7c BUILT 2026-11-14)
 
 A member of an affiliated or reciprocal club is a VISITING MEMBER.
 They present their letter at Membership's Registration Counter (the club's main control counter), never at the Facility station, and leave the counter with a day pass.
@@ -1475,8 +1475,38 @@ New values in existing columns:
     An item that `requiresEntry` now opens to a visiting member (and their guest) who is inside.
     The day board tags the entry "(reciprocal member)" / "(affiliated member)" and offers no "Guests" editing on it: `replaceGuests` refuses with "... is a visiting member - their guests are registered at the Registration Counter and enter on their own pass."
     Sign-out lists what the party still holds, as for a member.
-- **7c - settlement and the letter.**
-  The member tender is refused on a visiting member's bill (already true: it needs a member patron); the debtor tender (charge to home club) only where the arrangement's `allowChargeToHomeClub` is ON; a first `platform/facilityGateway.js` so a letter does not complete while an item is out or a facility bill is open, and the counter does not cancel a day used at the station.
+- **7c (BUILT) - settlement and the letter.**
+  No new structure.
+  - **The tenders of a visiting member's bill** (`stationRules.visitingTenderRefusal`, asked by `bill.controller`).
+    The member class is refused: they hold no account here ("Bill <no> is in the name of <name>, a visiting member - it cannot be charged to a member account.").
+    The debtor class is charge to home club: allowed only where the home club's `allowChargeToHomeClub` is ON, the cashier picking the AR Other Debtor of that club; otherwise "<club>'s arrangement does not allow charges to be signed back to the home club - <name> settles bill <no> before leaving."
+    Both are checked before anything is posted to AR, and the bill screen is offered only the tenders the bill may take.
+    Every other tender class settles as on any bill.
+  - **The bill screen** carries `visiting { patronGroup, label, name, visitNo, club { code, name }, allowChargeToHomeClub }` (null on anyone else's bill).
+    The letter and its club come through `membershipGateway.getAffiliatedVisitFacts`.
+    The AR document of a charge to home club names the visiting member, their club and the letter.
+  - **A manual line** added from the tiles to a visiting member's bill is priced as their own price group, not as a member (`stationLineContext`).
+  - **The facility seam** - `platform/facilityGateway.js`, Facility's first, read-only, answered by `visitStanding.service.js`:
+    - `getVisitFacilityStanding(companyId, affiliatedVisitId)` -> `{ clear, itemsOut: [{ label, holder }], openBills: [{ billNo, totalAmount }], text }`: the items the letter's party still holds (the visiting member's and their guests') and its open facility bills;
+    - `getVisitDayFacilityUse(companyId, affiliatedVisitId, date, { guestRegistrationId })` -> `{ used, items, entries, text }`: whether a day's pass was used at the station - the visiting member's own day (their guests' use included) or one guest's pass. An item issued and undone is not a use.
+  - **The letter's completion hold** (Membership, `affiliatedVisit.service`): an inbound letter does not complete - by the desk's Complete, by the golf settlement hook or by the worker's tick after its last day - while the station holds something against it.
+    The desk reads why: "Visit <no> cannot complete yet: at the Facility station <name> still holds L002 and TOWEL (<guest>) and has an open bill FBL-00017 (5.00)."
+    Being inside a facility does not hold a letter; the day's sign-out closes that.
+  - **The counter's cancel guard** (Membership, `guestRegistration.service.cancelVisitorDay`): a day that was used at the station stands - "<name> was served at the Facility station on <date> (took 2 items and entered 1 facility) - registration <no> stands."
+    A guest's row answers for that guest's pass alone; the visiting member's own row answers for the whole party, since cancelling it takes their guests' passes with it.
+
+#### Web (7c)
+
+- The bill drawer names whose bill a visiting member's is: "<name> (Reciprocal member of <club>, letter <no>)".
+- Its settle view lists only the tenders the bill may take and says why: the bill is settled before they leave, or - where the arrangement signs charges back - the Debtor class charges it to the Other Debtor picked for the home club.
+- Affiliated Visits and the Registration Counter show Membership's two refusals as they show any other.
+
+#### Verified (7c)
+
+- API unit tests 318, web unit tests 440, production web build clean.
+- A 29-check run on a throwaway Postgres: the seam's two answers, the bill screen and both refused tenders, the allowed charge to home club reaching Account Receivable's own checks, the letter held by an item and then by the open bill and completing once settled, the counter refusing to cancel a used day (the visiting member's and their guest's) while an undone tap leaves a day unused, a member's bill untouched, and the worker's tick holding a letter past its last day until its towel is back or lost.
+- NOT exercised: a charge to home club posted all the way into AR (the local run has no AR set-up; that posting is the existing Debtor path with a fuller description), and the golf settlement hook (it needs a letter with a golf flight).
+- Committed locally; NOT pushed, not seen in a browser.
 
 #### Web (7b)
 
@@ -1534,7 +1564,7 @@ New values in existing columns:
 
 ## Consumed by
 
-- Reporting / analytics; Membership (the member's guest tally reads the ledger Membership owns, facility only posts to it); Golf shares nothing (separate resources).
+- Reporting / analytics; Membership (the member's guest tally reads the ledger Membership owns, facility only posts to it; since slice 7c it also ASKS Facility through `platform/facilityGateway.js` what the station holds against a letter and whether a day's pass was used there); Golf shares nothing (separate resources).
 
 ## Auth & entitlements
 
@@ -1545,4 +1575,4 @@ New values in existing columns:
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [x] Slice 7a visiting affiliated and reciprocal members: utility items on the day pass, due-days setting dropped (2026-11-14, local only) · [x] Slice 7b visiting members entering a facility on the pass: the type switch, the two price groups (2026-11-14, local only) · [ ] Slice 7c settlement and the letter's completion hold · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [x] Slice 7a visiting affiliated and reciprocal members: utility items on the day pass, due-days setting dropped (2026-11-14, local only) · [x] Slice 7b visiting members entering a facility on the pass: the type switch, the two price groups (2026-11-14, local only) · [x] Slice 7c a visiting member's tenders, the letter's completion hold and the counter's cancel guard through platform/facilityGateway.js (2026-11-14, local only) · [ ] Events · [ ] Own DB · [ ] Own deploy
