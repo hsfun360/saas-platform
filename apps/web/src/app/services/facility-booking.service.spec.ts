@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { FacilityBookingService } from './facility-booking.service';
+import { FacilityBillVisiting, FacilityBookingService, facilityVisitingBillTag, facilityVisitingSettleNote } from './facility-booking.service';
 
 describe('FacilityBookingService', () => {
   let service: FacilityBookingService;
@@ -129,5 +129,31 @@ describe('FacilityBookingService', () => {
     const v = http.expectOne('/api/facility/bills/bill1/void');
     expect(v.request.body.reason).toBe('Keyed on the wrong booking');
     v.flush({ message: 'Bill voided.', bill: { id: 'bill1' } });
+  });
+});
+
+describe('a visiting member\'s bill (slice 7c)', () => {
+  const visiting: FacilityBillVisiting = {
+    patronGroup: 'reciprocal', label: 'Reciprocal member', name: 'Lim Chee Keong', visitNo: 'L261100004',
+    club: { code: 'SAUJANA', name: 'Saujana Golf' }, allowChargeToHomeClub: false,
+  };
+
+  it('tags the bill with the patron group, the home club and the letter', () => {
+    expect(facilityVisitingBillTag(visiting)).toBe('Reciprocal member of Saujana Golf, letter L261100004');
+    expect(facilityVisitingBillTag({ ...visiting, club: null, visitNo: null })).toBe('Reciprocal member');
+  });
+
+  it('says the bill is settled before they leave where the arrangement does not sign charges back', () => {
+    const note = facilityVisitingSettleNote(visiting);
+    expect(note).toContain('holds no member account here');
+    expect(note).toContain("Saujana Golf's arrangement does not sign charges back");
+    expect(note).toContain('settled before they leave');
+    expect(note).not.toContain('Debtor class');
+  });
+
+  it('says the Debtor class signs it back to the home club where the arrangement allows', () => {
+    const note = facilityVisitingSettleNote({ ...visiting, allowChargeToHomeClub: true });
+    expect(note).toContain("Saujana Golf's arrangement allows charges to be signed back");
+    expect(note).toContain('the Debtor class charges the bill to the Other Debtor you pick for Saujana Golf');
   });
 });

@@ -23,7 +23,7 @@ import {
   FacilityBookingService,
   FacilityBookingTypeFacts,
   FacilityBillDoc,
-  FacilityBillScreen,
+  FacilityBillScreen, facilityVisitingBillTag, facilityVisitingSettleNote,
   FacilityPaymentLine,
   FacilityCancelPreview,
   FacilityGridCell,
@@ -941,6 +941,16 @@ export class FacilityBookingsComponent implements OnInit, OnDestroy {
       next: (res) => this.applyBill(res.bill),
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to remove the item.'),
     });
+  }
+
+  // Slice 7c: a visiting member's bill names their club and letter, and its
+  // settle view says how it may be settled.
+  visitingTag(bs: FacilityBillScreen): string {
+    return bs.visiting ? facilityVisitingBillTag(bs.visiting) : '';
+  }
+
+  visitingSettleNote(bs: FacilityBillScreen): string {
+    return bs.visiting ? facilityVisitingSettleNote(bs.visiting) : '';
   }
 
   private newPayGroup(v: { paymentTypeId: string; amount: number; reference: string; otherDebtorId: string }): PayGroup {

@@ -405,7 +405,7 @@
           @case ('bill') {
             @if (billScreen(); as bs) {
               <div class="fb-bill-head">
-                <span><strong>{{ bs.booking.booker?.name }}</strong>{{ bs.booking.booker?.memberNo ? ' (' + bs.booking.booker?.memberNo + ')' : '' }} · {{ (bs.booking.kind === 'enrolment' && bs.booking.bookingDate ? bs.booking.bookingDate : bs.bill.billDate) | localDate }} · {{ bs.booking.facilities.join(', ') }} {{ bs.booking.startTime }}{{ bs.booking.endTime ? ' - ' + bs.booking.endTime : '' }}</span>
+                <span><strong>{{ bs.booking.booker?.name }}</strong>{{ bs.booking.booker?.memberNo ? ' (' + bs.booking.booker?.memberNo + ')' : '' }}{{ bs.visiting ? ' (' + visitingTag(bs) + ')' : '' }} · {{ (bs.booking.kind === 'enrolment' && bs.booking.bookingDate ? bs.booking.bookingDate : bs.bill.billDate) | localDate }} · {{ bs.booking.facilities.join(', ') }} {{ bs.booking.startTime }}{{ bs.booking.endTime ? ' - ' + bs.booking.endTime : '' }}</span>
                 <span class="status-chip" [class]="'status-chip ' + billStatusClass(bs.bill.status)">{{ bs.bill.status }}</span>
               </div>
               @for (w of billWarnings(); track $index) {
@@ -519,7 +519,11 @@
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add payment
                 </button>
-                <p class="cell-subtle field-hint">Member class charges the bill to the booker's own account and Debtor class to an Other Debtor of Account Receivable (both credit checked); Suspend counts toward settlement; cash-like tenders just record the payment.</p>
+                @if (bs.visiting) {
+                  <p class="cell-subtle field-hint">{{ visitingSettleNote(bs) }}</p>
+                } @else {
+                  <p class="cell-subtle field-hint">Member class charges the bill to the booker's own account and Debtor class to an Other Debtor of Account Receivable (both credit checked); Suspend counts toward settlement; cash-like tenders just record the payment.</p>
+                }
               }
             </form>
           }

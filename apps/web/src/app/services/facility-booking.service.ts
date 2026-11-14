@@ -309,15 +309,46 @@ export interface FacilityBillScreen {
     // and the guest holding them when the bill is in the host's name.
     itemsLabel?: string;
     holderName?: string | null;
-    booker: { id: string; patronType: 'member' | 'other'; name: string; memberNo: string | null } | null;
+    booker: { id: string; patronType: 'member' | 'other' | 'affiliate' | 'reciprocal'; name: string; memberNo: string | null } | null;
     slots: number;
     participants: { id: string; name: string; participantType: string }[];
   };
   tiles: FacilityBillTile[];
+  // On a visiting member's bill the API offers only the tenders it may take.
   tenders: FacilityTenderOption[];
   otherDebtors: FacilityOtherDebtorRef[];
+  // Slice 7c: set when the bill is in the name of a visiting member of an
+  // affiliated or reciprocal club.
+  visiting?: FacilityBillVisiting | null;
   warnings: string[];
   message?: string;
+}
+
+// Who a visiting member's bill is for, and whether the home club's
+// arrangement lets its charges be signed back (slice 7c).
+export interface FacilityBillVisiting {
+  patronGroup: 'affiliate' | 'reciprocal';
+  label: string;
+  name: string;
+  visitNo: string | null;
+  club: { code: string; name: string } | null;
+  allowChargeToHomeClub: boolean;
+}
+
+// "Reciprocal member of Saujana Golf, letter L261100004": the tag beside the
+// name on a visiting member's bill.
+export function facilityVisitingBillTag(v: FacilityBillVisiting): string {
+  return `${v.label}${v.club ? ' of ' + v.club.name : ''}${v.visitNo ? ', letter ' + v.visitNo : ''}`;
+}
+
+// How a visiting member's bill is settled, in the settle view: they hold no
+// member account here, and the Debtor class signs the bill back to the home
+// club only where the arrangement allows it.
+export function facilityVisitingSettleNote(v: FacilityBillVisiting): string {
+  const club = v.club?.name || 'the home club';
+  return v.allowChargeToHomeClub
+    ? `${v.name} is a visiting member and holds no member account here. ${club}'s arrangement allows charges to be signed back: the Debtor class charges the bill to the Other Debtor you pick for ${club} (credit checked); any other tender settles it now.`
+    : `${v.name} is a visiting member and holds no member account here. ${club}'s arrangement does not sign charges back, so the bill is settled before they leave.`;
 }
 
 export interface FacilityPaymentLine {
