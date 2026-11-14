@@ -408,7 +408,7 @@ async function confirm(req, id) {
     const cf = await clubFacts(companyId, row);
     if (cf.error) return cf;
     const { club, type } = cf;
-    if (!type || type.baseIdentity !== 'affiliate' || type.isActive === false) return fail(`${club.name} has no active affiliate player type - fix the club record first.`);
+    if (!type || !['affiliate', 'reciprocal'].includes(type.baseIdentity) || type.isActive === false) return fail(`${club.name} has no active club-visitor player type - fix the club record first.`);
     const n = await normalize(companyId, { ...row.get({ plain: true }), facilities: row.facilities }, { existing: row });
     if (n.error) return n;
     const needsApproval = club.requiresApproval === true || type.requiresApproval === true;

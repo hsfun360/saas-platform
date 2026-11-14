@@ -99,6 +99,12 @@ async function applyRejection(profile, reason, { transaction, userId }) {
     profile.workflowInstanceId = null;
     profile.updatedBy = userId;
     await profile.save({ transaction });
+    // The guests of a booking that never stood give their visits back to the
+    // booker's monthly allowance (recorded at the save, while seats were held).
+    const hosted = await Player.findAll({
+        where: { bookingProfileId: profile.id, secondNineFlag: 0, status: 'booked', guestVisitId: { [Op.ne]: null } }, transaction,
+    });
+    await require('./guestLedger.service').voidFor(profile.companyId, hosted, { updatedBy: userId, transaction });
     await Player.update({ status: 'cancelled', cancelledAt: new Date(), cancelledBy: userId, cancelReason: reason, updatedBy: userId }, {
         where: { bookingProfileId: profile.id, status: { [Op.in]: ['booked'] } }, transaction,
     });

@@ -47,10 +47,14 @@ const PACKAGE_CHARGE_TYPE_KEY = 'package';
 //              resolve by the billed player, no clerk judgement); a tile with
 //              no category stays visible to everyone.
 // The front desk refuses a categorised tile on a player of another category.
+// (Legacy fallback list: the pickers read the club's Player Type master. The
+// labels follow the system types - Guest and Visitor are two patron groups
+// since 2026-11-13.)
 const GOLFER_TYPES = [
     { key: 'member', label: 'Member' },
     { key: 'member-guest', label: 'Member as Guest' },
-    { key: 'guest', label: 'Guest / Visitor' },
+    { key: 'guest', label: 'Guest' },
+    { key: 'visitor', label: 'Visitor' },
 ];
 
 const GOLFER_TYPE_KEYS = GOLFER_TYPES.map((g) => g.key);

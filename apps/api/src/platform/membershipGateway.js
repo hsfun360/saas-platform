@@ -416,6 +416,16 @@ async function voidGuestVisit(companyId, sourceModule, sourceRef, opts = {}) {
     return require('../modules/membership/guestVisit.service').voidVisit(companyId, sourceModule, sourceRef, opts);
 }
 
+// Whether this host already holds a confirmed visit for this KNOWN guest on
+// the date (the once-per-day rule): a further line for them draws nothing
+// more from the allowance, so a producer counting what a booking NEEDS
+// leaves such a line out. `excludeSource` = the producer's own line, when it
+// re-records. (Golf's booking save, 2026-11-13.)
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/guest-visits/counted?memberId&guestId&date
+async function guestAlreadyCounted(companyId, memberId, guestId, date, opts = {}) {
+    return require('../modules/membership/guestVisit.service').alreadyCounted(companyId, memberId, guestId, date, opts);
+}
+
 // ---- Guest pass (the day pass of Membership's Guest Registration) ----
 // A producer that serves a guest on the pass reads it and marks the arrival
 // here (Facility's Control Station first, 2026-11-12). The pass facts:
@@ -480,6 +490,7 @@ module.exports = {
     getGuestAllowanceStanding,
     recordGuestVisit,
     voidGuestVisit,
+    guestAlreadyCounted,
     findGuestPass,
     getGuestPass,
     markGuestArrived,

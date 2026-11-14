@@ -9,12 +9,15 @@
 // same shape as arGateway.postCharge: the caller's transaction is honoured
 // in-process and becomes a sagas-style call when the service splits.
 
-// The affiliate-base player types (the club's "billed as" picker).
+// The club-visitor player types (the club's "billed as" picker): affiliate-
+// base types for an affiliated association, reciprocal-base types for a
+// reciprocal club (two classes since 2026-11-13 - the base identity rides
+// along so the club record can match it to its kind).
 async function listAffiliatePlayerTypes(companyId) {
-    // WHEN SPLIT: GET {internalServiceUrl('golf')}/internal/player-types?base=affiliate
+    // WHEN SPLIT: GET {internalServiceUrl('golf')}/internal/player-types?base=affiliate,reciprocal
     const playerTypes = require('../modules/golf/playerType.service');
-    return (await playerTypes.catalog(companyId)).filter((t) => t.baseIdentity === 'affiliate')
-        .map((t) => ({ id: t.id, code: t.code, description: t.description, isActive: t.isActive, requiresApproval: t.requiresApproval }));
+    return (await playerTypes.catalog(companyId)).filter((t) => t.baseIdentity === 'affiliate' || t.baseIdentity === 'reciprocal')
+        .map((t) => ({ id: t.id, code: t.code, description: t.description, baseIdentity: t.baseIdentity, isActive: t.isActive, requiresApproval: t.requiresApproval }));
 }
 
 // One player type by id (code, base, approval flag) or null.

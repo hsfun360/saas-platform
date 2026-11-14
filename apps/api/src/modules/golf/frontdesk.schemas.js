@@ -23,7 +23,10 @@ const guest = z.object({
     email: str(255),
 }).nullable().optional();
 
-// A walk-in is a new tee-off keyed at the desk.
+// A walk-in is a new tee-off keyed at the desk. `hostMemberNo` (2026-11-13)
+// names the member whose GUEST the walk-in is - required for a guest, the
+// way a member with no playing right of their own plays; never on a visitor.
+// `guestId` = the membership.Guest of one of the host's passes for the date.
 const walkIn = z.object({
     playDate: str(10),
     courseId: str(64),
@@ -31,6 +34,8 @@ const walkIn = z.object({
     holes: numberish,
     playerType: str(20),
     memberNo: str(50),
+    hostMemberNo: str(50),
+    guestId: str(64),
     guest,
 }).nullable().optional();
 
@@ -61,6 +66,8 @@ const playDateQuery = { query: z.object({ playDate: str(10) }) };
 
 module.exports = {
     day: playDateQuery,
+    // The host's guest passes + guest standing for the walk-in form.
+    hostGuests: { query: z.object({ memberNo: str(50), playDate: str(10) }) },
     // Booked player ({ playerId, guest?, registrationNo? }) or walk-in
     // ({ walkIn: {...}, registrationNo? }) - the controller branches on playerId.
     register: { body: z.object({ playerId: str(64), guest, registrationNo: str(50), walkIn }) },

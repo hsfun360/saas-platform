@@ -22,18 +22,25 @@ const search = {
     players: numberish,
 };
 
-// One keyed player line of the final save: a guest carries a name, a member
-// or member-as-guest carries the member number.
+// One keyed player line of the final save: a guest carries a name (and,
+// optionally, the membership.Guest of one of the booker's passes for the
+// date), a member carries the member number.
 const playerLine = z.object({
     playerType: str(20),
     guestName: str(255),
     memberNo: str(50),
+    guestId: str(64),
 });
 
 const idParam = { params: z.object({ id }) };
 
 module.exports = {
-    context: { query: z.object({ memberNo: str(50) }) },
+    // `playDate` names the month the guest allowance is read for.
+    context: { query: z.object({ memberNo: str(50), playDate: str(10) }) },
+    guestPasses: { query: z.object({ memberNo: str(50), playDate: str(10) }) },
+    // The class a member line will take on the locked flight (or, for a
+    // roster change without a move, on the booking's current flight).
+    lineCheck: { query: z.object({ memberNo: str(50), lineMemberNo: str(50), playerType: str(20), lockGroupId: str(64), bookingId: str(64) }) },
     // `excludeBookingId` (change booking): the booking being moved is left out
     // of the capacity counts and its own one-per-day / session evidence.
     availability: { body: z.object({ ...search, time: str(8), courseId: str(64), excludeBookingId: str(64) }) },

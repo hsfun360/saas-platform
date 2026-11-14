@@ -117,10 +117,14 @@ function targetOf(types, { playerType, membershipTypeId = null, affiliatedClubId
 
 // Rounds the golfer already holds in the quota's period on the days the row
 // covers (booked or registered starting-nine records; a booking being
-// amended is excluded). Returns { rounds, guestRounds }.
-async function countRounds(companyId, golferId, rule, playDate, { transaction, excludeProfileId = null } = {}) {
+// amended is excluded). `excludeCodes` (2026-11-13): player-type codes whose
+// rounds do NOT count - a member's OWN quota ignores the rounds they played
+// as another member's guest (the host's guest cap paid for those).
+// Returns { rounds, guestRounds }.
+async function countRounds(companyId, golferId, rule, playDate, { transaction, excludeProfileId = null, excludeCodes = [] } = {}) {
     const w = periodWindow(rule.period, playDate);
     const where = { companyId, golferId, secondNineFlag: 0, status: { [Op.in]: ['booked', 'registered'] }, playDate: { [Op.gte]: w.from, [Op.lte]: w.to } };
+    if (excludeCodes.length) where.playerType = { [Op.notIn]: excludeCodes };
     if (excludeProfileId) where.bookingProfileId = { [Op.or]: [{ [Op.ne]: excludeProfileId }, { [Op.is]: null }] };
     const rows = await Player.findAll({ where, attributes: ['playDate', 'bookingProfileId'], transaction });
     const profileWhere = { companyId, bookerGolferId: golferId, status: 'booked', playDate: { [Op.gte]: w.from, [Op.lte]: w.to } };
@@ -150,6 +154,7 @@ async function checkBooking(companyId, { course, playDate, teeTime, dayType, lin
     const rules = await loadRules(companyId, { transaction });
     if (!rules.enabled || (!rules.rightRules.length && !rules.quotaRules.length)) return null;
     const types = await playerTypes.catalog(companyId, { transaction });
+    const memberGuestCodes = playerTypes.codesOfBase(types, 'member-guest');
     const dayOfWeek = availability.dayOfWeekOf(playDate);
     const teeMinutes = toMinutes(teeTime);
     const courseLabel = course.courseCode || 'the course';
@@ -161,7 +166,9 @@ async function checkBooking(companyId, { course, playDate, teeTime, dayType, lin
         if (!line.golferId) continue;
         const quota = pickQuota(rules.quotaRules, target, { dayType, dayOfWeek });
         if (!quota) continue;
-        const counted = await countRounds(companyId, line.golferId, quota, playDate, { transaction, excludeProfileId });
+        // A member's own quota never counts the rounds they played as a guest.
+        const excludeCodes = playerTypes.isMemberBase(types, line.playerType) ? memberGuestCodes : [];
+        const counted = await countRounds(companyId, line.golferId, quota, playDate, { transaction, excludeProfileId, excludeCodes });
         const scopeText = quota.dayScope === 'all' ? '' : ` ${quota.dayScope}`;
         if (counted.rounds + 1 > quota.maxRounds) {
             return `${line.label}: already has ${counted.rounds}${scopeText} round(s) this ${quota.period} (${counted.window.from} to ${counted.window.to}) - ${typeLabel} allows ${quota.maxRounds}.`;
@@ -171,6 +178,39 @@ async function checkBooking(companyId, { course, playDate, teeTime, dayType, lin
                 return `${line.label}: has brought ${counted.guestRounds}${scopeText} guest round(s) this ${quota.period} - ${typeLabel} allows ${quota.maxGuestRounds}; this booking adds ${bookingGuestCount}.`;
             }
         }
+    }
+    return null;
+}
+
+// ---- the member's OWN right (member-as-guest derivation, 2026-11-13) -----------
+
+// Does this member hold the right to play the flight on their OWN standing?
+// null = yes (rights off, no rows for their target, or the flight fits and
+// the quota has room); otherwise the reason, in the desk's words. The engine
+// turns a member line on ANOTHER member's booking into Member as Guest when
+// this answers a reason; the booker themselves is simply refused.
+async function ownRightShortfall(companyId, {
+    course, playDate, teeTime, dayType, playerType, golferId = null, membershipTypeId = null,
+    excludeProfileId = null, rules = null, types = null, transaction,
+}) {
+    const r = rules || await loadRules(companyId, { transaction });
+    if (!r.enabled || (!r.rightRules.length && !r.quotaRules.length)) return null;
+    const t = types || await playerTypes.catalog(companyId, { transaction });
+    const target = targetOf(t, { playerType, membershipTypeId });
+    const dayOfWeek = availability.dayOfWeekOf(playDate);
+    const teeMinutes = toMinutes(teeTime);
+    const typeLabel = playerTypes.labelOf(t, playerType);
+    const reason = rightAllows(r.rightRules, target, { courseId: course.id, dayType, dayOfWeek, teeMinutes, playDate });
+    if (reason) return `${course.courseCode || 'the course'} at ${teeTime} on ${playDate} is ${reason} ${typeLabel}`;
+    if (!golferId) return null;
+    const quota = pickQuota(r.quotaRules, target, { dayType, dayOfWeek });
+    if (!quota) return null;
+    const counted = await countRounds(companyId, golferId, quota, playDate, {
+        transaction, excludeProfileId, excludeCodes: playerTypes.codesOfBase(t, 'member-guest'),
+    });
+    if (counted.rounds + 1 > quota.maxRounds) {
+        const scopeText = quota.dayScope === 'all' ? '' : ` ${quota.dayScope}`;
+        return `already has ${counted.rounds}${scopeText} round(s) this ${quota.period} - ${typeLabel} allows ${quota.maxRounds}`;
     }
     return null;
 }
@@ -226,4 +266,4 @@ async function deskWarnings({ companyId, courseId, playDate, teeTime, playerIds,
     }
 }
 
-module.exports = { periodWindow, scopeCovers, rulesFor, rightAllows, pickQuota, loadRules, targetOf, countRounds, checkBooking, deskWarnings };
+module.exports = { periodWindow, scopeCovers, rulesFor, rightAllows, pickQuota, loadRules, targetOf, countRounds, checkBooking, ownRightShortfall, deskWarnings };

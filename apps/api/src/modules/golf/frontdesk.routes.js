@@ -12,6 +12,9 @@ const controller = require('./frontdesk.controller');
 const s = require('./frontdesk.schemas');
 
 router.get('/day', validate(s.day), controller.getDay);
+// The walk-in form's view of a named host member (2026-11-13): guest
+// standing + guest passes for the date, before a guest is registered.
+router.get('/host-guests', validate(s.hostGuests), controller.hostGuests);
 router.get('/meta', controller.getMeta);
 router.post('/registrations', validate(s.register), controller.register);
 router.post('/register-flight', validate(s.registerFlight), controller.registerFlight);

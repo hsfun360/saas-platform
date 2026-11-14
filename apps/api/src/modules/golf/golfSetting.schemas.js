@@ -28,7 +28,7 @@ const overrideLine = z.object({ membershipTypeId: str(64), advanceBookingDays: n
 // Minimum players exception (normalizeMinPlayerRules).
 const minPlayerLine = z.object({ ...scoped, minPlayers: numberish });
 // Guest control exception (normalizeGuestControlRules).
-const guestControlLine = z.object({ ...scoped, allowGuest: bool, allowMemberGuest: bool });
+const guestControlLine = z.object({ ...scoped, allowGuest: bool, allowVisitor: bool });
 // Handicap LIMIT rule (normalizeHandicapLimitRules) - no time band.
 const handicapLimitLine = z.object({
     courseId: str(64),
@@ -76,9 +76,9 @@ const saveBody = z.object({
     // Guest control
     guestControlEnabled: bool,
     allowGuestWeekday: bool,
-    allowMemberGuestWeekday: bool,
+    allowVisitorWeekday: bool,
     allowGuestWeekend: bool,
-    allowMemberGuestWeekend: bool,
+    allowVisitorWeekend: bool,
     guestControlRules: z.array(guestControlLine).max(400).nullable().optional(),
     // Handicap + junior control
     handicapControlEnabled: bool,

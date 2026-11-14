@@ -39,6 +39,8 @@ const BookingChange = require('./bookingChange.model');
 const noShow = require('./noShowCharge.service');
 // Named-caddy requests (2026-10-18) follow a moved booking.
 const caddyRequests = require('./caddyRequest.service');
+// The member's guests (2026-11-13): derivation, the host's rules, the ledger.
+const guestLedger = require('./guestLedger.service');
 
 const MAX_PLAYERS = 10;
 
@@ -169,7 +171,8 @@ async function resolveRoster(companyId, firsts, rawPlayers) {
     const keptIds = new Set();
     const added = [];
     const raw = Array.isArray(rawPlayers) ? rawPlayers : [];
-    const types = playerTypes.pickable(await playerTypes.catalog(companyId));
+    const types = await playerTypes.catalog(companyId);
+    const pickTypes = playerTypes.pickable(types, 'booking');
     for (let i = 0; i < raw.length; i += 1) {
         const line = raw[i] || {};
         const playerId = line.playerId ? String(line.playerId) : '';
@@ -179,18 +182,18 @@ async function resolveRoster(companyId, firsts, rawPlayers) {
             continue;
         }
         const playerType = String(line.playerType || '');
-        if (!playerTypes.findType(types, playerType)) return fail(`Player ${i + 1}: pick a player type.`);
+        if (!playerTypes.findType(pickTypes, playerType)) return fail(`Player ${i + 1}: pick a player type.`);
         if (playerTypes.needsGuestName(types, playerType)) {
             const guestName = String(line.guestName || '').trim();
             if (!guestName) return fail(`Player ${i + 1}: key in the guest name (or 'Guest').`);
-            added.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null });
+            added.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null, guestId: line.guestId ? String(line.guestId) : null });
         } else {
             const no = String(line.memberNo || '').trim();
             if (!no) return fail(`Player ${i + 1}: key in the member number.`);
             const ps = await getGolfMemberStanding(companyId, no);
             if (!ps) return fail(`Player ${i + 1}: no member found with number '${no}'.`, 404);
             if (ps.actionControl === 'barred') return fail(`Player ${i + 1}: member ${ps.memberNo} (${ps.statusLabel || 'status'}) is barred.`);
-            if (firsts.some((r) => r.memberNo === ps.memberNo && r.playerType === playerType && keptIds.has(r.id))) {
+            if (firsts.some((r) => r.memberNo === ps.memberNo && keptIds.has(r.id))) {
                 return fail(`Player ${i + 1}: ${ps.memberNo} is already on this booking.`);
             }
             added.push({ sortOrder: i + 1, playerType, standing: ps, playerName: ps.name, memberNo: ps.memberNo });
@@ -237,7 +240,7 @@ async function resolveTarget(companyId, callerId, current, lockGroupId, { transa
 // target flight, with the booking's own seats and own day-limit evidence
 // excluded. `roster` = kept records + added lines. Returns { fail } or
 // { golferByMemberId }.
-async function validateTarget(req, { companyId, profile, booker, standing, target, course, moved, kept, added, transaction }) {
+async function validateTarget(req, { companyId, profile, booker, standing, target, course, moved, kept, dropped = [], added, transaction }) {
     const callerId = getUserContext(req).userId;
     const timezone = await companyTimezone(req);
     const playDate = target.playDate;
@@ -293,26 +296,60 @@ async function validateTarget(req, { companyId, profile, booker, standing, targe
         return { fail: `This flight needs at least ${minPlayers} player(s) - the booking would have ${rosterSize}.` };
     }
 
-    const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
     const types = await playerTypes.catalog(companyId, { transaction });
-    const rosterBases = [...kept.map((r) => r.playerType), ...added.map((l) => l.playerType)].map((k) => playerTypes.baseOf(types, k));
-    if (!gc.allowGuest && rosterBases.some((b) => b === 'guest' || b === 'affiliate')) return { fail: 'Guests are not allowed on this flight (guest control).' };
-    if (!gc.allowMemberGuest && rosterBases.includes('member-guest')) return { fail: 'Members as guests are not allowed on this flight (guest control).' };
-    const guestCount = rosterBases.filter((b) => b === 'guest' || b === 'member-guest' || b === 'affiliate').length;
-    const quota = standing.guestQuota;
-    if (guestCount > 0 && quota !== null && quota !== undefined && guestCount > quota) {
-        return {
-            fail: quota === 0
-                ? `Membership type ${standing.membershipTypeCategory || ''} cannot bring guests.`.replace('  ', ' ')
-                : `Membership type ${standing.membershipTypeCategory || ''} can bring up to ${quota} guest(s) per booking - this booking would have ${guestCount} (members as guests count).`.replace('  ', ' '),
-        };
-    }
 
-    // Golfer identities for the added member lines.
+    // Golfer identities for the added member lines (the derivation below
+    // counts a member's own rounds by golfer).
     const golferByMemberId = new Map();
     for (const line of added) {
         if (line.standing && !golferByMemberId.has(line.standing.memberId)) {
             golferByMemberId.set(line.standing.memberId, await shared.ensureMemberGolfer(companyId, line.standing, stamps, transaction));
+        }
+        if (line.standing) line.golferId = golferByMemberId.get(line.standing.memberId).id;
+    }
+
+    // MEMBER AS GUEST is derived for the ADDED member lines (2026-11-13):
+    // no playing right or round quota of their own on the target flight =
+    // the booker's guest. Kept lines keep the class they were booked under.
+    const derived = await guestLedger.deriveMemberGuests(companyId, {
+        lines: added, types, course, playDate, teeTime: target.teeTime, dayType,
+        hostMemberId: standing.memberId, excludeProfileId: profile.id, transaction,
+    });
+    const why = derived.length ? `${guestLedger.derivedNote(derived).trim()} ` : '';
+
+    const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
+    const rosterBases = [...kept.map((r) => r.playerType), ...added.map((l) => l.playerType)].map((k) => playerTypes.baseOf(types, k));
+    const gcRefusal = guestLedger.guestControlRefusal(gc, rosterBases);
+    if (gcRefusal) return { fail: `${why}${gcRefusal}` };
+    const guestCount = rosterBases.filter((b) => b === 'guest' || b === 'member-guest').length;
+    const quotaFail = guestLedger.quotaRefusal(standing.guestQuota, guestCount, standing.membershipTypeCategory, { would: true });
+    if (quotaFail) return { fail: `${why}${quotaFail}` };
+
+    // The booker's guest passes named on added guest lines.
+    const addedHosted = added.filter((l) => playerTypes.isHostedGuest(types, l.playerType));
+    for (const l of addedHosted) {
+        if (!l.guestId) continue;
+        const pick = await guestLedger.resolvePassPick(companyId, { hostMemberId: standing.memberId, date: playDate, guestId: l.guestId, transaction });
+        if (pick.error) return { fail: `Player ${l.sortOrder}: ${pick.error}` };
+        l.guestId = pick.guest.id;
+    }
+
+    // Monthly guest allowance: the added guests draw fresh visits; a move
+    // into ANOTHER MONTH re-records the kept guests' visits there, so they
+    // draw on that month too; guests dropped in the same month give theirs
+    // back. Refused, never warned.
+    {
+        const oldDate = String(profile.playDate);
+        const sameMonth = oldDate.slice(0, 7) === playDate.slice(0, 7);
+        const keptHosted = kept.filter((r) => r.guestVisitId).map((r) => ({ guestId: r.guestId || null, sourceRef: r.id }));
+        const drawing = sameMonth ? addedHosted : [...keptHosted, ...addedHosted];
+        if (drawing.length) {
+            const needed = await guestLedger.visitsNeeded(companyId, { hostMemberId: standing.memberId, date: playDate, lines: drawing, transaction });
+            const allowance = await guestLedger.allowanceOf(companyId, standing.memberId, playDate, { transaction });
+            const credit = sameMonth ? dropped.filter((r) => r.guestVisitId).length : 0;
+            const effective = allowance && allowance.allowance !== null ? { ...allowance, remaining: allowance.remaining + credit } : allowance;
+            const refusal = guestLedger.allowanceRefusal(effective, needed, standing, 'this change');
+            if (refusal) return { fail: `${why}${refusal}` };
         }
     }
 
@@ -403,7 +440,7 @@ async function validateTarget(req, { companyId, profile, booker, standing, targe
         if (violation) return { fail: violation };
     }
 
-    return { golferByMemberId, stamps, crossTime, dayType, setting };
+    return { golferByMemberId, stamps, crossTime, dayType, setting, types, derived };
 }
 
 // ---- the plan (preview + the apply's first half) ---------------------------
@@ -436,7 +473,7 @@ async function plan(req, id, body, { transaction } = {}) {
 
     const validated = await validateTarget(req, {
         companyId, profile, booker: who.golfer, standing: who.standing, target: target.flight, course: targetCourse,
-        moved: target.moved, kept, added, transaction,
+        moved: target.moved, kept, dropped, added, transaction,
     });
     if (validated.fail) return fail(validated.fail, validated.status || 400);
 
@@ -472,7 +509,10 @@ function previewDto(p) {
         after: { courseId: p.after.courseId, courseCode: p.after.courseCode, courseName: p.after.courseName, playDate: p.after.playDate, teeTime: p.after.teeTime, crossTime: p.after.crossTime, holes: p.after.holes },
         kept: p.kept.map((r) => ({ playerId: r.id, ...lineSnapshot(r), status: r.status })),
         dropped: p.dropped.map((r) => ({ playerId: r.id, ...lineSnapshot(r) })),
-        added: p.added.map((l) => ({ playerName: l.playerName, memberNo: l.memberNo, playerType: l.playerType })),
+        // `playsAsGuestReason`: the engine turned this added member into the
+        // booker's guest (no right of their own on the flight) - shown in the
+        // review before the change is applied.
+        added: p.added.map((l) => ({ playerName: l.playerName, memberNo: l.memberNo, playerType: l.playerType, playsAsGuestReason: l.derivedReason || null })),
         controlled: !!p.cfg,
         late: p.late,
         deadline: p.deadline,
@@ -526,6 +566,8 @@ async function apply(req, id, body) {
             if (cross) ids.push(cross.id);
             await Player.update({ status: 'cancelled', cancelledAt: now, cancelledBy: callerId, cancelReason: reason || 'Dropped from the booking', updatedBy: callerId }, { where: { id: { [Op.in]: ids } }, transaction });
         }
+        // A dropped guest no longer draws on the booker's monthly allowance.
+        await guestLedger.voidFor(companyId, dropped, { updatedBy: callerId, transaction });
         // 2. Kept players follow the flight when it moved.
         if (target.moved) {
             for (const r of kept) {
@@ -544,6 +586,11 @@ async function apply(req, id, body) {
                 } else if (cross) {
                     await cross.destroy({ transaction });
                 }
+                // A move to another DAY re-records the kept guest's visit under
+                // the new date, so the right month is charged.
+                if (r.guestVisitId && after.playDate !== p.flight.playDate) {
+                    await guestLedger.recordFor(companyId, r, { host: p.standing, date: after.playDate, stamps, transaction });
+                }
             }
         }
         // 3. Added players: new records (creation order = keyed order, after the kept).
@@ -558,6 +605,9 @@ async function apply(req, id, body) {
                 ...sharedFields, secondNineFlag: 0, unitCourseId: course.firstNineId, teeTime: after.teeTime,
                 createdAt: new Date(base + (l.sortOrder - 1) * 2),
             }, { transaction });
+            if (playerTypes.isHostedGuest(validated.types, l.playerType)) {
+                await guestLedger.recordFor(companyId, firstRec, { host: p.standing, date: after.playDate, guestId: l.guestId || null, stamps, transaction });
+            }
             if (after.holes === 18) {
                 await Player.create({
                     ...sharedFields, secondNineFlag: 1, firstNinePlayerId: firstRec.id, unitCourseId: course.secondNineId, teeTime: after.crossTime,
@@ -618,7 +668,7 @@ async function apply(req, id, body) {
             },
             transaction,
         });
-        return { profile, change, summary: p.summary };
+        return { profile, change, summary: p.summary, derived: validated.derived };
     });
     if (result.error) return result;
 
@@ -632,7 +682,7 @@ async function apply(req, id, body) {
                 : ` Late-change charge ${Number(posted.totalAmount).toFixed(2)} recorded as pending - ${posted.remarks}`;
         }
     }
-    return { message: `Booking ${result.profile.bookingNo} changed.${suffix}`, changeId: result.change.id, summary: result.summary };
+    return { message: `Booking ${result.profile.bookingNo} changed.${suffix}${guestLedger.derivedNote(result.derived || [])}`, changeId: result.change.id, summary: result.summary };
 }
 
 // The history of one booking, newest first.

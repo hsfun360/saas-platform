@@ -76,7 +76,7 @@ async function toDto(c, types, feeTypes, canModify = true) {
 
 // Validate + normalise a payload against the golf pickers. Returns { value }
 // or { error }.
-function normalizeBody(body, types, feeTypes) {
+function normalizeBody(body, types, feeTypes, existing = null) {
     const code = str(body.code).toUpperCase();
     if (!code) return { error: 'Code is required.' };
     if (code.length > 20) return { error: 'Code must be 20 characters or fewer.' };
@@ -89,6 +89,19 @@ function normalizeBody(body, types, feeTypes) {
     const type = types.find((t) => t.id === playerTypeId);
     if (!type) return { error: 'Pick the golf player type this club\'s visitors are billed as.' };
     if (type.isActive === false) return { error: `Player type '${type.code}' is disabled - enable it or pick another.` };
+    // The type's class follows the arrangement (2026-11-13): an affiliated
+    // association bills as an Affiliated club member type, a reciprocal club
+    // as a Reciprocal club member type. A record saved before the two classes
+    // split keeps the pairing it has until its kind or its type is changed
+    // (history stays as it is).
+    const unchangedPairing = existing && existing.kind === kind && existing.playerTypeId === playerTypeId;
+    if (!unchangedPairing && type.baseIdentity && type.baseIdentity !== kind) {
+        return {
+            error: kind === 'reciprocal'
+                ? `A reciprocal club is billed as a player type of base Reciprocal club member - '${type.code}' is an Affiliated club member type. Add one under Golf Management, Player Types.`
+                : `An affiliated association is billed as a player type of base Affiliated club member - '${type.code}' is a Reciprocal club member type.`,
+        };
+    }
     const visitFeeTransactionTypeId = strOrNull(body.visitFeeTransactionTypeId);
     if (visitFeeTransactionTypeId) {
         const fee = feeTypes.find((f) => f.id === visitFeeTransactionTypeId);
@@ -218,7 +231,7 @@ exports.update = async (req, res) => {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
         const { types, feeTypes } = await pickers(companyId);
-        const parsed = normalizeBody(req.body, types, feeTypes);
+        const parsed = normalizeBody(req.body, types, feeTypes, row);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
         if (v.code !== row.code) {

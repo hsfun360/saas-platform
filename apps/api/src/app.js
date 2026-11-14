@@ -327,6 +327,44 @@ async function initializeDB() {
                 await sequelize.query('ALTER TABLE golf."GolfSetting" DROP COLUMN "oneBookingPerDay"');
                 console.log('Migrated golf.GolfSetting oneBookingPerDay -> per-day-type booking limits.');
             }
+            // Golf guest control reshaped to the club's patron groups
+            // (user decisions 2026-11-13): "Allow member as guest" is gone
+            // (a member as guest IS a guest, derived by the engine) and
+            // "Allow visitors" (the public, no host) arrives. The old flag's
+            // meaning differs, so the new columns take their DEFAULT (true)
+            // rather than the old values; the old columns are dropped.
+            // Idempotent: guarded on the OLD columns' existence.
+            const [[gcCols]] = await sequelize.query(`
+                SELECT
+                    (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'golf' AND table_name = 'GolfSetting' AND column_name = 'allowMemberGuestWeekday') AS s,
+                    (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'golf' AND table_name = 'GuestControlRule' AND column_name = 'allowMemberGuest') AS r
+            `);
+            if (gcCols && gcCols.s) {
+                await sequelize.query('ALTER TABLE golf."GolfSetting" ADD COLUMN IF NOT EXISTS "allowVisitorWeekday" boolean NOT NULL DEFAULT true');
+                await sequelize.query('ALTER TABLE golf."GolfSetting" ADD COLUMN IF NOT EXISTS "allowVisitorWeekend" boolean NOT NULL DEFAULT true');
+                await sequelize.query('ALTER TABLE golf."GolfSetting" DROP COLUMN IF EXISTS "allowMemberGuestWeekday"');
+                await sequelize.query('ALTER TABLE golf."GolfSetting" DROP COLUMN IF EXISTS "allowMemberGuestWeekend"');
+                console.log('Migrated golf.GolfSetting guest control: allowMemberGuest* -> allowVisitor*.');
+            }
+            if (gcCols && gcCols.r) {
+                await sequelize.query('ALTER TABLE golf."GuestControlRule" ADD COLUMN IF NOT EXISTS "allowVisitor" boolean NOT NULL DEFAULT true');
+                await sequelize.query('ALTER TABLE golf."GuestControlRule" DROP COLUMN IF EXISTS "allowMemberGuest"');
+                console.log('Migrated golf.GuestControlRule guest control: allowMemberGuest -> allowVisitor.');
+            }
+            // The system 'guest' player type was seeded as "Guest / Visitor";
+            // Guest and Visitor are two patron groups since 2026-11-13 (a
+            // 'visitor' system type is seeded beside it), so a row still on
+            // the old default reads "Guest". A description the club edited is
+            // left alone. Idempotent.
+            const [[ptTable]] = await sequelize.query(`SELECT to_regclass('golf."PlayerType"') AS t`);
+            if (ptTable && ptTable.t) {
+                await sequelize.query(
+                    `UPDATE golf."PlayerType" SET description = 'Guest'
+                      WHERE "isSystem" = true AND code = 'guest' AND description = 'Guest / Visitor'`,
+                );
+            }
             // 1b. ar.InterestGeneration -> ar.Interest and
             //     ar.InterestGenerationDetail -> ar.InterestDetail
             //     (+ interestGenerationId -> interestId, index renames -

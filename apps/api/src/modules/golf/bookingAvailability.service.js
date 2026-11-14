@@ -417,15 +417,17 @@ function resolveMinPlayers(setting, rules, courseId, dayType, timeMinutes, dayOf
     return dayType === 'weekend' ? setting.minPlayersWeekend : setting.minPlayersWeekday;
 }
 
-// { allowGuest, allowMemberGuest } for a flight - both true when the master
-// switch is off.
+// { allowGuest, allowVisitor } for a flight - both true when the master
+// switch is off. allowGuest governs a member's guests (guest-base lines and
+// members playing as another member's guest); allowVisitor the public with
+// no host; affiliated / reciprocal club members are exempt (2026-11-13).
 function resolveGuestControl(setting, rules, courseId, dayType, timeMinutes, dayOfWeek = null) {
-    if (!setting || setting.guestControlEnabled !== true) return { allowGuest: true, allowMemberGuest: true };
+    if (!setting || setting.guestControlEnabled !== true) return { allowGuest: true, allowVisitor: true };
     const rule = pickRule(rules, courseId, dayType, timeMinutes, dayOfWeek);
-    if (rule) return { allowGuest: rule.allowGuest === true, allowMemberGuest: rule.allowMemberGuest === true };
+    if (rule) return { allowGuest: rule.allowGuest === true, allowVisitor: rule.allowVisitor === true };
     return dayType === 'weekend'
-        ? { allowGuest: setting.allowGuestWeekend === true, allowMemberGuest: setting.allowMemberGuestWeekend === true }
-        : { allowGuest: setting.allowGuestWeekday === true, allowMemberGuest: setting.allowMemberGuestWeekday === true };
+        ? { allowGuest: setting.allowGuestWeekend === true, allowVisitor: setting.allowVisitorWeekend === true }
+        : { allowGuest: setting.allowGuestWeekday === true, allowVisitor: setting.allowVisitorWeekday === true };
 }
 
 // ---- flight computation ----------------------------------------------------

@@ -65,6 +65,10 @@ const { BUGGY_CHARGE_TYPE_KEY, USAGE_TYPES } = require('./transactionType.consta
 // read through the membership seam): the arrival gate on registration, the
 // day's visit tags, the visitor's fee item, completion on settlement.
 const { companyTimezone } = require('../../platform/calendarGateway');
+// The member's guests (2026-11-13): member-as-guest derivation, the host's
+// guest rules and the visits on Membership's guest ledger - the desk follows
+// the club's setup exactly as the booking screen does.
+const guestLedger = require('./guestLedger.service');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -577,9 +581,10 @@ exports.getMeta = async (req, res) => {
             tiles: types.filter((t) => !DESK_HIDDEN_CHARGE_TYPES.includes(t.chargeType)),
             paymentTypes: tenders,
             courses,
-            // The club's pickable player types (active, not affiliate-base) for
-            // the walk-in forms; every active type for the label lookups.
-            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
+            // The club's DESK-pickable player types for the walk-in forms
+            // (members, guests and visitors - never the visit-only classes or
+            // the derived Member as Guest); every type for the label lookups.
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId), 'desk')),
             allPlayerTypes: playerTypes.asVocabulary(await playerTypes.catalog(companyId)),
             holesOptions: HOLES_OPTIONS,
             playerStatuses: PLAYER_STATUSES,
@@ -808,8 +813,56 @@ async function registerBookedRecord({ req, companyId, row, guest, manualRegistra
         second.updatedBy = stamps.updatedBy;
         await second.save({ transaction });
     }
+    // A guest line that names one of the booker's guest passes: the guest is
+    // at the desk, so the pass is marked arrived (idempotent).
+    if (row.guestId && row.bookingProfileId) {
+        const profile = await BookingProfile.findOne({ where: { companyId, id: row.bookingProfileId }, attributes: ['bookerGolferId'], transaction });
+        const booker = profile && profile.bookerGolferId
+            ? await Golfer.findOne({ where: { companyId, id: profile.bookerGolferId }, attributes: ['golferType', 'sourceId'], transaction })
+            : null;
+        if (booker && booker.golferType === 'member') {
+            await guestLedger.markPassArrived(companyId, {
+                hostMemberId: booker.sourceId, date: String(row.playDate), guestId: row.guestId, actorId: stamps.updatedBy, transaction,
+            });
+        }
+    }
     return { row, shape: { holes: second ? 18 : 9, crossTime: second ? availability.hhmm(second.teeTime) : null } };
 }
+
+// GET /front-desk/host-guests?memberNo=&playDate= - the walk-in form's view
+// of a named HOST: who they are, their guest standing (per-booking quota and
+// the monthly allowance) and their guest passes for the date, so the desk
+// sees the outcome before registering a guest (show expected results).
+exports.hostGuests = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const memberNo = String(req.query.memberNo || '').trim();
+        const playDate = String(req.query.playDate || '');
+        if (!memberNo) return res.status(400).json({ message: 'Key in the host member number.' });
+        if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
+        const host = await getGolfMemberStanding(companyId, memberNo);
+        if (!host) return res.status(404).json({ message: `No host member found with number '${memberNo}'.` });
+        const [allowance, passes] = await Promise.all([
+            guestLedger.allowanceOf(companyId, host.memberId, playDate),
+            guestLedger.passesOf(companyId, host.memberId, playDate),
+        ]);
+        res.status(200).json({
+            host: { memberNo: host.memberNo, name: host.name, membershipTypeCategory: host.membershipTypeCategory, statusLabel: host.statusLabel, actionControl: host.actionControl },
+            guests: {
+                quota: host.guestQuota === null || host.guestQuota === undefined ? null : Number(host.guestQuota),
+                allowance: allowance ? allowance.allowance : null,
+                used: allowance ? allowance.used : 0,
+                remaining: allowance ? allowance.remaining : null,
+                date: playDate,
+            },
+            passes: passes.map((p) => ({ guestId: p.guest.id, guestName: p.guest.name, registrationNo: p.registrationNo, status: p.status })),
+        });
+    } catch (error) {
+        console.error('Error reading the host member guests:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 // POST /front-desk/registrations - register a BOOKED player
 // ({ playerId, guest? }) or a WALK-IN ({ walkIn: { playDate, courseId,
@@ -868,10 +921,28 @@ exports.register = async (req, res) => {
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
         if (!TIME_RE.test(teeTime)) return res.status(400).json({ message: 'Pick a flight time.' });
         if (!HOLES_OPTIONS.includes(holes)) return res.status(400).json({ message: 'Pick 9 or 18 holes.' });
-        if (!playerTypes.findType(playerTypes.pickable(await playerTypes.catalog(companyId)), playerType)) return res.status(400).json({ message: 'Pick a player type.' });
+        const types = await playerTypes.catalog(companyId);
+        const picked = playerTypes.findType(playerTypes.pickable(types, 'desk'), playerType);
+        if (!picked) return res.status(400).json({ message: 'Pick a player type.' });
         const course = await Course.findOne({ where: { companyId, id: String(w.courseId || ''), isActive: true } });
         if (!course) return res.status(400).json({ message: 'Pick a course.' });
         const dayType = await dayTypeOf(req, playDate);
+
+        // The HOST MEMBER (user decisions 2026-11-13). A GUEST is always a
+        // member's guest, so the desk names the host; a VISITOR has none; a
+        // MEMBER names one only to play as that member's guest when they hold
+        // no right of their own for the flight.
+        const pickedBase = picked.baseIdentity;
+        const hostNo = pickedBase === 'visitor' ? '' : String(w.hostMemberNo || '').trim();
+        if (playerTypes.isHostedGuest(types, playerType) && !hostNo) {
+            return res.status(400).json({ message: 'Name the host member - a guest plays as the guest of a member. A golfer with no host registers as a Visitor.' });
+        }
+        let host = null;
+        if (hostNo) {
+            host = await getGolfMemberStanding(companyId, hostNo);
+            if (!host) return res.status(404).json({ message: `No host member found with number '${hostNo}'.` });
+            if (host.actionControl === 'barred') return res.status(400).json({ message: `Host member ${host.memberNo} (${host.statusLabel || 'status'}) is barred.` });
+        }
 
         const result = await sequelize.transaction(async (transaction) => {
             await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:key))', {
@@ -879,9 +950,11 @@ exports.register = async (req, res) => {
                 transaction,
             });
 
-            // Seat check ONLY (desk is authoritative; merge/min/guest rules
-            // are booking-channel controls). The flight must exist on the
-            // grid with a free NINE seat - the crossover landing too for 18.
+            // Seats first (the desk is authoritative for them; merge and
+            // minimum players are booking-channel controls). The flight must
+            // exist on the grid with a free NINE seat - the crossover landing
+            // too for 18. The GUEST rules follow below: they bind the desk
+            // exactly as they bind the booking screen (2026-11-13).
             const ctx = await availability.dayContext(companyId, playDate, dayType, { transaction });
             const day = ctx.byCourse.get(course.id);
             if (!day || !day.set || !day.slots.length) return { fail: 'No tee sheet is configured for this course on that date.', status: 400 };
@@ -922,6 +995,60 @@ exports.register = async (req, res) => {
             });
             if (identity.error) return { fail: identity.error, status: 400 };
 
+            // ---- the patron's class and the club's guest rules ----
+            // MEMBER AS GUEST is derived: a member with no playing right or
+            // round quota of their own for this flight plays only as the
+            // guest of a named host; with no host the desk refuses.
+            let effectiveType = playerType;
+            let note = '';
+            if (identity.standing && playerTypes.isMemberBase(types, playerType)) {
+                const line = { playerType, standing: identity.standing, golferId: identity.golfer.id, playerName: identity.playerName, memberNo: identity.memberNo };
+                const derived = await guestLedger.deriveMemberGuests(companyId, { lines: [line], types, course, playDate, teeTime, dayType, transaction });
+                if (derived.length) {
+                    if (!host) {
+                        return { fail: `${identity.playerName} (${identity.memberNo}) holds no playing right for this flight - ${derived[0].reason}. To play as a member's guest, name the host member.`, status: 400 };
+                    }
+                    effectiveType = line.playerType;
+                    note = ` ${identity.playerName} plays as a guest of ${host.name} (${host.memberNo}) - ${derived[0].reason}.`;
+                }
+            }
+            const hosted = playerTypes.isHostedGuest(types, effectiveType);
+            if (hosted && identity.standing && host && host.memberId === identity.standing.memberId) {
+                return { fail: 'A member cannot be their own guest - name another member as the host.', status: 400 };
+            }
+            // Guest control for this course / day / time: the member's guests
+            // under allow-guests, visitors under allow-visitors. REFUSED at
+            // the desk too - the club's setup decides, not the counter.
+            const gcRules = await availability.loadRules(companyId);
+            const gc = availability.resolveGuestControl(gcRules.setting, gcRules.guestRules, course.id, dayType, availability.toMinutes(teeTime), availability.dayOfWeekOf(playDate));
+            const gcRefusal = guestLedger.guestControlRefusal(gc, [playerTypes.baseOf(types, effectiveType)]);
+            if (gcRefusal) return { fail: gcRefusal, status: 400 };
+
+            let guestId = null;
+            if (hosted) {
+                // The host's own right: a member who may not play this flight
+                // cannot bring a guest onto it.
+                const hostGolfer = await Golfer.findOne({ where: { companyId, golferType: 'member', sourceId: host.memberId }, attributes: ['id'], transaction });
+                const hostShortfall = await require('./playingRights.service').ownRightShortfall(companyId, {
+                    course, playDate, teeTime, dayType, playerType: 'member', golferId: hostGolfer ? hostGolfer.id : null,
+                    membershipTypeId: host.membershipTypeId, types, transaction,
+                });
+                if (hostShortfall) return { fail: `${host.name} (${host.memberNo}) cannot host a guest on this flight - ${hostShortfall}.`, status: 400 };
+                // The host's membership type: 0 = may not bring guests at all
+                // (a walk-in is a booking of one, so a higher quota is met).
+                const quotaFail = guestLedger.quotaRefusal(host.guestQuota, 1, host.membershipTypeCategory);
+                if (quotaFail && Number(host.guestQuota) === 0) return { fail: quotaFail, status: 400 };
+                // One of the host's guest passes for the date, when named.
+                if (w.guestId && !identity.standing) {
+                    const pick = await guestLedger.resolvePassPick(companyId, { hostMemberId: host.memberId, date: playDate, guestId: String(w.guestId), transaction });
+                    if (pick.error) return { fail: pick.error, status: 409 };
+                    guestId = pick.guest.id;
+                }
+                // The host's monthly guest allowance, counted club-wide.
+                const allowance = await guestLedger.checkAllowance(companyId, { host, date: playDate, lines: [{ guestId }], noun: 'this registration', transaction });
+                if (allowance.refusal) return { fail: allowance.refusal, status: 400 };
+            }
+
             const issued = await numberingGateway.issueNumber(req, 'golf-registration', { transaction });
             let registrationNo = issued && issued.number ? issued.number : null;
             if (!registrationNo) {
@@ -935,7 +1062,7 @@ exports.register = async (req, res) => {
                 courseId: course.id,
                 playDate,
                 golferId: identity.golfer.id,
-                playerType,
+                playerType: effectiveType,
                 playerName: identity.playerName,
                 memberNo: identity.memberNo,
                 status: 'registered',
@@ -958,7 +1085,14 @@ exports.register = async (req, res) => {
                     teeTime: crossTime,
                 }, { transaction });
             }
-            return { row, shape: { holes, crossTime } };
+            // The guest's visit on the host's monthly allowance, and the pass
+            // (when one was named) marked arrived - the guest is at the desk.
+            if (hosted) {
+                await guestLedger.recordFor(companyId, row, { host, date: playDate, guestId, stamps, transaction });
+                if (guestId) await guestLedger.markPassArrived(companyId, { hostMemberId: host.memberId, date: playDate, guestId, actorId: stamps.updatedBy, transaction });
+                if (!note) note = ` Guest of ${host.name} (${host.memberNo}).`;
+            }
+            return { row, shape: { holes, crossTime }, note };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
         const warnings = await handicapWarnings(req, {
@@ -974,7 +1108,7 @@ exports.register = async (req, res) => {
             companyId, courseId: result.row.courseId, playDate: String(result.row.playDate), teeTime: result.row.teeTime, playerIds: [result.row.id],
         }));
         res.status(201).json({
-            message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
+            message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).${result.note || ''}`, warnings),
             registration: registrationDto(result.row, result.shape),
         });
     } catch (error) {
@@ -1115,6 +1249,10 @@ exports.cancelRegistration = async (req, res) => {
                 r.updatedBy = callerId;
                 await r.save({ transaction });
             }
+            // A cancelled walk-in guest gives the visit back to the host's
+            // monthly allowance; a booked guest reverts to booked and keeps
+            // the visit its booking recorded.
+            if (walkIn) await guestLedger.voidFor(companyId, [row], { updatedBy: callerId, transaction });
         });
         res.status(200).json({
             message: walkIn

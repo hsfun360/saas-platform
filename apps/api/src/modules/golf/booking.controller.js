@@ -38,6 +38,9 @@ const noShow = require('./noShowCharge.service');
 const caddyRequests = require('./caddyRequest.service');
 const bookingChange = require('./bookingChange.service');
 const BookingChange = require('./bookingChange.model');
+// The member's guests (2026-11-13): member-as-guest derivation, the host's
+// guest rules and the visits on Membership's guest ledger.
+const guestLedger = require('./guestLedger.service');
 
 const {
     companyIdOf, DATE_RE, TIME_RE, advisoryLock, sweepExpiredLocks, dayTypeOf, ensureMemberGolfer,
@@ -45,8 +48,24 @@ const {
     juniorViolation, bookingLimitFor, sessionOf, memberDaySessions, sessionBookingConflict, bookingDto,
 } = require('./bookingShared');
 
-// GET /api/golf/bookings/context?memberNo= - resolve the booking maker and
-// the window/course choices the search form depends on.
+// The host's guest standing the booking screen states before players are
+// keyed (show expected results): the per-booking quota of the membership
+// type and the monthly allowance in the month of `date`.
+async function guestStandingOf(companyId, standing, date) {
+    const allowance = await guestLedger.allowanceOf(companyId, standing.memberId, date);
+    return {
+        quota: standing.guestQuota === null || standing.guestQuota === undefined ? null : Number(standing.guestQuota),
+        allowance: allowance ? allowance.allowance : null,
+        used: allowance ? allowance.used : 0,
+        remaining: allowance ? allowance.remaining : null,
+        date,
+    };
+}
+
+// GET /api/golf/bookings/context?memberNo=&playDate= - resolve the booking
+// maker and the window/course choices the search form depends on. `playDate`
+// (optional) names the month the guest allowance is read for; without it the
+// last day of the booking window is used (the date the form defaults to).
 exports.getContext = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -75,6 +94,7 @@ exports.getContext = async (req, res) => {
             },
             window: { dateFrom: window.dateFrom, dateTo: window.dateTo, effectiveDays: window.effectiveDays },
             courses,
+            guests: await guestStandingOf(companyId, standing, DATE_RE.test(String(req.query.playDate || '')) ? String(req.query.playDate) : window.dateTo),
             meta: {
                 holesOptions: HOLES_OPTIONS,
                 lockMinutes: window.setting ? window.setting.bookingLockMinutes : 5,
@@ -82,6 +102,96 @@ exports.getContext = async (req, res) => {
         });
     } catch (error) {
         console.error('Error resolving golf booking context:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/golf/bookings/guest-passes?memberNo=&playDate= - the host's live
+// guest passes for the play date (Membership's Guest Registration), so a
+// guest line can name the person: the visit then counts once per host per
+// day across the club, and registration marks the pass arrived.
+exports.guestPasses = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const memberNo = String(req.query.memberNo || '').trim();
+        const playDate = String(req.query.playDate || '');
+        if (!memberNo) return res.status(400).json({ message: 'Key in a member number.' });
+        if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
+        const standing = await getGolfMemberStanding(companyId, memberNo);
+        if (!standing) return res.status(404).json({ message: `No member found with number '${memberNo}'.` });
+        const passes = await guestLedger.passesOf(companyId, standing.memberId, playDate);
+        res.status(200).json({
+            passes: passes.map((p) => ({ guestId: p.guest.id, guestName: p.guest.name, registrationNo: p.registrationNo, status: p.status })),
+            guests: await guestStandingOf(companyId, standing, playDate),
+        });
+    } catch (error) {
+        console.error('Error listing golf guest passes:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// The flight a line is being keyed for: the caller's LOCK (a new booking or
+// a move) or, without one, the booking's current flight (a roster change).
+async function flightForCheck(companyId, callerId, { lockGroupId, bookingId }) {
+    if (lockGroupId) {
+        const lockRows = await FlightLock.findAll({ where: { companyId, groupId: String(lockGroupId), lockedBy: callerId } });
+        if (!lockRows.length) return { error: 'The flight lock expired - pick a flight again.', status: 409 };
+        const course = await Course.findOne({ where: { companyId, id: lockRows[0].courseId } });
+        const startRow = course ? lockRows.find((r) => r.unitCourseId === course.firstNineId) : null;
+        if (!startRow) return { error: 'The flight lock is incomplete - pick a flight again.', status: 409 };
+        return { course, playDate: String(startRow.playDate), teeTime: availability.hhmm(startRow.teeTime), excludeProfileId: bookingId ? String(bookingId) : null };
+    }
+    if (bookingId) {
+        const profile = await BookingProfile.findOne({ where: { companyId, id: String(bookingId) } });
+        const first = profile ? await Player.findOne({
+            where: { bookingProfileId: profile.id, secondNineFlag: 0, status: { [Op.in]: ['booked', 'registered'] } },
+            order: [['createdAt', 'ASC'], ['id', 'ASC']],
+        }) : null;
+        const course = profile ? await Course.findOne({ where: { companyId, id: profile.courseId } }) : null;
+        if (!profile || !first || !course) return { error: 'Booking not found.', status: 404 };
+        return { course, playDate: String(profile.playDate), teeTime: availability.hhmm(first.teeTime), excludeProfileId: profile.id };
+    }
+    return { error: 'Pick a flight first.', status: 400 };
+}
+
+// GET /api/golf/bookings/line-check?memberNo (the booker)&lineMemberNo&
+// playerType&(lockGroupId | bookingId) - the class a member line WILL take on
+// this flight, before the save (show expected results): Member when the
+// member holds the right themselves, Member as Guest (with the reason) when
+// they do not. The save re-derives it; this never changes anything.
+exports.checkLine = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const lineNo = String(req.query.lineMemberNo || '').trim();
+        if (!lineNo) return res.status(400).json({ message: 'Key in the member number.' });
+        const ps = await getGolfMemberStanding(companyId, lineNo);
+        if (!ps) return res.status(404).json({ message: `No member found with number '${lineNo}'.` });
+        if (ps.actionControl === 'barred') return res.status(400).json({ message: `Member ${ps.memberNo} (${ps.statusLabel || 'status'}) is barred.` });
+        const flight = await flightForCheck(companyId, getUserContext(req).userId, { lockGroupId: req.query.lockGroupId, bookingId: req.query.bookingId });
+        if (flight.error) return res.status(flight.status).json({ message: flight.error });
+
+        const types = await playerTypes.catalog(companyId);
+        const picked = playerTypes.findType(types, String(req.query.playerType || '')) || playerTypes.findType(types, 'member');
+        const hostNo = String(req.query.memberNo || '').trim();
+        const host = hostNo ? await getGolfMemberStanding(companyId, hostNo) : null;
+        const golfer = await Golfer.findOne({ where: { companyId, golferType: 'member', sourceId: ps.memberId }, attributes: ['id'] });
+        const line = { playerType: picked.code, standing: ps, golferId: golfer ? golfer.id : null, playerName: ps.name, memberNo: ps.memberNo };
+        const derived = await guestLedger.deriveMemberGuests(companyId, {
+            lines: [line], types, course: flight.course, playDate: flight.playDate, teeTime: flight.teeTime,
+            dayType: await dayTypeOf(req, flight.playDate), hostMemberId: host ? host.memberId : null, excludeProfileId: flight.excludeProfileId,
+        });
+        res.status(200).json({
+            memberNo: ps.memberNo,
+            name: ps.name,
+            playerType: line.playerType,
+            playerTypeLabel: playerTypes.labelOf(types, line.playerType),
+            playsAsGuest: playerTypes.isHostedGuest(types, line.playerType),
+            reason: derived.length ? derived[0].reason : null,
+        });
+    } catch (error) {
+        console.error('Error checking a golf booking line:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -297,15 +407,19 @@ exports.create = async (req, res) => {
         if (!rawPlayers.length) return res.status(400).json({ message: 'Key in at least one player.' });
         if (rawPlayers.length > 10) return res.status(400).json({ message: 'Too many players.' });
         const lines = [];
-        const types = playerTypes.pickable(await playerTypes.catalog(companyId));
+        // The whole catalog judges the lines (a derived Member as Guest line
+        // carries the system type nobody may pick); only the booking channel's
+        // pickable types are accepted from the form.
+        const types = await playerTypes.catalog(companyId);
+        const pickTypes = playerTypes.pickable(types, 'booking');
         for (let i = 0; i < rawPlayers.length; i += 1) {
             const line = rawPlayers[i] || {};
             const playerType = String(line.playerType || '');
-            if (!playerTypes.findType(types, playerType)) return res.status(400).json({ message: `Player ${i + 1}: pick a player type.` });
+            if (!playerTypes.findType(pickTypes, playerType)) return res.status(400).json({ message: `Player ${i + 1}: pick a player type.` });
             if (playerTypes.needsGuestName(types, playerType)) {
                 const guestName = String(line.guestName || '').trim();
                 if (!guestName) return res.status(400).json({ message: `Player ${i + 1}: key in the guest name (or 'Guest').` });
-                lines.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null });
+                lines.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null, guestId: line.guestId ? String(line.guestId) : null });
             } else {
                 const no = String(line.memberNo || '').trim();
                 if (!no) return res.status(400).json({ message: `Player ${i + 1}: key in the member number.` });
@@ -400,32 +514,8 @@ exports.create = async (req, res) => {
                 return { fail: `This flight needs at least ${minPlayers} player(s).`, status: 400 };
             }
 
-            // Guest control for this course/day/time (day-of-week rules beat
-            // weekday/weekend, e.g. a Sunday guest ban).
-            const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
-            const baseOf = (l) => playerTypes.baseOf(types, l.playerType);
-            if (!gc.allowGuest && lines.some((l) => baseOf(l) === 'guest' || baseOf(l) === 'affiliate')) {
-                return { fail: 'Guests are not allowed on this flight (guest control).', status: 400 };
-            }
-            if (!gc.allowMemberGuest && lines.some((l) => baseOf(l) === 'member-guest')) {
-                return { fail: 'Members as guests are not allowed on this flight (guest control).', status: 400 };
-            }
-
-            // Guest quota (user decision 2026-09-28): the BOOKER's membership
-            // type caps how many guests one booking may carry - member-as-
-            // guest lines COUNT toward it. NULL = no limit; 0 = none at all.
-            const guestCount = lines.filter((l) => playerTypes.isGuestLike(types, l.playerType)).length;
-            const quota = standing.guestQuota;
-            if (guestCount > 0 && quota !== null && quota !== undefined && guestCount > quota) {
-                return {
-                    fail: quota === 0
-                        ? `Membership type ${standing.membershipTypeCategory || ''} cannot bring guests.`.replace('  ', ' ')
-                        : `Membership type ${standing.membershipTypeCategory || ''} can bring up to ${quota} guest(s) per booking - this booking has ${guestCount} (members as guests count).`.replace('  ', ' '),
-                    status: 400,
-                };
-            }
-
-            // Provision golfer identities (booker + every member line).
+            // Provision golfer identities (booker + every member line) - the
+            // derivation below counts a member's own rounds by golfer.
             const booker = await ensureMemberGolfer(companyId, standing, stamps, transaction);
             const golferByMemberId = new Map();
             for (const line of lines) {
@@ -433,7 +523,48 @@ exports.create = async (req, res) => {
                     const g = await ensureMemberGolfer(companyId, line.standing, stamps, transaction);
                     golferByMemberId.set(line.standing.memberId, g);
                 }
+                if (line.standing) line.golferId = golferByMemberId.get(line.standing.memberId).id;
             }
+
+            // MEMBER AS GUEST is derived, never picked (user decision
+            // 2026-11-13): a member on this booking who holds no playing right
+            // or round quota of their own for the flight plays as the booker's
+            // guest - the booker's guest rules below then bind that line.
+            const derived = await guestLedger.deriveMemberGuests(companyId, {
+                lines, types, course, playDate, teeTime: startTime, dayType, hostMemberId: standing.memberId, transaction,
+            });
+            const why = derived.length ? `${guestLedger.derivedNote(derived).trim()} ` : '';
+
+            // Guest control for this course/day/time (day-of-week rules beat
+            // weekday/weekend, e.g. a Sunday guest ban): the member's guests
+            // under allow-guests, visitors under allow-visitors.
+            const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
+            const gcRefusal = guestLedger.guestControlRefusal(gc, lines.map((l) => playerTypes.baseOf(types, l.playerType)));
+            if (gcRefusal) return { fail: `${why}${gcRefusal}`, status: 400 };
+
+            // Guest quota (user decision 2026-09-28): the BOOKER's membership
+            // type caps how many guests one booking may carry - members
+            // playing as guests COUNT toward it. NULL = no limit; 0 = none.
+            const hosted = lines.filter((l) => playerTypes.isHostedGuest(types, l.playerType));
+            const guestCount = hosted.length;
+            const quotaFail = guestLedger.quotaRefusal(standing.guestQuota, guestCount, standing.membershipTypeCategory);
+            if (quotaFail) return { fail: `${why}${quotaFail}`, status: 400 };
+
+            // A guest line may name one of the booker's guest passes for the
+            // date (Membership's Guest Registration): the visit then carries
+            // the person and counts once per host per day across the club.
+            for (const l of hosted) {
+                if (!l.guestId) continue;
+                const pick = await guestLedger.resolvePassPick(companyId, { hostMemberId: standing.memberId, date: playDate, guestId: l.guestId, transaction });
+                if (pick.error) return { fail: `Player ${l.sortOrder}: ${pick.error}`, status: 409 };
+                l.guestId = pick.guest.id;
+            }
+
+            // Monthly guest allowance (2026-11-13): the booker's membership
+            // type caps the guests a member brings in a calendar month, counted
+            // club-wide on Membership's guest ledger. Refused, never warned.
+            const allowance = await guestLedger.checkAllowance(companyId, { host: standing, date: playDate, lines: hosted, noun: 'this booking', transaction });
+            if (allowance.refusal) return { fail: `${why}${allowance.refusal}`, status: 400 };
 
             // Playing rights + round quotas (spec 2.3.4 / 2.3.5, 2026-10-15):
             // every line judged by its target; the booker's guest-round cap
@@ -602,6 +733,12 @@ exports.create = async (req, res) => {
                     createdAt: new Date(base + (l.sortOrder - 1) * 2),
                 }, { transaction });
                 records.push(first);
+                // One guest visit per hosted-guest line, on the starting-nine
+                // record (also while the booking awaits approval - the seats
+                // are held; a rejection voids it).
+                if (playerTypes.isHostedGuest(types, l.playerType)) {
+                    await guestLedger.recordFor(companyId, first, { host: standing, date: playDate, guestId: l.guestId || null, stamps, transaction });
+                }
                 if (crossTime) {
                     records.push(await Player.create({
                         ...shared,
@@ -641,7 +778,7 @@ exports.create = async (req, res) => {
                         },
                         transaction,
                     });
-                    return { profile, records, pending: approvalCodes };
+                    return { profile, records, pending: approvalCodes, derived };
                 }
             }
 
@@ -663,14 +800,14 @@ exports.create = async (req, res) => {
                 },
                 transaction,
             });
-            return { profile, records };
+            return { profile, records, derived };
         });
 
         if (result.fail) return res.status(result.status).json({ message: result.fail });
         res.status(201).json({
-            message: result.pending
+            message: (result.pending
                 ? `Booking ${result.profile.bookingNo} awaits approval (${result.pending.map((c) => playerTypes.labelOf(types, c)).join(', ')} bookings need it) - the flight is held meanwhile.`
-                : `Booking ${result.profile.bookingNo} confirmed.`,
+                : `Booking ${result.profile.bookingNo} confirmed.`) + guestLedger.derivedNote(result.derived || []),
             booking: bookingDto(result.profile, result.records, new Map([[course.id, course]])),
         });
     } catch (error) {
@@ -737,8 +874,11 @@ exports.list = async (req, res) => {
         res.status(200).json({
             bookings: dtos,
             statuses: BOOKING_STATUSES,
-            // The club's pickable player types (active, not affiliate-base).
-            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
+            // The types the booking screen may PICK (members and guests - no
+            // visitors, no visit-only classes, not the derived Member as
+            // Guest), and every type for the labels of stored lines.
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId), 'booking')),
+            allPlayerTypes: playerTypes.asVocabulary(await playerTypes.catalog(companyId)),
             // Named-caddy requests (2026-10-18) show only while the station is on.
             caddyManagementEnabled: await caddyRequests.enabled(companyId),
         });
@@ -889,6 +1029,9 @@ exports.cancel = async (req, res) => {
                 where: { bookingProfileId: profile.id, status: 'booked' },
                 transaction,
             });
+            // The cancelled guests no longer draw on the booker's monthly
+            // allowance (players the desk already registered keep theirs).
+            await guestLedger.voidFor(companyId, bookedFirsts, { updatedBy: callerId, transaction });
             await caddyRequests.onBookingCancelled(companyId, profile.id, callerId, { transaction });
             if (penalty) {
                 chargeRow = await noShow.raise({

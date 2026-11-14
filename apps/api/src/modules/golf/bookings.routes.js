@@ -10,6 +10,11 @@ const controller = require('./booking.controller');
 const s = require('./booking.schemas');
 
 router.get('/context', validate(s.context), controller.getContext);
+// The member's guests (2026-11-13): the booker's guest passes for the date,
+// and the class a member line will take on the flight (Member or, derived,
+// Member as Guest) before the save. Both are reads (GET = the View grant).
+router.get('/guest-passes', validate(s.guestPasses), controller.guestPasses);
+router.get('/line-check', validate(s.lineCheck), controller.checkLine);
 router.post('/availability', validate(s.availability), controller.searchAvailability);
 router.post('/locks', validate(s.lock), controller.createLock);
 router.delete('/locks/:groupId', validate(s.releaseLock), controller.releaseLock);

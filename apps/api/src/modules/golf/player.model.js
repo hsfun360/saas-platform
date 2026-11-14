@@ -69,10 +69,29 @@ const Player = sequelize.define('GolfPlayer', {
         type: DataTypes.TIME,
         allowNull: false,
     },
-    // 'member' | 'member-guest' | 'guest' (booking.constants).
+    // A player-type CODE of the club's master (playerType.service); the
+    // engine judges the line by the type's base identity. A 'member-guest'
+    // line is DERIVED (2026-11-13): a member on another member's booking who
+    // has no playing right or round quota of their own for the flight.
     playerType: {
         type: DataTypes.STRING(20),
         allowNull: false,
+    },
+    // ---- the member's guest ledger (approved 2026-11-13) ----
+    // The membership.GuestVisit this STARTING-NINE hosted-guest line recorded
+    // on the booker's / host's monthly allowance (value ref across the seam,
+    // no FK); NULL on member, visitor and club-visitor lines and on every
+    // crossover record. Voided through the gateway when the line is dropped.
+    guestVisitId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // The membership.Guest picked from the host's day passes for the play
+    // date (value ref): the visit then carries the guest and counts ONCE per
+    // host per day across the modules; registration marks the pass arrived.
+    guestId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
     // golf.Golfer identity - NULL only while a name-only guest is merely
     // booked; always resolved by registration time.

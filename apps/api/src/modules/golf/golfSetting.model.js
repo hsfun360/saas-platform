@@ -100,12 +100,17 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 5,
     },
-    // Guest control (user decisions 2026-09-20) - the master switch. OFF =
-    // no restriction anywhere (the allow flags below and the GuestControlRule
-    // rows are ignored). TWO switches per scope: visitor guests vs a member
-    // playing under another member's booking. Per-course/time exceptions live
-    // in golf.GuestControlRule (most specific rule wins). Enforced at booking
-    // and re-checked at registration.
+    // Guest control (user decisions 2026-09-20; reshaped 2026-11-13 to the
+    // club's patron groups) - the master switch. OFF = no restriction
+    // anywhere (the allow flags below and the GuestControlRule rows are
+    // ignored). TWO switches per scope: allow GUESTS (a member's guests -
+    // guest-base lines AND members playing as another member's guest) and
+    // allow VISITORS (the public with no host, desk walk-ins). Affiliated and
+    // reciprocal club members are exempt. Per-course/time exceptions live in
+    // golf.GuestControlRule (most specific rule wins). Enforced at booking
+    // AND at the desk (a walk-in follows the same flags).
+    // (allowMemberGuestWeekday/Weekend were dropped 2026-11-13: a member as
+    // guest IS a guest - the boot migration in app.js removes the columns.)
     guestControlEnabled: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -116,7 +121,7 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: true,
     },
-    allowMemberGuestWeekday: {
+    allowVisitorWeekday: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
@@ -127,7 +132,7 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: true,
     },
-    allowMemberGuestWeekend: {
+    allowVisitorWeekend: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,

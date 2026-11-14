@@ -32,8 +32,8 @@ const DEFAULTS = {
     advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false,
     allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1, bookingLockMinutes: 5,
     bookingLimitWeekday: 'day', bookingLimitWeekend: 'day', allowSameDayBooking: false,
-    guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
-    allowGuestWeekend: true, allowMemberGuestWeekend: true,
+    guestControlEnabled: false, allowGuestWeekday: true, allowVisitorWeekday: true,
+    allowGuestWeekend: true, allowVisitorWeekend: true,
     handicapControlEnabled: false, juniorBookingControlEnabled: false,
     noShowControlEnabled: false, cancellationNoticeHours: 24, lateCancellationAction: 'charge',
     noShowTransactionTypeId: null, noShowChargeBasis: 'player',
@@ -60,9 +60,9 @@ function settingDto(row) {
         allowSameDayBooking: row.allowSameDayBooking === true,
         guestControlEnabled: row.guestControlEnabled === true,
         allowGuestWeekday: row.allowGuestWeekday === true,
-        allowMemberGuestWeekday: row.allowMemberGuestWeekday === true,
+        allowVisitorWeekday: row.allowVisitorWeekday === true,
         allowGuestWeekend: row.allowGuestWeekend === true,
-        allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
+        allowVisitorWeekend: row.allowVisitorWeekend === true,
         handicapControlEnabled: row.handicapControlEnabled === true,
         juniorBookingControlEnabled: row.juniorBookingControlEnabled === true,
         noShowControlEnabled: row.noShowControlEnabled === true,
@@ -172,7 +172,7 @@ exports.get = async (req, res) => {
                 startTime: timeDto(r.startTime),
                 endTime: timeDto(r.endTime),
                 allowGuest: r.allowGuest === true,
-                allowMemberGuest: r.allowMemberGuest === true,
+                allowVisitor: r.allowVisitor === true,
             })),
             handicapLimitRules: handicapLimitRules.map((r) => ({
                 courseId: r.courseId,
@@ -348,7 +348,7 @@ function normalizeMinPlayerRules(raw, knownCourseIds) {
 
 function normalizeGuestControlRules(raw, knownCourseIds) {
     return normalizeScopedRules(raw, knownCourseIds, 'guest-control', (line) => ({
-        fields: { allowGuest: line.allowGuest === true, allowMemberGuest: line.allowMemberGuest === true },
+        fields: { allowGuest: line.allowGuest === true, allowVisitor: line.allowVisitor === true },
     }));
 }
 
@@ -598,9 +598,9 @@ exports.save = async (req, res) => {
         }
         const guestControlEnabled = req.body.guestControlEnabled === true;
         const allowGuestWeekday = req.body.allowGuestWeekday !== false;
-        const allowMemberGuestWeekday = req.body.allowMemberGuestWeekday !== false;
+        const allowVisitorWeekday = req.body.allowVisitorWeekday !== false;
         const allowGuestWeekend = req.body.allowGuestWeekend !== false;
-        const allowMemberGuestWeekend = req.body.allowMemberGuestWeekend !== false;
+        const allowVisitorWeekend = req.body.allowVisitorWeekend !== false;
 
         const raw = Array.isArray(req.body.overrides) ? req.body.overrides : [];
         if (raw.length > 100) return res.status(400).json({ message: 'Too many override lines.' });
@@ -713,7 +713,7 @@ exports.save = async (req, res) => {
             const values = {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
                 minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, bookingLimitWeekday, bookingLimitWeekend, allowSameDayBooking,
-                guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
+                guestControlEnabled, allowGuestWeekday, allowVisitorWeekday, allowGuestWeekend, allowVisitorWeekend,
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
                 rainCheckEnabled, rainCheckValidityDays, rainCheckBasis, rainCheckProrate,

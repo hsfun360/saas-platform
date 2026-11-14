@@ -7,10 +7,11 @@ const { GOLF_SCHEMA } = require('../../platform/schemas');
 // registration line (Player.playerType, GroupPlayer.playerType), on the rate
 // card default (TransactionType.golferType) and on the playing-right and
 // round-quota rules; `baseIdentity` is the engine class the type behaves as
-// (playerType.constants BASE_IDENTITIES). Three SYSTEM rows per company
-// (member / member-guest / guest) are seeded lazily and their codes locked;
-// the club adds affiliate-base types (and, later, guest sub-kinds such as a
-// hotel guest). `companyId` is a Control-Plane reference, no FK.
+// (playerType.constants BASE_IDENTITIES - six classes since 2026-11-13).
+// Four SYSTEM rows per company (member / member-guest / guest / visitor)
+// are seeded lazily and their codes locked; the club adds affiliate- and
+// reciprocal-base types (and guest sub-kinds such as a hotel guest).
+// `companyId` is a Control-Plane reference, no FK.
 const GolfPlayerType = sequelize.define('GolfPlayerType', {
     id: {
         type: DataTypes.UUID,
@@ -31,7 +32,7 @@ const GolfPlayerType = sequelize.define('GolfPlayerType', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    // 'member' | 'member-guest' | 'guest' | 'affiliate'.
+    // 'member' | 'member-guest' | 'guest' | 'visitor' | 'affiliate' | 'reciprocal'.
     baseIdentity: {
         type: DataTypes.STRING(20),
         allowNull: false,

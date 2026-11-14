@@ -292,7 +292,7 @@ exports.getMeta = async (req, res) => {
             bookingTypes: GROUP_BOOKING_TYPES,
             startFormats: START_FORMATS,
             holdFormats: COURSE_HOLD_FORMATS,
-            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId), 'group')),
             holesOptions: HOLES_OPTIONS,
             statuses: GROUP_BOOKING_STATUSES,
             playDayStatuses: PLAY_DAY_STATUSES,
@@ -1173,7 +1173,7 @@ exports.removeFlight = async (req, res) => {
 // snapshot + golfer identity), guests by name.
 async function parseRosterLine(companyId, line, i, stamps, transaction) {
     const playerType = String(line.playerType || 'guest');
-    const types = playerTypes.pickable(await playerTypes.catalog(companyId, { transaction }));
+    const types = playerTypes.pickable(await playerTypes.catalog(companyId, { transaction }), 'group');
     if (!playerTypes.findType(types, playerType)) return { error: `Player ${i + 1}: pick a player type.` };
     const handicapRaw = line.handicap === null || line.handicap === undefined || line.handicap === '' ? null : Number(line.handicap);
     if (handicapRaw !== null && (!Number.isFinite(handicapRaw) || handicapRaw < -10 || handicapRaw > 54)) return { error: `Player ${i + 1}: handicap must be -10 to 54.` };
