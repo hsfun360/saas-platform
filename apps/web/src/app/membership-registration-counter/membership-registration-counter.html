@@ -271,16 +271,18 @@
                 <div><dt>Requests</dt><dd>{{ v.facilitiesText || 'Nothing specific' }}</dd></div>
               </dl>
               <p class="cell-subtle">{{ visitDayLine(v) }}</p>
-              @if (v.firstDay) {
+              <div class="ggr-ticks">
+                @if (v.firstDay) {
+                  <label class="ggr-tick">
+                    <input type="checkbox" formControlName="letterSighted" />
+                    <span>Letter of introduction sighted</span>
+                  </label>
+                }
                 <label class="ggr-tick">
-                  <input type="checkbox" formControlName="letterSighted" />
-                  <span>Letter of introduction sighted</span>
+                  <input type="checkbox" formControlName="idSighted" />
+                  <span>Home club membership card and ID sighted</span>
                 </label>
-              }
-              <label class="ggr-tick">
-                <input type="checkbox" formControlName="idSighted" />
-                <span>Home club membership card and ID sighted</span>
-              </label>
+              </div>
               @if (numberingMode() === 'manual') {
                 <div class="form-grid">
                   <div class="form-group">
@@ -408,14 +410,16 @@
 
             <details class="dlg-sec" open>
               <summary><h3 class="dlg-section">Sighted at the counter</h3></summary>
-              <label class="ggr-tick">
-                <input type="checkbox" formControlName="letterSighted" />
-                <span>Letter of introduction sighted</span>
-              </label>
-              <label class="ggr-tick">
-                <input type="checkbox" formControlName="idSighted" />
-                <span>Home club membership card and ID sighted</span>
-              </label>
+              <div class="ggr-ticks">
+                <label class="ggr-tick">
+                  <input type="checkbox" formControlName="letterSighted" />
+                  <span>Letter of introduction sighted</span>
+                </label>
+                <label class="ggr-tick">
+                  <input type="checkbox" formControlName="idSighted" />
+                  <span>Home club membership card and ID sighted</span>
+                </label>
+              </div>
               @if (numberingMode() === 'manual' && !walkClub()?.needsApproval) {
                 <div class="form-grid">
                   <div class="form-group">
@@ -698,7 +702,7 @@
         @case ('cancel') {
           @if (cancelTarget(); as target) {
             <div class="ggr-view">
-              <p>Cancel registration <strong>{{ target.registrationNo }}</strong> for {{ target.guest?.name }} ({{ relationInline(target) }}) on {{ target.visitDate | localDate }}? {{ cancelConsequence(target) }}</p>
+              <p>Cancel registration <strong>{{ target.registrationNo }}</strong> for {{ target.guest?.name }}, {{ relationInline(target) }}, on {{ target.visitDate | localDate }}? {{ cancelConsequence(target) }}</p>
               <div class="form-group">
                 <label for="ggrReason">Reason <span class="required">*</span></label>
                 <textarea #reasonInput id="ggrReason" rows="2" wrap="off" [value]="cancelReason()" (input)="cancelReason.set(reasonInput.value)"></textarea>

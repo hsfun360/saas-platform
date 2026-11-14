@@ -582,6 +582,25 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     });
   }
 
+  // A letter with days still to run completes only after a confirmation: once
+  // completed, the visitor can no longer register at the counter for them.
+  askComplete(v: GolfAffiliatedVisit): void {
+    if (v.direction !== 'inbound' || v.lastDay <= this.today()) {
+      this.complete(v);
+      return;
+    }
+    this.confirmAction.set({
+      title: 'Complete this visit early?',
+      message: `The letter of ${v.visitorName} runs to ${formatLocalDate(v.lastDay, 'weekday')}. Completing visit ${v.visitNo} now ends it: they can no longer register at the Registration Counter for the days that remain.`,
+      confirmLabel: 'Complete visit',
+      cancelLabel: 'Keep it open',
+      run: () => {
+        this.confirmAction.set(null);
+        this.complete(v);
+      },
+    });
+  }
+
   complete(v: GolfAffiliatedVisit): void {
     this.clearMessages();
     this.workingId.set(v.id);

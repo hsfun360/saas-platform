@@ -131,7 +131,7 @@
                     Confirm…
                   </button>
                 } @else if (v.status === 'arrived' || v.status === 'issued') {
-                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="complete(v)" [disabled]="workingId() === v.id">
+                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="askComplete(v)" [disabled]="workingId() === v.id">
                     {{ workingId() === v.id ? 'Completing…' : 'Complete' }}
                   </button>
                 }

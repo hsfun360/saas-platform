@@ -50,8 +50,9 @@
 .ggr-heading {
   margin: var(--space-md) 0 var(--space-sm);
 }
+/* The registrations heading supplies the gap below the expected cards. */
 .ggr-expected {
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
 }
 
 /* The class picker: one option per row. */
@@ -74,7 +75,12 @@
   margin: 0;
 }
 
-/* What the counter sighted: a tick per document. */
+/* What the counter sighted: a tick per document, one block apart from the
+   fields around it. */
+.ggr-ticks {
+  display: grid;
+  margin: var(--space-xs) 0 var(--space-md);
+}
 .ggr-tick {
   display: flex;
   align-items: center;
