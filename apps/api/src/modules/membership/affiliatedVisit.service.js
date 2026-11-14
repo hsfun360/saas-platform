@@ -699,6 +699,12 @@ async function loadForFlight(req, id) {
     return { row, companyId, club: cf.club };
 }
 
+// Golf words a refusal for the letter form ("Edit the visit's tee time.");
+// in the flights dialog the tee time is the field right there.
+function flightRefusal(out) {
+    return { ...out, error: String(out.error).replace(/ Edit the visit's tee time\.$/, ' Pick another tee time.') };
+}
+
 // POST /:id/flights/preview - the flight a further day would book (show the
 // expected result): availability and the club's playing rights.
 async function previewFlight(req, id, body) {
@@ -707,7 +713,7 @@ async function previewFlight(req, id, body) {
     const n = await normalizeFlight(l.companyId, l.row, body);
     if (n.error) return n;
     const p = await golfGateway.previewVisitFlight(l.companyId, golfVisitFacts(l.row, l.club, n.value));
-    if (p.error) return p;
+    if (p.error) return flightRefusal(p);
     const fl = p.flight;
     return {
         flight: fl,
@@ -727,7 +733,7 @@ async function addFlight(req, id, body) {
     const callerId = getUserContext(req).userId;
     const out = await sequelize.transaction(async (transaction) => {
         const booked = await golfGateway.bookForVisit(req, companyId, golfVisitFacts(row, club, n.value), { transaction, userId: callerId });
-        if (booked.error) return booked;
+        if (booked.error) return flightRefusal(booked);
         await Flight.create({
             companyId, affiliatedVisitId: row.id, playDate: n.value.playDate, bookingProfileId: booked.bookingProfileId,
             createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId,
