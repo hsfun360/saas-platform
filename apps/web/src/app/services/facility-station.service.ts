@@ -25,7 +25,9 @@ export interface StationPatron {
   id: string;
   name: string;
   memberNo: string | null;
-  patronType?: 'member' | 'other';
+  // 'affiliate' | 'reciprocal' = a visiting member of another club, here on
+  // a letter (slice 7); they carry no member number of this club.
+  patronType?: 'member' | 'other' | 'affiliate' | 'reciprocal';
 }
 
 export interface StationUnit {
@@ -160,8 +162,8 @@ export interface StationUtilityItem {
   returnRequired: boolean;
   stockQuantity: number | null;
   maxPerPerson: number;
-  dueDays: number;
   guestsAllowed: boolean;
+  visitingMembersAllowed?: boolean;
   requiresEntry: boolean;
   // The fee an issue bills today (before tax; null amount = no price in
   // force), or null for a free item.
@@ -230,7 +232,6 @@ export interface ServeTile {
   reason: string | null;
   held: number;
   limit: number;
-  dueDays: number;
   freeUnits: { id: string; code: string; location: string | null }[];
   suggestedUnitId: string | null;
 }
@@ -280,13 +281,33 @@ export interface ServeGuest {
   holding: number;
 }
 
+// The letter behind a visiting member's pass (slice 7): which club they
+// belong to and how they are named on the panel.
+export interface ServeVisit {
+  id: string;
+  visitNo: string;
+  patronGroup: 'affiliate' | 'reciprocal';
+  label: string;
+  name: string;
+  memberNo: string | null;
+  club: { code: string; name: string } | null;
+  // The visiting member's own pass of the day (a guest's panel steps back to
+  // them with it); null = they hold none today.
+  ownPassId: string | null;
+}
+
 // The Serve panel of one person: a guest on a pass (the host is the
 // responsible member), a guest served by name with the member (slice 6c:
-// kind 'guest' with no pass), or a member on their own number.
+// kind 'guest' with no pass), a member on their own number, or - slice 7 - a
+// VISITING member of an affiliated or reciprocal club on their own day pass
+// (kind 'visiting'). The guest a visiting member brought is a 'guest' whose
+// `visit` is set: `host` then names the visiting member and carries no
+// member number.
 export interface ServePanel {
-  kind: 'guest' | 'member';
+  kind: 'guest' | 'member' | 'visiting';
   person: { name: string };
-  host: { memberId: string; memberNo: string; name: string };
+  host: { memberId: string | null; memberNo: string | null; name: string };
+  visit?: ServeVisit | null;
   // createdHere = the station registered this pass; removable = a guest
   // added by mistake can still be taken back (nothing taken, no facility entered).
   pass: { id: string; registrationNo: string; visitDate: string; arrivedAt: string | null; firstScan: boolean; createdHere?: boolean; removable?: boolean } | null;

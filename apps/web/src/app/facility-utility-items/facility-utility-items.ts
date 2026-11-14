@@ -93,10 +93,11 @@ export class FacilityUtilityItemsComponent implements OnInit {
     behaviour: ['units' as UtilityBehaviour],
     stockQuantity: this.fb.control<number | null>(null, [Validators.min(0), Validators.max(1000000)]),
     maxPerPerson: [1, [Validators.required, Validators.min(0), Validators.max(100)]],
-    dueDays: [0, [Validators.required, Validators.min(0), Validators.max(365)]],
     feeTransactionTypeId: [''],
-    // Who the station may serve with it (enforced from slice 6b).
+    // Who the station may serve with it (enforced from slice 6b; visiting
+    // affiliated and reciprocal members from slice 7).
     guestsAllowed: [true],
+    visitingMembersAllowed: [true],
     requiresEntry: [false],
     sortOrder: [100, [Validators.required, Validators.min(0), Validators.max(9999)]],
   });
@@ -186,9 +187,9 @@ export class FacilityUtilityItemsComponent implements OnInit {
       behaviour: i?.behaviour || 'units',
       stockQuantity: i?.stockQuantity ?? null,
       maxPerPerson: i?.maxPerPerson ?? 1,
-      dueDays: i?.dueDays ?? 0,
       feeTransactionTypeId: i?.feeTransactionTypeId || '',
       guestsAllowed: i ? i.guestsAllowed !== false : true,
+      visitingMembersAllowed: i ? i.visitingMembersAllowed !== false : true,
       requiresEntry: i ? i.requiresEntry === true : false,
       sortOrder: i?.sortOrder ?? 100,
     });
@@ -229,9 +230,9 @@ export class FacilityUtilityItemsComponent implements OnInit {
       returnRequired: v.behaviour !== 'use',
       stockQuantity: v.behaviour === 'quantity' ? v.stockQuantity : null,
       maxPerPerson: Number(v.maxPerPerson),
-      dueDays: v.behaviour === 'use' ? 0 : Number(v.dueDays),
       feeTransactionTypeId: v.feeTransactionTypeId || null,
       guestsAllowed: v.guestsAllowed,
+      visitingMembersAllowed: v.visitingMembersAllowed,
       requiresEntry: v.requiresEntry,
       sortOrder: Number(v.sortOrder),
     };

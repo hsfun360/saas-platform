@@ -14,7 +14,7 @@ import { FacilityUtilityItem, FacilityUtilityItemPayload, FacilityUtilityItemSer
 function item(over: Partial<FacilityUtilityItem>): FacilityUtilityItem {
   return {
     id: 'i1', code: 'LOCKER', description: 'Lockers', trackUnits: true, returnRequired: true, behaviour: 'units',
-    stockQuantity: null, maxPerPerson: 1, dueDays: 0, feeTransactionTypeId: null, guestsAllowed: true, requiresEntry: false,
+    stockQuantity: null, maxPerPerson: 1, feeTransactionTypeId: null, guestsAllowed: true, visitingMembersAllowed: true, requiresEntry: false,
     iconUrl: null, sortOrder: 10, isActive: true, unitCount: 2, unitsAvailable: 1, outCount: 1, canModify: true,
     ...over,
   };
@@ -72,14 +72,27 @@ describe('FacilityUtilityItemsComponent', () => {
 
   it('saves the hand-out choice as the two stored switches: a use is neither tracked nor returned', async () => {
     component.openAdd();
-    component.form.patchValue({ code: 'shower', description: 'Shower', behaviour: 'use', dueDays: 3 });
+    component.form.patchValue({ code: 'shower', description: 'Shower', behaviour: 'use' });
     component.onSave();
     await settle();
     expect(created[0]).toEqual({
       code: 'SHOWER', description: 'Shower', trackUnits: false, returnRequired: false, stockQuantity: null,
-      maxPerPerson: 1, dueDays: 0, feeTransactionTypeId: null, guestsAllowed: true, requiresEntry: false, sortOrder: 100,
+      maxPerPerson: 1, feeTransactionTypeId: null, guestsAllowed: true, visitingMembersAllowed: true, requiresEntry: false, sortOrder: 100,
     });
     expect(component.dlgMode()).toBeNull();
+  });
+
+  it('keeps no due-days setting - every returnable item is due back the same day - and says who an item is closed to', async () => {
+    expect(card('LOCKER').textContent).toContain('Same day');
+    expect(card('LOCKER').textContent).not.toContain('Not for visiting members');
+    component.rows.set([item({ visitingMembersAllowed: false })]);
+    await settle();
+    expect(card('LOCKER').textContent).toContain('Not for visiting members');
+    component.openEdit(item({ visitingMembersAllowed: false }));
+    await settle();
+    expect(component.form.controls.visitingMembersAllowed.value).toBe(false);
+    expect((document.body.textContent || '')).not.toContain('Due back after (days)');
+    expect((document.body.textContent || '')).toContain('Visiting members may take it');
   });
 
   it('moves the one dialog on to the units after a new numbered item is saved', async () => {

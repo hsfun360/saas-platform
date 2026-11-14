@@ -70,6 +70,7 @@
                 <span class="mt-chip">{{ behaviourLabel(i.behaviour) }}</span>
                 @if (feeLabel(i)) { <span class="data-card__reg">Fee {{ feeLabel(i) }}</span> } @else { <span class="data-card__reg">Free</span> }
                 @if (i.guestsAllowed === false) { <span class="data-card__reg">· Members only</span> }
+                @if (i.visitingMembersAllowed === false) { <span class="data-card__reg">· Not for visiting members</span> }
                 @if (i.requiresEntry) { <span class="data-card__reg">· Inside a facility only</span> }
               </div>
               <dl class="data-card__meta">
@@ -83,7 +84,7 @@
                 }
                 <div class="meta"><dt>Per person</dt><dd>{{ i.maxPerPerson ? i.maxPerPerson + (i.behaviour === 'use' ? ' a day' : '') : 'No limit' }}</dd></div>
                 @if (i.behaviour !== 'use') {
-                  <div class="meta"><dt>Due back</dt><dd>{{ i.dueDays ? 'After ' + i.dueDays + ' day' + (i.dueDays === 1 ? '' : 's') : 'Same day' }}</dd></div>
+                  <div class="meta"><dt>Due back</dt><dd>Same day</dd></div>
                 }
               </dl>
             </div>
@@ -197,23 +198,12 @@
                   }
                   <p class="cell-subtle field-hint">
                     @switch (form.controls.behaviour.value) {
-                      @case ('units') { Units one person may hold at a time; 0 = no limit. }
-                      @case ('quantity') { Pieces one person may hold at a time; 0 = no limit. }
+                      @case ('units') { Units one person may hold at a time; 0 = no limit. Due back the same day - the station lists it as overdue after that. }
+                      @case ('quantity') { Pieces one person may hold at a time; 0 = no limit. Due back the same day - the station lists it as overdue after that. }
                       @default { Uses one person may record in a day; 0 = no limit. }
                     }
                   </p>
                 </div>
-                @if (form.controls.behaviour.value !== 'use') {
-                  <div class="form-group">
-                    <label for="uiDue">Due back after (days) <span class="required">*</span></label>
-                    <input id="uiDue" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="dueDays"
-                           [attr.aria-invalid]="showError(form.controls.dueDays)" aria-describedby="uiDueErr" />
-                    @if (showError(form.controls.dueDays)) {
-                      <p id="uiDueErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
-                    }
-                    <p class="cell-subtle field-hint">0 = the same day; the station lists it as overdue after that.</p>
-                  </div>
-                }
               </div>
 
               <div class="form-grid">
@@ -240,6 +230,13 @@
                 <span class="switch-row__text">
                   <span class="switch-row__title">Guests may take it</span>
                   <span class="switch-row__hint">Off = members only; a guest's tile at the station says so.</span>
+                </span>
+              </label>
+              <label class="switch-row switch">
+                <input type="checkbox" role="switch" formControlName="visitingMembersAllowed" />
+                <span class="switch-row__text">
+                  <span class="switch-row__title">Visiting members may take it</span>
+                  <span class="switch-row__hint">Off = not for a member of an affiliated or reciprocal club here on a day pass, nor for a guest they brought.</span>
                 </span>
               </label>
               <label class="switch-row switch">

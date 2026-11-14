@@ -582,7 +582,11 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
         this.guestTypePick.set('guest');
         this.panel.set(res.panel);
         this.dlgMode.set('serve');
-        if (res.panel.pass?.firstScan) this.successMessage.set(`${res.panel.person.name} arrived - guest of ${res.panel.host.name} (${res.panel.host.memberNo}).`);
+        if (res.panel.pass?.firstScan) {
+          this.successMessage.set(res.panel.kind === 'visiting'
+            ? `${res.panel.person.name} arrived - ${this.visitLine(res.panel)}.`
+            : `${res.panel.person.name} arrived - guest of ${this.hostLine(res.panel)}.`);
+        }
       },
       error: (err) => {
         this.scanning.set(false);
@@ -788,8 +792,38 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Who a tap in the panel is for: the guest's pass, a guest served by name
-  // with the member (slice 6c), or the member.
+  // ---- slice 7: a visiting member of an affiliated or reciprocal club ----
+
+  // "Reciprocal member of Saujana Golf (S-1024)": who a visiting member is.
+  visitLine(p: ServePanel): string {
+    const v = p.visit;
+    if (!v) return '';
+    return `${v.label} of ${v.club?.name || 'the home club'}${v.memberNo ? ' (' + v.memberNo + ')' : ''}`;
+  }
+
+  // Whose guest the person is: the member with their number, or the visiting
+  // member with their club (they carry no member number of this club).
+  hostLine(p: ServePanel): string {
+    if (p.visit) return `${p.host.name} (${p.visit.club?.name || p.visit.label})`;
+    return `${p.host.name} (${p.host.memberNo})`;
+  }
+
+  // A guest's panel steps back to the member by number, to a visiting member
+  // by their own pass of the day (none = nothing to step back to).
+  canServeHost(p: ServePanel): boolean {
+    return p.visit ? !!p.visit.ownPassId : !!p.host.memberNo;
+  }
+
+  // The tag of a visiting member on a card of the day board.
+  visitingTag(patron: { patronType?: string } | null | undefined): string {
+    if (patron?.patronType === 'reciprocal') return '(reciprocal member)';
+    if (patron?.patronType === 'affiliate') return '(affiliated member)';
+    return '';
+  }
+
+  // Who a tap in the panel is for: the pass (a guest's, or a visiting
+  // member's own), a guest served by name with the member (slice 6c), or the
+  // member.
   private holderOf(p: ServePanel): { guestRegistrationId: string | null; memberNo: string | null; guestName?: string } {
     if (p.pass) return { guestRegistrationId: p.pass.id, memberNo: null };
     if (p.kind === 'guest') return { guestRegistrationId: null, memberNo: p.host.memberNo, guestName: p.person.name };
@@ -823,7 +857,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     if (this.addGuestMode() === 'refused') { this.errorMessage.set(this.addGuestOutcome()); return; }
     const v = this.guestForm.getRawValue();
     this.saving.set(true);
-    this.service.addDoorGuest({ memberNo: p.host.memberNo, name: v.name.trim(), mobile: hasMobile(v.mobile) ? v.mobile : null, email: v.email.trim() || null }).subscribe({
+    this.service.addDoorGuest({ memberNo: p.host.memberNo || '', name: v.name.trim(), mobile: hasMobile(v.mobile) ? v.mobile : null, email: v.email.trim() || null }).subscribe({
       next: (res) => {
         this.saving.set(false);
         this.guestForm.markAsPristine();
@@ -863,10 +897,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
     this.servePerson(g.guestRegistrationId ? { guestRegistrationId: g.guestRegistrationId } : { memberNo: p.host.memberNo, guestName: g.name });
   }
 
-  // From a guest's panel back to the member who brought them.
+  // From a guest's panel back to the member - or the visiting member - who
+  // brought them.
   serveHost(): void {
     const p = this.panel();
-    if (p) this.servePerson({ memberNo: p.host.memberNo });
+    if (!p || !this.canServeHost(p)) return;
+    this.servePerson(p.visit ? { guestRegistrationId: p.visit.ownPassId } : { memberNo: p.host.memberNo });
   }
 
   // Show the pass again (the guest lost the link, or it was never sent).

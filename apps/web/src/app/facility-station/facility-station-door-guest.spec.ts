@@ -14,7 +14,7 @@ import { FacilityStationService, PassShare, ServePanel, ServeTile, StationDay, S
 function tile(over: Partial<ServeTile>): ServeTile {
   return {
     utilityItemId: 'towel', code: 'TOWEL', description: 'Towel', iconUrl: null, behaviour: 'quantity',
-    fee: null, allowed: true, reason: null, held: 0, limit: 2, dueDays: 0, freeUnits: [], suggestedUnitId: null,
+    fee: null, allowed: true, reason: null, held: 0, limit: 2, freeUnits: [], suggestedUnitId: null,
     ...over,
   };
 }

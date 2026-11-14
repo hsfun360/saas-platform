@@ -304,7 +304,7 @@
       <div class="st-type-head">
         <span><strong>{{ t.code }}</strong> · {{ t.description }} · {{ behaviourLabel(t) }}</span>
         <span class="cell-subtle">
-          {{ t.maxPerPerson ? 'At most ' + t.maxPerPerson + ' per person' + (t.behaviour === 'use' ? ' a day' : '') : 'No limit per person' }}@if (t.behaviour !== 'use') { · due back {{ t.dueDays ? 'in ' + t.dueDays + ' day' + (t.dueDays === 1 ? '' : 's') : 'the same day' }} }
+          {{ t.maxPerPerson ? 'At most ' + t.maxPerPerson + ' per person' + (t.behaviour === 'use' ? ' a day' : '') : 'No limit per person' }}@if (t.behaviour !== 'use') { · due back the same day }
         </span>
       </div>
 
@@ -355,7 +355,7 @@
               <div class="data-card" [class.st-card--overdue]="i.overdue">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}{{ visitingTag(i.patron) }}</span></div>
                     <div class="data-card__subline">
                       <span class="data-card__reg">issued {{ i.issuedAt | localDate:'datetime' }} · due {{ i.dueBack | localDate:'datetime' }}</span>
                       @if (i.bill) { <span class="status-chip" [class.status-chip--on]="i.bill.status === 'settled'" [class.status-chip--info]="i.bill.status === 'open'">Bill {{ i.bill.billNo }} · {{ i.bill.status }}</span> }
@@ -388,7 +388,7 @@
               <div class="data-card st-card--out">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ i.unit?.code || t.code }}{{ i.quantity > 1 ? ' x ' + i.quantity : '' }} · {{ i.holderName || i.patron?.name }} <span class="data-card__reg">{{ i.holderName ? 'guest of ' + (i.patron?.name || '') + ' ' : '' }}{{ i.patron?.memberNo ? '(' + i.patron?.memberNo + ')' : '' }}{{ visitingTag(i.patron) }}</span></div>
                     <div class="data-card__subline"><span class="data-card__reg">@if (i.status === 'used') { {{ i.issuedAt | localDate:'datetime' }} } @else { returned {{ i.returnedAt | localDate:'datetime' }} · {{ i.returnCondition }} }{{ i.returnedQuantity != null && i.quantity > 1 ? ' · ' + i.returnedQuantity + ' of ' + i.quantity + ' back' : '' }}{{ i.remarks ? ' · ' + i.remarks : '' }}</span></div>
                   </div>
                   <div class="data-card__badge data-row__badge"><span class="status-chip" [class.status-chip--off]="i.status === 'returned' || i.status === 'used'" [class.status-chip--danger]="i.status === 'lost'">{{ i.status }}</span></div>
@@ -431,21 +431,25 @@
               }
 
               <div class="st-who">
-                <span class="material-icons st-who__icon" aria-hidden="true">{{ p.kind === 'guest' ? 'badge' : 'person' }}</span>
+                <span class="material-icons st-who__icon" aria-hidden="true">{{ p.kind === 'guest' ? 'badge' : p.kind === 'visiting' ? 'card_membership' : 'person' }}</span>
                 <div class="st-who__text">
                   <div class="st-who__name">{{ p.person.name }}</div>
-                  @if (p.kind === 'guest') {
+                  @if (p.kind === 'visiting') {
+                    <!-- Slice 7: a member of an affiliated or reciprocal club, on their own day pass. -->
+                    <div class="st-who__line">{{ visitLine(p) }}@if (p.pass; as pass) { · pass {{ pass.registrationNo }} · valid today }</div>
+                    @if (p.pass?.arrivedAt; as at) { <div class="st-who__line">Arrived {{ at | localDate:'datetime' }}</div> }
+                  } @else if (p.kind === 'guest') {
                     @if (p.pass; as pass) {
-                      <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · pass {{ pass.registrationNo }} · valid today</div>
+                      <div class="st-who__line">Guest of {{ hostLine(p) }} · pass {{ pass.registrationNo }} · valid today</div>
                       @if (pass.arrivedAt) { <div class="st-who__line">Arrived {{ pass.arrivedAt | localDate:'datetime' }}</div> }
                     } @else {
-                      <div class="st-who__line">Guest of {{ p.host.name }} ({{ p.host.memberNo }}) · no pass - served by name, with the member</div>
+                      <div class="st-who__line">Guest of {{ hostLine(p) }} · no pass - served by name, with the member</div>
                     }
                   } @else {
                     <div class="st-who__line">Member {{ p.host.memberNo }}</div>
                   }
                 </div>
-                <span class="status-chip" [class.status-chip--info]="p.kind === 'guest'" [class.status-chip--on]="p.kind === 'member'">{{ p.kind === 'guest' ? 'Guest' : 'Member' }}</span>
+                <span class="status-chip" [class.status-chip--info]="p.kind !== 'member'" [class.status-chip--on]="p.kind === 'member'">{{ p.kind === 'guest' ? 'Guest' : p.kind === 'visiting' ? (p.visit?.label || 'Visiting member') : 'Member' }}</span>
               </div>
               @if (p.standingWarning) {
                 <div class="flash flash-info flash--static" role="status">
@@ -459,10 +463,12 @@
                    guests served under them and adds one who holds no pass. -->
               @if (p.kind === 'guest') {
                 <div class="st-party">
-                  <button type="button" class="btn btn--secondary btn--sm" (click)="serveHost()" [disabled]="scanning()">
-                    <span class="material-icons" aria-hidden="true">person</span>
-                    Serve {{ p.host.name }}
-                  </button>
+                  @if (canServeHost(p)) {
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="serveHost()" [disabled]="scanning()">
+                      <span class="material-icons" aria-hidden="true">person</span>
+                      Serve {{ p.host.name }}
+                    </button>
+                  }
                   @if (p.pass) {
                     <button type="button" class="btn btn--secondary btn--sm" (click)="showPass()">
                       <span class="material-icons" aria-hidden="true">qr_code_2</span>
@@ -510,12 +516,18 @@
                       {{ g.name }}{{ g.holding ? ' - holding ' + g.holding : '' }}
                     </button>
                   }
-                  <button type="button" class="btn btn--secondary btn--sm" (click)="openAddGuest()" *appCan="'create'">
-                    <span class="material-icons" aria-hidden="true">person_add</span>
-                    Add guest
-                  </button>
+                  @if (p.kind === 'member') {
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openAddGuest()" *appCan="'create'">
+                      <span class="material-icons" aria-hidden="true">person_add</span>
+                      Add guest
+                    </button>
+                  }
                 </div>
-                <p class="cell-subtle field-hint">A guest with a pass is scanned. A guest without one is added here, while {{ p.host.name }} is at the counter.</p>
+                @if (p.kind === 'member') {
+                  <p class="cell-subtle field-hint">A guest with a pass is scanned. A guest without one is added here, while {{ p.host.name }} is at the counter.</p>
+                } @else {
+                  <p class="cell-subtle field-hint">{{ p.guests?.length ? 'The guests ' + p.host.name + ' brought today.' : p.host.name + ' brought no guest today.' }} A visiting member's guest is registered at the Registration Counter and scans their own pass.</p>
+                }
               }
 
               <h3 class="dlg-section">Holding now</h3>
@@ -800,7 +812,7 @@
               @if (currentItem(); as t) {
                 <p class="cell-subtle field-hint">
                   @if (t.behaviour === 'use') { Recorded as used - there is nothing to return{{ t.maxPerPerson ? '; at most ' + t.maxPerPerson + ' per person a day' : '' }}. }
-                  @else { Due back {{ t.dueDays ? 'in ' + t.dueDays + ' day' + (t.dueDays === 1 ? '' : 's') : 'today' }}{{ t.maxPerPerson ? ' · at most ' + t.maxPerPerson + ' per person' : '' }}. }
+                  @else { Due back today{{ t.maxPerPerson ? ' · at most ' + t.maxPerPerson + ' per person' : '' }}. }
                 </p>
                 @if (t.fee; as fee) {
                   <p class="cell-subtle field-hint">

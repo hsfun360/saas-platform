@@ -14,7 +14,7 @@ import { FacilityStationService, ServePanel, ServeRow, ServeTile, StationDay, St
 function tile(over: Partial<ServeTile>): ServeTile {
   return {
     utilityItemId: 'locker', code: 'LOCKER', description: 'Locker', iconUrl: null, behaviour: 'units',
-    fee: { code: 'LOCKERFEE', description: 'Locker fee', unitAmount: 5 }, allowed: true, reason: null, held: 0, limit: 1, dueDays: 0,
+    fee: { code: 'LOCKERFEE', description: 'Locker fee', unitAmount: 5 }, allowed: true, reason: null, held: 0, limit: 1,
     freeUnits: [{ id: 'u1', code: 'L001', location: null }, { id: 'u2', code: 'L002', location: 'Row B' }], suggestedUnitId: 'u1',
     ...over,
   };
@@ -59,7 +59,7 @@ describe('FacilityStationComponent - scan and serve', () => {
     date: '2026-11-12', dayType: 'weekday', clubNow: { date: '2026-11-12', time: '09:52' }, checkInOpenMinutes: 30, types: [],
     utilityItems: [{
       id: 'locker', code: 'LOCKER', description: 'Locker', iconUrl: null, behaviour: 'units', trackUnits: true, returnRequired: true,
-      stockQuantity: null, maxPerPerson: 1, dueDays: 0, guestsAllowed: true, requiresEntry: false, fee: null,
+      stockQuantity: null, maxPerPerson: 1, guestsAllowed: true, requiresEntry: false, fee: null,
       units: [
         { id: 'u1', code: 'L001', location: null, isActive: true, unitStatus: 'available', currentIssueId: null, remarks: null },
         { id: 'u2', code: 'L002', location: 'Row B', isActive: true, unitStatus: 'available', currentIssueId: null, remarks: null },

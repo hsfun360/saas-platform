@@ -21,9 +21,11 @@ export interface FacilityUtilityItem {
   behaviour: UtilityBehaviour;
   stockQuantity: number | null;
   maxPerPerson: number;
-  dueDays: number;
   feeTransactionTypeId: string | null;
   guestsAllowed: boolean;
+  // Off = not for a visiting affiliated or reciprocal member, nor a guest
+  // they brought (slice 7).
+  visitingMembersAllowed: boolean;
   requiresEntry: boolean;
   iconUrl: string | null;
   sortOrder: number;
@@ -36,8 +38,8 @@ export interface FacilityUtilityItem {
 }
 
 export type FacilityUtilityItemPayload = Partial<Pick<FacilityUtilityItem,
-  'code' | 'description' | 'trackUnits' | 'returnRequired' | 'stockQuantity' | 'maxPerPerson' | 'dueDays' | 'feeTransactionTypeId'
-  | 'guestsAllowed' | 'requiresEntry' | 'iconUrl' | 'sortOrder' | 'isActive'>>;
+  'code' | 'description' | 'trackUnits' | 'returnRequired' | 'stockQuantity' | 'maxPerPerson' | 'feeTransactionTypeId'
+  | 'guestsAllowed' | 'visitingMembersAllowed' | 'requiresEntry' | 'iconUrl' | 'sortOrder' | 'isActive'>>;
 
 // One numbered unit of an item that tracks its units (locker L014).
 export interface FacilityUtilityUnit {
