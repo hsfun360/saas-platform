@@ -491,6 +491,14 @@ async function listGuestPassesOfHost(companyId, memberId, date, opts = {}) {
     return require('../modules/membership/guestRegistration.service').passesOfHost(companyId, memberId, date, opts);
 }
 
+// The live passes of one LETTER (an affiliated / reciprocal visit) for a
+// date - the visiting member's own and the guests they brought:
+// [{ id, registrationNo, status, channel, accompanying, guest { id, name } }].
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/guest-passes?affiliatedVisitId&date
+async function listGuestPassesOfVisit(companyId, affiliatedVisitId, date, opts = {}) {
+    return require('../modules/membership/guestRegistration.service').passesOfVisit(companyId, affiliatedVisitId, date, opts);
+}
+
 async function getGuestPassShare(req, guestRegistrationId) {
     return require('../modules/membership/guestRegistration.service').passShare(req, guestRegistrationId);
 }
@@ -512,6 +520,7 @@ module.exports = {
     getGuestPassShare,
     sendGuestPass,
     listGuestPassesOfHost,
+    listGuestPassesOfVisit,
     lookupPartyDisplay,
     searchPartyIds,
     getChargeTarget,

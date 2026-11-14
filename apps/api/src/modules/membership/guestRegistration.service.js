@@ -944,6 +944,20 @@ async function passesOfHost(companyId, memberId, date, { transaction } = {}) {
     return rows.map((r) => ({ id: r.id, registrationNo: r.registrationNo, status: r.status, channel: r.channel, guest: { id: r.guestId, name: nameById.get(r.guestId) || '' } }));
 }
 
+// The live passes of one LETTER for a date: the visiting member's own and
+// those of the guests they brought - what a counter needs to serve the party
+// of an affiliated or reciprocal visitor (Facility's station, slice 7).
+async function passesOfVisit(companyId, affiliatedVisitId, date, { transaction } = {}) {
+    if (!companyId || !affiliatedVisitId) return [];
+    const rows = await GuestRegistration.findAll({ where: { companyId, affiliatedVisitId, visitDate: String(date), status: { [Op.ne]: 'cancelled' } }, order: [['createdAt', 'ASC']], transaction });
+    if (!rows.length) return [];
+    const parties = await partiesOf(companyId, rows, { transaction });
+    return rows.map((r) => {
+        const party = parties.get(r.id) || NO_PARTY;
+        return { id: r.id, registrationNo: r.registrationNo, status: r.status, channel: r.channel, accompanying: party.accompanying, guest: { id: r.guestId || null, name: party.person ? party.person.name : '' } };
+    });
+}
+
 // Undo a registration a producer's counter created (never one of the front
 // desk's or the portal's): it is cancelled with the reason and its visit no
 // longer counts. Returns true when THIS call cancelled it.
@@ -960,7 +974,7 @@ module.exports = {
     passStateOf, normalizeMobile, normalizeGuest, tokenFromCode, whatsappLink, shareText, passUrlOf, relationOf, relationPhrase, patronLabelOf,
     host, searchGuests, create, update, cancel, arrive, pass, send, scan, publicPass, list, get,
     findPassByCode, findPassById, markArrived,
-    registerAtDoor, cancelAtDoor, passShare, passesOfHost,
+    registerAtDoor, cancelAtDoor, passShare, passesOfHost, passesOfVisit,
     // Shared with registrationCounter.service (the affiliated / reciprocal
     // side of the same counter): not part of the seam.
     internals: { fail, txFail, str, dateText, clubToday, visitorParty, nameOf, dto, passFacts, queuePassEmail, issueRegistrationNo, resolveGuest },
