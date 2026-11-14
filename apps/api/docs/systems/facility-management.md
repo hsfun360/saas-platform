@@ -1466,7 +1466,18 @@ New values in existing columns:
 - API unit tests 310, web unit tests 428, production web build clean.
 - A 46-check run of the station services on a throwaway Postgres: both patron groups, the guest they brought, the switches, the bill, undo, return, yesterday's unreturned locker, yesterday's pass refused, and the members of the club unchanged.
 - The boot step dropped `dueDays` on a throwaway database booted with the real `server.js`.
-- NOT yet seen in a browser and not deployed.
+- Pushed and deployed to dev 2026-11-14 (pipeline run 43591921906 green).
+
+#### Smoked on dev (7a, 2026-11-14, Tropicana, the user's Chrome)
+
+- Utility Items: the form shows "Visiting members may take it" (ON on the three existing items) and no "Due back after (days)"; the cards read "Due back: Same day".
+- The pass GR00007 of the reciprocal visitor (letter L261100004, club SAUJANA) opened the panel in their own name: "Reciprocal member of Saujana Golf & Country Club (SAU-E2E-1) · pass GR00007 · valid today", chip "Reciprocal member", the guest E2E Companion listed, no "Add guest", no "Enter a facility".
+- Locker L002 issued (bill FBL-00017 opened in the visitor's name, 5.00, due 23:59 the same day), the tile then closed at the limit; a towel issued and undone; the locker returned from the panel, which stayed the visitor's.
+- The guest's pass GR00008 from the guests list: "Guest of E2E Visitor (Saujana Golf & Country Club)", the locker price "on E2E Visitor's bill", a towel issued; "Serve E2E Visitor" stepped back, and the visitor's panel then read "E2E Companion - holding 1".
+- The day board tags the rows "(reciprocal member)"; member MEM26-000001 still opens as a member with "Add guest" and the GYM tile.
+- Kept on dev: bill FBL-00017 open (5.00), the companion's towel out.
+- NOT exercised on dev: an item with the switch OFF (no dev setting was changed), an affiliated (not reciprocal) pass, yesterday's unreturned locker on a new day's pass.
+- Polish from the smoke, committed locally: the bill drawer's column headings sat one column to the right of their values (the heading row's last grid track was `auto`, so 0 wide; now a fixed 44px track on both rows); the Utility Items form's "Limit per person" no longer sits alone on its row.
 
 ## Public API (gateway seam: `/api/facility`)
 
