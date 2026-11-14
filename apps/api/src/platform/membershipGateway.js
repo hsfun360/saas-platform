@@ -364,6 +364,23 @@ async function getAffiliatedClub(companyId, id) {
     return c ? { id: c.id, code: c.code, name: c.name, kind: c.kind, playerTypeId: c.playerTypeId, visitFeeTransactionTypeId: c.visitFeeTransactionTypeId, allowChargeToHomeClub: c.allowChargeToHomeClub === true, isActive: c.isActive !== false } : null;
 }
 
+// One letter of introduction and its home club's arrangement, for a producer
+// that keeps a record against the letter (Facility's visiting-member bills,
+// slice 7c): { id, visitNo, status, visitorName, visitorMemberNo, club { id,
+// code, name, kind, allowChargeToHomeClub } } | null.
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/affiliated-visits/:id
+async function getAffiliatedVisitFacts(companyId, affiliatedVisitId, opts = {}) {
+    if (!companyId || !affiliatedVisitId) return null;
+    const AffiliatedVisit = require('../modules/membership/affiliatedVisit.model');
+    const v = await AffiliatedVisit.findOne({ where: { companyId, id: String(affiliatedVisitId) }, attributes: ['id', 'visitNo', 'status', 'visitorName', 'visitorMemberNo', 'affiliatedClubId'], transaction: opts.transaction });
+    if (!v) return null;
+    const c = await getAffiliatedClub(companyId, v.affiliatedClubId);
+    return {
+        id: v.id, visitNo: v.visitNo, status: v.status, visitorName: v.visitorName, visitorMemberNo: v.visitorMemberNo || null,
+        club: c ? { id: c.id, code: c.code, name: c.name, kind: c.kind, allowChargeToHomeClub: c.allowChargeToHomeClub === true } : null,
+    };
+}
+
 // The letter behind each booking of a day: Map(bookingProfileId -> { id,
 // visitNo, status, letterStatus, playDate, visitorName, golferId, clubName,
 // visitFeeTransactionTypeId, allowChargeToHomeClub }). `status` is the
@@ -532,6 +549,7 @@ module.exports = {
     getGolfMemberStanding,
     listAffiliatedClubs,
     getAffiliatedClub,
+    getAffiliatedVisitFacts,
     affiliatedVisitsByBooking,
     affiliatedVisitRegistrationGate,
     completeAffiliatedVisitIfSettled,
