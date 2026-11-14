@@ -649,7 +649,8 @@ One registration row is one day at the club: for a visiting member it is the day
   A visiting member keeps the name of the letter on edit (only contact details and remarks change, written to the letter) and needs no contact detail.
   Cancelling a visitor's day follows the DATE, not the status (these rows are born arrived): a day that has passed stands; the visitor's own day takes that day's guests with it, and a letter left with no day attended goes back to `confirmed`.
 - The pass page and the seam's pass facts carry `patronGroup`, and `host` is NULL on an affiliated or reciprocal pass, which carries `club`, `visit` and `accompanying` instead.
-  The Facility station refuses such a pass with a clear message until its own rules for these holders are built (`stationRules.passVerdict`).
+  The Facility station serves such a pass since its slice 7a (2026-11-14): utility items in the visiting member's own name, and the guest they brought under them (`facility-management.md`, "Slice 7").
+  `listGuestPassesOfVisit(companyId, affiliatedVisitId, date)` on the seam answers the live passes of one letter for a date - the visiting member's own and the guests they brought (`accompanying`) - so a counter can serve the party of a letter.
 - Email: `membership.visitor.pass` (the day pass of a visiting member or of a guest they brought); a member's guest keeps `membership.guest.pass`.
 
 ### API
@@ -677,7 +678,7 @@ Not yet exercised: registering a flight's players on a later day at the golf des
 
 ### Not built yet
 
-- The Facility station serving an affiliated or reciprocal pass (the item's own answer for these holders, entering a facility on the pass, the entry fee, charge to home club, completion held while an item is out or a facility bill is open): the Facility Management session.
+- The rest of the Facility station's part, in the Facility Management session (utility items on the pass are built, its slice 7a): entering a facility on the pass and the entry fee (7b); charge to home club, a letter's completion held while an item is out or a facility bill is open, and no cancelling of a day that was used at the station (7c).
 - A plain Visitor at the counter.
 - The user manuals of the Registration Counter and the changed Affiliated Visits screen.
 

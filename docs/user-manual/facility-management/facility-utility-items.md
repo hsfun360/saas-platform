@@ -9,7 +9,8 @@
 
 A Utility Item is something the Control Station hands out or lets a person use: a locker by numbered unit, towels by quantity, a shower as a recorded use.
 This screen is the club's list of those items and, for a numbered item, of its individual units (each locker with its own number).
-For every item you decide how it is handed out, how many one person may hold, when it is due back, the fee charged automatically, and who the station may serve with it.
+For every item you decide how it is handed out, how many one person may hold, the fee charged automatically, and who the station may serve with it.
+Every item that is returned is due back the same day: nobody keeps a locker or a towel overnight.
 Staff come here when the club adds an item, adds or retires lockers, changes a limit or a fee, or takes an item out of use.
 The Control Station offers the active items defined here; a Utility Item is not a facility, so it is never booked by slot.
 
@@ -21,8 +22,8 @@ The Control Station offers the active items defined here; a Utility Item is not 
 - A search box filters the list as you type; it matches the code, the description and the way the item is handed out.
   When nothing matches, **Clear search** brings the whole list back.
 - Each item is a card titled with its description and code, e.g. "Changing room locker (LOCKER)".
-  Below the title: how it is handed out (**Numbered units**, **By quantity** or **Use only**), the fee item or "Free", "Members only" when guests may not take it, and "Inside a facility only" when it is reserved for a person inside a facility.
-- The card's figures: **Units** (how many are free of the total) for a numbered item, **Out now** (pieces out, of the pieces the club owns when that is recorded) for an item by quantity, **Per person** (the limit, or "No limit") and **Due back** ("Same day" or "After n days"; not shown for a use-only item).
+  Below the title: how it is handed out (**Numbered units**, **By quantity** or **Use only**), the fee item or "Free", "Members only" when guests may not take it, "Not for visiting members" when members of other clubs may not take it, and "Inside a facility only" when it is reserved for a person inside a facility.
+- The card's figures: **Units** (how many are free of the total) for a numbered item, **Out now** (pieces out, of the pieces the club owns when that is recorded) for an item by quantity, **Per person** (the limit, or "No limit") and **Due back** (always "Same day"; not shown for a use-only item).
 - A status chip shows **Active** or **Disabled**; active items are listed first, then by sort order.
 - Each card has an **Edit** button and a ⋮ menu holding **Units (n)** (numbered items only), **Enable** or **Disable**, and **Delete**.
   On a numbered item you may not amend under your role's data scope, a **Units (n)** button opens the units to view only.
@@ -40,10 +41,11 @@ The Control Station offers the active items defined here; a Utility Item is not 
    - **Numbered units** - each unit has its own number and is issued and taken back one by one, like a locker.
    - **By quantity** - pieces are handed out by count and counted back, like towels.
    - **Use only** - the use is recorded and there is nothing to return, like a shower.
-4. Set the **Limit per person** (0 = no limit) and, unless the item is use-only, **Due back after (days)** (0 = the same day).
+4. Set the **Limit per person** (0 = no limit).
+   An item that is returned is due back the same day; the station lists it as overdue after that.
 5. For an item by quantity, optionally enter **Pieces the club owns**.
 6. Pick the **Fee charged automatically**, or leave it as **No fee - free**.
-7. Set the two serving switches: **Guests may take it** and **Only for a person inside a facility** (see "Decide who the station may serve" below).
+7. Set the three serving switches: **Guests may take it**, **Visiting members may take it** and **Only for a person inside a facility** (see "Decide who the station may serve" below).
 8. Set the **Sort order** - the order of the items on the station's strip.
 9. Click **Save**.
 
@@ -87,6 +89,9 @@ You can generate at most 500 units at a time; run it again for the next range.
 
 - **Guests may take it** - on by default.
   Turn it off for an item kept for members only; a guest's tile at the station then says so, and the card shows "Members only".
+- **Visiting members may take it** - on by default.
+  A visiting member is a member of an affiliated or reciprocal club who received a day pass at the Registration Counter.
+  Turn it off for an item the club keeps for its own members and their guests; the tile of a visiting member, and of a guest they brought, then says so, and the card shows "Not for visiting members".
 - **Only for a person inside a facility** - off by default.
   Turn it on and the station issues the item only to a person who is inside a facility today: a member on an entry, or a guest admitted with them or on their pass.
   The card then shows "Inside a facility only".
@@ -123,10 +128,10 @@ Delete the units of a numbered item first, or disable the item instead.
 | **Description** | Yes | The item's name as staff read it, e.g. `Changing room locker`. | Up to 255 characters. |
 | **How it is handed out** | Yes | Numbered units (issued and taken back one by one), By quantity (handed out by count and counted back) or Use only (recorded, nothing to return). | Fixed while the item has units or is out with someone. |
 | **Limit per person** | Yes | How many units or pieces one person may hold at a time, or for a use-only item how many uses one person may record in a day. | A whole number from 0 to 100; 0 = no limit; starts at 1. |
-| **Due back after (days)** | Yes | How many days a unit or piece may stay out; the station lists it as overdue after that. | A whole number from 0 to 365; 0 = the same day; not shown for a use-only item. |
 | **Pieces the club owns** | No | The club's stock of an item by quantity, e.g. `200`; the station then shows a figure such as "42 of 200 out". | A whole number from 0 to 1000000, or blank; shown for By quantity only; it never refuses an issue. |
 | **Fee charged automatically** | No | The Issue Fee item from Transaction Types charged per unit, piece or use. | Type to search; No fee - free = nothing is charged; a disabled fee item cannot be saved. |
 | **Guests may take it** | No | On = guests may be served the item; off = members only. | On by default. |
+| **Visiting members may take it** | No | On = a member of an affiliated or reciprocal club, here on a day pass, may be served the item; off = neither they nor a guest they brought. | On by default. |
 | **Only for a person inside a facility** | No | On = the station issues the item only to a person who is inside a facility today. | Off by default. |
 | **Sort order** | Yes | The item's position on the station's strip; lower numbers come first. | A whole number from 0 to 9999; starts at 100. |
 

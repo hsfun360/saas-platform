@@ -1004,16 +1004,17 @@ Two switches describe how an item behaves, which covers the three examples and a
 | `returnRequired` | BOOLEAN | no | true | OFF = a use is recorded and closed at once, never on the "still out" lists. Always ON when `trackUnits` is ON. |
 | `stockQuantity` | INTEGER | yes | | Counted items only: the pieces the club owns, so the station shows "42 of 200 out". NULL = not shown. Information only, never a refusal. |
 | `maxPerPerson` | INTEGER | no | 1 | Units or pieces ONE person may hold at a time (0 = no limit). For a use-only item: uses per person per day. |
-| `dueDays` | INTEGER | no | 0 | Days a returnable item may be kept; 0 = due back the same day. |
+| ~~`dueDays`~~ | | | | DROPPED 2026-11-14 (user rule: nobody keeps an item overnight). Every returnable item is due back the day it was issued; see slice 7. |
 | `feeTransactionTypeId` | UUID | yes | | The `issue-fee` billing item charged per unit, piece or use; NULL = free. Intra-service FK, SET NULL. |
 | `guestsAllowed` | BOOLEAN | no | true | OFF = members only (a club that keeps lockers for members). |
+| `visitingMembersAllowed` | BOOLEAN | no | true | Slice 7 (approved 2026-11-14). OFF = not issued to a visiting member of an affiliated or reciprocal club, nor to a guest they brought. |
 | `requiresEntry` | BOOLEAN | no | false | ON = only for a person who is inside a facility today (a live entry or a checked-in booking). OFF = anyone the station may serve. |
 | `iconUrl` | STRING(1000) | yes | | The picture on the station's strip, like a facility type's. |
 | `sortOrder` | INTEGER | no | 100 | |
 | `isActive` | BOOLEAN | no | true | |
 | `createdBy`, `createdByDepartmentId`, `updatedBy` | UUID | yes | | Ownership stamps. |
 
-A utility item has no opening hours and no closure plans of its own (today's issue types borrow both from the Facility Type): the station hands items out whenever it is staffed, and a returnable item is due at the end of its due day.
+A utility item has no opening hours and no closure plans of its own (today's issue types borrow both from the Facility Type): the station hands items out whenever it is staffed, and a returnable item is due at the end of the day it was issued.
 
 #### `facility.UtilityUnit` - one numbered unit (NEW TABLE)
 
@@ -1387,6 +1388,86 @@ A typed member number returns the same picture for the member.
 8. **A party is served one person at a time**; the Arrival drawer is dropped.
 9. **The scan does not admit the guest into the pool or the gym** until 6d; in 6b it serves utility items only.
 
+### Slice 7 - Visiting members at the station (approved 2026-11-14; step 7a BUILT 2026-11-14)
+
+A member of an affiliated or reciprocal club is a VISITING MEMBER.
+They present their letter at Membership's Registration Counter (the club's main control counter), never at the Facility station, and leave the counter with a day pass.
+The station only scans that pass.
+The counter, the letter and the pass are Membership's (`membership-management.md`, "Built: Registration Counter"); this slice is what the station does with the pass.
+
+#### User decisions (2026-11-14)
+
+- The letter is shown at the Registration Counter, and the QR code is always a pass for ONE day; the visitor stops at the counter on each day they come.
+- **Nobody keeps a locker overnight.**
+  On day 2 the visitor holds a new pass and is given a new locker.
+  The rule is for everyone, members included, so the "Due back after (days)" setting of a utility item is removed.
+- The two "Visiting members allowed" switches and the four new vocabulary values below were approved as proposed, with both switches ON by default and Affiliated and Reciprocal as two price groups.
+
+#### Structures
+
+No new table.
+
+| Table | Column | Change | Meaning |
+| --- | --- | --- | --- |
+| `facility.UtilityItem` | `visitingMembersAllowed` BOOLEAN, not null, default true | ADD (7a) | OFF = the item is not issued to a visiting member, nor to a guest they brought. |
+| `facility.FacilityType` | `visitingMembersAllowed` BOOLEAN, not null, default true | ADD (7b) | OFF = a visiting member may not enter the facility. |
+| `facility.UtilityItem` | `dueDays` | DROP (7a) | Every returnable item is due back the day it was issued. Dropped at boot (`src/app.js`, outside the fingerprint gate, idempotent); `IssueRecord.dueBack` stays and is the end of the issue day. |
+
+New values in existing columns:
+
+| Where | Values | Meaning |
+| --- | --- | --- |
+| `facility.Patron.patronType` | `affiliate`, `reciprocal` (7a) | The person record of a LETTER: `sourceId` = the membership `AffiliatedVisit.id`. The keys are Membership's own patron groups. |
+| Participant types, system rows | `affiliate`, `reciprocal` (7b) | What a visiting member's entry fee is priced as on the rate cards. |
+
+#### Who a visiting member is in Facility
+
+- One `Patron` row per letter, not per day and not per pass.
+  The profile stays on the letter in Membership; the row keeps the visitor's name as a snapshot.
+- `Patron.memberNo` stays NULL.
+  The visitor's number belongs to the home club and must never be read as a member number of this club (a reciprocal member numbered `M001` is not this club's member `M001`).
+- One row per letter is what lets the station see on day 2 what the visitor left out on day 1: the unreturned locker shows as overdue on the new pass and holds the limit, so no second locker is given until it is back or recorded lost.
+- A visiting member's row is left out of the desk search that books (`patron.service.search`): they are served on the pass and do not book.
+
+#### The holder at the station
+
+| Who is scanned | `kind` on the panel | The records | Bill |
+| --- | --- | --- | --- |
+| The visiting member's own pass | `visiting` | `patronId` = the letter's patron, no `holderName`, no `guestRegistrationId` - exactly a member's own records | One open bill a day in their own name. |
+| The pass of a guest they brought (`accompanying`) | `guest`, with `visit` set | `patronId` = the letter's patron, `holderName` = the guest, `guestRegistrationId` = the guest's pass - exactly a member's guest on a pass | The guest's own open bill of the day, in the visiting member's name. |
+
+- `resolveHolder` reads `patronGroup` before `host`; a visiting pass has no host member and no standing.
+- The panel carries `visit { id, visitNo, patronGroup, label, name, memberNo, club { code, name }, ownPassId }`; `host` then names the visiting member with `memberId` and `memberNo` NULL.
+- A visiting member's panel lists the guests of the letter for the day (`membershipGateway.listGuestPassesOfVisit`) and has no "Add guest": their guests are registered at the Registration Counter, under the arrangement's guests per visit.
+- A guest's panel steps back to the visiting member by `visit.ownPassId` (their own pass of the day), since there is no member number to key.
+- No monthly guest allowance is drawn for a visiting member's guest.
+- After a return or an undo the panel is redrawn from the letter's own pass of the day (`panelOfRecord`); a return on a day with no pass is taken from the day board, with no panel.
+
+#### The rules, per step
+
+- **7a (BUILT) - utility items.**
+  `stationRules.passVerdict` no longer refuses the pass.
+  A tile follows `visitingMembersAllowed` ("Not for visiting members."); a guest they brought needs that switch AND `guestsAllowed` ("Not for a visiting member's guests." / "Members only.").
+  An item that `requiresEntry` stays closed, because no facility is entered on this pass until 7b.
+  Issue fees are flat, so they bill at once without a new price.
+  `POST /admissions` refuses a visiting pass in words, and the panel's `entries` is empty.
+- **7b - entering a facility.**
+  The type's `visitingMembersAllowed`; the two system participant types and their rate-card cells (a facility with a fee and no price for them shows "has no price today"); a guest they brought enters under them by the type's visitor-guest rule and cap.
+- **7c - settlement and the letter.**
+  The member tender is refused on a visiting member's bill (already true: it needs a member patron); the debtor tender (charge to home club) only where the arrangement's `allowChargeToHomeClub` is ON; a first `platform/facilityGateway.js` so a letter does not complete while an item is out or a facility bill is open, and the counter does not cancel a day used at the station.
+
+#### Web (7a)
+
+- Utility Items: the "Visiting members may take it" switch; "Due back after (days)" is gone and the limit's hint says the item is due back the same day; a card says "Not for visiting members" when the switch is OFF.
+- Control Station: the who-line reads "Reciprocal member of <club> (<their number>) · pass <no> · valid today" with the patron group as the chip; a guest's line reads "Guest of <visiting member> (<club>)"; the day board tags what a visiting member holds "(reciprocal member)" / "(affiliated member)"; every "due back in N days" wording is "the same day".
+
+#### Verified (7a)
+
+- API unit tests 310, web unit tests 428, production web build clean.
+- A 46-check run of the station services on a throwaway Postgres: both patron groups, the guest they brought, the switches, the bill, undo, return, yesterday's unreturned locker, yesterday's pass refused, and the members of the club unchanged.
+- The boot step dropped `dueDays` on a throwaway database booted with the real `server.js`.
+- NOT yet seen in a browser and not deployed.
+
 ## Public API (gateway seam: `/api/facility`)
 
 - `GET /health` returns `{ service: 'facility', status: 'ok' }`; the slice-1 routes are listed under *Slice 1 screens and API*; anything else answers `501` behind `verifyToken` + `requireModule('FACILITY')` so a caller can tell "wrong URL" from "planned but not implemented".
@@ -1417,4 +1498,4 @@ A typed member number returns the same picture for the member.
 
 ## Migration status
 
-- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Slice 1 models · [x] Slice 1 routes / controllers / screens (2026-10-25, smoked on dev) · [x] Slice 2a masters + Membership additions (2026-10-25, smoked on dev) · [x] Slice 2b booking (2026-10-25, smoked on dev) · [x] Slice 2c billing (2026-10-25, smoked on dev 2026-10-26) · [x] Slice 3 Control Station (2026-10-26, smoked on dev) · [x] Slice 4 No show (2026-10-26, smoked on dev) · [x] Slice 5a venues, instructors, classes, schedules, grid blocking (2026-10-26, smoked on dev) · [x] Slice 5b enrolment, billing, attendance, Hold, station view (2026-10-26, smoked on dev) · [x] Slice 5c waitlist, cancellations, emails (2026-10-26, smoked on dev) · [x] Slice 6a Utility Items master, the issue mode retired (2026-11-11, smoked on dev 2026-11-12) · [x] Slice 6b scan and serve (2026-11-12, smoked on dev) · [x] Slice 6c the guest without a pass, with the member (2026-11-12, smoked on dev) · [x] Slice 6d entering a facility from the panel (2026-11-12, smoked on dev 12 and 13 Nov) · [x] Slice 7a visiting affiliated and reciprocal members: utility items on the day pass, due-days setting dropped (2026-11-14, local only) · [ ] Slice 7b entering a facility on the pass · [ ] Slice 7c settlement and the letter's completion hold · [ ] Events · [ ] Own DB · [ ] Own deploy
