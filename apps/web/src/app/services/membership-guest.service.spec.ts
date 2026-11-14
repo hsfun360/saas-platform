@@ -17,13 +17,38 @@ describe('MembershipGuestService', () => {
   afterEach(() => http.verify());
 
   it('lists registrations with the filters as query params', () => {
-    service.list({ dateFrom: '2026-11-01', dateTo: '2026-11-30', status: 'registered' }).subscribe();
+    service.list({ dateFrom: '2026-11-01', dateTo: '2026-11-30', status: 'registered', group: 'reciprocal' }).subscribe();
     const list = http.expectOne((r) => r.url === base);
     expect(list.request.method).toBe('GET');
     expect(list.request.params.get('dateFrom')).toBe('2026-11-01');
     expect(list.request.params.get('dateTo')).toBe('2026-11-30');
     expect(list.request.params.get('status')).toBe('registered');
-    list.flush({ registrations: [], statuses: [], today: '2026-11-10', numberingMode: 'auto' });
+    expect(list.request.params.get('group')).toBe('reciprocal');
+    list.flush({ registrations: [], statuses: [], groups: [], expectedVisits: [], clubs: [], today: '2026-11-10', numberingMode: 'auto' });
+  });
+
+  it('issues a pass to a visiting member with POST (create grant): receive on a letter, a walk-up, a guest they brought', () => {
+    service.receiveVisit('v1', { letterSighted: true, idSighted: true, remarks: null }).subscribe();
+    const receive = http.expectOne(`${base}/visits/v1/receive`);
+    expect(receive.request.method).toBe('POST');
+    expect(receive.request.body).toEqual({ letterSighted: true, idSighted: true, remarks: null });
+    receive.flush({ message: 'ok', registration: {}, pass: {} });
+
+    service.walkUp({
+      affiliatedClubId: 'c1', visitorName: 'John Tan', visitorMemberNo: 'RS-1234', visitorIdentityNo: null, visitorMobile: null, visitorEmail: null,
+      loiReference: null, visitDateTo: '2026-11-16', sports: 'gym', dining: null, other: null, remarks: null, letterSighted: true, idSighted: true,
+    }).subscribe();
+    const walkUp = http.expectOne(`${base}/walk-ups`);
+    expect(walkUp.request.method).toBe('POST');
+    expect(walkUp.request.body.affiliatedClubId).toBe('c1');
+    expect(walkUp.request.body.visitDateTo).toBe('2026-11-16');
+    walkUp.flush({ message: 'ok', issued: true });
+
+    service.addVisitorGuest('r6', { guest: { name: 'Lim', mobile: '+60129998888', email: null, identityNo: null }, remarks: null, sendEmail: false }).subscribe();
+    const guest = http.expectOne(`${base}/r6/guests`);
+    expect(guest.request.method).toBe('POST');
+    expect(guest.request.body.guest.name).toBe('Lim');
+    guest.flush({ message: 'ok', registration: {}, pass: {} });
   });
 
   it('looks the host up by member number and date, and searches returning guests', () => {

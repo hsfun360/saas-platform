@@ -10,14 +10,37 @@ export type GolfVisitDirection = 'inbound' | 'outbound';
 
 // What the letter asks for; golf is the part the system books.
 export interface GolfVisitFacilities {
-  golf?: { courseId: string | null; teeTime: string | null; holes: number } | null;
+  // `playDate`: the day of the letter the requested flight is played (default: its first).
+  golf?: { courseId: string | null; teeTime: string | null; holes: number; playDate?: string | null } | null;
   dining?: string | null;
   accommodation?: string | null;
   sports?: string | null;
   other?: string | null;
 }
 
-// One incoming Letter of Introduction and the visit it authorises (golf.AffiliatedVisit).
+// A golf flight the letter holds for one of its days.
+export interface GolfVisitFlight {
+  id: string;
+  playDate: string;
+  bookingProfileId: string;
+  bookingNo: string | null;
+  bookingStatus: string | null;
+}
+
+// The flight a further day would book (show the expected result).
+export interface GolfVisitFlightPreview {
+  flight: { courseName: string; teeTime: string; crossTime: string | null; holes: number; seatsLeft: number };
+  summary: string;
+}
+
+export interface GolfVisitFlightPayload {
+  playDate: string;
+  courseId: string;
+  teeTime: string;
+  holes: number;
+}
+
+// One Letter of Introduction and the visit it authorises (membership.AffiliatedVisit).
 export interface GolfAffiliatedVisit {
   id: string;
   visitNo: string;
@@ -36,12 +59,20 @@ export interface GolfAffiliatedVisit {
   loiReference: string | null;
   loiDocumentUrl: string | null;
   visitDate: string;
+  // The letter's last day when it covers several (null = one day); `lastDay`
+  // is always set.
+  visitDateTo: string | null;
+  lastDay: string;
+  dayCount: number;
+  // The days the visitor registered at the Registration Counter.
+  attendedDates: string[];
   alternateDate: string | null;
   facilities: GolfVisitFacilities;
   facilitiesText: string;
   playerCount: number;
   guestCount: number;
-  bookingProfileId: string | null;
+  // The golf flights, one per booking; `bookingNo` lists their numbers.
+  flights: GolfVisitFlight[];
   bookingNo: string | null;
   confirmedAt: string | null;
   issuedAt: string | null;
@@ -73,6 +104,7 @@ export interface GolfVisitPayload {
   loiReference: string | null;
   loiDocumentUrl: string | null;
   visitDate: string;
+  visitDateTo: string | null;
   alternateDate: string | null;
   facilities: GolfVisitFacilities;
   playerCount: number;
@@ -131,13 +163,13 @@ export class GolfAffiliatedVisitService {
     return this.http.get<GolfVisitMeta>(`${this.base}/meta`);
   }
 
-  list(filter: { dateFrom?: string; dateTo?: string; status?: string; direction?: string }): Observable<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[] }> {
+  list(filter: { dateFrom?: string; dateTo?: string; status?: string; direction?: string }): Observable<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[]; today?: string }> {
     let params = new HttpParams();
     if (filter.dateFrom) params = params.set('dateFrom', filter.dateFrom);
     if (filter.dateTo) params = params.set('dateTo', filter.dateTo);
     if (filter.status) params = params.set('status', filter.status);
     if (filter.direction) params = params.set('direction', filter.direction);
-    return this.http.get<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[] }>(this.base, { params });
+    return this.http.get<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[]; today?: string }>(this.base, { params });
   }
 
   // Outbound: issue our letter of introduction and email it.
@@ -169,8 +201,18 @@ export class GolfAffiliatedVisitService {
     return this.http.post<{ message: string; visit: GolfAffiliatedVisit }>(`${this.base}/${id}/cancel`, { reason });
   }
 
-  arrive(id: string, checks: { letterSighted: boolean; idSighted: boolean }): Observable<{ message: string; visit: GolfAffiliatedVisit }> {
-    return this.http.post<{ message: string; visit: GolfAffiliatedVisit }>(`${this.base}/${id}/arrive`, checks);
+  // The golf flights of a confirmed letter, one booking per play day. (The
+  // visitor's arrival is recorded at the Registration Counter.)
+  previewFlight(id: string, payload: GolfVisitFlightPayload): Observable<GolfVisitFlightPreview> {
+    return this.http.post<GolfVisitFlightPreview>(`${this.base}/${id}/flights/preview`, payload);
+  }
+
+  addFlight(id: string, payload: GolfVisitFlightPayload): Observable<{ message: string; visit: GolfAffiliatedVisit }> {
+    return this.http.post<{ message: string; visit: GolfAffiliatedVisit }>(`${this.base}/${id}/flights`, payload);
+  }
+
+  removeFlight(id: string, flightId: string): Observable<{ message: string; visit: GolfAffiliatedVisit }> {
+    return this.http.post<{ message: string; visit: GolfAffiliatedVisit }>(`${this.base}/${id}/flights/${flightId}/remove`, {});
   }
 
   complete(id: string): Observable<{ message: string; visit: GolfAffiliatedVisit }> {

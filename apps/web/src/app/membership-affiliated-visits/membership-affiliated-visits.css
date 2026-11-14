@@ -118,3 +118,33 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Golf flights: the bookings of the letter, then the add-a-flight form. */
+.gav-flights {
+  list-style: none;
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.gav-flights li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-xs) var(--space-md);
+  color: var(--text-primary);
+}
+.gav-flights li + li {
+  border-top: 1px solid var(--border);
+}
+.gav-flight-form {
+  margin-top: var(--space-md);
+}
+.gav-flight-ok {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+  color: var(--success-text);
+}

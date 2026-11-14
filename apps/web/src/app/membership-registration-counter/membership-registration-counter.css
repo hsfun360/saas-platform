@@ -1,7 +1,8 @@
-/* Guest Registration - the filter toolbar, the count line, the drawer's host
-   facts and returning-guest list, the pass hand-over and the scan verdict;
-   shared listing/dialog chrome comes from styles.css. All colours are theme
-   tokens. */
+/* Registration Counter - the filter toolbar, the count line, the visiting
+   members expected today, the drawer's host facts and returning-guest list,
+   the class picker, the sighting ticks, the pass hand-over and the scan
+   verdict; shared listing/dialog chrome comes from styles.css. All colours
+   are theme tokens. */
 
 .ggr-filter {
   display: flex;
@@ -43,6 +44,50 @@
   margin: 0 0 var(--space-sm);
   font-size: var(--font-body-2);
   color: var(--text-secondary);
+}
+
+/* The two titled blocks of the page: who is expected, then the registrations. */
+.ggr-heading {
+  margin: var(--space-md) 0 var(--space-sm);
+}
+.ggr-expected {
+  margin-bottom: var(--space-md);
+}
+
+/* The class picker: one option per row. */
+.ggr-picks {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+/* The walk-up entry under today's letters. */
+.ggr-walk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+.ggr-walk p {
+  margin: 0;
+}
+
+/* What the counter sighted: a tick per document. */
+.ggr-tick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.ggr-tick input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
 }
 
 /* The host's standing and allowance under the Member No / Visit date row. */
@@ -206,6 +251,9 @@
   }
   .ggr-verify {
     grid-template-columns: 1fr;
+  }
+  .ggr-walk .btn {
+    width: 100%;
   }
 }
 

@@ -79,7 +79,7 @@
               <div class="data-card__title">{{ v.visitNo }} - {{ v.visitorName }} ({{ v.direction === 'outbound' ? 'our member ' + v.visitorMemberNo + ' to ' + (v.club?.name || 'club') : (v.club?.name || 'club') + ' ' + v.visitorMemberNo }})</div>
               <div class="data-card__subline">
                 <span class="status-chip" [class.status-chip--info]="v.direction === 'outbound'" [class.status-chip--off]="v.direction !== 'outbound'">{{ v.direction === 'outbound' ? 'Outbound' : 'Inbound' }}</span>
-                <span class="data-card__reg">{{ v.visitDate | localDate:'weekday' }}{{ v.alternateDate ? ' or ' + (v.alternateDate | localDate) : '' }}</span>
+                <span class="data-card__reg">{{ datesText(v) }}{{ v.dayCount > 1 ? ' (' + v.dayCount + ' days)' : '' }}{{ v.alternateDate ? ' or ' + (v.alternateDate | localDate) : '' }}</span>
                 @if (v.facilitiesText) { <span class="data-card__reg">{{ v.facilitiesText }}</span> }
                 @if (v.facilities.golf) { <span class="data-card__reg">{{ v.playerCount }} player{{ v.playerCount === 1 ? '' : 's' }}{{ v.guestCount ? ', ' + v.guestCount + ' guest' + (v.guestCount === 1 ? '' : 's') : '' }}</span> }
               </div>
@@ -90,8 +90,10 @@
                 @if (v.issuedAt) {
                   <div class="meta"><dt>Letter issued</dt><dd>{{ v.issuedAt | localDate:'datetime' }}{{ v.sentTo ? ' · sent to ' + v.sentTo : ' · not emailed' }}</dd></div>
                 }
-                @if (v.bookingNo) {
-                  <div class="meta"><dt>Booking</dt><dd>{{ v.bookingNo }}</dd></div>
+                @if (v.flights.length) {
+                  <div class="meta"><dt>{{ v.flights.length === 1 ? 'Golf flight' : 'Golf flights' }}</dt><dd>
+                    @for (fl of v.flights; track fl.id; let last = $last) {{{ fl.bookingNo }}{{ v.dayCount > 1 ? ' on ' + (fl.playDate | localDate:'dayMonth') : '' }}{{ last ? '' : ', ' }}}
+                  </dd></div>
                 }
                 @if (v.status === 'declined') {
                   <div class="meta"><dt>Declined</dt><dd>{{ v.declineReason }} · {{ v.declinedAt | localDate:'datetime' }}</dd></div>
@@ -101,6 +103,9 @@
                 }
                 @if (v.arrivedAt) {
                   <div class="meta"><dt>Received</dt><dd>{{ v.arrivedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (v.attendedDates.length) {
+                  <div class="meta"><dt>Days at the counter</dt><dd>{{ v.attendedDates.length }} of {{ v.dayCount }} - {{ attendedText(v) }}</dd></div>
                 }
                 @if (v.completedAt) {
                   <div class="meta"><dt>Completed</dt><dd>{{ v.completedAt | localDate:'datetime' }}</dd></div>
@@ -135,6 +140,12 @@
                     <button type="button" appMenuItem (click)="openEdit(v)">
                       <span class="material-icons" aria-hidden="true">edit</span>
                       Edit
+                    </button>
+                  }
+                  @if (takesFlights(v)) {
+                    <button type="button" appMenuItem (click)="openFlights(v)">
+                      <span class="material-icons" aria-hidden="true">golf_course</span>
+                      Golf flights
                     </button>
                   }
                   @if (v.direction === 'inbound' && (v.status === 'requested' || v.status === 'pending-approval')) {
@@ -279,11 +290,20 @@
               }
             </div>
             <div class="form-group">
-              <label for="gavAlt">Alternate date</label>
-              <input id="gavAlt" type="date" formControlName="alternateDate" />
-              <p class="cell-subtle field-hint">A fallback the letter offers; the visit books on the visit date.</p>
+              <label for="gavDateTo">Last day</label>
+              <input id="gavDateTo" type="date" formControlName="visitDateTo" [min]="form.controls.visitDate.value" />
+              <p class="cell-subtle field-hint">Only when the letter covers several days. The visitor registers at the Registration Counter on each day they come, and each day counts as one visit.</p>
             </div>
           </div>
+          @if (!severalDays()) {
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="gavAlt">Alternate date</label>
+                <input id="gavAlt" type="date" formControlName="alternateDate" />
+                <p class="cell-subtle field-hint">A fallback a one-day letter offers; the visit books on the visit date.</p>
+              </div>
+            </div>
+          }
           <div class="form-row">
             <label class="gav-check">
               <input type="checkbox" formControlName="golfRequested" />
@@ -292,6 +312,15 @@
             <p class="cell-subtle field-hint">{{ outbound() ? 'Stated on the letter: holes, preferred time and the party.' : 'Confirming books a flight for the party on the course and tee time below, under the visitor\'s own identity; every tee-sheet rule applies.' }}</p>
           </div>
           @if (golfOn()) {
+            @if (severalDays() && !outbound()) {
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="gavPlayDate">Play date</label>
+                  <input id="gavPlayDate" type="date" formControlName="golfPlayDate" [min]="form.controls.visitDate.value" [max]="form.controls.visitDateTo.value" />
+                  <p class="cell-subtle field-hint">The day of the letter this flight is played; empty = its first day. Flights for further days are added under "Golf flights" once the visit is confirmed.</p>
+                </div>
+              </div>
+            }
             <div class="form-grid">
               @if (!outbound()) {
               <div class="form-group">
@@ -373,7 +402,7 @@
   <!-- ============ Confirm preview (centred: what Confirm will do) ============ -->
   @if (actionKind() === 'confirm' && actionTarget(); as target) {
     <app-dialog title="Confirm visit" [busy]="working()" (close)="closeAction()">
-      <p>Visit <strong>{{ target.visitNo }}</strong> - {{ target.visitorName }} ({{ target.club?.name }}) on <strong>{{ target.visitDate | localDate:'weekday' }}</strong>.</p>
+      <p>Visit <strong>{{ target.visitNo }}</strong> - {{ target.visitorName }} ({{ target.club?.name }}) on <strong>{{ datesText(target) }}</strong>.</p>
       @if (previewError(); as perr) {
         <p class="field-error" role="alert">{{ perr }}</p>
       } @else if (preview(); as p) {
@@ -384,7 +413,7 @@
           }
           <div><dt>Party</dt><dd>{{ target.playerCount }} player{{ target.playerCount === 1 ? '' : 's' }}{{ target.guestCount ? ' (' + target.guestCount + ' guest' + (target.guestCount === 1 ? '' : 's') + ')' : '' }}</dd></div>
           <div><dt>Billed as</dt><dd>{{ p.playerType ? p.playerType.code + ' - ' + p.playerType.description : '-' }}</dd></div>
-          <div><dt>Visits this period</dt><dd>{{ p.visitsThisPeriod }}{{ p.clubVisitsThisYear ? ' · club total this year ' + p.clubVisitsThisYear : '' }}</dd></div>
+          <div><dt>Visit days this period</dt><dd>{{ p.visitsThisPeriod }}{{ p.clubVisitsThisYear ? ' · club total this year ' + p.clubVisitsThisYear : '' }}</dd></div>
           @if (p.visitFee) {
             <div><dt>Visit fee</dt><dd>{{ p.visitFee }}</dd></div>
           }
@@ -407,8 +436,8 @@
   <!-- ============ Issue letter (centred: what will be sent) ============ -->
   @if (actionKind() === 'issue' && actionTarget(); as target) {
     <app-dialog title="Issue letter of introduction" [busy]="working()" (close)="closeAction()">
-      <p>Issue letter <strong>{{ target.visitNo }}</strong> introducing <strong>{{ target.visitorName }}</strong> ({{ target.visitorMemberNo }}) to <strong>{{ target.club?.name }}</strong> for <strong>{{ target.visitDate | localDate:'weekday' }}</strong>{{ target.alternateDate ? ' or ' + (target.alternateDate | localDate) : '' }}.</p>
-      <p>The member's standing is re-checked, the letter is emailed to the club's contact and to the member, and the visit counts against the member's cap with that club.{{ target.facilitiesText ? ' Facilities: ' + target.facilitiesText + '.' : '' }}</p>
+      <p>Issue letter <strong>{{ target.visitNo }}</strong> introducing <strong>{{ target.visitorName }}</strong> ({{ target.visitorMemberNo }}) to <strong>{{ target.club?.name }}</strong> for <strong>{{ datesText(target) }}</strong>{{ target.alternateDate ? ' or ' + (target.alternateDate | localDate) : '' }}.</p>
+      <p>The member's standing is re-checked, the letter is emailed to the club's contact and to the member, and each day of it counts against the member's cap with that club.{{ target.facilitiesText ? ' Facilities: ' + target.facilitiesText + '.' : '' }}</p>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="closeAction()" [disabled]="working()">Back</button>
         <button type="button" class="btn btn--primary" (click)="runIssue()" [disabled]="working()">
@@ -418,13 +447,83 @@
     </app-dialog>
   }
 
+  <!-- ============ Golf flights (centred: one booking per play day; preview before booking) ============ -->
+  @if (actionKind() === 'flights' && actionTarget(); as target) {
+    <app-dialog title="Golf flights" [busy]="working()" (close)="closeAction()">
+      <p>Visit <strong>{{ target.visitNo }}</strong> - {{ target.visitorName }} ({{ target.club?.name }}), {{ datesText(target) }}. {{ target.playerCount }} player{{ target.playerCount === 1 ? '' : 's' }} per flight.</p>
+      @if (target.flights.length) {
+        <ul class="gav-flights" aria-label="Flights booked on this visit">
+          @for (fl of target.flights; track fl.id) {
+            <li>
+              <span><strong>{{ fl.playDate | localDate:'weekday' }}</strong> · booking {{ fl.bookingNo }}{{ fl.bookingStatus && fl.bookingStatus !== 'booked' ? ' (' + fl.bookingStatus + ')' : '' }}</span>
+              <button *appCan="'edit'" type="button" class="btn btn--link btn--sm" (click)="askRemoveFlight(target, fl)" [disabled]="working()">Cancel flight</button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="cell-subtle">No flight is booked on this visit yet.</p>
+      }
+      @if (target.lastDay >= today()) {
+        <form id="gavFlightForm" [formGroup]="flightForm" (ngSubmit)="flightPreview() ? bookFlight() : checkFlight()" class="saas-form saas-form--dialog gav-flight-form">
+          <h3 class="dlg-section">Add a flight</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavFlDate">Play date <span class="required">*</span></label>
+              <input id="gavFlDate" type="date" formControlName="playDate" [min]="flightMin(target)" [max]="target.lastDay" (change)="flightChanged()"
+                     [attr.aria-invalid]="showError(flightForm.controls.playDate)" />
+            </div>
+            <div class="form-group">
+              <label for="gavFlCourse">Course <span class="required">*</span></label>
+              <app-combobox inputId="gavFlCourse" formControlName="courseId" [options]="courseOptions()" [allowEmpty]="false" placeholder="Type to search…"
+                            [invalid]="showError(flightForm.controls.courseId)" (valueChange)="flightChanged()" />
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gavFlTee">Tee time <span class="required">*</span></label>
+              <input id="gavFlTee" type="time" formControlName="teeTime" step="60" (change)="flightChanged()"
+                     [attr.aria-invalid]="showError(flightForm.controls.teeTime)" />
+            </div>
+            <div class="form-group">
+              <label for="gavFlHoles">Holes</label>
+              <select id="gavFlHoles" formControlName="holes" (change)="flightChanged()">
+                <option [ngValue]="9">9 holes</option>
+                <option [ngValue]="18">18 holes</option>
+              </select>
+            </div>
+          </div>
+          @if (flightError(); as ferr) {
+            <p class="field-error" role="alert">{{ ferr }}</p>
+          } @else if (flightPreview(); as fp) {
+            <p class="gav-flight-ok" role="status"><span class="material-icons inline-icon" aria-hidden="true">verified</span> {{ fp.summary }} {{ fp.flight.seatsLeft }} seat{{ fp.flight.seatsLeft === 1 ? '' : 's' }} free.</p>
+          } @else {
+            <p class="cell-subtle">Check the flight first: the tee sheet and the club's playing rights are read before anything is booked.</p>
+          }
+        </form>
+      } @else {
+        <p class="cell-subtle">The letter's last day has passed - no further flight can be added.</p>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAction()" [disabled]="working()">Close</button>
+        @if (target.lastDay >= today()) {
+          <button *appCan="'edit'" type="submit" form="gavFlightForm" class="btn btn--primary" [disabled]="working()">
+            {{ working() ? 'Working…' : (flightPreview() ? 'Book ' + flightPreview()?.flight?.teeTime + ' flight' : 'Check flight') }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+
   <!-- ============ Decline / Cancel (centred, reason required) ============ -->
   @if ((actionKind() === 'decline' || actionKind() === 'cancel') && actionTarget(); as target) {
     <app-dialog [title]="actionKind() === 'decline' ? 'Decline visit' : 'Cancel visit'" [busy]="working()" (close)="closeAction()">
       @if (actionKind() === 'decline') {
-        <p>Decline visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }} ({{ target.club?.name }}) on {{ target.visitDate | localDate }}? The visitor and the home club are emailed the reason.</p>
+        <p>Decline visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }} ({{ target.club?.name }}) on {{ datesText(target) }}? The visitor and the home club are emailed the reason.</p>
       } @else {
-        <p>Cancel visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }}?{{ target.bookingNo ? ' Booking ' + target.bookingNo + ' is cancelled with it.' : '' }}</p>
+        <p>Cancel visit <strong>{{ target.visitNo }}</strong> for {{ target.visitorName }}?{{ target.bookingNo ? ' Golf booking ' + target.bookingNo + ' is cancelled with it.' : '' }}</p>
       }
       <div class="form-group">
         <label for="gavReason">Reason <span class="required">*</span></label>

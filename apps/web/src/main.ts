@@ -62,7 +62,7 @@ const routes: Routes = [
   { path: 'agent/register', loadComponent: () => import('./app/agent-portal/agent-register').then((m) => m.AgentRegisterComponent) },
   // The guest's digital day pass (2026-11-10) - public, outside the shell:
   // the random token in the link is the credential (a guest has no login).
-  { path: 'guest-pass/:token', loadComponent: () => import('./app/guest-pass/guest-pass').then((m) => m.GuestPassComponent), data: { title: 'Guest pass' } },
+  { path: 'guest-pass/:token', loadComponent: () => import('./app/guest-pass/guest-pass').then((m) => m.GuestPassComponent), data: { title: 'Day pass' } },
   { path: 'agent', loadComponent: () => import('./app/agent-portal/agent-home').then((m) => m.AgentHomeComponent), canActivate: [authGuard] },
   {
     // Shell layout - wraps the whole authenticated tree (top bar + sidebar +
@@ -187,7 +187,11 @@ const routes: Routes = [
       { path: 'membership/affiliated-clubs', loadComponent: () => import('./app/membership-affiliated-clubs/membership-affiliated-clubs').then((m) => m.MembershipAffiliatedClubsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/affiliated-visits', loadComponent: () => import('./app/membership-affiliated-visits/membership-affiliated-visits').then((m) => m.MembershipAffiliatedVisitsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Guest Registration (a member's guest + the digital day pass) and the Guest Visits enquiry over the guest-usage ledger (2026-11-10).
-      { path: 'membership/guest-registrations', loadComponent: () => import('./app/membership-guest-registrations/membership-guest-registrations').then((m) => m.MembershipGuestRegistrationsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      // The Registration Counter (2026-11-14): every patron group at one counter.
+      // The old Guest Registrations path opens the same screen, so a Menu row
+      // that still carries it keeps working until its route is changed.
+      { path: 'membership/registration-counter', loadComponent: () => import('./app/membership-registration-counter/membership-registration-counter').then((m) => m.MembershipRegistrationCounterComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/guest-registrations', loadComponent: () => import('./app/membership-registration-counter/membership-registration-counter').then((m) => m.MembershipRegistrationCounterComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/guest-visits', loadComponent: () => import('./app/membership-guest-visits/membership-guest-visits').then((m) => m.MembershipGuestVisitsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Account Receivable → Debtor Listing (all three debtor types in one
       // list; Other Debtors managed from the same screen).

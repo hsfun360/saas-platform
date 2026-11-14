@@ -11,7 +11,7 @@ import { MembershipGuestService, PublicGuestPass } from '../services/membership-
 
 const PASS: PublicGuestPass = {
   clubName: 'Kuala Lumpur Golf & Country Club', clubLogo: null, registrationNo: 'GR-000001',
-  guestName: 'Lim Mei Ling', hostName: 'Ahmad Faizal', visitDate: '2026-11-10',
+  guestName: 'Lim Mei Ling', hostName: 'Ahmad Faizal', patronGroup: 'guest', patronLabel: "Member's guest", relationText: 'Guest of Ahmad Faizal', visitDate: '2026-11-10',
   state: 'valid', stateLabel: 'Valid today', arrivedAt: null, qrDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
 };
 
@@ -45,6 +45,19 @@ describe('GuestPassComponent', () => {
     expect(text('.auth-alert h2')).toBe('Valid today');
     expect((fixture.nativeElement as HTMLElement).querySelector('.auth-alert--success')).toBeTruthy();
     expect((fixture.nativeElement as HTMLElement).querySelector('.gp-qr img')).toBeTruthy();
+  });
+
+  it('reads as a day pass of the home club for a visiting affiliated or reciprocal member', () => {
+    build('tok123', () => of({ ...PASS, guestName: 'John Tan', hostName: '', patronGroup: 'reciprocal', patronLabel: 'Reciprocal member', relationText: 'Member of Royal Selangor Golf Club' }));
+    expect(text('.auth-title')).toBe('Day pass');
+    expect(text('.auth-greeting__hello')).toBe('John Tan');
+    expect(text('.auth-chip')).toContain('Member of Royal Selangor Golf Club');
+    expect(text('.gp-lead')).toContain('valid for this day only');
+  });
+
+  it('keeps the title Guest pass for the guest of a member', () => {
+    build('tok123', () => of(PASS));
+    expect(text('.auth-title')).toBe('Guest pass');
   });
 
   it('shows an expired pass as unusable, with no QR code', () => {

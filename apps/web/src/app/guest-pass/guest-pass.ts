@@ -1,15 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { MembershipGuestService, PublicGuestPass } from '../services/membership-guest.service';
 
-// The guest's digital DAY PASS (/guest-pass/:token; structure approved
-// 2026-11-10). Public route, outside the shell: the random token in the link
-// is the credential - a guest has no login. The page shows who the pass is
-// for, whose guest they are, the date and the LIVE state read from the
-// server on every open (valid today / not yet valid / expired / cancelled),
-// so an old screenshot never passes for a valid pass at the desk. It shows
-// no contact details and no member number.
+// The digital DAY PASS (/guest-pass/:token; structure approved 2026-11-10,
+// one pass for every patron group since 2026-11-14). Public route, outside
+// the shell: the random token in the link is the credential - the holder has
+// no login. The page shows who the pass is for, how they come to the club (a
+// member's guest, or a visiting member of an affiliated or reciprocal club),
+// the date and the LIVE state read from the server on every open (valid
+// today / not yet valid / expired / cancelled), so an old screenshot never
+// passes for a valid pass at the desk. It shows no contact details and no
+// membership number.
 @Component({
   selector: 'app-guest-pass',
   standalone: true,
@@ -25,6 +27,11 @@ export class GuestPassComponent implements OnInit {
   readonly loading = signal(true);
   readonly pass = signal<PublicGuestPass | null>(null);
   readonly invalidMessage = signal('');
+  // "Guest pass" for a member's guest, "Day pass" for a visiting member.
+  readonly title = computed(() => {
+    const p = this.pass();
+    return p && !this.isGuestPass(p) ? 'Day pass' : 'Guest pass';
+  });
 
   ngOnInit(): void {
     const token = this.route.snapshot.paramMap.get('token') || '';
@@ -45,6 +52,16 @@ export class GuestPassComponent implements OnInit {
           : 'This pass link is not valid. Please ask the club or your host for a new one.');
       },
     });
+  }
+
+  // A member's guest (a pass issued before the patron groups has none set).
+  isGuestPass(p: PublicGuestPass): boolean {
+    return !p.patronGroup || p.patronGroup === 'guest';
+  }
+
+  // "Guest of Ahmad Faizal" / "Member of Royal Selangor Golf Club".
+  relation(p: PublicGuestPass): string {
+    return p.relationText || `Guest of ${p.hostName}`;
   }
 
   stateIcon(state: PublicGuestPass['state']): string {

@@ -1,7 +1,7 @@
 <div class="auth-page">
   <div class="auth-card">
 
-    <h1 class="auth-title">Guest pass</h1>
+    <h1 class="auth-title">{{ title() }}</h1>
 
     @if (loading()) {
       <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Opening your pass…</p></div>
@@ -22,7 +22,7 @@
         }
         <p class="auth-greeting__hello">{{ p.guestName }}</p>
         <span class="auth-chip">
-          <span class="material-icons" aria-hidden="true">person</span>Guest of {{ p.hostName }}
+          <span class="material-icons" aria-hidden="true">{{ isGuestPass(p) ? 'person' : 'card_membership' }}</span>{{ relation(p) }}
         </span>
       </div>
 
@@ -34,16 +34,16 @@
             @case ('valid') { This pass is valid today, {{ p.visitDate | localDate:'weekday' }}.{{ p.arrivedAt ? ' Arrival recorded at ' + (p.arrivedAt | localDate:'datetime') + '.' : '' }} }
             @case ('upcoming') { This pass is for {{ p.visitDate | localDate:'weekday' }}. It becomes valid on that day. }
             @case ('expired') { This pass was for {{ p.visitDate | localDate:'weekday' }} and can no longer be used. }
-            @default { This registration was cancelled. Please contact your host or the club. }
+            @default { This registration was cancelled. Please contact {{ isGuestPass(p) ? 'your host or the club' : 'the club' }}. }
           }
         </p>
       </div>
 
       @if (p.qrDataUrl) {
         <div class="gp-qr">
-          <img [src]="p.qrDataUrl" width="220" height="220" alt="QR code of this guest pass" />
+          <img [src]="p.qrDataUrl" width="220" height="220" alt="QR code of this pass" />
         </div>
-        <p class="auth-lead gp-lead">Show this code at the front desk and the outlets.</p>
+        <p class="auth-lead gp-lead">{{ isGuestPass(p) ? 'Show this code at the front desk and the outlets.' : 'Show this code at the golf desk, the facilities and the outlets. It is valid for this day only.' }}</p>
       }
 
       <dl class="gp-facts">

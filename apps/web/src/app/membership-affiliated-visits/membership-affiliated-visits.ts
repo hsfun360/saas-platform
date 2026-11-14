@@ -9,11 +9,13 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import {
   GolfAffiliatedVisitService, GolfAffiliatedVisit, GolfVisitMeta, GolfVisitConfirmPreview, GolfVisitPayload, GolfVisitClubOption,
+  GolfVisitFlight, GolfVisitFlightPreview,
 } from '../services/membership-affiliated-visit.service';
 
 // The DEVICE-local calendar date as 'YYYY-MM-DD' (toISOString would be UTC).
@@ -26,20 +28,24 @@ function localDate(d: Date): string {
 // an incoming Letter of Introduction from an affiliated association or
 // reciprocal club is recorded as a visit; Confirm shows what will be booked
 // (the flight, the party, whether approval runs first) and then books the
-// golf part under the visitor's own golfer identity through the golf seam;
-// the front desk receives the visitor on the Tee Time Sheet (letter and ID
-// sighted), and the visit completes when every bill is settled. OUTBOUND:
+// golf part under the visitor's own golfer identity through the golf seam.
+// A letter may cover SEVERAL days (2026-11-14): the visitor registers at the
+// Registration Counter on each day they come (letter and ID sighted the first
+// time) and gets that day's pass, each such day counts as one visit, golf
+// hangs off the letter one flight per play day ("Golf flights"), and the
+// letter completes after its last day once every bill is settled. OUTBOUND:
 // our member's visit to a partner club; Issue letter numbers and emails our
 // letter of introduction after the standing check. Decline and Cancel take
 // a reason; the inbound letter is uploaded.
-// Single-dialog standard: the record form is the drawer, the confirm preview
-// and the reason prompts are a centred dialog, never two at once.
+// Single-dialog standard: the record form is the drawer, the confirm preview,
+// the golf flights and the reason prompts are a centred dialog, never two at
+// once.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-affiliated-visits',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent,
-    ComboboxComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
+    ComboboxComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, ConfirmDialogComponent],
   templateUrl: './membership-affiliated-visits.html',
   styleUrls: ['./membership-affiliated-visits.css'],
 })
@@ -105,8 +111,12 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     loiReference: ['', [Validators.maxLength(100)]],
     loiDocumentUrl: [''],
     visitDate: ['', [Validators.required]],
+    // The letter's last day when it covers several (empty = one day).
+    visitDateTo: [''],
     alternateDate: [''],
     golfRequested: [true],
+    // The day of the letter the requested flight is played (empty = its first).
+    golfPlayDate: [''],
     courseId: [''],
     teeTime: [''],
     holes: [18],
@@ -119,14 +129,27 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     remarks: ['', [Validators.maxLength(255)]],
   });
 
-  // ---- the centred dialogs: confirm preview, decline / cancel reasons ----
-  readonly actionKind = signal<'confirm' | 'issue' | 'decline' | 'cancel' | null>(null);
+  // ---- the centred dialogs: confirm preview, golf flights, decline / cancel reasons ----
+  readonly actionKind = signal<'confirm' | 'issue' | 'decline' | 'cancel' | 'flights' | null>(null);
   readonly actionTarget = signal<GolfAffiliatedVisit | null>(null);
   readonly actionReason = signal('');
   readonly preview = signal<GolfVisitConfirmPreview | null>(null);
   readonly previewError = signal('');
   readonly working = signal(false);
   readonly workingId = signal<string | null>(null);
+
+  // ---- golf flights of a confirmed letter, one booking per play day ----
+  readonly flightForm = this.fb.nonNullable.group({
+    playDate: ['', [Validators.required]],
+    courseId: ['', [Validators.required]],
+    teeTime: ['', [Validators.required]],
+    holes: [18],
+  });
+  readonly flightPreview = signal<GolfVisitFlightPreview | null>(null);
+  readonly flightError = signal('');
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
+  // The club's own date (from the listing), for the earliest bookable day.
+  readonly today = signal(localDate(new Date()));
 
   ngOnInit(): void {
     this.service.meta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });
@@ -143,6 +166,10 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
       next: (res) => {
         this.visits.set(res.visits);
         this.statuses.set(res.statuses);
+        if (res.today) this.today.set(res.today);
+        // The flights dialog follows the reloaded letter.
+        const open = this.actionTarget();
+        if (open) this.actionTarget.set(res.visits.find((x) => x.id === open.id) || open);
         this.loading.set(false);
         this.returnScroll.consume(MembershipAffiliatedVisitsComponent.LIST_PATH, this.injector);
       },
@@ -193,6 +220,29 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     return this.form.controls.golfRequested.value === true;
   }
 
+  // The letter in the drawer covers more than one day.
+  severalDays(): boolean {
+    const from = this.form.controls.visitDate.value;
+    const to = this.form.controls.visitDateTo.value;
+    return !!from && !!to && to > from;
+  }
+
+  // "Sat, 14 Nov 2026" or "14 Nov 2026 to 16 Nov 2026".
+  datesText(v: GolfAffiliatedVisit): string {
+    return v.lastDay && v.lastDay !== v.visitDate
+      ? `${formatLocalDate(v.visitDate)} to ${formatLocalDate(v.lastDay)}`
+      : formatLocalDate(v.visitDate, 'weekday');
+  }
+
+  attendedText(v: GolfAffiliatedVisit): string {
+    return v.attendedDates.map((d) => formatLocalDate(d, 'dayMonth')).join(', ');
+  }
+
+  // An inbound letter that is confirmed or running takes golf flights.
+  takesFlights(v: GolfAffiliatedVisit): boolean {
+    return v.direction === 'inbound' && (v.status === 'confirmed' || v.status === 'arrived');
+  }
+
   outbound(): boolean {
     return this.form.controls.direction.value === 'outbound';
   }
@@ -209,7 +259,7 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     this.editId.set(null);
     this.form.reset({
       direction: 'inbound', affiliatedClubId: '', visitorName: '', visitorMemberNo: '', memberNo: '', visitorIdentityNo: '', visitorMobile: '', visitorEmail: '',
-      loiReference: '', loiDocumentUrl: '', visitDate: '', alternateDate: '', golfRequested: true, courseId: '', teeTime: '', holes: 18,
+      loiReference: '', loiDocumentUrl: '', visitDate: '', visitDateTo: '', alternateDate: '', golfRequested: true, golfPlayDate: '', courseId: '', teeTime: '', holes: 18,
       playerCount: 1, guestCount: 0, dining: '', accommodation: '', sports: '', other: '', remarks: '',
     });
     this.dialogOpen.set(true);
@@ -222,8 +272,8 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     this.form.reset({
       direction: v.direction, affiliatedClubId: v.affiliatedClubId, visitorName: v.visitorName, visitorMemberNo: v.visitorMemberNo, memberNo: v.direction === 'outbound' ? v.visitorMemberNo : '',
       visitorIdentityNo: v.visitorIdentityNo || '', visitorMobile: v.visitorMobile || '', visitorEmail: v.visitorEmail || '',
-      loiReference: v.loiReference || '', loiDocumentUrl: v.loiDocumentUrl || '', visitDate: v.visitDate, alternateDate: v.alternateDate || '',
-      golfRequested: !!g, courseId: g?.courseId || '', teeTime: g?.teeTime || '', holes: g?.holes || 18,
+      loiReference: v.loiReference || '', loiDocumentUrl: v.loiDocumentUrl || '', visitDate: v.visitDate, visitDateTo: v.visitDateTo || '', alternateDate: v.alternateDate || '',
+      golfRequested: !!g, golfPlayDate: g?.playDate && g.playDate !== v.visitDate ? g.playDate : '', courseId: g?.courseId || '', teeTime: g?.teeTime || '', holes: g?.holes || 18,
       playerCount: v.playerCount, guestCount: v.guestCount,
       dining: v.facilities?.dining || '', accommodation: v.facilities?.accommodation || '', sports: v.facilities?.sports || '', other: v.facilities?.other || '', remarks: v.remarks || '',
     });
@@ -281,9 +331,12 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
       loiReference: v.loiReference.trim() || null,
       loiDocumentUrl: v.loiDocumentUrl || null,
       visitDate: v.visitDate,
+      visitDateTo: v.visitDateTo && v.visitDateTo > v.visitDate ? v.visitDateTo : null,
       alternateDate: v.alternateDate || null,
       facilities: {
-        golf: v.golfRequested ? { courseId: v.courseId || null, teeTime: v.teeTime || null, holes: Number(v.holes) || 18 } : null,
+        golf: v.golfRequested
+          ? { courseId: v.courseId || null, teeTime: v.teeTime || null, holes: Number(v.holes) || 18, playDate: this.severalDays() && v.golfPlayDate ? v.golfPlayDate : null }
+          : null,
         dining: v.dining.trim() || null,
         accommodation: v.accommodation.trim() || null,
         sports: v.sports.trim() || null,
@@ -427,6 +480,106 @@ export class MembershipAffiliatedVisitsComponent implements OnInit {
     this.preview.set(null);
     this.previewError.set('');
     this.actionReason.set('');
+    this.flightPreview.set(null);
+    this.flightError.set('');
+  }
+
+  // ---- golf flights (one booking per play day) ----
+
+  openFlights(v: GolfAffiliatedVisit): void {
+    this.clearMessages();
+    this.actionKind.set('flights');
+    this.actionTarget.set(v);
+    const g = v.facilities?.golf || null;
+    // The first day of the letter that can still be booked.
+    const first = v.visitDate > this.today() ? v.visitDate : this.today();
+    this.flightForm.reset({ playDate: first <= v.lastDay ? first : v.lastDay, courseId: g?.courseId || '', teeTime: g?.teeTime || '', holes: g?.holes || 18 });
+    this.flightPreview.set(null);
+    this.flightError.set('');
+  }
+
+  // The earliest day a flight can be booked on this letter: today or its first day.
+  flightMin(v: GolfAffiliatedVisit): string {
+    return v.visitDate > this.today() ? v.visitDate : this.today();
+  }
+
+  // A changed field invalidates the preview: the button goes back to "Check flight".
+  flightChanged(): void {
+    this.flightPreview.set(null);
+    this.flightError.set('');
+  }
+
+  private flightPayload(): { playDate: string; courseId: string; teeTime: string; holes: number } {
+    const f = this.flightForm.getRawValue();
+    return { playDate: f.playDate, courseId: f.courseId, teeTime: f.teeTime, holes: Number(f.holes) || 18 };
+  }
+
+  checkFlight(): void {
+    const target = this.actionTarget();
+    if (!target) return;
+    if (this.flightForm.invalid) {
+      this.flightForm.markAllAsTouched();
+      return;
+    }
+    this.flightError.set('');
+    this.working.set(true);
+    this.service.previewFlight(target.id, this.flightPayload()).subscribe({
+      next: (p) => {
+        this.working.set(false);
+        this.flightPreview.set(p);
+      },
+      error: (err) => {
+        this.working.set(false);
+        this.flightError.set(err.error?.message || 'That flight cannot be booked.');
+      },
+    });
+  }
+
+  bookFlight(): void {
+    const target = this.actionTarget();
+    if (!target || !this.flightPreview()) return;
+    this.working.set(true);
+    this.service.addFlight(target.id, this.flightPayload()).subscribe({
+      next: (res) => {
+        this.working.set(false);
+        this.successMessage.set(res.message);
+        this.actionTarget.set(res.visit);
+        this.flightPreview.set(null);
+        this.returnScroll.remember(MembershipAffiliatedVisitsComponent.LIST_PATH, target.id);
+        this.load();
+      },
+      error: (err) => {
+        this.working.set(false);
+        this.flightError.set(err.error?.message || 'The flight could not be booked.');
+      },
+    });
+  }
+
+  askRemoveFlight(v: GolfAffiliatedVisit, fl: GolfVisitFlight): void {
+    this.confirmAction.set({
+      title: 'Cancel this flight?',
+      message: `Booking ${fl.bookingNo || ''} on ${formatLocalDate(fl.playDate, 'weekday')} for ${v.visitorName} is cancelled. The letter and its other days stay as they are.`,
+      confirmLabel: 'Cancel flight',
+      cancelLabel: 'Keep flight',
+      run: () => this.removeFlight(v, fl),
+    });
+  }
+
+  private removeFlight(v: GolfAffiliatedVisit, fl: GolfVisitFlight): void {
+    this.confirmAction.set(null);
+    this.working.set(true);
+    this.service.removeFlight(v.id, fl.id).subscribe({
+      next: (res) => {
+        this.working.set(false);
+        this.successMessage.set(res.message);
+        this.actionTarget.set(res.visit);
+        this.load();
+      },
+      error: (err) => {
+        this.working.set(false);
+        this.errorMessage.set(err.error?.message || 'The flight could not be cancelled.');
+      },
+    });
   }
 
   complete(v: GolfAffiliatedVisit): void {

@@ -6,6 +6,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { QrScannerComponent } from '../shared/qr-scanner/qr-scanner';
@@ -15,42 +16,44 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import {
   MembershipGuestService, GuestRegistration, GuestHostFacts, GuestMatch, GuestPassFacts, GuestRegistrationPayload,
+  ExpectedVisit, WalkUpClub, PatronGroup, GuestDetailsPayload,
 } from '../services/membership-guest.service';
 
-// The guest needs a way to receive the pass: a mobile or an email.
-function contactRequired(group: AbstractControl): ValidationErrors | null {
-  const mobile = String(group.get('mobile')?.value || '').trim();
-  const email = String(group.get('email')?.value || '').trim();
-  return mobile || email ? null : { contact: true };
-}
+type DialogMode = 'pick' | 'visit' | 'form' | 'receive' | 'walkup' | 'pass' | 'scan' | 'cancel';
 
-// Membership Management -> Guest Registration (/membership/guest-registrations;
-// structure approved 2026-11-10). The front desk registers a member's guest
-// for a date: the host is checked (status Action control, the month's guest
-// allowance), the guest is recognised when they have come before, and the
-// guest receives a digital DAY PASS - emailed, or shared from the desk's own
-// WhatsApp - that is valid on the visit date only. On the day the desk marks
-// the arrival from the row, or by scanning the pass.
+// Membership Management -> Registration Counter (/membership/registration-counter;
+// structures approved 2026-11-10 and 2026-11-14). The club's ONE counter for
+// everyone who is not a member, and every one of them leaves with the same
+// thing - a DAY PASS (QR code), valid on its date only:
+//   - a member's GUEST: the host is checked (status Action control, the
+//     month's guest allowance), the guest is recognised when they have come
+//     before, and the pass is emailed or shared from the desk's own WhatsApp;
+//   - a VISITING MEMBER of an affiliated or reciprocal club: the letter of
+//     introduction (the office's file, Affiliated Visits) is received HERE on
+//     each day the visitor comes - letter and ID sighted the first time, the
+//     ID after - and that day's pass is issued; a walk-up with no letter on
+//     file is keyed and, where the arrangement needs no approval, received at
+//     once; the guests the visitor brings get a pass each.
 // Single-dialog standard: ONE <app-dialog> instance with a mode signal and
-// @switch views (form / pass / scan / cancel). Registering a guest moves the
-// SAME dialog from the form to the pass view - two instances swapped in one
-// tick would have the closing one pop the opening one's Back-trap entry and
-// dismiss it at once (see memberships.spec.ts).
+// @switch views (pick / visit / form / receive / walkup / pass / scan /
+// cancel). Issuing a pass moves the SAME dialog on to the pass view - two
+// instances swapped in one tick would have the closing one pop the opening
+// one's Back-trap entry and dismiss it at once (see memberships.spec.ts).
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-membership-guest-registrations',
+  selector: 'app-membership-registration-counter',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent,
-    PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, QrScannerComponent, LocalDatePipe],
-  templateUrl: './membership-guest-registrations.html',
-  styleUrls: ['./membership-guest-registrations.css'],
+    PhoneInputComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, QrScannerComponent, LocalDatePipe],
+  templateUrl: './membership-registration-counter.html',
+  styleUrls: ['./membership-registration-counter.css'],
 })
-export class MembershipGuestRegistrationsComponent implements OnInit {
+export class MembershipRegistrationCounterComponent implements OnInit {
   private readonly service = inject(MembershipGuestService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
-  private static readonly LIST_PATH = '/membership/guest-registrations';
+  private static readonly LIST_PATH = '/membership/registration-counter';
 
   readonly loading = signal(false);
   readonly successMessage = signal('');
@@ -58,15 +61,21 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
 
   readonly registrations = signal<GuestRegistration[]>([]);
   readonly statuses = signal<MembershipStatusOption[]>([]);
+  readonly groups = signal<{ key: PatronGroup; label: string }[]>([]);
+  // The visiting members the counter may receive today, and the clubs a
+  // walk-up may come from.
+  readonly expectedVisits = signal<ExpectedVisit[]>([]);
+  readonly clubs = signal<WalkUpClub[]>([]);
   // The club's own date - "today" for the pass, whatever the device says.
   readonly today = signal(localDateOnly());
   readonly numberingMode = signal<'auto' | 'manual' | null>('auto');
 
-  // Server-side filters: visit-date range (a week back, a month ahead) +
-  // status; client-side search.
+  // Server-side filters: visit-date range (a week back, a month ahead),
+  // status and patron group; client-side search.
   readonly dateFrom = signal(localDateOnly(new Date(Date.now() - 7 * 86400000)));
   readonly dateTo = signal(localDateOnly(new Date(Date.now() + 30 * 86400000)));
   readonly status = signal('');
+  readonly group = signal('');
   readonly search = signal('');
 
   readonly filtered = computed(() => {
@@ -78,27 +87,49 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       || (r.guest?.name || '').toLowerCase().includes(q)
       || (r.guest?.mobile || '').toLowerCase().includes(q)
       || (r.guest?.email || '').toLowerCase().includes(q)
-      || (r.host?.name || '').toLowerCase().includes(q)
-      || (r.host?.memberNo || '').toLowerCase().includes(q));
+      || (r.relation || '').toLowerCase().includes(q)
+      || (r.visit?.visitNo || '').toLowerCase().includes(q));
   });
-  readonly expectedToday = computed(() => this.registrations().filter((r) => r.status === 'registered' && r.passState === 'valid').length);
+  // Expected today: the members' guests registered ahead for today plus the
+  // visiting members whose letter is valid today.
+  readonly expectedToday = computed(() => this.registrations().filter((r) => r.status === 'registered' && r.passState === 'valid').length + this.expectedVisits().length);
   readonly arrivedToday = computed(() => this.registrations().filter((r) => r.status === 'arrived' && r.passState === 'valid').length);
 
   // ---- the ONE dialog: which view it shows, and how it is presented ----
-  readonly dialogMode = signal<'form' | 'pass' | 'scan' | 'cancel' | null>(null);
-  // Fixed when the dialog opens: the form is a drawer (and stays one when it
-  // moves on to the pass), the standalone pass / scan / cancel are centred.
+  readonly dialogMode = signal<DialogMode | null>(null);
+  // Fixed when the dialog opens: a registration is a drawer (and stays one
+  // when it moves on to the pass), the standalone pass / scan / cancel are
+  // centred.
   readonly dialogVariant = signal<'drawer' | 'center'>('drawer');
   readonly saving = signal(false);
   readonly editTarget = signal<GuestRegistration | null>(null);
+  // The visiting member whose guest the form registers (their row of today).
+  readonly guestOf = signal<GuestRegistration | null>(null);
   readonly dialogTitle = computed(() => {
     switch (this.dialogMode()) {
-      case 'pass': return 'Guest pass';
-      case 'scan': return 'Scan guest pass';
-      case 'cancel': return 'Cancel guest registration';
-      default: return this.editTarget() ? 'Edit guest details' : 'New guest registration';
+      case 'pick': return 'New registration';
+      case 'visit': return 'Visiting member';
+      case 'receive': return 'Receive visiting member';
+      case 'walkup': return 'Walk-up - letter not on file';
+      case 'pass': return 'Day pass';
+      case 'scan': return 'Scan pass';
+      case 'cancel': return 'Cancel registration';
+      default:
+        if (this.editTarget()) return 'Edit details';
+        return this.guestOf() ? 'Guest of a visiting member' : 'New guest registration';
     }
   });
+
+  // The person needs a way to receive the pass - a mobile or an email -
+  // except the visiting member a letter names, whose pass can simply be
+  // shown at the counter.
+  private contactOptional = false;
+  private readonly contactRequired = (group: AbstractControl): ValidationErrors | null => {
+    if (this.contactOptional) return null;
+    const mobile = String(group.get('mobile')?.value || '').trim();
+    const email = String(group.get('email')?.value || '').trim();
+    return mobile || email ? null : { contact: true };
+  };
 
   readonly form = this.fb.nonNullable.group({
     memberNo: ['', [Validators.required, Validators.maxLength(50)]],
@@ -109,9 +140,55 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       mobile: [''],
       email: ['', [Validators.email, Validators.maxLength(255)]],
       identityNo: ['', [Validators.maxLength(50)]],
-    }, { validators: contactRequired }),
+    }, { validators: this.contactRequired }),
     remarks: ['', [Validators.maxLength(255)]],
     sendEmail: [true],
+  });
+
+  // Receiving a visiting member for today: what the counter sighted.
+  readonly receiveTarget = signal<ExpectedVisit | null>(null);
+  readonly receiveForm = this.fb.nonNullable.group({
+    letterSighted: [false],
+    idSighted: [false],
+    registrationNo: ['', [Validators.maxLength(50)]],
+    remarks: ['', [Validators.maxLength(255)]],
+  });
+
+  // A walk-up: the letter is keyed at the counter.
+  readonly walkForm = this.fb.nonNullable.group({
+    affiliatedClubId: ['', [Validators.required]],
+    visitorName: ['', [Validators.required, Validators.maxLength(255)]],
+    visitorMemberNo: ['', [Validators.required, Validators.maxLength(50)]],
+    visitorIdentityNo: ['', [Validators.maxLength(50)]],
+    visitorMobile: [''],
+    visitorEmail: ['', [Validators.email, Validators.maxLength(255)]],
+    loiReference: ['', [Validators.maxLength(100)]],
+    visitDateTo: [''],
+    sports: ['', [Validators.maxLength(255)]],
+    dining: ['', [Validators.maxLength(255)]],
+    other: ['', [Validators.maxLength(255)]],
+    remarks: ['', [Validators.maxLength(255)]],
+    registrationNo: ['', [Validators.maxLength(50)]],
+    letterSighted: [false],
+    idSighted: [false],
+  });
+  readonly clubOptions = computed(() => this.clubs().map((c) => ({ value: c.id, label: `${c.code} - ${c.name} (${this.kindLabel(c.kind)})` })));
+  // Mirrors the picked club so the note and the button follow it.
+  readonly walkClubId = signal('');
+  readonly walkClub = computed(() => this.clubs().find((c) => c.id === this.walkClubId()) || null);
+
+  // Picking the visiting member among today's letters.
+  readonly visitQuery = signal('');
+  readonly visitMatches = computed(() => {
+    const q = this.visitQuery().trim().toLowerCase();
+    const rows = this.expectedVisits();
+    if (!q) return rows;
+    return rows.filter((v) =>
+      v.visitorName.toLowerCase().includes(q)
+      || v.visitorMemberNo.toLowerCase().includes(q)
+      || v.visitNo.toLowerCase().includes(q)
+      || (v.club?.name || '').toLowerCase().includes(q)
+      || (v.club?.code || '').toLowerCase().includes(q));
   });
 
   // The host as looked up for the drawer (show the expected result).
@@ -158,18 +235,21 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.service.list({ dateFrom: this.dateFrom(), dateTo: this.dateTo(), status: this.status() }).subscribe({
+    this.service.list({ dateFrom: this.dateFrom(), dateTo: this.dateTo(), status: this.status(), group: this.group() }).subscribe({
       next: (res) => {
         this.registrations.set(res.registrations);
         this.statuses.set(res.statuses);
+        this.groups.set(res.groups || []);
+        this.expectedVisits.set(res.expectedVisits || []);
+        this.clubs.set(res.clubs || []);
         this.today.set(res.today);
         this.numberingMode.set(res.numberingMode);
         this.loading.set(false);
-        this.returnScroll.consume(MembershipGuestRegistrationsComponent.LIST_PATH, this.injector);
+        this.returnScroll.consume(MembershipRegistrationCounterComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to load guest registrations.');
+        this.errorMessage.set(err.error?.message || 'Failed to load the registrations.');
       },
     });
   }
@@ -177,7 +257,12 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
   setDateFrom(v: string): void { if (v) { this.dateFrom.set(v); this.load(); } }
   setDateTo(v: string): void { if (v) { this.dateTo.set(v); this.load(); } }
   setStatus(v: string): void { this.status.set(v); this.load(); }
+  setGroup(v: string): void { this.group.set(v); this.load(); }
   clearSearch(): void { this.search.set(''); }
+
+  kindLabel(kind: string | undefined): string {
+    return kind === 'reciprocal' ? 'reciprocal club' : 'affiliated club';
+  }
 
   // One chip per row: the stored status read against the pass date.
   chipLabel(r: GuestRegistration): string {
@@ -203,12 +288,29 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
     return r.status === 'registered' && r.passState === 'valid';
   }
 
+  // The visiting member a letter names (not a guest they brought).
+  isVisitor(r: GuestRegistration | null): boolean {
+    return !!r && !!r.visit && !r.accompanying;
+  }
+
   contactLine(r: GuestRegistration): string {
     return [r.guest?.mobile, r.guest?.email].filter(Boolean).join(' · ');
   }
 
+  // "guest of Ahmad Faizal (A0018)" inside a sentence.
+  relationInline(r: GuestRegistration): string {
+    const text = r.relation || '';
+    return text ? text.charAt(0).toLowerCase() + text.slice(1) : '';
+  }
+
   viaLabel(via: string | null): string {
     return via === 'whatsapp' ? 'WhatsApp' : 'email';
+  }
+
+  // "Day 2 of the letter - letter sighted on Sat, 14 Nov 2026."
+  visitDayLine(v: ExpectedVisit): string {
+    if (v.firstDay) return 'First time at the counter - sight the letter of introduction and the ID.';
+    return `Day ${v.daysAttended + 1} at the counter - the letter was sighted on ${formatLocalDate(v.letterSightedOn, 'weekday')}; sight the ID.`;
   }
 
   // ---- host lookup (drawer) ----
@@ -317,39 +419,89 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
     }
   }
 
-  // ---- record ----
+  // ---- open: the class first, then the form of that class ----
 
-  openAdd(): void {
+  // "New registration": who is at the counter?
+  openNew(): void {
     this.clearMessages();
     this.editTarget.set(null);
-    this.form.controls.memberNo.enable();
-    this.form.controls.visitDate.enable();
+    this.guestOf.set(null);
+    this.openDialog('pick', 'drawer');
+  }
+
+  // A member's guest.
+  pickGuestClass(): void {
+    this.prepareGuestForm(null);
+    this.dialogMode.set('form');
+  }
+
+  // A visiting member: today's letters, or a walk-up.
+  pickVisitorClass(): void {
+    this.visitQuery.set('');
+    this.dialogMode.set('visit');
+  }
+
+  backToPick(): void {
+    this.dialogMode.set('pick');
+  }
+
+  private prepareGuestForm(guestOf: GuestRegistration | null): void {
+    this.editTarget.set(null);
+    this.guestOf.set(guestOf);
+    this.setContactOptional(false);
+    this.form.controls.guest.controls.name.enable();
     this.form.reset({
       memberNo: '', visitDate: this.today(), registrationNo: '',
       guest: { name: '', mobile: '', email: '', identityNo: '' }, remarks: '', sendEmail: true,
     });
+    // A visiting member's guest has no host member and is registered for
+    // today: those two controls take no part in the form.
+    if (guestOf) {
+      this.form.controls.memberNo.disable();
+      this.form.controls.visitDate.disable();
+    } else {
+      this.form.controls.memberNo.enable();
+      this.form.controls.visitDate.enable();
+    }
     this.resetDrawerState();
     this.form.controls.sendEmail.enable();
     this.syncSendEmail();
+  }
+
+  // A guest the visiting member brought (from the visitor's row of today).
+  openGuestOf(r: GuestRegistration): void {
+    this.clearMessages();
+    this.prepareGuestForm(r);
     this.openDialog('form', 'drawer');
   }
 
   openEdit(r: GuestRegistration): void {
     this.clearMessages();
     this.editTarget.set(r);
+    this.guestOf.set(null);
     this.form.reset({
       memberNo: r.host?.memberNo || '', visitDate: r.visitDate, registrationNo: r.registrationNo,
       guest: { name: r.guest?.name || '', mobile: r.guest?.mobile || '', email: r.guest?.email || '', identityNo: r.guest?.identityNo || '' },
       remarks: r.remarks || '', sendEmail: false,
     });
-    // The host and the date ARE the registration: display-only on edit.
+    // Who they come with and the date ARE the registration: display-only on
+    // edit. A visiting member also keeps the name of the letter, and needs no
+    // contact detail (the pass can be shown at the counter).
     this.form.controls.memberNo.disable();
     this.form.controls.visitDate.disable();
+    if (this.isVisitor(r)) this.form.controls.guest.controls.name.disable();
+    else this.form.controls.guest.controls.name.enable();
+    this.setContactOptional(this.isVisitor(r));
     this.resetDrawerState();
     this.openDialog('form', 'drawer');
   }
 
-  private openDialog(mode: 'form' | 'pass' | 'scan' | 'cancel', variant: 'drawer' | 'center'): void {
+  private setContactOptional(optional: boolean): void {
+    this.contactOptional = optional;
+    this.form.controls.guest.updateValueAndValidity();
+  }
+
+  private openDialog(mode: DialogMode, variant: 'drawer' | 'center'): void {
     this.dialogVariant.set(variant);
     this.dialogMode.set(mode);
   }
@@ -371,6 +523,18 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
     this.cancelReason.set('');
     this.scanResult.set(null);
     this.scanError.set('');
+    this.receiveTarget.set(null);
+    this.guestOf.set(null);
+  }
+
+  // The unsaved-changes guard follows the form the dialog is showing.
+  dialogDirty(): boolean {
+    switch (this.dialogMode()) {
+      case 'form': return this.form.dirty;
+      case 'receive': return this.receiveForm.dirty;
+      case 'walkup': return this.walkForm.dirty;
+      default: return false;
+    }
   }
 
   saveLabel(): string {
@@ -386,7 +550,7 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       return;
     }
     const v = this.form.getRawValue();
-    const guest = {
+    const guest: GuestDetailsPayload = {
       name: v.guest.name.trim(),
       mobile: v.guest.mobile || null,
       email: v.guest.email.trim() || null,
@@ -404,6 +568,19 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       });
       return;
     }
+    const manualNo = this.numberingMode() === 'manual' && v.registrationNo.trim() ? v.registrationNo.trim() : undefined;
+    const picked = this.pickedGuest();
+    const visitor = this.guestOf();
+    if (visitor) {
+      this.service.addVisitorGuest(visitor.id, {
+        guest, remarks: v.remarks.trim() || null, sendEmail: v.sendEmail && !!guest.email,
+        ...(picked ? { guestId: picked.id } : {}), ...(manualNo ? { registrationNo: manualNo } : {}),
+      }).subscribe({
+        next: (res) => this.handOver(res.message, res.registration, res.pass),
+        error: (err) => this.failSave(err),
+      });
+      return;
+    }
     const payload: GuestRegistrationPayload = {
       memberNo: v.memberNo.trim(),
       visitDate: v.visitDate,
@@ -411,34 +588,144 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       remarks: v.remarks.trim() || null,
       sendEmail: v.sendEmail && !!guest.email,
     };
-    if (this.numberingMode() === 'manual' && v.registrationNo.trim()) payload.registrationNo = v.registrationNo.trim();
-    const picked = this.pickedGuest();
+    if (manualNo) payload.registrationNo = manualNo;
     if (picked) payload.guestId = picked.id;
     this.service.create(payload).subscribe({
-      next: (res) => {
-        this.finishSave(res.message, res.registration.id);
-        // Hand the pass over at once: the same dialog moves on to the pass.
-        this.passTarget.set(res.registration);
-        this.passFacts.set(res.pass);
-        this.passError.set('');
-        this.copied.set(false);
-        this.dialogMode.set('pass');
-      },
+      next: (res) => this.handOver(res.message, res.registration, res.pass),
       error: (err) => this.failSave(err),
     });
+  }
+
+  // A pass was issued: hand it over at once - the same dialog moves on to
+  // the pass view.
+  private handOver(message: string, registration: GuestRegistration, pass: GuestPassFacts): void {
+    this.finishSave(message, registration.id);
+    this.form.markAsPristine();
+    this.receiveForm.markAsPristine();
+    this.walkForm.markAsPristine();
+    this.passTarget.set(registration);
+    this.passFacts.set(pass);
+    this.passError.set('');
+    this.copied.set(false);
+    this.dialogMode.set('pass');
   }
 
   private finishSave(message: string, id: string): void {
     this.successMessage.set(message);
     this.saving.set(false);
     this.form.markAsPristine();
-    this.returnScroll.remember(MembershipGuestRegistrationsComponent.LIST_PATH, id);
+    this.returnScroll.remember(MembershipRegistrationCounterComponent.LIST_PATH, id);
     this.load();
   }
 
   private failSave(err: { error?: { message?: string } }): void {
-    this.errorMessage.set(err.error?.message || 'Failed to save the guest registration.');
+    this.errorMessage.set(err.error?.message || 'Failed to save the registration.');
     this.saving.set(false);
+  }
+
+  // ---- a visiting member: receive for today ----
+
+  // From the "expected today" card (opens the dialog) or from the visiting-
+  // member view of the dialog already open (moves it on).
+  openReceive(v: ExpectedVisit): void {
+    this.clearMessages();
+    this.receiveTarget.set(v);
+    this.receiveForm.reset({ letterSighted: false, idSighted: false, registrationNo: '', remarks: '' });
+    if (this.dialogMode()) this.dialogMode.set('receive');
+    else this.openDialog('receive', 'drawer');
+  }
+
+  receiveReady(): boolean {
+    const v = this.receiveTarget();
+    const f = this.receiveForm.getRawValue();
+    return !!v && f.idSighted && (!v.firstDay || f.letterSighted);
+  }
+
+  onReceive(): void {
+    const v = this.receiveTarget();
+    if (!v) return;
+    this.clearMessages();
+    if (!this.receiveReady()) {
+      this.errorMessage.set(v.firstDay ? 'Tick that the letter of introduction and the ID were sighted.' : 'Tick that the home club card and ID were sighted.');
+      return;
+    }
+    const f = this.receiveForm.getRawValue();
+    this.saving.set(true);
+    this.service.receiveVisit(v.id, {
+      letterSighted: f.letterSighted, idSighted: f.idSighted, remarks: f.remarks.trim() || null,
+      ...(this.numberingMode() === 'manual' && f.registrationNo.trim() ? { registrationNo: f.registrationNo.trim() } : {}),
+    }).subscribe({
+      next: (res) => this.handOver(res.message, res.registration, res.pass),
+      error: (err) => this.failSave(err),
+    });
+  }
+
+  // ---- a visiting member: walk-up, no letter on file ----
+
+  openWalkUp(): void {
+    this.clearMessages();
+    this.walkForm.reset({
+      affiliatedClubId: '', visitorName: '', visitorMemberNo: '', visitorIdentityNo: '', visitorMobile: '', visitorEmail: '',
+      loiReference: '', visitDateTo: '', sports: '', dining: '', other: '', remarks: '', registrationNo: '',
+      letterSighted: false, idSighted: false,
+    });
+    this.walkClubId.set('');
+    this.dialogMode.set('walkup');
+  }
+
+  onWalkClubChange(): void {
+    this.walkClubId.set(this.walkForm.controls.affiliatedClubId.value);
+  }
+
+  walkSaveLabel(): string {
+    if (this.saving()) return 'Saving…';
+    return this.walkClub()?.needsApproval ? 'Record and submit for approval' : 'Record and issue day pass';
+  }
+
+  onWalkUp(): void {
+    this.clearMessages();
+    if (this.walkForm.invalid) {
+      this.walkForm.markAllAsTouched();
+      return;
+    }
+    const f = this.walkForm.getRawValue();
+    if (!f.letterSighted || !f.idSighted) {
+      this.errorMessage.set('Tick that the letter of introduction and the ID were sighted.');
+      return;
+    }
+    this.saving.set(true);
+    this.service.walkUp({
+      affiliatedClubId: f.affiliatedClubId,
+      visitorName: f.visitorName.trim(),
+      visitorMemberNo: f.visitorMemberNo.trim(),
+      visitorIdentityNo: f.visitorIdentityNo.trim() || null,
+      visitorMobile: f.visitorMobile || null,
+      visitorEmail: f.visitorEmail.trim() || null,
+      loiReference: f.loiReference.trim() || null,
+      visitDateTo: f.visitDateTo || null,
+      sports: f.sports.trim() || null,
+      dining: f.dining.trim() || null,
+      other: f.other.trim() || null,
+      remarks: f.remarks.trim() || null,
+      letterSighted: true,
+      idSighted: true,
+      ...(this.numberingMode() === 'manual' && f.registrationNo.trim() ? { registrationNo: f.registrationNo.trim() } : {}),
+    }).subscribe({
+      next: (res) => {
+        if (res.issued && res.registration && res.pass) {
+          this.handOver(res.message, res.registration, res.pass);
+          return;
+        }
+        // Recorded only (approval needed, or the letter could not be
+        // confirmed): nothing to hand over.
+        this.saving.set(false);
+        this.walkForm.markAsPristine();
+        this.closeDialog();
+        this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => this.failSave(err),
+    });
   }
 
   // ---- arrival ----
@@ -450,7 +737,7 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
       next: (res) => {
         this.workingId.set(null);
         this.successMessage.set(res.message);
-        this.returnScroll.remember(MembershipGuestRegistrationsComponent.LIST_PATH, r.id);
+        this.returnScroll.remember(MembershipRegistrationCounterComponent.LIST_PATH, r.id);
         if (after) after();
         this.load();
       },
@@ -526,6 +813,13 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
     this.openDialog('cancel', 'center');
   }
 
+  // What cancelling this registration does, by who it is for.
+  cancelConsequence(r: GuestRegistration): string {
+    if (this.isVisitor(r)) return 'The pass stops working, the day no longer counts as a visit, and the passes of the guests they brought that day are cancelled with it.';
+    if (r.accompanying) return 'The pass stops working.';
+    return `The pass stops working and the visit no longer counts against ${r.host?.name || 'the host'}'s guest allowance.`;
+  }
+
   runCancel(): void {
     const target = this.cancelTarget();
     if (!target) return;
@@ -540,7 +834,7 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
         this.working.set(false);
         this.closeDialog();
         this.successMessage.set(res.message);
-        this.returnScroll.remember(MembershipGuestRegistrationsComponent.LIST_PATH, target.id);
+        this.returnScroll.remember(MembershipRegistrationCounterComponent.LIST_PATH, target.id);
         this.load();
       },
       error: (err) => {
@@ -583,12 +877,17 @@ export class MembershipGuestRegistrationsComponent implements OnInit {
     this.scanCode.set('');
   }
 
-  // What the desk reads off a scanned pass before letting the guest in.
+  // A scanned pass that is good today: still to be marked arrived, or already in.
+  scanGood(r: GuestRegistration): boolean {
+    return r.status !== 'cancelled' && r.passState === 'valid';
+  }
+
+  // What the desk reads off a scanned pass before letting the person in.
   scanVerdict(r: GuestRegistration): string {
     if (r.status === 'cancelled') return 'This registration was cancelled - the pass is not valid.';
-    if (r.status === 'arrived') return `Already marked arrived at ${formatLocalDate(r.arrivedAt, 'datetime')}.`;
     if (r.passState === 'upcoming') return `The pass is for ${formatLocalDate(r.visitDate, 'weekday')} - it is not valid today.`;
     if (r.passState === 'expired') return `The pass was for ${formatLocalDate(r.visitDate, 'weekday')} and has expired.`;
+    if (r.status === 'arrived') return `Valid today - arrived at ${formatLocalDate(r.arrivedAt, 'datetime')}.`;
     return 'Valid today.';
   }
 
