@@ -12,7 +12,7 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, canModifyRecord, annotateCanModify } = require('../../platform/serviceContext');
-const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
+const { getGolfMemberStanding, getChargeTarget, getAffiliatedVisitFacts } = require('../../platform/membershipGateway');
 const arGateway = require('../../platform/arGateway');
 const Booking = require('./booking.model');
 const Registration = require('./registration.model');
@@ -31,6 +31,8 @@ const participantTypes = require('./participantType.service');
 const availability = require('./bookingAvailability.service');
 const shared = require('./bookingShared');
 const { companyIdOf, stampsFor, txFail, runTx, timeDto } = require('./facilityShared');
+const { VISITING_PATRON_TYPE_KEYS } = require('./facility.constants');
+const stationRules = require('./stationRules.service');
 
 const { Bill, BillItem, BillPayment, round2, cents } = billing;
 
@@ -157,6 +159,23 @@ async function sourceOf(companyId, bill) {
     return null;
 }
 
+// A VISITING member's bill (slice 7c): the bill is in the name of a member of
+// an affiliated or reciprocal club, here on a letter. Answers the letter and
+// the home club's arrangement, or null for anyone else's bill.
+async function visitingOf(companyId, bill) {
+    if (!bill.patronId) return null;
+    const patron = await Patron.findOne({ where: { companyId, id: bill.patronId }, attributes: ['id', 'name', 'patronType', 'sourceId'] });
+    if (!patron || !VISITING_PATRON_TYPE_KEYS.includes(patron.patronType)) return null;
+    const letter = await getAffiliatedVisitFacts(companyId, patron.sourceId);
+    const club = letter ? letter.club : null;
+    return {
+        patronGroup: patron.patronType, label: stationRules.visitingLabel(patron.patronType), name: patron.name,
+        visitNo: letter ? letter.visitNo : null,
+        club: club ? { code: club.code, name: club.name } : null,
+        allowChargeToHomeClub: !!(club && club.allowChargeToHomeClub),
+    };
+}
+
 // The line context a booking gives a manual line: the first live slot's date,
 // day type and session, and the booker's category.
 async function lineContext(companyId, booking, facts, { transaction } = {}) {
@@ -175,22 +194,27 @@ async function lineContext(companyId, booking, facts, { transaction } = {}) {
 }
 
 // The line context of a bill on a registration or an issue: its date, day
-// type and session; the payer counts as a member.
+// type and session; the payer counts as a member - or, on a visiting
+// member's bill, as their own price group (slice 7c).
 async function stationLineContext(companyId, source) {
     const { sessions } = await availability.loadRules(companyId);
     const session = source.context.sessionId ? sessions.find((s) => s.id === source.context.sessionId) : null;
-    return { ...source.context, sessionName: session ? session.name : null, participantType: 'member', sessions, slot: null };
+    const payer = source.header && source.header.booker ? source.header.booker.patronType : null;
+    return { ...source.context, sessionName: session ? session.name : null, participantType: VISITING_PATRON_TYPE_KEYS.includes(payer) ? payer : 'member', sessions, slot: null };
 }
 
 // The payload the bill screen renders: the bill, its source header, the
 // tiles of its facility type, the tenders and the AR Other Debtors.
 async function screenPayload(req, companyId, bill, source, extras = {}) {
     await annotateCanModify(req, [bill]);
-    const [tiles, tenders, otherDebtors] = await Promise.all([
+    const [tiles, allTenders, otherDebtors, visiting] = await Promise.all([
         billing.tilesFor(companyId, source.facilityTypeId),
         PaymentType.findAll({ where: { companyId, isActive: true }, order: [['paymentType', 'ASC']] }),
         arGateway.listOtherDebtors(companyId),
+        visitingOf(companyId, bill),
     ]);
+    // A visiting member's bill is offered only the tenders it may take.
+    const tenders = allTenders.filter((t) => !stationRules.visitingTenderRefusal(visiting, t.paymentClass, bill.billNo));
     return {
         bill: await billing.billDto(bill),
         // Kept under `booking` for the screen: bookingNo is the source's number
@@ -200,6 +224,9 @@ async function screenPayload(req, companyId, bill, source, extras = {}) {
         tiles,
         tenders: tenders.map((t) => ({ id: t.id, paymentType: t.paymentType, paymentClass: t.paymentClass, description: t.description, iconUrl: t.iconUrl })),
         otherDebtors: (otherDebtors || []).map((d) => ({ id: d.id, code: d.code || d.debtorCode || null, name: d.name })),
+        // Slice 7c: who the bill is for when it is a visiting member's, and
+        // whether the home club's arrangement lets it be signed back.
+        visiting,
         warnings: [],
         ...extras,
     };
@@ -395,6 +422,14 @@ exports.settle = async (req, res) => {
 
         const memberLines = lines.filter((l) => l.tender.paymentClass === 'member');
         const debtorLines = lines.filter((l) => l.tender.paymentClass === 'debtor');
+        // Slice 7c: a visiting member's bill takes no member tender, and the
+        // debtor tender (charge to home club) only where the arrangement
+        // allows it - checked before anything is posted to AR.
+        const visiting = await visitingOf(companyId, bill);
+        for (const line of [...memberLines, ...debtorLines]) {
+            const refusal = stationRules.visitingTenderRefusal(visiting, line.tender.paymentClass, bill.billNo);
+            if (refusal) return res.status(400).json({ message: `Payment ${line.sortOrder}: ${refusal}` });
+        }
         const stamps = await stampsFor(req);
         let arType = null;
         if (memberLines.length || debtorLines.length) {
@@ -409,7 +444,10 @@ exports.settle = async (req, res) => {
             if (!od) return res.status(400).json({ message: `Payment ${line.sortOrder}: Other Debtor not found or inactive.` });
             const posted = await billing.postChargeToAccount(req, {
                 bill, arType, target: { debtorType: 'other', sourceId: od.id, incurredByMemberId: null }, amount: line.amount,
-                description: `Facility bill ${bill.billNo} - ${source.label} (charged to ${od.name})`, stamps,
+                description: visiting
+                    ? `Facility bill ${bill.billNo} - ${source.label} - ${visiting.name}, ${visiting.label.toLowerCase()}${visiting.club ? ' of ' + visiting.club.name : ''}${visiting.visitNo ? ', letter ' + visiting.visitNo : ''} (charged to ${od.name})`
+                    : `Facility bill ${bill.billNo} - ${source.label} (charged to ${od.name})`,
+                stamps,
             });
             if (posted.error) return res.status(400).json({ message: `Payment ${line.sortOrder} (${od.name}): ${posted.error}` });
             Object.assign(line, { arDocId: posted.id, arDocNo: posted.docNo, debtorType: 'other', debtorSourceId: od.id });

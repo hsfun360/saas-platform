@@ -233,10 +233,25 @@ function doorGuestVerdict({ name, mobile, email, passEnabled = true, contactRequ
     return { mode: contact && passEnabled ? 'pass' : 'name' };
 }
 
+// ---- slice 7c: the tenders of a visiting member's bill ----
+
+// The tenders a bill may be settled with: every active one, except - on a
+// visiting member's bill - the member class (they hold no account here) and,
+// unless the home club's arrangement allows charges to be signed back, the
+// debtor class. Returns the refusal for one tender class, or null.
+function visitingTenderRefusal(visiting, paymentClass, billNo) {
+    if (!visiting) return null;
+    if (paymentClass === 'member') return `Bill ${billNo} is in the name of ${visiting.name}, a visiting member - it cannot be charged to a member account.`;
+    if (paymentClass === 'debtor' && !visiting.allowChargeToHomeClub) {
+        return `${visiting.club ? visiting.club.name + "'s arrangement" : 'The arrangement'} does not allow charges to be signed back to the home club - ${visiting.name} settles bill ${billNo} before leaving.`;
+    }
+    return null;
+}
+
 module.exports = {
     checkInState, openingHours, isOpenAt, liveCount, capacityVerdict,
     heldByPatron, issueLimitVerdict, dueBackLocal, returnOutcome,
     UNDO_MINUTES, scanKind, passVerdict, isVisitingPass, visitingLabel, serveTileVerdict, undoVerdict,
     UNDONE_REMARK, hasMobile, doorGuestVerdict,
-    partySize, entryVerdict,
+    partySize, entryVerdict, visitingTenderRefusal,
 };

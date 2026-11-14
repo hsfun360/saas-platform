@@ -220,3 +220,20 @@ test('a facility answers for a visiting member with its own switch, and their gu
     assert.deepEqual(rules.entryVerdict({ code: 'POOL', visitingAllowed: false }), ok);
     assert.deepEqual(rules.entryVerdict({ code: 'POOL', isGuest: true, visitingAllowed: false }), ok);
 });
+
+// ---- slice 7c: settling a visiting member's bill ----
+
+test('a visiting member\'s bill takes no member tender, and the debtor tender only where the arrangement signs charges back', () => {
+    const visiting = { name: 'Lim Chee Keong', label: 'Reciprocal member', club: { code: 'SAUJANA', name: 'Saujana Golf' }, allowChargeToHomeClub: false };
+    // Anyone else's bill is not touched.
+    for (const cls of ['cash', 'member', 'debtor']) assert.equal(rules.visitingTenderRefusal(null, cls, 'FBL-00017'), null);
+    assert.equal(rules.visitingTenderRefusal(visiting, 'member', 'FBL-00017'), 'Bill FBL-00017 is in the name of Lim Chee Keong, a visiting member - it cannot be charged to a member account.');
+    assert.equal(rules.visitingTenderRefusal(visiting, 'debtor', 'FBL-00017'), "Saujana Golf's arrangement does not allow charges to be signed back to the home club - Lim Chee Keong settles bill FBL-00017 before leaving.");
+    for (const cls of ['cash', 'creditcard', 'voucher', 'online', 'suspend', 'staff']) assert.equal(rules.visitingTenderRefusal(visiting, cls, 'FBL-00017'), null);
+    // The arrangement allows it: the cashier picks the home club's Other Debtor.
+    const allowed = { ...visiting, allowChargeToHomeClub: true };
+    assert.equal(rules.visitingTenderRefusal(allowed, 'debtor', 'FBL-00017'), null);
+    assert.match(rules.visitingTenderRefusal(allowed, 'member', 'FBL-00017'), /cannot be charged to a member account/);
+    // A letter whose club record is gone still refuses, in words.
+    assert.match(rules.visitingTenderRefusal({ ...visiting, club: null }, 'debtor', 'FBL-00017'), /^The arrangement does not allow/);
+});
