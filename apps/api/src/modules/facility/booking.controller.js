@@ -133,6 +133,9 @@ async function resolveRoster(companyId, rawParticipants, types) {
         const code = String(line.participantType || '');
         const t = participantTypes.findType(types, code);
         if (!t || t.isActive === false) return { error: `Participant ${i + 1}: pick a participant type.` };
+        // A visiting member of another club is served on the day pass at the
+        // station; a booking's roster does not carry them.
+        if (participantTypes.isVisitingMember(types, code)) return { error: `Participant ${i + 1}: a visiting member of another club is served on their day pass at the station, not on a booking.` };
         if (participantTypes.hasMemberStanding(types, code)) {
             const r = await memberStanding(companyId, line.memberNo, `Participant ${i + 1}`);
             if (r.error) return r;
@@ -246,7 +249,7 @@ exports.meta = async (req, res) => {
         ]);
         res.status(200).json({
             facilityTypes: types.map(typeDto),
-            participantTypes: participantTypes.asVocabulary(ptypes),
+            participantTypes: participantTypes.asVocabulary(ptypes).filter((t) => !participantTypes.isVisitingMember(ptypes, t.key)),
             statuses: BOOKING_STATUSES,
             slotStatuses: SLOT_STATUSES,
             channels: BOOKING_CHANNELS,

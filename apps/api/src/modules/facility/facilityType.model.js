@@ -114,6 +114,15 @@ const FacilityType = sequelize.define('FacilityType', {
         allowNull: false,
         defaultValue: true,
     },
+    // OFF = a visiting member of an affiliated or reciprocal club may not
+    // enter this facility on their day pass, nor may a guest they brought
+    // (slice 7b, structure approved 2026-11-14). Entry types; always in force,
+    // whatever the Specification's guest control says.
+    visitingMembersAllowed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Visitor guests one booking (slot) or one visit (entry) may carry; NULL
     // = no limit, 0 = none. Counts against the member's monthly allowance
     // (slice 2, membership seam).

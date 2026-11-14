@@ -197,6 +197,7 @@ async function dayPicture(companyId, date, callerId) {
             id: t.id, code: t.code, description: t.description, usageMode: t.usageMode, iconUrl: t.iconUrl,
             capacity: t.capacity,
             entryRequiresBooking: t.entryRequiresBooking === true, guestsAllowed: t.guestsAllowed !== false, memberGuestsAllowed: t.memberGuestsAllowed !== false,
+            visitingMembersAllowed: t.visitingMembersAllowed !== false,
             maxGuestsPerBooking: t.maxGuestsPerBooking,
             hours: hours ? { open: hhmm(dayType === 'weekend' ? t.openTimeWeekend : t.openTimeWeekday), close: hhmm(dayType === 'weekend' ? t.closeTimeWeekend : t.closeTimeWeekday) } : null,
             isOpenNow: date === now.date ? rules.isOpenAt(hours, now.time) : true,
@@ -664,6 +665,9 @@ async function replaceGuests(req, id, body) {
     const [type, patron, { now }, { setting, guestRules }, ptypes] = await Promise.all([
         FacilityType.findOne({ where: { id: r.facilityTypeId } }), Patron.findOne({ where: { id: r.patronId } }), clock(companyId), availability.loadRules(companyId), participantTypes.catalog(companyId),
     ]);
+    // A visiting member's guests are registered at the Registration Counter
+    // and enter on their own pass: the desk does not key them on the entry.
+    if (patron && VISITING_PATRON_TYPE_KEYS.includes(patron.patronType)) return { error: `${patron.name} is a visiting member - their guests are registered at the Registration Counter and enter on their own pass.` };
     const standing = patron && patron.memberNo ? await getGolfMemberStanding(companyId, patron.memberNo) : null;
     if (!standing) return { error: 'The host member could not be resolved.' };
     const guests = await resolveGuests(companyId, body.guests, ptypes);
@@ -774,6 +778,15 @@ function ensureHolderPatron(companyId, who, stamps, opts) {
 function findHolderPatron(companyId, who) {
     const key = who.visit ? { patronType: who.visit.patronGroup, sourceId: who.visit.id } : { patronType: 'member', sourceId: who.standing.memberId };
     return Patron.findOne({ where: { companyId, ...key } });
+}
+
+// The fee item of a person's OWN entry to a type (slice 7b): the type's
+// explicit pick, else the default facility-fee item of their participant
+// type, else - a visiting member - the members' default item, priced at the
+// visiting member's own cell of its rate card.
+function entryFeeTypeOf(feeTypes, type, participantType) {
+    const pick = (pt) => pricing.defaultTypeFor(feeTypes, { chargeType: 'facility-fee', participantType: pt, facilityTypeId: type.id, explicitId: type.feeTransactionTypeId });
+    return pick(participantType) || (participantType !== 'member' ? pick('member') : null);
 }
 
 // Why an item is not for this visiting member (or their guest), or null.
@@ -1117,9 +1130,9 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         holding: live.map(rowOf),
         usedToday: usedToday.map(rowOf),
         tiles,
-        // Slice 6d: the facilities the person may enter from here. A visiting
-        // member's pass opens no facility until step 7b.
-        entries: who.visit ? [] : await entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }),
+        // Slice 6d: the facilities the person may enter from here (a visiting
+        // member and the guest they brought since slice 7b).
+        entries: await entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }),
         bill: openToday ? billById.get(openToday.id) : (who.isGuest ? await entryBillOfGuest(companyId, who, patron, date) : null),
         undoMinutes: rules.UNDO_MINUTES,
         clubNow: now,
@@ -1434,7 +1447,7 @@ async function entryFacts(companyId, who, type, ctx, { transaction, lock = false
         // A guest on a pass was counted when the pass was registered; a guest
         // by name draws a visit unless an item or an entry already drew it.
         const counted = who.pass ? true : await nameGuestCounted(companyId, patron ? patron.id : null, who.holderName, date, startOfDay, { transaction });
-        if (!counted) {
+        if (!counted && who.standing) {
             const a = await getGuestAllowanceStanding(companyId, who.standing.memberId, date, { transaction });
             allowanceLeft = a && a.allowance != null ? a.remaining : null;
         }
@@ -1444,8 +1457,11 @@ async function entryFacts(companyId, who, type, ctx, { transaction, lock = false
     const needsBooking = type.entryRequiresBooking === true && !inside;
     const verdict = rules.entryVerdict({
         code: type.code, inside, closedReason, needsBooking, hasBooking: needsBooking ? await holdsBookingToday(companyId, patron ? patron.id : null, date, { transaction }) : false,
-        isGuest: who.isGuest, hostName: who.standing.name, guestsAllowed, hostMustBePresent: type.hostMustBePresent === true, hostInside,
+        // A visiting member's guest enters only once the visiting member is
+        // inside, whatever the type says of a member's guests.
+        isGuest: who.isGuest, hostName: responsibleOf(who).name, guestsAllowed, hostMustBePresent: who.visit ? true : type.hostMustBePresent === true, hostInside,
         guestCap: type.maxGuestsPerBooking, guestsOnEntry: visitorsOnEntry, allowanceLeft, count, capacity: type.capacity,
+        isVisiting: !!who.visit, visitingAllowed: type.visitingMembersAllowed !== false,
     });
     const myReg = who.isGuest ? (myLine ? hostRegs.find((r) => r.id === myLine.registrationId) : null) : hostRegs.find((r) => r.hostPresent !== false) || null;
     return { regs, hostReg, myLine, myReg, hostInside, inside, count, verdict };
@@ -1467,11 +1483,11 @@ async function entryTiles(companyId, who, { patron, now, date, dayType, startOfD
         const f = await entryFacts(companyId, who, type, ctx);
         const feeType = who.isGuest
             ? pricing.defaultTypeFor(feeTypes, { chargeType: 'guest-fee', participantType: 'guest', facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId })
-            : pricing.defaultTypeFor(feeTypes, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId });
+            : entryFeeTypeOf(feeTypes, type, who.participantType);
         let fee = null;
         let verdict = f.verdict;
         if (feeType) {
-            const priced = pricing.unitPriceOf(feeType, await billing.cardsOf(feeType.id), { date, dayType, participantType: who.isGuest ? 'guest' : 'member' });
+            const priced = pricing.unitPriceOf(feeType, await billing.cardsOf(feeType.id), { date, dayType, participantType: who.isGuest ? 'guest' : who.participantType });
             fee = { code: feeType.transactionType, description: feeType.description, unitAmount: priced.missing ? null : priced.unitAmount };
             // The tap would be refused at the bill: say so on the tile instead.
             if (verdict.allowed && priced.missing && feeType.allowPriceOverride !== true) verdict = { allowed: false, reason: `${feeType.transactionType} has no price today.` };
@@ -1497,10 +1513,12 @@ async function entryTiles(companyId, who, { patron, now, date, dayType, startOfD
 // Charge an entry: the facility fee once for the member, a guest fee per
 // guest line named, on the ENTRY's bill - the bill the entry already carries
 // while it is open, else the member's open bill of the day (so the member
-// keeps ONE open bill), else a new one. Returns { bill } | { error }.
-async function chargeEntry({ req, companyId, registration, type, patron, memberFee, guestLines, joinBillIds = [], date, dayType, session, stamps, warnings, transaction }) {
+// keeps ONE open bill), else a new one. `ownerType` = what the person who
+// owns the entry is priced as: 'member', or a visiting member's own
+// participant type (slice 7b). Returns { bill } | { error }.
+async function chargeEntry({ req, companyId, registration, type, patron, memberFee, ownerType = 'member', guestLines, joinBillIds = [], date, dayType, session, stamps, warnings, transaction }) {
     const types = await TransactionType.findAll({ where: { companyId }, transaction });
-    const feeType = memberFee ? pricing.defaultTypeFor(types, { chargeType: 'facility-fee', participantType: 'member', facilityTypeId: type.id, explicitId: type.feeTransactionTypeId }) : null;
+    const feeType = memberFee ? entryFeeTypeOf(types, type, ownerType) : null;
     const guestFees = guestLines.map((l) => ({ line: l, type: pricing.defaultTypeFor(types, { chargeType: 'guest-fee', participantType: l.participantType, facilityTypeId: type.id, explicitId: type.guestFeeTransactionTypeId }) }));
     // A facility with no fee item is free and its tile said so before the
     // tap: nothing to warn about. A PICKED guest type with no fee item of its
@@ -1518,7 +1536,7 @@ async function chargeEntry({ req, companyId, registration, type, patron, memberF
     }
     const context = { date, dayType, sessionId: session ? session.id : null, sessionName: session ? session.name : null };
     if (feeType) {
-        const added = await billing.addItem({ req, bill, type: feeType, quantity: 1, stamps, transaction, context: { ...context, participantType: 'member' } });
+        const added = await billing.addItem({ req, bill, type: feeType, quantity: 1, stamps, transaction, context: { ...context, participantType: ownerType } });
         if (added.error) return { error: added.error };
     }
     for (const g of guestFees) {
@@ -1540,6 +1558,12 @@ async function chargeEntry({ req, companyId, registration, type, patron, memberF
 //   - A guest: a line on the host's live entry of that type; with the host
 //     not inside, an entry in the host's name with hostPresent false (refused
 //     when the type says the host must be present).
+//   - Slice 7b - a VISITING member of an affiliated or reciprocal club, on
+//     their own day pass: a new entry in their own name, priced as their own
+//     participant type, while the type's "Visiting members allowed" is ON.
+//     The guest they brought: a line on the visiting member's live entry -
+//     only once the visiting member is inside - by the visitor-guest rule
+//     and cap, with no visit drawn on any member's allowance.
 // The entry fee and the guest fee go on the entry's bill.
 async function admit(req, body) {
     const companyId = getUserContext(req).companyId;
@@ -1548,8 +1572,6 @@ async function admit(req, body) {
     if (!type) return { error: 'Pick an entry facility.' };
     const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
     if (who.error) return who;
-    // Step 7b opens the facilities to a visiting member's pass.
-    if (who.visit) return { error: `${type.code} cannot be entered on a visiting member's pass yet.` };
     const standing = who.standing;
     const [{ now, timezone }, { setting, sessions, guestRules }, ptypes] = await Promise.all([clock(companyId), availability.loadRules(companyId), participantTypes.catalog(companyId)]);
     const date = now.date;
@@ -1566,7 +1588,7 @@ async function admit(req, body) {
     const stamps = await stampsFor(req);
     const warnings = [];
     const result = await runTx(sequelize, async (transaction) => {
-        const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
+        const patron = await ensureHolderPatron(companyId, who, stamps, { transaction });
         const ctx = { patron, now, date, dayType, startOfDay, setting, guestRules, ptypes };
         const f = await entryFacts(companyId, who, type, ctx, { transaction, lock: true });
         if (f.inside) txFail(`${who.holderName} is already inside ${type.code}${f.myReg ? ` (${f.myReg.registrationNo})` : ''}.`);
@@ -1598,8 +1620,9 @@ async function admit(req, body) {
             // A guest on a pass names the guest (once per day with the pass's
             // own visit); a guest by name draws the visit here unless an item
             // already drew it today.
+            // The guest of a visiting member draws on no member's allowance.
             const counted = who.pass ? false : await nameGuestCounted(companyId, patron.id, who.holderName, date, startOfDay, { transaction });
-            if (!counted) {
+            if (!counted && standing) {
                 const visit = await recordGuestVisit(companyId, { memberId: standing.memberId, visitDate: date, sourceModule: 'facility', sourceRef: line.id, guestId: line.guestId, guestName: line.name, guestCount: 1, stamps }, { transaction });
                 if (visit && visit.id) { line.guestVisitId = visit.id; await line.save({ transaction }); }
             }
@@ -1607,7 +1630,7 @@ async function admit(req, body) {
             await registration.save({ transaction });
         }
         const billed = await chargeEntry({
-            req, companyId, registration, type, patron, memberFee: !who.isGuest, guestLines: line ? [{ participantType: guestType, name: line.name }] : [],
+            req, companyId, registration, type, patron, memberFee: !who.isGuest, ownerType: who.isGuest ? 'member' : who.participantType, guestLines: line ? [{ participantType: guestType, name: line.name }] : [],
             joinBillIds: who.isGuest ? [] : (await IssueRecord.findAll({ where: { companyId, ...holderWhere(who, patron.id), feeBillId: { [Op.ne]: null }, issuedAt: { [Op.gte]: startOfDay } }, attributes: ['feeBillId'], transaction })).map((e) => e.feeBillId),
             date, dayType, session, stamps, warnings, transaction,
         });
@@ -1615,12 +1638,12 @@ async function admit(req, body) {
         return { registration, joined, count: f.count + 1 };
     });
     if (result.error) return result;
-    if (who.isGuest && who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+    if (who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
     const where = type.capacity != null ? ` - ${result.count} of ${type.capacity} inside` : '';
     const message = who.isGuest
-        ? `${who.holderName}, guest of ${standing.name}, is in ${type.code} (${result.registration.registrationNo})${where}.`
-        : `${standing.name} is in ${type.code} (${result.registration.registrationNo})${result.joined ? ', with the guests already inside' : ''}${where}.`;
-    const out = { message, registrationId: result.registration.id, warnings, standingWarning: standingWarningOf(standing) };
+        ? `${who.holderName}, guest of ${responsibleOf(who).name}, is in ${type.code} (${result.registration.registrationNo})${where}.`
+        : `${who.holderName} is in ${type.code} (${result.registration.registrationNo})${result.joined ? ', with the guests already inside' : ''}${where}.`;
+    const out = { message, registrationId: result.registration.id, warnings, standingWarning: standing ? standingWarningOf(standing) : null };
     if (body.panel === true) out.panel = await servePicture(req, who);
     return out;
 }

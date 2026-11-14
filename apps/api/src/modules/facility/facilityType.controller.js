@@ -92,7 +92,7 @@ function validateType(body, current) {
         if (!n.ok) return { error: message };
         out[field] = n.value;
     }
-    for (const flag of ['guestsAllowed', 'memberGuestsAllowed', 'hostMustBePresent', 'requiresApproval', 'entryRequiresBooking', 'noShowChargeEnabled', 'noShowStrikeEnabled']) {
+    for (const flag of ['guestsAllowed', 'memberGuestsAllowed', 'visitingMembersAllowed', 'hostMustBePresent', 'requiresApproval', 'entryRequiresBooking', 'noShowChargeEnabled', 'noShowStrikeEnabled']) {
         if (typeof body[flag] === 'boolean') out[flag] = body[flag];
     }
     // Slice 2 default fees: value refs checked against the catalog in the

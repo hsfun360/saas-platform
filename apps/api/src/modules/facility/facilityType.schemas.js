@@ -41,6 +41,7 @@ const body = {
     // guest policy
     guestsAllowed: bool,
     memberGuestsAllowed: bool,
+    visitingMembersAllowed: bool,
     maxGuestsPerBooking: numberish,
     hostMustBePresent: bool,
     // slice 2: default fees + approval

@@ -20,7 +20,8 @@ exports.meta = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const ptypes = await participantTypes.catalog(companyId, { activeOnly: true });
         res.status(200).json({
-            participantTypes: participantTypes.asVocabulary(ptypes).filter((t) => t.baseIdentity !== 'member'),
+            // The types of a guest LINE keyed at the desk: a visitor guest or a member as guest.
+            participantTypes: participantTypes.asVocabulary(ptypes).filter((t) => participantTypes.isGuestLike(ptypes, t.key)),
             registrationStatuses: REGISTRATION_STATUSES,
             issueStatuses: ISSUE_STATUSES,
             returnConditions: RETURN_CONDITIONS,

@@ -1,10 +1,10 @@
 // Participant Type catalog (structure approved 2026-10-25; golf's
 // playerType.service) - the seam the booking, billing and rate-card code
-// reads instead of a fixed vocabulary. `catalog()` seeds the three system
-// rows on first use per company; the pure helpers are unit-tested.
+// reads instead of a fixed vocabulary. `catalog()` seeds the system rows a
+// company is missing on first use; the pure helpers are unit-tested.
 
 const ParticipantType = require('./participantType.model');
-const { SYSTEM_PARTICIPANT_TYPES, BASE_IDENTITY_KEYS } = require('./facility.constants');
+const { SYSTEM_PARTICIPANT_TYPES, BASE_IDENTITY_KEYS, VISITING_BASE_IDENTITY_KEYS } = require('./facility.constants');
 
 function dto(t) {
     return {
@@ -78,5 +78,11 @@ function hasMemberStanding(types, code) {
     const base = baseOf(types, code);
     return base === 'member' || base === 'member-guest';
 }
+// A visiting member of an affiliated or reciprocal club (slice 7b): a price
+// group of the station's entry fee, never a line keyed on a booking or as a
+// member's guest.
+function isVisitingMember(types, code) {
+    return VISITING_BASE_IDENTITY_KEYS.includes(baseOf(types, code));
+}
 
-module.exports = { dto, ensureSystemTypes, catalog, findType, baseOf, asVocabulary, labelOf, isGuestLike, isVisitorGuest, hasMemberStanding };
+module.exports = { dto, ensureSystemTypes, catalog, findType, baseOf, asVocabulary, labelOf, isGuestLike, isVisitorGuest, hasMemberStanding, isVisitingMember };

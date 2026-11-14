@@ -42,20 +42,29 @@ const PATRON_TYPE_KEYS = PATRON_TYPES.map((p) => p.key);
 const VISITING_PATRON_TYPE_KEYS = ['affiliate', 'reciprocal'];
 
 // Participant Type base identities - the engine class a club-defined type
-// behaves as (the three system codes are the keys themselves).
+// behaves as (the system codes are the keys themselves). The two VISITING
+// bases (slice 7b, approved 2026-11-14) are the price groups of a member of
+// an affiliated or reciprocal club entering on a day pass: `systemOnly` - a
+// club prices them, it does not define types of its own on them.
 const BASE_IDENTITIES = [
     { key: 'member', label: 'Member' },
     { key: 'member-guest', label: 'Member as Guest' },
     { key: 'guest', label: 'Guest / Visitor' },
+    { key: 'affiliate', label: 'Affiliated Member', systemOnly: true },
+    { key: 'reciprocal', label: 'Reciprocal Member', systemOnly: true },
 ];
 const BASE_IDENTITY_KEYS = BASE_IDENTITIES.map((b) => b.key);
+const VISITING_BASE_IDENTITY_KEYS = BASE_IDENTITIES.filter((b) => b.systemOnly).map((b) => b.key);
 
-// The three SYSTEM participant types every company is seeded with (codes
-// locked, descriptions editable).
+// The SYSTEM participant types every company is seeded with (codes locked,
+// descriptions editable). The two visiting codes equal Membership's patron
+// groups, so the station prices a visiting member by the group on the pass.
 const SYSTEM_PARTICIPANT_TYPES = [
     { code: 'member', description: 'Member', baseIdentity: 'member', sortOrder: 1 },
     { code: 'member-guest', description: 'Member as Guest', baseIdentity: 'member-guest', sortOrder: 2 },
     { code: 'guest', description: 'Guest / Visitor', baseIdentity: 'guest', sortOrder: 3 },
+    { code: 'affiliate', description: 'Affiliated Member', baseIdentity: 'affiliate', sortOrder: 4 },
+    { code: 'reciprocal', description: 'Reciprocal Member', baseIdentity: 'reciprocal', sortOrder: 5 },
 ];
 
 // Transaction Type charge types. Packages and deposits keep their keys so the
@@ -152,7 +161,7 @@ const LIMITS = {
 module.exports = {
     USAGE_MODES, USAGE_MODE_KEYS, DAY_SCOPES, DAY_SCOPE_KEYS, RULE_DAY_SCOPE_KEYS, LIMITS,
     PATRON_TYPES, PATRON_TYPE_KEYS, VISITING_PATRON_TYPE_KEYS,
-    BASE_IDENTITIES, BASE_IDENTITY_KEYS, SYSTEM_PARTICIPANT_TYPES,
+    BASE_IDENTITIES, BASE_IDENTITY_KEYS, VISITING_BASE_IDENTITY_KEYS, SYSTEM_PARTICIPANT_TYPES,
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, DEFAULT_TYPED_CHARGE_TYPE_KEYS, RESERVED_CHARGE_TYPE_KEYS,
     FEE_BASES, FEE_BASIS_KEYS,
     PAYMENT_CLASSES, PAYMENT_CLASS_KEYS, ACCOUNT_PAYMENT_CLASSES,

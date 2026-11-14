@@ -11,7 +11,7 @@ const TransactionType = require('./transactionType.model');
 const TransactionTypeRateCell = require('./transactionTypeRateCell.model');
 const TransactionTypeRate = require('./transactionTypeRate.model');
 const { getUserContext, canModifyRecord, annotateCanModify } = require('../../platform/serviceContext');
-const { BASE_IDENTITIES, BASE_IDENTITY_KEYS } = require('./facility.constants');
+const { BASE_IDENTITIES, BASE_IDENTITY_KEYS, VISITING_BASE_IDENTITY_KEYS } = require('./facility.constants');
 const participantTypes = require('./participantType.service');
 const { companyIdOf, stampsFor } = require('./facilityShared');
 
@@ -35,6 +35,8 @@ function normalizeBody(body, { system = false } = {}) {
     if (description.length > 255) return { error: 'Description must be 255 characters or fewer.' };
     const baseIdentity = str(body.baseIdentity);
     if (!system && !BASE_IDENTITY_KEYS.includes(baseIdentity)) return { error: 'Select a valid base identity.' };
+    // The two visiting bases belong to their system rows only.
+    if (!system && VISITING_BASE_IDENTITY_KEYS.includes(baseIdentity)) return { error: 'Affiliated Member and Reciprocal Member are system types - price them, a club does not define its own.' };
     const sortOrder = body.sortOrder === undefined || body.sortOrder === null || body.sortOrder === '' ? 100 : Number(body.sortOrder);
     if (!Number.isInteger(sortOrder) || sortOrder < 1 || sortOrder > 999) return { error: 'Sort order must be a whole number between 1 and 999.' };
     return { value: { code, description, baseIdentity, requiresApproval: body.requiresApproval === true, sortOrder } };

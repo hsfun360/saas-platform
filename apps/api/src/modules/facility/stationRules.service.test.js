@@ -193,3 +193,30 @@ test('an item answers for a visiting member with its own switch, and for their g
     // The limit still holds: yesterday's locker not brought back refuses a new one.
     assert.deepEqual(rules.serveTileVerdict({ ...base, held: 1 }), { allowed: false, reason: 'Limit reached - holding 1 of 1.' });
 });
+
+// ---- slice 7b: a visiting member enters a facility ----
+
+test('a facility answers for a visiting member with its own switch, and their guest enters only once they are inside', () => {
+    const ok = { allowed: true, reason: null };
+    const own = { code: 'POOL', isVisiting: true, visitingAllowed: true, hostName: 'Lim Chee Keong', count: 3, capacity: 30 };
+    assert.deepEqual(rules.entryVerdict(own), ok);
+    assert.equal(rules.entryVerdict({ ...own, visitingAllowed: false }).reason, 'POOL is not open to visiting members.');
+    // The switch outranks the hours: the reason that will not change comes first.
+    assert.equal(rules.entryVerdict({ ...own, visitingAllowed: false, closedReason: 'POOL is closed right now.' }).reason, 'POOL is not open to visiting members.');
+    assert.equal(rules.entryVerdict({ ...own, closedReason: 'POOL is closed right now.' }).reason, 'POOL is closed right now.');
+    // The member-guest rules say nothing to the visiting member themself.
+    assert.deepEqual(rules.entryVerdict({ ...own, guestsAllowed: false, hostMustBePresent: true, allowanceLeft: 0 }), ok);
+    assert.equal(rules.entryVerdict({ ...own, needsBooking: true }).reason, 'POOL admits members holding a booking today - Lim Chee Keong has none.');
+    assert.equal(rules.entryVerdict({ ...own, count: 30 }).reason, 'Full - 30 of 30 inside.');
+    assert.deepEqual(rules.entryVerdict({ ...own, inside: true, visitingAllowed: false }), { allowed: false, reason: null });
+    // The guest they brought: the caller passes hostMustBePresent true.
+    const guest = { ...own, isGuest: true, hostMustBePresent: true };
+    assert.equal(rules.entryVerdict({ ...guest, hostInside: false }).reason, 'Lim Chee Keong must enter POOL first.');
+    assert.deepEqual(rules.entryVerdict({ ...guest, hostInside: true }), ok);
+    assert.equal(rules.entryVerdict({ ...guest, hostInside: true, visitingAllowed: false }).reason, "POOL is not open to a visiting member's guests.");
+    assert.equal(rules.entryVerdict({ ...guest, hostInside: true, guestsAllowed: false }).reason, 'Visitor guests are not allowed on POOL now.');
+    assert.equal(rules.entryVerdict({ ...guest, hostInside: true, guestCap: 1, guestsOnEntry: 1 }).reason, 'At most 1 visitor guest per visit on POOL.');
+    // The switch says nothing to a member or a member's guest.
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', visitingAllowed: false }), ok);
+    assert.deepEqual(rules.entryVerdict({ code: 'POOL', isGuest: true, visitingAllowed: false }), ok);
+});

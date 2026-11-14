@@ -183,12 +183,19 @@ function undoVerdict({ status, issuedAt, now = new Date(), billStatus = null, mi
 // when the type says the host must be present, room under the type's
 // guests-per-visit cap and - a guest not yet counted today - a visit left on
 // the host's monthly allowance (`allowanceLeft` null = no limit).
+// Slice 7b: `isVisiting` = a visiting member of an affiliated or reciprocal
+// club, or a guest they brought (then `isGuest` too). The type's own
+// "Visiting members allowed" switch answers for both; the caller passes
+// `hostMustBePresent` true for their guest, who enters only once the visiting
+// member is inside.
 function entryVerdict({
     code, inside = false, closedReason = null, needsBooking = false, hasBooking = false,
     isGuest = false, hostName = 'The member', guestsAllowed = true, hostMustBePresent = false, hostInside = false,
     guestCap = null, guestsOnEntry = 0, allowanceLeft = null, count = 0, capacity = null,
+    isVisiting = false, visitingAllowed = true,
 }) {
     if (inside) return { allowed: false, reason: null };
+    if (isVisiting && visitingAllowed === false) return { allowed: false, reason: `${code} is not open to ${isGuest ? "a visiting member's guests" : 'visiting members'}.` };
     if (closedReason) return { allowed: false, reason: closedReason };
     if (needsBooking && !hasBooking) return { allowed: false, reason: `${code} admits members holding a booking today - ${hostName} has none.` };
     if (isGuest) {

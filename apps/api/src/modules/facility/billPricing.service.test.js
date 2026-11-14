@@ -52,3 +52,20 @@ test('default type: explicit pick, then the type-scoped default, then the genera
     assert.equal(pricing.bookerCategory({ patronType: 'member' }), 'member');
     assert.equal(pricing.bookerCategory({ patronType: 'other' }), 'guest');
 });
+
+// ---- slice 7b: a visiting member's entry fee ----
+
+test('a visiting member is priced at their own cell of the card, and has no price until the club adds it', () => {
+    const type = { transactionType: 'POOLFEE', chargeType: 'facility-fee' };
+    const card = { effectiveDate: '2026-11-01', isActive: true, cells: [
+        { participantType: 'member', dayScope: 'all', sessionId: null, amount: 10 },
+        { participantType: 'reciprocal', dayScope: 'all', sessionId: null, amount: 25 },
+        { participantType: 'reciprocal', dayScope: 'weekend', sessionId: null, amount: 30 },
+    ] };
+    const at = (participantType, dayType = 'weekday') => pricing.unitPriceOf(type, [card], { date: '2026-11-14', participantType, dayType });
+    assert.deepEqual(at('member'), { unitAmount: 10 });
+    assert.deepEqual(at('reciprocal'), { unitAmount: 25 });
+    assert.deepEqual(at('reciprocal', 'weekend'), { unitAmount: 30 });
+    // No cell is no price: never the member's price, never a silent zero.
+    assert.match(at('affiliate').missing, /'POOLFEE' has no price for affiliate \/ weekday on 2026-11-14/);
+});
