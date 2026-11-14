@@ -74,7 +74,7 @@ function validateItem(body, current) {
         if (!description) return { error: 'Description is required.' };
         out.description = description;
     }
-    for (const flag of ['trackUnits', 'returnRequired', 'guestsAllowed', 'requiresEntry', 'isActive']) {
+    for (const flag of ['trackUnits', 'returnRequired', 'guestsAllowed', 'visitingMembersAllowed', 'requiresEntry', 'isActive']) {
         if (typeof body[flag] === 'boolean') out[flag] = body[flag];
     }
     if ('stockQuantity' in body) {
@@ -84,7 +84,6 @@ function validateItem(body, current) {
     }
     const requiredInts = [
         ['maxPerPerson', 0, 100, 'Limit per person must be a whole number between 0 and 100 (0 = no limit).'],
-        ['dueDays', 0, 365, 'Due days must be a whole number between 0 and 365 (0 = same day).'],
         ['sortOrder', 0, 9999, 'Sort order must be a whole number between 0 and 9999.'],
     ];
     for (const [field, min, max, message] of requiredInts) {

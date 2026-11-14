@@ -871,6 +871,18 @@ async function initializeDB() {
             console.log('facility.Bill.bookingId made nullable (bills on registrations, issues and class enrolments).');
         }
 
+        // facility.UtilityItem.dueDays dropped (2026-11-14, user rule: nobody
+        // keeps an item overnight, so every returnable item is due back the
+        // same day). The alter-sync never drops a column. Idempotent.
+        const [[dueDaysCol]] = await sequelize.query(
+            `SELECT 1 AS present FROM information_schema.columns
+             WHERE table_schema = 'facility' AND table_name = 'UtilityItem' AND column_name = 'dueDays'`,
+        ).catch(() => [[null]]);
+        if (dueDaysCol) {
+            await sequelize.query('ALTER TABLE facility."UtilityItem" DROP COLUMN IF EXISTS "dueDays"');
+            console.log('facility.UtilityItem.dueDays dropped (every returnable item is due back the same day).');
+        }
+
         // Registration Counter (2026-11-14, deliberately OUTSIDE the
         // fingerprint gate; both steps idempotent).
         // 1. membership.GuestRegistration.memberId / guestId nullable: a

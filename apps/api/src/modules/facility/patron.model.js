@@ -14,6 +14,12 @@ const { FACILITY_SCHEMA } = require('../../platform/schemas');
 //     are asked LIVE through platform/membershipGateway.js.
 //   patronType 'other'  -> sourceId = facility.OtherPatron.id (facility's own
 //     visitor profile).
+//   patronType 'affiliate' | 'reciprocal' (slice 7, 2026-11-14) -> sourceId =
+//     membership AffiliatedVisit.id, the LETTER a member of another club is
+//     here on. ONE row per letter, whatever its days, so the station sees on
+//     day 2 what the visiting member left out on day 1. `memberNo` stays NULL:
+//     their number belongs to the home club and must never be read as a
+//     member number of this club.
 // `name` / `memberNo` are search-and-sort SNAPSHOTS refreshed from the source.
 // Rows are created LAZILY at first booking or registration; a visitor who
 // joins the club is RE-POINTED ('other' -> 'member') keeping the same id.
@@ -27,7 +33,7 @@ const Patron = sequelize.define('FacilityPatron', {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // 'member' | 'other' (facility.constants PATRON_TYPES).
+    // 'member' | 'other' | 'affiliate' | 'reciprocal' (facility.constants PATRON_TYPES).
     patronType: {
         type: DataTypes.STRING(10),
         allowNull: false,

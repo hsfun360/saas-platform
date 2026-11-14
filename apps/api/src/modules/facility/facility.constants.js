@@ -28,12 +28,18 @@ const RULE_DAY_SCOPE_KEYS = ['all', 'weekday', 'weekend', 'monday', 'tuesday', '
 
 // ---- slice 2 ----
 
-// The thin identity's profile kind (facility.Patron.patronType).
+// The thin identity's profile kind (facility.Patron.patronType). The two
+// VISITING kinds (slice 7, approved 2026-11-14) are a member of an affiliated
+// or reciprocal club here on a letter: the keys are Membership's own patron
+// groups, and the row points at the letter.
 const PATRON_TYPES = [
     { key: 'member', label: 'Member' },
     { key: 'other', label: 'Visitor' },
+    { key: 'affiliate', label: 'Affiliated member' },
+    { key: 'reciprocal', label: 'Reciprocal member' },
 ];
 const PATRON_TYPE_KEYS = PATRON_TYPES.map((p) => p.key);
+const VISITING_PATRON_TYPE_KEYS = ['affiliate', 'reciprocal'];
 
 // Participant Type base identities - the engine class a club-defined type
 // behaves as (the three system codes are the keys themselves).
@@ -145,7 +151,7 @@ const LIMITS = {
 
 module.exports = {
     USAGE_MODES, USAGE_MODE_KEYS, DAY_SCOPES, DAY_SCOPE_KEYS, RULE_DAY_SCOPE_KEYS, LIMITS,
-    PATRON_TYPES, PATRON_TYPE_KEYS,
+    PATRON_TYPES, PATRON_TYPE_KEYS, VISITING_PATRON_TYPE_KEYS,
     BASE_IDENTITIES, BASE_IDENTITY_KEYS, SYSTEM_PARTICIPANT_TYPES,
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, DEFAULT_TYPED_CHARGE_TYPE_KEYS, RESERVED_CHARGE_TYPE_KEYS,
     FEE_BASES, FEE_BASIS_KEYS,

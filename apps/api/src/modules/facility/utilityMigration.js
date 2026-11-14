@@ -49,11 +49,11 @@ async function migrateIssueTypesToUtilityItems(sequelize, { log = console.log } 
 
         const [, items] = await run(`
             INSERT INTO facility."UtilityItem"
-                (id, "companyId", code, description, "trackUnits", "returnRequired", "stockQuantity", "maxPerPerson", "dueDays",
+                (id, "companyId", code, description, "trackUnits", "returnRequired", "stockQuantity", "maxPerPerson",
                  "feeTransactionTypeId", "guestsAllowed", "requiresEntry", "iconUrl", "sortOrder", "isActive",
                  "createdBy", "createdByDepartmentId", "updatedBy", "createdAt", "updatedAt")
             SELECT t.id, t."companyId", t.code, t.description, COALESCE(t."trackUnits", true), true, NULL,
-                   COALESCE(t."maxIssuePerPatron", 1), COALESCE(t."issueDueDays", 0),
+                   COALESCE(t."maxIssuePerPatron", 1),
                    t."issueFeeTransactionTypeId", true, false, t."iconUrl", t."sortOrder", t."isActive",
                    t."createdBy", t."createdByDepartmentId", t."updatedBy", t."createdAt", t."updatedAt"
               FROM facility."FacilityType" t

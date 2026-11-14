@@ -41,8 +41,10 @@ test('issue limits and the due-back time', () => {
     assert.equal(rules.issueLimitVerdict({ held: 1, taking: 1, limit: 1, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), 'Ahmad has already used SHOWER 1 time today - the limit is 1 a day.');
     assert.equal(rules.issueLimitVerdict({ held: 2, taking: 1, limit: 2, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), 'Ahmad has already used SHOWER 2 times today - the limit is 2 a day.');
     assert.equal(rules.issueLimitVerdict({ held: 0, taking: 3, limit: 2, name: 'Ahmad', unitWord: 'x', usedToday: 'SHOWER' }), '3 SHOWER uses are over the limit of 2 a day.');
-    assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', dueDays: 0, hours: { open: 360, close: 1320 } }), '2026-11-02T22:00');
-    assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', dueDays: 2, hours: null }), '2026-11-04T23:59');
+    // Nobody keeps an item overnight: it is due back the day it was issued.
+    assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', hours: { open: 360, close: 1320 } }), '2026-11-02T22:00');
+    assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02' }), '2026-11-02T23:59');
+    assert.equal(rules.dueBackLocal({ issueDate: '2026-11-02', dueDays: 2, hours: null }), '2026-11-02T23:59');
 });
 
 test('return outcomes: a unit frees, parks or is lost; a consumable may come back short', () => {
@@ -157,9 +159,37 @@ test('undo is for a wrong tap: inside the window, on a live issue or a use, and 
     assert.match(rules.undoVerdict({ status: 'returned', issuedAt, now: at(1) }), /Already returned/);
 });
 
-test('the station does not serve the pass of a visiting affiliated or reciprocal member yet', () => {
+// ---- slice 7: a visiting affiliated or reciprocal member ----
+
+test('the pass of a visiting member, and of the guest they brought, is served on the letter behind it', () => {
     const pass = { registrationNo: 'G-00031', visitDateText: '14 Nov 2026', passState: 'valid' };
+    const visit = { id: 'v1', visitNo: 'L261100004', visitorName: 'Tan Wei' };
     assert.equal(rules.passVerdict({ ...pass, patronGroup: 'guest' }), null);
-    assert.match(rules.passVerdict({ ...pass, patronGroup: 'reciprocal', accompanying: false }), /^Pass G-00031 belongs to a visiting reciprocal club member/);
-    assert.match(rules.passVerdict({ ...pass, patronGroup: 'affiliate', accompanying: true }), /^Pass G-00031 belongs to a guest of a visiting affiliated club member/);
+    assert.equal(rules.passVerdict({ ...pass, patronGroup: 'reciprocal', accompanying: false, visit }), null);
+    assert.equal(rules.passVerdict({ ...pass, patronGroup: 'affiliate', accompanying: true, visit }), null);
+    // Its own day and its cancellation still decide first.
+    assert.equal(rules.passVerdict({ ...pass, patronGroup: 'reciprocal', visit, passState: 'expired' }), 'This pass was for 14 Nov 2026 and has expired.');
+    assert.match(rules.passVerdict({ ...pass, patronGroup: 'reciprocal', visit: null }), /^Pass G-00031 has no letter behind it/);
+    assert.equal(rules.isVisitingPass({ patronGroup: 'affiliate' }), true);
+    assert.equal(rules.isVisitingPass({ patronGroup: 'guest' }), false);
+    assert.equal(rules.isVisitingPass({}), false);
+    assert.equal(rules.visitingLabel('reciprocal'), 'Reciprocal member');
+    assert.equal(rules.visitingLabel('affiliate'), 'Affiliated member');
+});
+
+test('an item answers for a visiting member with its own switch, and for their guest with both switches', () => {
+    const base = { behaviour: 'quantity', isGuest: false, guestsAllowed: true, isVisiting: true, visitingAllowed: true, requiresEntry: false, inside: false, held: 0, limit: 1, freeUnits: 0, fee: null };
+    assert.deepEqual(rules.serveTileVerdict(base), { allowed: true, reason: null });
+    assert.deepEqual(rules.serveTileVerdict({ ...base, visitingAllowed: false }), { allowed: false, reason: 'Not for visiting members.' });
+    // "Guests allowed" OFF does not stop the visiting member themself.
+    assert.equal(rules.serveTileVerdict({ ...base, guestsAllowed: false }).allowed, true);
+    // The guest they brought.
+    assert.equal(rules.serveTileVerdict({ ...base, isGuest: true }).allowed, true);
+    assert.deepEqual(rules.serveTileVerdict({ ...base, isGuest: true, guestsAllowed: false }), { allowed: false, reason: 'Members only.' });
+    assert.deepEqual(rules.serveTileVerdict({ ...base, isGuest: true, visitingAllowed: false }), { allowed: false, reason: "Not for a visiting member's guests." });
+    // The switch says nothing to a member or a member's guest.
+    assert.equal(rules.serveTileVerdict({ ...base, isVisiting: false, visitingAllowed: false }).allowed, true);
+    assert.equal(rules.serveTileVerdict({ ...base, isVisiting: false, isGuest: true, visitingAllowed: false }).allowed, true);
+    // The limit still holds: yesterday's locker not brought back refuses a new one.
+    assert.deepEqual(rules.serveTileVerdict({ ...base, held: 1 }), { allowed: false, reason: 'Limit reached - holding 1 of 1.' });
 });

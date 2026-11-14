@@ -10,10 +10,10 @@ test('the behaviour of an item follows its two switches', () => {
     assert.equal(rules.behaviourOf({ trackUnits: true, returnRequired: false }), 'units');
 });
 
-test('normalising the switches: units are always returned and carry no stock, a use is never due back', () => {
-    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: true, returnRequired: false, stockQuantity: 50, dueDays: 2 }), { trackUnits: true, returnRequired: true, stockQuantity: null, dueDays: 2 });
-    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: false, returnRequired: true, stockQuantity: 200, dueDays: 1 }), { trackUnits: false, returnRequired: true, stockQuantity: 200, dueDays: 1 });
-    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: false, returnRequired: false, stockQuantity: 200, dueDays: 3 }), { trackUnits: false, returnRequired: false, stockQuantity: null, dueDays: 0 });
+test('normalising the switches: units are always returned and carry no stock, and no item keeps a due-days setting', () => {
+    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: true, returnRequired: false, stockQuantity: 50 }), { trackUnits: true, returnRequired: true, stockQuantity: null });
+    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: false, returnRequired: true, stockQuantity: 200 }), { trackUnits: false, returnRequired: true, stockQuantity: 200 });
+    assert.deepEqual(rules.normalizeBehaviour({ trackUnits: false, returnRequired: false, stockQuantity: 200, dueDays: 3 }), { trackUnits: false, returnRequired: false, stockQuantity: null });
 });
 
 test('generate units: prefix and padded numbers, existing codes flagged, bounds refused', () => {

@@ -8,6 +8,7 @@
 const { Op } = require('sequelize');
 const Patron = require('./patron.model');
 const OtherPatron = require('./otherPatron.model');
+const { VISITING_PATRON_TYPE_KEYS } = require('./facility.constants');
 
 function dto(p, other = null) {
     return {
@@ -71,7 +72,28 @@ async function ensureOtherPatron(companyId, visitor, stamps, { transaction } = {
     return { patron: row, profile };
 }
 
-// Desk search by name, member number, identity number or mobile.
+// Find or create the Patron of a VISITING member (slice 7): a member of an
+// affiliated or reciprocal club, here on a letter. `visit` = { id (the
+// letter), patronGroup ('affiliate' | 'reciprocal'), name }. One row per
+// letter; the name snapshot follows the letter.
+async function ensureVisitingPatron(companyId, visit, stamps, { transaction } = {}) {
+    const name = String(visit.name || '').trim().slice(0, 255) || 'Visiting member';
+    const [row, created] = await Patron.findOrCreate({
+        where: { companyId, patronType: visit.patronGroup, sourceId: visit.id },
+        defaults: { companyId, patronType: visit.patronGroup, sourceId: visit.id, name, memberNo: null, isActive: true, ...stamps },
+        transaction,
+    });
+    if (!created && row.name !== name) {
+        row.name = name;
+        row.updatedBy = stamps ? stamps.updatedBy : row.updatedBy;
+        await row.save({ transaction });
+    }
+    return row;
+}
+
+// Desk search by name, member number, identity number or mobile. A visiting
+// member's row is left out: they are served on the day pass at the station
+// and do not book.
 async function search(companyId, q, { limit = 20 } = {}) {
     const term = String(q || '').trim();
     if (!term) return [];
@@ -86,6 +108,7 @@ async function search(companyId, q, { limit = 20 } = {}) {
         where: {
             companyId,
             isActive: true,
+            patronType: { [Op.notIn]: VISITING_PATRON_TYPE_KEYS },
             [Op.or]: [
                 { name: { [Op.iLike]: like } },
                 { memberNo: { [Op.iLike]: like } },
@@ -125,4 +148,4 @@ async function profilesFor(companyId, patrons, { transaction } = {}) {
     return out;
 }
 
-module.exports = { dto, ensureMemberPatron, ensureOtherPatron, search, byIds, profilesFor };
+module.exports = { dto, ensureMemberPatron, ensureOtherPatron, ensureVisitingPatron, search, byIds, profilesFor };

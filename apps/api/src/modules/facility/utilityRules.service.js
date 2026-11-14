@@ -16,15 +16,14 @@ function behaviourOf(item) {
 const BEHAVIOUR_LABELS = { units: 'Numbered units', quantity: 'By quantity', use: 'Use only' };
 
 // The stored switches for an intended pair: numbered units are always
-// returned and carry no stock count; a use-only item is never due back.
-function normalizeBehaviour({ trackUnits, returnRequired, stockQuantity = null, dueDays = 0 }) {
+// returned and carry no stock count.
+function normalizeBehaviour({ trackUnits, returnRequired, stockQuantity = null }) {
     const units = trackUnits === true;
     const back = units ? true : returnRequired !== false;
     return {
         trackUnits: units,
         returnRequired: back,
         stockQuantity: units || !back ? null : stockQuantity,
-        dueDays: back ? Number(dueDays) || 0 : 0,
     };
 }
 

@@ -13,7 +13,7 @@ const { sequelize } = require('../../platform/db');
 const { getUserContext } = require('../../platform/serviceContext');
 const {
     getGolfMemberStanding, getGuestAllowanceStanding, recordGuestVisit, voidGuestVisit, findGuestPass, getGuestPass, markGuestArrived,
-    registerGuestAtDoor, cancelGuestAtDoor, getGuestPassShare, sendGuestPass, listGuestPassesOfHost,
+    registerGuestAtDoor, cancelGuestAtDoor, getGuestPassShare, sendGuestPass, listGuestPassesOfHost, listGuestPassesOfVisit,
 } = require('../../platform/membershipGateway');
 const { companyTimezoneById } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
@@ -41,6 +41,7 @@ const shared = require('./bookingShared');
 const { stampsFor, toMinutes, txFail, runTx } = require('./facilityShared');
 const { ACTIVE_SLOT_STATUS_KEYS } = require('./booking.constants');
 const { STATION_LIMITS } = require('./station.constants');
+const { VISITING_PATRON_TYPE_KEYS } = require('./facility.constants');
 const noShow = require('./noShow.service');
 
 // ---- club clock helpers -------------------------------------------------------
@@ -104,9 +105,10 @@ function registrationDto(r, { patron, unit, guests = [], bill = null } = {}) {
 function issueDto(i, { patron, unit, bill = null } = {}, now = new Date()) {
     return {
         id: i.id,
-        // The responsible member; the holder is that member unless holderName
-        // names a guest served on the pass (slice 6b).
-        patron: patron ? { id: patron.id, name: patron.name, memberNo: patron.memberNo } : null,
+        // The responsible person - a member, or a visiting member of another
+        // club (slice 7: patronType 'affiliate' | 'reciprocal'); the holder is
+        // that person unless holderName names a guest served under them (slice 6b).
+        patron: patron ? { id: patron.id, name: patron.name, memberNo: patron.memberNo, patronType: patron.patronType } : null,
         holderName: i.holderName || null,
         guestRegistrationId: i.guestRegistrationId || null,
         utilityItemId: i.utilityItemId,
@@ -250,8 +252,8 @@ async function dayPicture(companyId, date, callerId) {
         return {
             id: it.id, code: it.code, description: it.description, iconUrl: it.iconUrl,
             behaviour: utilityRules.behaviourOf(it), trackUnits: it.trackUnits === true, returnRequired: it.returnRequired !== false,
-            stockQuantity: it.stockQuantity, maxPerPerson: it.maxPerPerson, dueDays: it.dueDays || 0,
-            guestsAllowed: it.guestsAllowed !== false, requiresEntry: it.requiresEntry === true,
+            stockQuantity: it.stockQuantity, maxPerPerson: it.maxPerPerson,
+            guestsAllowed: it.guestsAllowed !== false, visitingMembersAllowed: it.visitingMembersAllowed !== false, requiresEntry: it.requiresEntry === true,
             fee: it.feeTransactionTypeId ? (feeById.get(it.feeTransactionTypeId) || null) : null,
             units: itemUnits.map(utilityUnitDto),
             outCount: itemIssues.filter((i) => i.status === 'issued').reduce((sum, i) => sum + Number(i.quantity), 0),
@@ -440,7 +442,7 @@ async function linkDoorGuests({ req, companyId, lines, host, date, door, warning
         const label = `Guest ${l.sortOrder}`;
         if (l.passId) {
             const pass = await getGuestPass(companyId, l.passId, { transaction });
-            if (!pass || pass.status === 'cancelled' || pass.host.memberId !== host.memberId || pass.visitDate !== date) txFail(`${label}: that pass is not ${host.name}'s guest pass for today.`);
+            if (!pass || pass.status === 'cancelled' || !pass.host || pass.host.memberId !== host.memberId || pass.visitDate !== date) txFail(`${label}: that pass is not ${host.name}'s guest pass for today.`);
             Object.assign(l, { guestId: pass.guest.id, guestRegistrationId: pass.id, name: pass.guest.name, passCreatedHere: keep.get(pass.id) === true });
             if (pass.status === 'registered') await markGuestArrived(companyId, pass.id, { actorId: getUserContext(req).userId, transaction });
             continue;
@@ -711,8 +713,11 @@ async function replaceGuests(req, id, body) {
 // is the responsible member - or a member on their own number. `code` is
 // whatever was scanned or keyed into the scan box. Slice 6c adds the guest
 // WITHOUT a pass, served by name together with the member: `memberNo` with
-// `guestName` (pass stays null). Returns { error } or
-// { isGuest, pass, standing, holderName, participantType }.
+// `guestName` (pass stays null). Slice 7 adds the pass of a VISITING member
+// of an affiliated or reciprocal club: served in their own name (`isGuest`
+// false, `standing` null, `visit` = the letter), and the guest they brought
+// as a guest under them. Returns { error } or
+// { isGuest, pass, standing, visit, holderName, participantType }.
 async function resolveHolder(companyId, { code = null, guestRegistrationId = null, memberNo = null, guestName = null } = {}) {
     let pass = null;
     let number = memberNo ? String(memberNo).trim() : '';
@@ -732,6 +737,16 @@ async function resolveHolder(companyId, { code = null, guestRegistrationId = nul
     if (pass) {
         const refusal = rules.passVerdict(pass);
         if (refusal) return { error: refusal };
+        if (rules.isVisitingPass(pass)) {
+            const visit = {
+                id: pass.visit.id, visitNo: pass.visit.visitNo, patronGroup: pass.patronGroup,
+                name: pass.visit.visitorName, memberNo: pass.visit.visitorMemberNo || null, club: pass.club || null,
+            };
+            return pass.accompanying
+                ? { isGuest: true, pass, standing: null, visit, holderName: pass.guest.name, participantType: 'guest' }
+                : { isGuest: false, pass, standing: null, visit, holderName: visit.name, participantType: pass.patronGroup };
+        }
+        if (!pass.host) return { error: `Pass ${pass.registrationNo} names no host member - see the Registration Counter.` };
         const host = await memberStanding(companyId, pass.host.memberNo, 'Host');
         if (host.error) return host;
         return { isGuest: true, pass, standing: host.standing, holderName: pass.guest.name, participantType: 'guest' };
@@ -744,6 +759,27 @@ async function resolveHolder(companyId, { code = null, guestRegistrationId = nul
     const byName = guestName ? String(guestName).trim().slice(0, 255) : '';
     if (byName) return { isGuest: true, pass: null, standing: m.standing, holderName: byName, participantType: 'guest' };
     return { isGuest: false, pass: null, standing: m.standing, holderName: m.standing.name, participantType: 'member' };
+}
+
+// The person a holder's records hang on: the member (their own, or the host
+// of a guest), or the visiting member of a letter (slice 7).
+function responsibleOf(who) {
+    return who.visit ? { name: who.visit.name, memberNo: null } : { name: who.standing.name, memberNo: who.standing.memberNo };
+}
+
+function ensureHolderPatron(companyId, who, stamps, opts) {
+    return who.visit ? patrons.ensureVisitingPatron(companyId, who.visit, stamps, opts) : patrons.ensureMemberPatron(companyId, who.standing, stamps, opts);
+}
+
+function findHolderPatron(companyId, who) {
+    const key = who.visit ? { patronType: who.visit.patronGroup, sourceId: who.visit.id } : { patronType: 'member', sourceId: who.standing.memberId };
+    return Patron.findOne({ where: { companyId, ...key } });
+}
+
+// Why an item is not for this visiting member (or their guest), or null.
+function visitingRefusal(who, item) {
+    if (!who.visit || item.visitingMembersAllowed !== false) return null;
+    return `${item.code} is not for ${who.isGuest ? "a visiting member's guests" : 'visiting members'}.`;
 }
 
 // A name matched as keyed, whatever its capitals.
@@ -829,6 +865,8 @@ async function issue(req, body) {
     if (who.error) return who;
     const standing = who.standing;
     if (who.isGuest && item.guestsAllowed === false) return { error: `${item.code} is for members only.` };
+    const notForVisiting = visitingRefusal(who, item);
+    if (notForVisiting) return { error: notForVisiting };
     const { now, timezone } = await clock(companyId);
     const date = now.date;
     const dayType = await shared.dayTypeOf(companyId, date);
@@ -845,7 +883,7 @@ async function issue(req, body) {
             unit = candidates[0] || null;
             if (!unit) txFail(wanted ? 'That unit is not available.' : `No ${item.code} unit is available right now.`);
         }
-        const patron = await patrons.ensureMemberPatron(companyId, standing, stamps, { transaction });
+        const patron = await ensureHolderPatron(companyId, who, stamps, { transaction });
         const mine = holderWhere(who, patron.id);
         if (item.requiresEntry === true && !(await isInside(companyId, who, patron.id, date, { transaction }))) {
             txFail(`${item.code} is only for a person inside a facility today.`);
@@ -861,7 +899,7 @@ async function issue(req, body) {
         const limitError = rules.issueLimitVerdict({ held, taking: quantity, limit: Number(item.maxPerPerson || 0), name: who.holderName, unitWord, usedToday: behaviour === 'use' ? item.code : null });
         if (limitError) txFail(limitError);
         const issuedAt = new Date();
-        const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date, dueDays: item.dueDays || 0, hours: null }), timezone);
+        const dueBack = behaviour === 'use' ? issuedAt : localToDate(rules.dueBackLocal({ issueDate: date }), timezone);
         const record = await IssueRecord.create({
             companyId, patronId: patron.id, utilityItemId: item.id, utilityUnitId: unit ? unit.id : null, registrationId: body.registrationId ? String(body.registrationId) : null,
             holderName: who.isGuest ? String(who.holderName || '').slice(0, 255) : null, guestRegistrationId: who.isGuest && who.pass ? who.pass.id : null,
@@ -886,8 +924,9 @@ async function issue(req, body) {
             if (!feeType) warnings.push(`${item.code}'s fee item is missing or disabled - no fee was charged.`);
             else {
                 // ONE open bill per person per day (slice 6b): the first paid
-                // item opens it in the responsible member's name, the next ones
-                // add their lines to it while it is open.
+                // item opens it in the responsible person's name (the member,
+                // or the visiting member of a letter), the next ones add their
+                // lines to it while it is open.
                 const earlier = await IssueRecord.findAll({ where: { companyId, ...mine, feeBillId: { [Op.ne]: null }, issuedAt: { [Op.gte]: startOfDay } }, attributes: ['feeBillId'], transaction });
                 const billIds = [...new Set([...earlier.map((e) => e.feeBillId), ...(who.isGuest ? [] : await entryBillIds(companyId, patron.id, date, { transaction }))])];
                 let bill = billIds.length
@@ -908,9 +947,9 @@ async function issue(req, body) {
         return { record, unit };
     });
     if (result.error) return result;
-    // Serving a guest IS the arrival, however the request came in.
-    if (who.isGuest && who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
-    const to = who.isGuest ? `${who.holderName}, guest of ${standing.name}` : standing.name;
+    // Serving a person on a pass IS the arrival, however the request came in.
+    if (who.pass && who.pass.status === 'registered') await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
+    const to = who.isGuest ? `${who.holderName}, guest of ${responsibleOf(who).name}` : who.holderName;
     const message = behaviour === 'units' ? `${result.unit.code} issued to ${to}.`
         : behaviour === 'use' ? `${item.code} recorded for ${to}.`
             : `${quantity} ${item.code} issued to ${to}.`;
@@ -976,7 +1015,7 @@ async function servePicture(req, who, { firstScan = false } = {}) {
     const startOfDay = localToDate(`${date}T00:00`, timezone);
     const [dayType, patron, items] = await Promise.all([
         shared.dayTypeOf(companyId, date),
-        Patron.findOne({ where: { companyId, patronType: 'member', sourceId: who.standing.memberId } }),
+        findHolderPatron(companyId, who),
         UtilityItem.findAll({ where: { companyId, isActive: true }, order: [['sortOrder', 'ASC'], ['code', 'ASC']] }),
     ]);
     const known = !!(who.isGuest && who.pass) || !!patron;
@@ -1023,23 +1062,41 @@ async function servePicture(req, who, { firstScan = false } = {}) {
         const free = behaviour === 'units' ? freeUnits.filter((u) => u.utilityItemId === it.id) : [];
         const fee = it.feeTransactionTypeId ? feeById.get(it.feeTransactionTypeId) || null : null;
         const verdict = rules.serveTileVerdict({
-            behaviour, isGuest: who.isGuest, guestsAllowed: it.guestsAllowed !== false, requiresEntry: it.requiresEntry === true, inside,
+            behaviour, isGuest: who.isGuest, guestsAllowed: it.guestsAllowed !== false,
+            isVisiting: !!who.visit, visitingAllowed: it.visitingMembersAllowed !== false, requiresEntry: it.requiresEntry === true, inside,
             held, limit: Number(it.maxPerPerson || 0), freeUnits: free.length, fee, priceRequired: fee ? fee.priceRequired : true,
         });
         return {
             utilityItemId: it.id, code: it.code, description: it.description, iconUrl: it.iconUrl, behaviour,
             fee: fee ? { code: fee.code, description: fee.description, unitAmount: fee.unitAmount } : null,
             allowed: verdict.allowed, reason: verdict.reason,
-            held, limit: Number(it.maxPerPerson || 0), dueDays: it.dueDays || 0,
+            held, limit: Number(it.maxPerPerson || 0),
             freeUnits: free.map((u) => ({ id: u.id, code: u.code, location: u.location })),
             suggestedUnitId: free.length ? free[0].id : null,
         };
     });
-    const host = { memberId: who.standing.memberId, memberNo: who.standing.memberNo, name: who.standing.name };
+    // The responsible person: the member, or - on a visiting member's pass -
+    // the visiting member, who has no member number of this club.
+    const responsible = responsibleOf(who);
+    const host = { memberId: who.standing ? who.standing.memberId : null, memberNo: responsible.memberNo, name: responsible.name };
+    // A visiting member's party is the letter's passes of the day: the guests
+    // they brought are registered at the Registration Counter, never here.
+    const letterPasses = who.visit ? await listGuestPassesOfVisit(companyId, who.visit.id, date) : [];
+    const party = who.visit && !who.isGuest ? letterPasses.filter((p) => p.accompanying) : null;
+    const ownPass = letterPasses.find((p) => !p.accompanying) || null;
     return {
-        kind: who.isGuest ? 'guest' : 'member',
+        // 'visiting' = a member of an affiliated or reciprocal club on their
+        // own pass (slice 7); the guest they brought is a 'guest' with `visit`.
+        kind: who.isGuest ? 'guest' : who.visit ? 'visiting' : 'member',
         person: { name: who.holderName },
         host,
+        visit: who.visit ? {
+            id: who.visit.id, visitNo: who.visit.visitNo, patronGroup: who.visit.patronGroup, label: rules.visitingLabel(who.visit.patronGroup),
+            name: who.visit.name, memberNo: who.visit.memberNo, club: who.visit.club ? { code: who.visit.club.code, name: who.visit.club.name } : null,
+            // The visiting member's own pass of the day: how a guest's panel
+            // steps back to them (null = they hold none today).
+            ownPassId: ownPass ? ownPass.id : null,
+        } : null,
         // A guest served by name has no pass. `createdHere` = the station
         // registered this pass (slice 6c), so the station may take it back.
         // `removable` = a guest added by mistake can still be taken back: the
@@ -1051,16 +1108,18 @@ async function servePicture(req, who, { firstScan = false } = {}) {
             removable: who.pass.channel === 'facility' && !mine.some((i) => i.status === 'issued' || i.remarks !== rules.UNDONE_REMARK)
                 && (await RegistrationGuest.count({ where: { companyId, guestRegistrationId: who.pass.id } })) === 0,
         } : null,
-        standingWarning: standingWarningOf(who.standing),
+        standingWarning: who.standing ? standingWarningOf(who.standing) : null,
         // A member's panel: the guests served under them today, and how a
-        // guest keyed here is served (the two door switches).
-        guests: who.isGuest ? [] : await guestsOfHost(companyId, patron, { memberId: who.standing.memberId, date, startOfDay }),
-        door: who.isGuest ? null : await doorRules(companyId),
+        // guest keyed here is served (the two door switches). A visiting
+        // member's panel lists the guests of the letter; none is added here.
+        guests: who.isGuest ? [] : await guestsOfHost(companyId, patron, party || await listGuestPassesOfHost(companyId, who.standing.memberId, date), { date, startOfDay }),
+        door: who.isGuest || who.visit ? null : await doorRules(companyId),
         holding: live.map(rowOf),
         usedToday: usedToday.map(rowOf),
         tiles,
-        // Slice 6d: the facilities the person may enter from here.
-        entries: await entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }),
+        // Slice 6d: the facilities the person may enter from here. A visiting
+        // member's pass opens no facility until step 7b.
+        entries: who.visit ? [] : await entryTiles(companyId, who, { patron, now, date, dayType, startOfDay }),
         bill: openToday ? billById.get(openToday.id) : (who.isGuest ? await entryBillOfGuest(companyId, who, patron, date) : null),
         undoMinutes: rules.UNDO_MINUTES,
         clubNow: now,
@@ -1076,7 +1135,7 @@ async function scan(req, body) {
     const who = await resolveHolder(companyId, { code: body.code, guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
     if (who.error) return who;
     let firstScan = false;
-    if (who.isGuest && who.pass && who.pass.status === 'registered') {
+    if (who.pass && who.pass.status === 'registered') {
         firstScan = await markGuestArrived(companyId, who.pass.id, { actorId: getUserContext(req).userId });
         if (firstScan) who.pass = (await getGuestPass(companyId, who.pass.id)) || who.pass;
     }
@@ -1090,8 +1149,14 @@ async function panelOfRecord(req, record) {
     let who;
     if (record.guestRegistrationId) who = await resolveHolder(companyId, { guestRegistrationId: record.guestRegistrationId });
     else {
-        const patron = await Patron.findOne({ where: { companyId, id: record.patronId }, attributes: ['memberNo'] });
-        who = patron && patron.memberNo ? await resolveHolder(companyId, { memberNo: patron.memberNo, guestName: record.holderName || null }) : { error: 'no member' };
+        const patron = await Patron.findOne({ where: { companyId, id: record.patronId }, attributes: ['memberNo', 'patronType', 'sourceId'] });
+        if (patron && VISITING_PATRON_TYPE_KEYS.includes(patron.patronType)) {
+            // A visiting member is served on the day's own pass of the letter;
+            // with none today (an item brought back late) there is no panel.
+            const { now } = await clock(companyId);
+            const own = (await listGuestPassesOfVisit(companyId, patron.sourceId, now.date)).find((p) => !p.accompanying);
+            who = own ? await resolveHolder(companyId, { guestRegistrationId: own.id }) : { error: 'no pass today' };
+        } else who = patron && patron.memberNo ? await resolveHolder(companyId, { memberNo: patron.memberNo, guestName: record.holderName || null }) : { error: 'no member' };
     }
     return who.error ? null : servePicture(req, who);
 }
@@ -1145,14 +1210,15 @@ async function undoIssue(req, id) {
 
 // ---- slice 6c: the guest without a pass, with the member ---------------------------------------
 
-// The guests served under a member today (or still holding something of
-// theirs): the ones on a pass and the ones served by name.
-async function guestsOfHost(companyId, patron, { memberId, date, startOfDay }) {
+// The guests served under a member - or a visiting member - today (or still
+// holding something of theirs): the ones on a pass and the ones served by
+// name. `passes` = today's passes of that person's guests.
+async function guestsOfHost(companyId, patron, passes, { date, startOfDay }) {
     const byKey = new Map();
     const keyOf = (passId, name) => passId || `name:${String(name).toLowerCase()}`;
-    // Today's passes of this host: a guest registered today is one tap away
-    // from the member's panel before they have taken anything.
-    for (const p of await listGuestPassesOfHost(companyId, memberId, date)) byKey.set(p.id, { name: p.guest.name, guestRegistrationId: p.id, holding: 0 });
+    // Today's passes under this person: a guest registered today is one tap
+    // away from their panel before they have taken anything.
+    for (const p of passes) byKey.set(p.id, { name: p.guest.name, guestRegistrationId: p.id, holding: 0 });
     if (!patron) return [...byKey.values()];
     // The guests on the lines of the host's entries today (a guest by name
     // who entered a facility).
@@ -1259,7 +1325,7 @@ async function removeDoorGuest(req, guestRegistrationId) {
     const pass = await getGuestPass(companyId, guestRegistrationId);
     if (!pass) return { error: 'That guest pass was not found.', status: 404 };
     if (pass.status === 'cancelled') return { error: `Pass ${pass.registrationNo} is already cancelled.` };
-    if (pass.channel !== 'facility') return { error: `Pass ${pass.registrationNo} was not registered at the station - cancel it under Guest Registrations.` };
+    if (pass.channel !== 'facility' || !pass.host) return { error: `Pass ${pass.registrationNo} was not registered at the station - cancel it at the Registration Counter.` };
     const { now, timezone } = await clock(companyId);
     const startOfDay = localToDate(`${now.date}T00:00`, timezone);
     const taken = await IssueRecord.findAll({ where: { companyId, guestRegistrationId: pass.id, [Op.or]: [{ status: 'issued' }, { issuedAt: { [Op.gte]: startOfDay } }] }, attributes: ['status', 'remarks'] });
@@ -1482,6 +1548,8 @@ async function admit(req, body) {
     if (!type) return { error: 'Pick an entry facility.' };
     const who = await resolveHolder(companyId, { guestRegistrationId: body.guestRegistrationId, memberNo: body.memberNo, guestName: body.guestName });
     if (who.error) return who;
+    // Step 7b opens the facilities to a visiting member's pass.
+    if (who.visit) return { error: `${type.code} cannot be entered on a visiting member's pass yet.` };
     const standing = who.standing;
     const [{ now, timezone }, { setting, sessions, guestRules }, ptypes] = await Promise.all([clock(companyId), availability.loadRules(companyId), participantTypes.catalog(companyId)]);
     const date = now.date;

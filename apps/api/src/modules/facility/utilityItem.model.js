@@ -53,12 +53,8 @@ const UtilityItem = sequelize.define('FacilityUtilityItem', {
         allowNull: false,
         defaultValue: 1,
     },
-    // Days a returnable item may be kept; 0 = due back the same day.
-    dueDays: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0,
-    },
+    // (`dueDays` was dropped 2026-11-14: nobody keeps an item overnight, so
+    // every returnable item is due back the same day.)
     // The issue-fee billing item charged per unit, piece or use; NULL = free.
     feeTransactionTypeId: {
         type: DataTypes.UUID,
@@ -66,6 +62,13 @@ const UtilityItem = sequelize.define('FacilityUtilityItem', {
     },
     // OFF = members only. Enforced from slice 6c (a guest as the holder).
     guestsAllowed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    // OFF = not issued to a visiting affiliated or reciprocal member, nor to a
+    // guest they brought (slice 7, structure approved 2026-11-14).
+    visitingMembersAllowed: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,

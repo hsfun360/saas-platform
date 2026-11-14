@@ -74,17 +74,15 @@ function issueLimitVerdict({ held, taking, limit, name, unitWord, usedToday = nu
     return `${name} would hold ${held + taking} ${unitWord} - the limit is ${limit}${held ? ` (already holding ${held})` : ''}.`;
 }
 
-// Due back: `issueDueDays` after the issue date at the type's close time for
-// that day type (or end of day), as a club-local 'YYYY-MM-DDTHH:MM' string
-// the caller converts with the club's timezone.
-function dueBackLocal({ issueDate, dueDays, hours }) {
-    const d = new Date(`${issueDate}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + Number(dueDays || 0));
-    const date = d.toISOString().slice(0, 10);
+// Due back: the SAME day (2026-11-14: nobody keeps an item overnight - the
+// "due back after N days" setting is gone), at the close time of `hours` or
+// the end of the day, as a club-local 'YYYY-MM-DDTHH:MM' string the caller
+// converts with the club's timezone.
+function dueBackLocal({ issueDate, hours = null }) {
     const closeMin = hours && hours.close < 24 * 60 ? hours.close : 23 * 60 + 59;
     const hh = String(Math.floor(closeMin / 60)).padStart(2, '0');
     const mm = String(closeMin % 60).padStart(2, '0');
-    return `${date}T${hh}:${mm}`;
+    return `${issueDate}T${hh}:${mm}`;
 }
 
 // ---- rule 6: the return ---------------------------------------------------------
@@ -128,13 +126,22 @@ function passVerdict(pass) {
     if (pass.passState === 'cancelled') return `Pass ${pass.registrationNo} is cancelled.`;
     if (pass.passState === 'upcoming') return `This pass is for ${pass.visitDateText} - it is not valid today.`;
     if (pass.passState === 'expired') return `This pass was for ${pass.visitDateText} and has expired.`;
-    // The Registration Counter also issues the pass to visiting affiliated and
-    // reciprocal members (2026-11-14). The station serves a member's guest
-    // only until its own rules for those holders are built.
-    if (pass.patronGroup && pass.patronGroup !== 'guest') {
-        return `Pass ${pass.registrationNo} belongs to ${pass.accompanying ? 'a guest of ' : ''}a visiting ${pass.patronGroup === 'reciprocal' ? 'reciprocal' : 'affiliated'} club member - the station does not serve these passes yet.`;
-    }
+    // A visiting member's pass (the Registration Counter issues it to an
+    // affiliated or reciprocal member and to the guests they bring) is served
+    // on the letter behind it.
+    if (isVisitingPass(pass) && !(pass.visit && pass.visit.id)) return `Pass ${pass.registrationNo} has no letter behind it - see the Registration Counter.`;
     return null;
+}
+
+// Slice 7: the pass of a visiting affiliated or reciprocal member, or of a
+// guest they brought (`accompanying`).
+function isVisitingPass(pass) {
+    return !!pass && !!pass.patronGroup && pass.patronGroup !== 'guest';
+}
+
+// How a visiting member is named on the panel and in a message.
+function visitingLabel(patronGroup) {
+    return patronGroup === 'reciprocal' ? 'Reciprocal member' : 'Affiliated member';
 }
 
 // May the person in the panel take this utility item now? Returns
@@ -142,8 +149,12 @@ function passVerdict(pass) {
 // button. `held` = pieces or units the person holds (a use-only item: uses
 // today); `fee` = { code, unitAmount } or null (free); `priceRequired` =
 // the fee item refuses without a price (no manual price allowed).
-function serveTileVerdict({ behaviour, isGuest, guestsAllowed, requiresEntry, inside, held, limit, freeUnits, fee, priceRequired = true }) {
+// `isVisiting` = a visiting affiliated or reciprocal member, or a guest they
+// brought (then `isGuest` too): the item's own "Visiting members allowed"
+// switch answers for both, and their guest also needs "Guests allowed".
+function serveTileVerdict({ behaviour, isGuest, guestsAllowed, isVisiting = false, visitingAllowed = true, requiresEntry, inside, held, limit, freeUnits, fee, priceRequired = true }) {
     if (isGuest && guestsAllowed === false) return { allowed: false, reason: 'Members only.' };
+    if (isVisiting && visitingAllowed === false) return { allowed: false, reason: isGuest ? "Not for a visiting member's guests." : 'Not for visiting members.' };
     if (requiresEntry && !inside) return { allowed: false, reason: 'Only for a person inside a facility today.' };
     const cap = Number(limit || 0);
     if (cap > 0 && Number(held || 0) >= cap) {
@@ -218,7 +229,7 @@ function doorGuestVerdict({ name, mobile, email, passEnabled = true, contactRequ
 module.exports = {
     checkInState, openingHours, isOpenAt, liveCount, capacityVerdict,
     heldByPatron, issueLimitVerdict, dueBackLocal, returnOutcome,
-    UNDO_MINUTES, scanKind, passVerdict, serveTileVerdict, undoVerdict,
+    UNDO_MINUTES, scanKind, passVerdict, isVisitingPass, visitingLabel, serveTileVerdict, undoVerdict,
     UNDONE_REMARK, hasMobile, doorGuestVerdict,
     partySize, entryVerdict,
 };
