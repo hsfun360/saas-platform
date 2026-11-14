@@ -36,6 +36,7 @@ const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const workflowGateway = require('../../platform/workflowGateway');
 const golfGateway = require('../../platform/golfGateway');
+const facilityGateway = require('../../platform/facilityGateway');
 const {
     VISIT_DIRECTIONS, VISIT_DIRECTION_KEYS, VISIT_STATUSES, OPEN_VISIT_STATUS_KEYS, COUNTED_VISIT_STATUS_KEYS, VISIT_FACILITIES, VISIT_FACILITY_KEYS,
 } = require('./affiliatedVisit.constants');
@@ -800,8 +801,15 @@ async function flightsOweBills(companyId, visitId, { transaction } = {}) {
     return false;
 }
 
+// What the Facility station still holds against a letter (slice 7c): an item
+// its party has not brought back, or an open facility bill. Null = nothing.
+async function facilityHold(companyId, visitId, { transaction } = {}) {
+    const standing = await facilityGateway.getVisitFacilityStanding(companyId, visitId, { transaction });
+    return standing && !standing.clear ? standing : null;
+}
+
 // After a settlement: complete the letter once its LAST day has come and no
-// flight of it still owes a bill. A letter with days still to run stays open
+// flight of it still owes a bill and the Facility station holds nothing. A letter with days still to run stays open
 // (the worker tick completes it after its last day).
 async function completeIfSettled(companyId, bookingProfileId, { transaction } = {}) {
     if (!bookingProfileId) return null;
@@ -812,6 +820,7 @@ async function completeIfSettled(companyId, bookingProfileId, { transaction } = 
     if (!(await golfGateway.bookingFullySettled(companyId, bookingProfileId, { transaction }))) return null;
     if (lastDayOf(visit) > (await clubToday(companyId))) return null;
     if (await flightsOweBills(companyId, visit.id, { transaction })) return null;
+    if (await facilityHold(companyId, visit.id, { transaction })) return null;
     visit.status = 'completed';
     visit.completedAt = new Date();
     await visit.save({ transaction });
@@ -823,6 +832,12 @@ async function complete(req, id) {
     if (l.error) return l;
     const { row } = l;
     if (!['arrived', 'issued'].includes(row.status)) return fail(`Visit ${row.visitNo} is ${row.status} - only an arrived (inbound) or issued (outbound) visit completes.`);
+    // An inbound letter does not complete while the Facility station still
+    // holds something against it: an item out, or an open facility bill.
+    if (row.direction === 'inbound') {
+        const hold = await facilityHold(l.companyId, row.id);
+        if (hold) return fail(`Visit ${row.visitNo} cannot complete yet: at the Facility station ${row.visitorName} ${hold.text}.`);
+    }
     row.status = 'completed';
     row.completedAt = new Date();
     row.updatedBy = getUserContext(req).userId;
@@ -864,7 +879,8 @@ async function byBooking(companyId, bookingProfileIds, { transaction } = {}) {
 }
 
 // Worker tick: open visits whose LAST day is past (club-local) expire; an
-// arrived letter whose last day is past completes once no flight owes a bill.
+// arrived letter whose last day is past completes once no flight owes a bill
+// and the Facility station holds nothing against it.
 async function scanVisits() {
     const due = await Visit.findAll({ where: { status: { [Op.in]: ['requested', 'pending-approval', 'confirmed', 'issued'] } }, attributes: ['id', 'companyId', 'visitDate', 'visitDateTo', 'visitNo', 'visitorName', 'createdBy', 'status', 'direction'] });
     let expired = 0;
@@ -892,6 +908,7 @@ async function scanVisits() {
     for (const row of open) {
         if (lastDayOf(row) >= clubNow(await companyTimezoneById(row.companyId))) continue;
         if (await flightsOweBills(row.companyId, row.id)) continue;
+        if (await facilityHold(row.companyId, row.id)) continue;
         const [n] = await Visit.update({ status: 'completed', completedAt: new Date() }, { where: { id: row.id, status: 'arrived' } });
         completed += n;
     }

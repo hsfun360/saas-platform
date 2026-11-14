@@ -542,6 +542,11 @@ async function cancelVisitorDay(req, l, body) {
     const { row, party, companyId, today } = l;
     if (String(row.visitDate) < today) return fail(`${dateText(row.visitDate)} has passed - registration ${row.registrationNo} stands.`);
     if (!(await canModifyRecord(req, row))) return fail("Your role's data scope does not allow amending this record.", 403);
+    // A day that was used at the Facility station stands (Facility's slice
+    // 7c): the visitor's own day carries their guests' use, a guest's row
+    // answers for that guest's pass alone.
+    const use = await require('../../platform/facilityGateway').getVisitDayFacilityUse(companyId, row.affiliatedVisitId, String(row.visitDate), { guestRegistrationId: row.guestId ? row.id : null });
+    if (use && use.used) return fail(`${capitalise(nameOf(party))} was served at the Facility station on ${dateText(row.visitDate)} (${use.text}) - registration ${row.registrationNo} stands.`);
     const reason = str(body.reason);
     if (!reason) return fail('Give the reason for cancelling the registration.');
     const callerId = getUserContext(req).userId;
