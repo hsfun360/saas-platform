@@ -126,6 +126,7 @@ export class FacilityTypesComponent implements OnInit {
     capacity: 'The number of persons inside at one time across all facilities of this type. The Control Station shows the live count and refuses entry past it; blank = unlimited.',
     hours: 'Entry types are open between these times; leave both blank for no restriction. Slot types take their hours from the slot set instead.',
     guests: 'These apply only while guest control is switched on in Facility Specification, and only tighten the general flags there. Guests also count against the member\'s monthly allowance.',
+    visiting: 'A visiting member is a member of an affiliated or reciprocal club who received a day pass at the Registration Counter. They enter on that pass, in their own name, and a guest they brought enters once they are inside. Their entry fee is the price of Affiliated Member or Reciprocal Member on the entry fee item\'s price card - with a fee item and no such price, the station keeps the facility closed to them and says so. This switch is always in force, whatever guest control says.',
     slotSets: 'A slot set defines the bookable slots for a day scope from an effective date: first start, last start and slot length generate the list, which you can then adjust (untick a lunch break, mark evening slots front-desk-only). Add a weekend set when weekends run differently, and a new set with a later effective date when the schedule changes.',
     fees: 'When a bill opens for a booking of this type, the facility fee is charged once per reserved slot and the guest fee once per guest participant, each priced from its rate card for the slot\'s day, session and participant type. Leave a picker blank for no automatic charge. The items themselves live under Transaction Types.',
     approval: 'Every booking of this type is held pending approval and routes through the Workflow engine (purpose Facility booking); with no chain configured it approves at once. A participant type can also require approval on its own.',
@@ -163,6 +164,7 @@ export class FacilityTypesComponent implements OnInit {
     // guest policy
     guestsAllowed: [true],
     memberGuestsAllowed: [true],
+    visitingMembersAllowed: [true],
     maxGuestsPerBooking: this.fb.control<number | null>(null, [Validators.min(0), Validators.max(100)]),
     hostMustBePresent: [true],
     // slice 2a: default fees + approval
@@ -310,6 +312,7 @@ export class FacilityTypesComponent implements OnInit {
       closeTimeWeekend: t?.closeTimeWeekend || '',
       guestsAllowed: t?.guestsAllowed !== false,
       memberGuestsAllowed: t?.memberGuestsAllowed !== false,
+      visitingMembersAllowed: t?.visitingMembersAllowed !== false,
       maxGuestsPerBooking: t?.maxGuestsPerBooking ?? null,
       hostMustBePresent: t?.hostMustBePresent !== false,
       feeTransactionTypeId: t?.feeTransactionTypeId || '',
@@ -418,6 +421,7 @@ export class FacilityTypesComponent implements OnInit {
       closeTimeWeekend: v.closeTimeWeekend || null,
       guestsAllowed: v.guestsAllowed === true,
       memberGuestsAllowed: v.memberGuestsAllowed === true,
+      visitingMembersAllowed: v.visitingMembersAllowed === true,
       maxGuestsPerBooking: optInt(v.maxGuestsPerBooking, 0, 100),
       hostMustBePresent: v.hostMustBePresent === true,
       feeTransactionTypeId: v.feeTransactionTypeId || null,

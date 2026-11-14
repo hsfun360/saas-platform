@@ -2,12 +2,11 @@ import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionS
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { FacilityParticipantTypeService, FacilityParticipantType, FacilityBaseIdentity } from '../services/facility-participant-type.service';
+import { FacilityParticipantTypeService, FacilityParticipantType, FacilityBaseIdentity, FacilityBaseIdentityOption } from '../services/facility-participant-type.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CanDirective } from '../shared/can.directive';
-import { MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
@@ -38,7 +37,10 @@ export class FacilityParticipantTypesComponent implements OnInit {
   private static readonly LIST_PATH = '/facility/participant-types';
 
   readonly rows = signal<FacilityParticipantType[]>([]);
-  readonly baseIdentities = signal<MembershipStatusOption[]>([]);
+  readonly baseIdentities = signal<FacilityBaseIdentityOption[]>([]);
+  // The bases a club-defined type may take: the two visiting price groups
+  // belong to their system rows only (shown, locked, when one is edited).
+  readonly baseOptions = computed(() => this.baseIdentities().filter((b) => !b.systemOnly || this.editSystem()));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -95,6 +97,8 @@ export class FacilityParticipantTypesComponent implements OnInit {
       case 'member': return 'A member of this club: standing, the per-type slots-per-day limit and the booking window apply; books in advance.';
       case 'member-guest': return 'A member joining another member\'s booking: member standing, but the guest-control switch for members as guests applies and the host\'s guest cap counts them.';
       case 'guest': return 'A visitor with no standing: guest control, the host\'s guest cap and the host\'s monthly guest allowance apply; may be registered at the station.';
+      case 'affiliate': return 'A member of an affiliated club on a day pass from the Registration Counter: the price group of their entry fee at the station. Not keyed on a booking.';
+      case 'reciprocal': return 'A member of a reciprocal club on a day pass from the Registration Counter: the price group of their entry fee at the station. Not keyed on a booking.';
       default: return '';
     }
   }

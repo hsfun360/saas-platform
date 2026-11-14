@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { FacilityStationComponent } from './facility-station';
-import { FacilityStationService, ServePanel, ServeTile, StationDay, StationIssue } from '../services/facility-station.service';
+import { FacilityStationService, ServeEntry, ServePanel, ServeTile, StationDay, StationIssue, StationRegistration } from '../services/facility-station.service';
 
 // Behaviour tests for slice 7 (step 7a): the day pass of a VISITING member of
 // an affiliated or reciprocal club opens the same Serve panel in their own
@@ -47,6 +47,7 @@ describe('FacilityStationComponent - a visiting member of an affiliated or recip
   let component: FacilityStationComponent;
   let scans: unknown[];
   let issues: Record<string, unknown>[];
+  let admissions: Record<string, unknown>[];
   let nextPanel: ServePanel;
 
   const held: StationIssue = {
@@ -90,12 +91,14 @@ describe('FacilityStationComponent - a visiting member of an affiliated or recip
   beforeEach(async () => {
     scans = [];
     issues = [];
+    admissions = [];
     nextPanel = visitingPanel({});
     const service = {
       meta: () => of({ participantTypes: [], registrationStatuses: [], issueStatuses: [], returnConditions: [], unitStatuses: [], limits: { maxGuestsPerRegistration: 50, maxIssueQuantity: 500 } }),
       today: () => of(day),
       scan: (body: unknown) => { scans.push(body); return of({ panel: nextPanel }); },
       issue: (body: Record<string, unknown>) => { issues.push(body); return of({ message: '1 TOWEL issued to Lim Chee Keong.', issueId: 'r2', warnings: [], panel: nextPanel }); },
+      admit: (body: Record<string, unknown>) => { admissions.push(body); return of({ message: 'Lim Chee Keong is in POOL (REG-00009) - 4 of 30 inside.', registrationId: 'reg9', warnings: [], panel: nextPanel }); },
     };
     await TestBed.configureTestingModule({
       imports: [FacilityStationComponent],
@@ -139,8 +142,6 @@ describe('FacilityStationComponent - a visiting member of an affiliated or recip
     expect(button('E2E Companion')).toBeDefined();
     expect(button('Add guest')).toBeUndefined();
     expect(host().textContent).toContain('registered at the Registration Counter');
-    // No facility is entered on this pass yet: the section does not show.
-    expect(Array.from(host().querySelectorAll('h3.dlg-section')).map((h) => h.textContent?.trim())).not.toContain('Enter a facility');
     button('E2E Companion')?.click();
     await settle();
     expect(scans[scans.length - 1]).toEqual({ guestRegistrationId: 'gr8' });
@@ -160,6 +161,82 @@ describe('FacilityStationComponent - a visiting member of an affiliated or recip
   it('offers no step back when the visiting member holds no pass of their own today', async () => {
     await scan({ ...guestPanel, visit: { ...visit, ownPassId: null } });
     expect(button('Serve Lim Chee Keong')).toBeUndefined();
+  });
+
+  // ---- step 7b: entering a facility on the pass ----
+
+  function entry(over: Partial<ServeEntry>): ServeEntry {
+    return {
+      facilityTypeId: 'pool', code: 'POOL', description: 'Pool', iconUrl: null, liveCount: 3, capacity: 30, willReach: 4,
+      fee: { code: 'POOLFEE', description: 'Pool entry', unitAmount: 25 }, allowed: true, reason: null, inside: null, hostInside: false, guestTypes: [],
+      ...over,
+    };
+  }
+
+  it('admits the visiting member on their own pass, at their own price, in their own name', async () => {
+    await scan(visitingPanel({ entries: [entry({}), entry({ facilityTypeId: 'gym', code: 'GYM', description: 'Gym', fee: null, allowed: false, reason: 'GYM is not open to visiting members.' })] }));
+    expect(Array.from(host().querySelectorAll('h3.dlg-section')).map((h) => h.textContent?.trim())).toContain('Enter a facility');
+    const tiles = Array.from(host().querySelectorAll('.st-tile')).filter((t) => t.querySelector('.st-tile__icon')?.textContent?.trim() === 'login');
+    expect(tiles[0].textContent).toContain('25.00 before tax');
+    expect(tiles[0].textContent).not.toContain("'s bill");
+    expect(tiles[1].textContent).toContain('GYM is not open to visiting members.');
+    expect(tiles[1].querySelector('button')).toBeNull();
+    button('Admit to POOL')?.click();
+    await settle();
+    expect(admissions).toEqual([{ facilityTypeId: 'pool', guestRegistrationId: 'gr7', memberNo: null, panel: true }]);
+  });
+
+  it('says a price is missing for the visiting member where the club has not set one', async () => {
+    await scan(visitingPanel({ entries: [entry({ fee: { code: 'POOLFEE', description: 'Pool entry', unitAmount: null }, allowed: false, reason: 'POOLFEE has no price today.' })] }));
+    const tile = Array.from(host().querySelectorAll('.st-tile')).find((t) => t.textContent?.includes('POOL'));
+    expect(tile?.textContent).toContain('POOLFEE has no price today.');
+    expect(tile?.querySelector('button')).toBeNull();
+  });
+
+  it('keeps the guest out until the visiting member is inside, and bills the guest fee to the visiting member', async () => {
+    await scan({ ...guestPanel, entries: [entry({ fee: { code: 'GUESTFEE', description: 'Guest fee', unitAmount: 10 }, allowed: false, reason: 'Lim Chee Keong must enter POOL first.' })] });
+    let tile = Array.from(host().querySelectorAll('.st-tile')).find((t) => t.textContent?.includes('POOL'));
+    expect(tile?.textContent).toContain('Lim Chee Keong must enter POOL first.');
+    await scan({ ...guestPanel, entries: [entry({ fee: { code: 'GUESTFEE', description: 'Guest fee', unitAmount: 10 }, hostInside: true })] });
+    tile = Array.from(host().querySelectorAll('.st-tile')).find((t) => t.textContent?.includes('POOL'));
+    expect(tile?.textContent).toContain("10.00 before tax, on Lim Chee Keong's bill");
+    button('Admit to POOL')?.click();
+    await settle();
+    expect(admissions[0]).toEqual({ facilityTypeId: 'pool', guestRegistrationId: 'gr8', memberNo: null, panel: true });
+  });
+
+  it('signs the visiting member out with the guests on their entry', async () => {
+    await scan(visitingPanel({ entries: [entry({ allowed: false, inside: { registrationId: 'reg9', registrationNo: 'REG-00009', timeIn: '2026-11-14T01:20:00Z', guestCount: 1, own: true } })] }));
+    expect(button('Sign out with 1 guest')).toBeDefined();
+  });
+
+  it('shows a visiting member\'s entry on the day board with their tag and no guest editing', async () => {
+    const reg: StationRegistration = {
+      id: 'reg9', registrationNo: 'REG-00009', patron: { id: 'p9', name: 'Lim Chee Keong', memberNo: null, patronType: 'reciprocal' }, facilityTypeId: 'pool', facilityId: null, facility: null,
+      bookingSlotId: null, registrationDate: '2026-11-14', timeIn: '2026-11-14T01:20:00Z', timeOut: null, dayType: 'weekend', guestCount: 1, hostPresent: true,
+      status: 'in', billId: null, bill: null, remarks: null, guests: [{ id: 'g1', patronId: null, participantType: 'guest', name: 'E2E Companion', memberNo: null, guestVisitId: null, sortOrder: 1 }],
+    };
+    const member: StationRegistration = { ...reg, id: 'reg8', registrationNo: 'REG-00008', patron: { id: 'p1', name: 'Ahmad Faizal', memberNo: 'M001', patronType: 'member' }, guests: [], guestCount: 0 };
+    day.types = [{
+      id: 'pool', code: 'POOL', description: 'Pool', usageMode: 'entry', iconUrl: null, capacity: 30, entryRequiresBooking: false, guestsAllowed: true, memberGuestsAllowed: true,
+      visitingMembersAllowed: true, maxGuestsPerBooking: null, hours: null, isOpenNow: true, units: [], liveCount: 3, registrations: [reg, member],
+    }];
+    try {
+      fixture = TestBed.createComponent(FacilityStationComponent);
+      component = fixture.componentInstance;
+      await settle();
+      component.setType('pool');
+      await settle();
+      const cards = Array.from(host().querySelectorAll('.data-card'));
+      const visiting = cards.find((c) => c.textContent?.includes('Lim Chee Keong'));
+      const own = cards.find((c) => c.textContent?.includes('Ahmad Faizal'));
+      expect(visiting?.textContent).toContain('(reciprocal member)');
+      expect(visiting?.textContent).toContain('Sign out');
+      expect(visiting?.querySelector('button[aria-label="Guests of REG-00009"]')).toBeNull();
+      expect(own?.querySelector('button[aria-label="Guests of REG-00008"]')).not.toBeNull();
+    } finally {
+      day.types = [];
+    }
   });
 
   it('tags what a visiting member holds on the day board, with no member number', async () => {

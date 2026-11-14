@@ -150,4 +150,34 @@ describe('FacilityTypesComponent', () => {
     component.onSaveSlots();
     expect(savedSlots.map((s) => s.length)).toEqual([2]);
   });
+
+  it('offers "Visiting members allowed" on an entry type only, saves it, and says so on the card', async () => {
+    const updates: Record<string, unknown>[] = [];
+    (serviceStub as unknown as { update: unknown }).update = (_id: string, payload: Record<string, unknown>) => {
+      updates.push(payload);
+      return of({ message: 'Saved.', facilityType: facilityType({ id: 't4', code: 'POOL', usageMode: 'entry', visitingMembersAllowed: false }) });
+    };
+    const pool = facilityType({ id: 't4', code: 'POOL', description: 'Pool', usageMode: 'entry', slotSetCount: 0, visitingMembersAllowed: false });
+    component.rows.set([mine, pool]);
+    fixture.detectChanges();
+    await settle();
+    expect(card('POOL').textContent).toContain('No visiting members');
+    expect(card('TENNIS').textContent).not.toContain('No visiting members');
+
+    component.openEdit(pool);
+    fixture.detectChanges();
+    await settle();
+    expect(query('app-dialog')?.textContent).toContain('Visiting members allowed');
+    expect(component.form.controls.visitingMembersAllowed.value).toBe(false);
+    component.form.controls.visitingMembersAllowed.setValue(true);
+    component.onSave();
+    await settle();
+    expect(updates[0]['visitingMembersAllowed']).toBe(true);
+
+    // A slot type is not entered on a day pass: the switch is not offered.
+    component.openEdit(mine);
+    fixture.detectChanges();
+    await settle();
+    expect(query('app-dialog')?.textContent).not.toContain('Visiting members allowed');
+  });
 });

@@ -89,6 +89,7 @@
                     <span class="data-card__reg">{{ t.slotSetCount }} slot set{{ t.slotSetCount === 1 ? '' : 's' }}</span>
                   }
                   @if (!t.guestsAllowed) { <span class="mt-chip">No guests</span> }
+                  @if (t.usageMode === 'entry' && t.visitingMembersAllowed === false) { <span class="mt-chip">No visiting members</span> }
                 </div>
                 @if (ruleSummary(t); as summary) {
                   <div class="data-card__desc">{{ summary }}</div>
@@ -382,6 +383,19 @@
                   </div>
                 </div>
               </details>
+
+              @if (formMode() === 'entry') {
+                <details class="dlg-sec" open>
+                  <summary><h3 class="dlg-section">Visiting members</h3></summary>
+                  <label class="switch-row switch">
+                    <input type="checkbox" role="switch" formControlName="visitingMembersAllowed" />
+                    <span class="switch-row__text">
+                      <span class="switch-row__title">Visiting members allowed <app-field-info label="Visiting members" [text]="hint.visiting" /></span>
+                      <span class="switch-row__hint">Off = a member of an affiliated or reciprocal club may not enter on their day pass, nor may a guest they brought.</span>
+                    </span>
+                  </label>
+                </details>
+              }
 
               <details class="dlg-sec" open>
                 <summary><h3 class="dlg-section">Fees and approval</h3></summary>

@@ -49,6 +49,9 @@ export interface FacilityType {
   // guest policy
   guestsAllowed: boolean;
   memberGuestsAllowed: boolean;
+  // Entry types (slice 7b): off = a visiting member of an affiliated or
+  // reciprocal club may not enter on their day pass, nor a guest they brought.
+  visitingMembersAllowed?: boolean;
   maxGuestsPerBooking: number | null;
   hostMustBePresent: boolean;
   // slice 2a: default fees (facility.TransactionType ids) + approval

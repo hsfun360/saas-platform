@@ -235,7 +235,7 @@
               <div class="data-card">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}{{ visitingTag(r.patron) }}</span></div>
                     <div class="data-card__subline">
                       <span class="data-card__reg">{{ r.registrationNo }} · in {{ r.timeIn | localDate:'datetime' }}{{ r.facility ? ' · ' + r.facility.code : '' }}{{ r.hostPresent === false ? ' · guests only, the member is not inside' : '' }}</span>
                       @if (r.bill) { <span class="status-chip" [class.status-chip--on]="r.bill.status === 'settled'" [class.status-chip--info]="r.bill.status === 'open'">Bill {{ r.bill.billNo }} · {{ r.bill.status }}</span> }
@@ -250,10 +250,12 @@
                       <span class="material-icons" aria-hidden="true">logout</span>
                       Sign out
                     </button>
-                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openGuests(r)" [attr.aria-label]="'Guests of ' + r.registrationNo">
-                      <span class="material-icons" aria-hidden="true">group_add</span>
-                      Guests
-                    </button>
+                    @if (!isVisiting(r.patron)) {
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openGuests(r)" [attr.aria-label]="'Guests of ' + r.registrationNo">
+                        <span class="material-icons" aria-hidden="true">group_add</span>
+                        Guests
+                      </button>
+                    }
                     @if (r.bill) {
                       <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(r.bill.id, null)" [attr.aria-label]="'Bill ' + r.bill.billNo">
                         <span class="material-icons" aria-hidden="true">receipt_long</span>
@@ -268,7 +270,7 @@
               <div class="data-card st-card--out">
                 <div class="data-row data-row--with-badge">
                   <div class="data-row__main">
-                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}</span></div>
+                    <div class="data-card__title">{{ r.patron?.name }} <span class="data-card__reg">{{ r.patron?.memberNo ? '(' + r.patron?.memberNo + ')' : '' }}{{ visitingTag(r.patron) }}</span></div>
                     <div class="data-card__subline"><span class="data-card__reg">{{ r.registrationNo }} · {{ r.timeIn | localDate:'datetime' }} to {{ r.timeOut | localDate:'datetime' }}{{ r.guestCount ? ' · ' + r.guestCount + ' guest' + (r.guestCount === 1 ? '' : 's') : '' }}</span></div>
                   </div>
                   <div class="data-card__badge data-row__badge"><span class="status-chip status-chip--off">Out</span></div>

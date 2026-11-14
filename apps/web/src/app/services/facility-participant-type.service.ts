@@ -4,7 +4,17 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipStatusOption } from '../models/auth.models';
 
-export type FacilityBaseIdentity = 'member' | 'member-guest' | 'guest';
+// 'affiliate' | 'reciprocal' = the two visiting price groups (slice 7b):
+// system rows only, a club does not define its own types on them.
+export type FacilityBaseIdentity = 'member' | 'member-guest' | 'guest' | 'affiliate' | 'reciprocal';
+
+// A base identity as the API serves it; `systemOnly` = not offered for a
+// club-defined type.
+export interface FacilityBaseIdentityOption {
+  key: string;
+  label: string;
+  systemOnly?: boolean;
+}
 
 // One row of facility.ParticipantType (structure approved 2026-10-25): the
 // club's participant categories; the code is the key every participant line
@@ -39,8 +49,8 @@ export class FacilityParticipantTypeService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/facility/participant-types`;
 
-  list(): Observable<{ participantTypes: FacilityParticipantType[]; baseIdentities: MembershipStatusOption[] }> {
-    return this.http.get<{ participantTypes: FacilityParticipantType[]; baseIdentities: MembershipStatusOption[] }>(this.base);
+  list(): Observable<{ participantTypes: FacilityParticipantType[]; baseIdentities: FacilityBaseIdentityOption[] }> {
+    return this.http.get<{ participantTypes: FacilityParticipantType[]; baseIdentities: FacilityBaseIdentityOption[] }>(this.base);
   }
 
   create(payload: FacilityParticipantTypePayload): Observable<{ message: string; participantType: FacilityParticipantType }> {

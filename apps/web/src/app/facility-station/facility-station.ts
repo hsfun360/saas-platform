@@ -746,7 +746,7 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // Who signs the entry out with this person.
   entryParty(e: ServeEntry, p: ServePanel): string {
     const n = e.inside?.guestCount || 0;
-    return p.kind === 'member' && n ? ` with ${n} guest${n === 1 ? '' : 's'}` : '';
+    return p.kind !== 'guest' && n ? ` with ${n} guest${n === 1 ? '' : 's'}` : '';
   }
 
   // A tap admits ONE person; the answer redraws the panel.
@@ -812,6 +812,12 @@ export class FacilityStationComponent implements OnInit, OnDestroy {
   // by their own pass of the day (none = nothing to step back to).
   canServeHost(p: ServePanel): boolean {
     return p.visit ? !!p.visit.ownPassId : !!p.host.memberNo;
+  }
+
+  // A visiting member's guests are registered at the Registration Counter:
+  // the desk does not key guests on their entry.
+  isVisiting(patron: { patronType?: string } | null | undefined): boolean {
+    return patron?.patronType === 'reciprocal' || patron?.patronType === 'affiliate';
   }
 
   // The tag of a visiting member on a card of the day board.

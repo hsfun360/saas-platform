@@ -141,7 +141,7 @@
             <select id="fptBase" formControlName="baseIdentity"
                     [attr.aria-invalid]="showError(form.controls.baseIdentity)" aria-describedby="fptBaseErr">
               <option value="">- Select -</option>
-              @for (b of baseIdentities(); track b.key) {
+              @for (b of baseOptions(); track b.key) {
                 <option [value]="b.key">{{ b.label }}</option>
               }
             </select>

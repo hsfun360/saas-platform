@@ -138,6 +138,7 @@ export interface StationType {
   entryRequiresBooking: boolean;
   guestsAllowed: boolean;
   memberGuestsAllowed: boolean;
+  visitingMembersAllowed?: boolean;
   maxGuestsPerBooking: number | null;
   hours: { open: string | null; close: string | null } | null;
   isOpenNow: boolean;
